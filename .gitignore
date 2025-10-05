@@ -1,0 +1,50 @@
+# DIA Window Optimizer - Git Ignore File
+
+# Data files (too large for git)
+rawfile/
+*.raw
+*.parquet
+*.tsv
+*.csv
+
+# Analysis outputs
+test_output/
+plots/
+*.pdf
+*.png
+*.rds
+*.RData
+
+# R temporary files
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+
+# Python files (if any)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+.venv
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
