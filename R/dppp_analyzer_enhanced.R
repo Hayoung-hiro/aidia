@@ -554,27 +554,54 @@ plot_dppp_heatmap_2d <- function(dppp_analysis) {
   dppp_2d <- dppp_analysis$dppp_2d$summary
   target <- dppp_analysis$target_dppp
 
+  # Filter out bins with no data
+  dppp_2d <- dppp_2d %>%
+    filter(n_precursors > 0, !is.na(mean_dppp), !is.infinite(mean_dppp))
+
+  if (nrow(dppp_2d) == 0) {
+    warning("No valid DPPP data for heatmap")
+    return(ggplot() +
+           annotate("text", x = 0.5, y = 0.5,
+                    label = "No valid DPPP data for heatmap", size = 6) +
+           theme_void())
+  }
+
+  # Calculate bin widths from breaks
+  rt_breaks <- dppp_analysis$dppp_2d$rt_breaks
+  mz_breaks <- dppp_analysis$dppp_2d$mz_breaks
+
+  rt_width <- diff(rt_breaks)[1]  # Assuming uniform bins
+  mz_width <- diff(mz_breaks)[1]
+
+  # Use geom_tile with explicit width/height for proper rendering
   p <- ggplot(dppp_2d, aes(x = rt_center, y = mz_center, fill = mean_dppp)) +
-    geom_tile() +
+    geom_tile(width = rt_width * 0.95, height = mz_width * 0.95) +  # Slightly smaller to show gaps
     scale_fill_viridis_c(
       name = "Mean DPPP",
       option = "plasma",
-      limits = c(0, max(dppp_2d$mean_dppp, na.rm = TRUE))
+      limits = c(0, quantile(dppp_2d$mean_dppp, 0.95, na.rm = TRUE)),  # Use P95 to avoid extreme outliers
+      oob = scales::squish,  # Squish values outside limits
+      na.value = "gray90"
     ) +
-    geom_contour(aes(z = mean_dppp), color = "white", alpha = 0.3, size = 0.5) +
+    geom_contour(aes(z = mean_dppp), color = "white", alpha = 0.3, size = 0.3, bins = 5) +
     labs(
       title = "DPPP Distribution Heatmap (RT × m/z)",
-      subtitle = sprintf("Target DPPP: %.2f | Current scan_time: %.2f sec",
+      subtitle = sprintf("Target DPPP: %.2f | Current scan_time: %.2f sec | Bins: %dx%d | Valid: %d",
                         target,
-                        dppp_analysis$scan_time),
+                        dppp_analysis$scan_time,
+                        dppp_analysis$dppp_2d$rt_bins,
+                        dppp_analysis$dppp_2d$mz_bins,
+                        nrow(dppp_2d)),
       x = "Retention Time (min)",
       y = "Precursor m/z"
     ) +
     theme_minimal() +
     theme(
       plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 11),
-      legend.position = "right"
+      plot.subtitle = element_text(size = 10),
+      legend.position = "right",
+      panel.grid.major = element_line(color = "gray90", size = 0.2),
+      panel.grid.minor = element_blank()
     )
 
   return(p)

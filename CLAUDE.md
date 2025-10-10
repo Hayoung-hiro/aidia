@@ -17,11 +17,12 @@ While the tool supports other instrument types (TimsTOF, SCIEX, Waters), it is o
 ## Key Features
 
 ### Core Capabilities
-- **Enhanced DPPP Analysis**: Current distribution analysis with satisfaction ratio calculation and interactive scan_time optimization
-- **Multiple RT Segmentation Strategies**: Uniform (equal time), density-based (adaptive), and quantile-based (equal precursor count)
-- **RT-Dependent m/z Distribution Analysis**: 2D density histogram with high-density region identification
-- **DynamicDIA Integration**: Professional smoothing (Savitzky-Golay, moving average, Gaussian) for RT-dependent boundaries
-- **Flexible Window Generation**: Fixed, variable (density-based), and overlapped window types
+- **Module 1 - Enhanced DPPP Analysis**: Current distribution analysis with satisfaction ratio calculation and interactive scan_time optimization
+- **Module 2 - Time-Based RT Binning**: RT segmentation using time intervals (e.g., 5-minute bins) or explicit breakpoints for consistent temporal resolution
+- **Module 3 - DynamicDIA-Driven Density Optimization**: Smoothing-based m/z boundary determination followed by uniform density window allocation
+- **Module 4 - User-Parameterized Window Generation**: Flexible window generation with user-specified constraints (n_windows, min/max_width, dynamic mode)
+  - Fixed, variable (density-based), and overlapped window types
+  - Dynamic vs static m/z range determination
 
 ### Iterative Optimization Framework (NEW)
 - **Progressive Refinement**: Automatic iteration from Raw_input through init_01, init_02, ... until convergence
@@ -175,11 +176,11 @@ The tool is specifically optimized for Thermo Fisher's Orbitrap family with diff
 - **Interactive Optimization**: User specifies target DPPP and satisfaction ratio → system recommends optimal scan_time
 - **Trade-off Visualization**: scan_time vs window count vs DPPP achievement curves
 
-**RT Segmentation Strategies (NEW)**:
-- **Uniform** (existing): Equal time intervals across RT range (e.g., 0-60 min → 5 segments of 12 min each)
-- **Density-based** (new): Adaptive segmentation with more segments in high-density regions
-- **Quantile-based** (new): Equal precursor count per segment for balanced distribution
-- **Comparison Framework**: Automated comparison of segmentation strategies with balance scoring
+**Module 2: Time-Based RT Binning**:
+- **Time-Unit Binning**: Equal time intervals using `rt_bin_width_min` parameter (e.g., 5-minute bins: 10-15, 15-20, 20-25 min)
+- **Explicit Breakpoints**: User-defined RT boundaries via `rt_breaks_min` vector (e.g., c(10, 20, 35, 50) for custom intervals)
+- **Temporal Consistency**: Ensures consistent time resolution across gradient, independent of precursor density
+- **Purpose**: Groups precursors by retention time for RT-dependent window optimization, NOT for equalizing precursor counts
 
 **DPPP-Based Optimization**: Target DPPP varies by Orbitrap type to balance sampling frequency with instrument capabilities:
 - **Astral**: 1.0-1.5 (leverages ultra-high speed parallel acquisition)
@@ -194,13 +195,23 @@ The tool is specifically optimized for Thermo Fisher's Orbitrap family with diff
 - **Sequential Orbitraps**: `cycle_time = MS1_time + (n_windows × MS2_time)`
 - Astral benefits from parallel MS1/MS2 acquisition, allowing higher window counts without proportional cycle time increases
 
-**Density-Based Optimization Engine**:
-- **2D Histogram Analysis**: Maps precursor distribution across RT × m/z space with configurable binning
-- **Local Density Calculation**: Computes precursor concentration in sliding windows
-- **High-Density Region Identification**: Automated detection using percentile thresholds (default: 90th percentile)
-- **Adaptive Window Sizing**: Dynamically adjusts window widths based on local precursor density
-- **Smart Boundary Placement**: Optimizes window boundaries to minimize precursor overlap
-- **RT-Dependent m/z Adjustment**: Adjusts m/z ranges based on retention time-specific density patterns
+**Module 3: DynamicDIA-Driven Density Optimization** (3-Step Workflow):
+
+**Step 1: m/z Boundary Determination (Dynamic Mode)**
+- **DynamicDIA Smoothing**: Apply Savitzky-Golay, Gaussian, or Moving Average smoothing to determine RT-dependent m/z ranges
+- **Smooth Transitions**: Ensures gradient continuity and removes outlier precursors
+- **Static Fallback**: Option to use raw data min/max boundaries instead (`dynamic = FALSE`)
+
+**Step 2: Precursor Distribution Analysis**
+- **Within-Boundary Analysis**: Analyze precursor density only within smoothed (or raw) m/z boundaries
+- **Density Profile**: Generate 1 Da resolution m/z histogram for precise density characterization
+- **High/Low Density Identification**: Classify regions by local precursor concentration
+
+**Step 3: Window Allocation for Uniform Density**
+- **Goal**: Each window contains similar number of precursors (uniform density)
+- **High Density → More Windows**: Narrow windows in crowded regions for better selectivity
+- **Low Density → Fewer Windows**: Wide windows in sparse regions for efficiency
+- **Constraints**: Respect user-specified `min_width_da` and `max_width_da` limits
 
 **DynamicDIA Integration**:
 - **Savitzky-Golay Smoothing**: Polynomial fitting for smooth RT transitions (via prospectr package)
@@ -217,10 +228,10 @@ The tool is specifically optimized for Thermo Fisher's Orbitrap family with diff
 
 **Iterative Refinement Algorithm (NEW)**:
 - **Smart Parameter Adjustment**:
-  - DPPP satisfaction < target → adjust scan_time
-  - Segment imbalance > 0.3 → switch to density/quantile segmentation
-  - Coverage gaps > 5% → increase window overlap
-  - Low precursors/window → adjust target DPPP
+  - DPPP satisfaction < target → adjust scan_time proportionally
+  - High RT bin variance → adjust rt_bin_width_min for better temporal consistency
+  - Coverage gaps > 5% → increase window overlap by 20%
+  - Low precursors/window < 50 → adjust target DPPP or increase min_width_da
 - **Convergence Detection**:
   - Auto-stop when DPPP satisfaction > 90% AND coverage > 95%
   - OR when Δmetrics < 2% between consecutive iterations
@@ -253,23 +264,27 @@ The tool is specifically optimized for Thermo Fisher's Orbitrap family with diff
   "instrument_preset": "astral",
   "target_dppp": 1.25,
 
-  // Enhanced DPPP analysis
+  // Module 1: Enhanced DPPP analysis
   "current_scan_time": 2.0,
   "target_dppp_satisfaction": 0.85,
 
-  // RT segmentation strategy
-  "rt_segments": 5,
-  "rt_mode": "uniform",  // "uniform", "density", or "quantile"
+  // Module 2: RT binning (time-based)
+  "rt_bin_width_min": 5,              // 5-minute bins (default)
+  "rt_breaks_min": null,              // OR explicit: [10, 20, 35, 50, 70]
 
-  // Window generation
-  "window_type": "variable",  // "fixed", "variable", or "overlapped"
-  "overlap_mode": "percentage",
-  "overlap_value": 0.5,
-
-  // DynamicDIA smoothing
-  "smoothing_method": "savgol",  // "savgol", "movav", or "gaussian"
+  // Module 3: DynamicDIA-driven optimization
+  "dynamic": true,                    // Use smoothed boundaries (default)
+  "smoothing_method": "savgol",       // "savgol", "movav", or "gaussian"
   "smoothing_window_size": 7,
   "polynomial_order": 3,
+  "mz_bin_width_da": 1,               // Density analysis resolution (Da)
+
+  // Module 4: Window generation
+  "n_windows": 100,                   // Total window count (default)
+  "min_width_da": 2,                  // Minimum window width (default: 2 Da)
+  "max_width_da": 80,                 // Maximum window width (default: 80 Da)
+  "window_type": "variable",          // "fixed", "variable", or "overlapped"
+  "overlap_percentage": 0,            // For overlapped type only
 
   // Iterative optimization
   "enable_iterative_mode": true,
@@ -365,10 +380,10 @@ The tool provides comprehensive visualization capabilities through the `visualiz
 - **DPPP Satisfaction Curve**: Target satisfaction ratio vs scan_time optimization curve
 - **Trade-off Analysis**: Multi-dimensional plot showing scan_time vs window count vs DPPP achievement
 
-**RT Segmentation Comparison (NEW)**:
-- **Strategy Comparison**: Side-by-side visualization of uniform, density, and quantile segmentation
-- **Balance Score**: Coefficient of variation across segments for each strategy
-- **Precursor Distribution**: Before/after equalization visualization
+**RT Binning Visualization (NEW)**:
+- **Time-Based Binning**: Visualization of RT bins across retention time gradient
+- **Precursor Count Distribution**: Histogram showing precursor counts per RT bin (expected to vary)
+- **Temporal Resolution**: RT bin width consistency across gradient
 
 **Post-Optimization Visualization**:
 - **Window Layout**: Visual representation of optimized isolation windows across m/z range
@@ -423,12 +438,14 @@ workspace <- initialize_iteration_workspace(
     rawfile_dir = "rawfile/",
     instrument_preset = "astral",
     target_dppp = 1.25,
-    rt_segments = 5,
-    rt_mode = "uniform",        # Start with simple uniform segmentation
+    rt_bin_width_min = 5,       # 5-minute RT bins
     scan_time = 2.0,
+    n_windows = 100,
+    min_width_da = 2,
+    max_width_da = 80,
     window_type = "variable",
-    overlap_mode = "percentage",
-    overlap_value = 0.5,
+    dynamic = TRUE,
+    overlap_percentage = 0,
     target_dppp_satisfaction = 0.85,
     target_coverage = 0.95
   )
@@ -455,15 +472,15 @@ performance_01 <- analyze_iteration_performance(
 suggestions_02 <- suggest_next_iteration_parameters(init_01, performance_01)
 # Auto-suggests:
 # - scan_time: 1.82 sec (from 2.0)
-# - rt_mode: "density" (from "uniform")
-# - overlap_value: 0.6% (from 0.5%)
-# - reason: "Increase DPPP satisfaction and balance segments"
+# - rt_bin_width_min: 3 (from 5) for finer temporal resolution
+# - overlap_percentage: 0.6% (from 0%)
+# - reason: "Increase DPPP satisfaction and improve RT bin consistency"
 
 # === Step 4: Run Improved Iteration ===
 config_02 <- workspace$initial_config
 config_02$scan_time <- suggestions_02$scan_time
-config_02$rt_mode <- suggestions_02$rt_mode
-config_02$overlap_value <- suggestions_02$overlap_value
+config_02$rt_bin_width_min <- suggestions_02$rt_bin_width_min
+config_02$overlap_percentage <- suggestions_02$overlap_percentage
 
 init_02 <- run_iteration(
   "init_02",
@@ -526,22 +543,21 @@ advanced_config <- list(
   instrument_preset = "astral",
   target_dppp = 1.0,  # Aggressive for high throughput
 
-  # Enhanced DPPP analysis
+  # Module 1: Enhanced DPPP analysis
   current_scan_time = 2.0,
   target_dppp_satisfaction = 0.90,  # High target
   dppp_tolerance = 0.1,
 
-  # RT segmentation (start with density-based)
-  rt_segments = 7,
-  rt_mode = "density",
-  density_threshold = 0.8,
+  # Module 2: RT binning (time-based)
+  rt_bin_width_min = 3,  # 3-minute bins for finer temporal resolution
+  # rt_breaks_min = c(10, 20, 35, 50, 70, 110),  # OR explicit breakpoints
 
-  # Window generation
+  # Module 4: Window generation
+  n_windows = 120,
+  min_width_da = 2.0,
+  max_width_da = 25.0,
   window_type = "variable",
-  min_window_width = 2.0,
-  max_window_width = 25.0,
-  overlap_mode = "percentage",
-  overlap_value = 0.5,
+  overlap_percentage = 0,
 
   # DynamicDIA integration
   smoothing_method = "savgol",
@@ -575,34 +591,37 @@ best_iteration <- automated_result$best_iteration
 final_report <- automated_result$final_report
 ```
 
-### RT Segmentation Strategy Comparison
+### Module 2: Time-Based RT Binning Examples
 
 ```r
-# Compare different RT segmentation strategies
+# Time-based RT binning (Module 2)
 source("R/rt_segmentation.R")
 
 data <- load_diann_data("report.parquet")
 
-# Generate all three segmentation strategies
-uniform_seg <- segment_rt_uniform(data, n_segments = 5)
-density_seg <- segment_rt_density(data, n_segments = 5, density_threshold = 0.8)
-quantile_seg <- segment_rt_quantile(data, n_segments = 5)
-
-# Compare strategies
-comparison <- compare_segmentation_strategies(
+# Option 1: Equal time intervals
+rt_bins_5min <- segment_rt_by_time_unit(
   data,
-  n_segments = 5,
-  strategies = c("uniform", "density", "quantile")
+  rt_bin_width_min = 5  # 5-minute bins
 )
+# Output: 10-15, 15-20, 20-25, ..., 105-110 min
 
-print(comparison$summary)
-#   Strategy   Balance_Score  Precursors_CV  Min_Count  Max_Count
-#   uniform    0.28           28.1%          18234      28901
-#   density    0.15           15.3%          22145      26789
-#   quantile   0.02           2.4%           23841      24156  # Most balanced
+# Option 2: Explicit breakpoints
+rt_bins_custom <- segment_rt_by_time_breaks(
+  data,
+  rt_breaks_min = c(10, 20, 35, 50, 70, 110)
+)
+# Output: 10-20, 20-35, 35-50, 50-70, 70-110 min
+#         (10 min, 15 min, 15 min, 20 min, 40 min intervals)
 
-# Visualize comparison
-visualize_segmentation_comparison(comparison)
+# Each RT bin will have different precursor counts
+# This is CORRECT - we want temporal consistency, not precursor balance
+print(rt_bins_5min$stats)
+#   RT_bin      RT_start  RT_end  Precursors
+#   10-15 min   10.0      15.0    800        # Lower density
+#   15-20 min   15.0      20.0    1,500      # Higher density
+#   20-25 min   20.0      25.0    1,200      # Medium density
+#   ...
 ```
 
 ### DPPP Analysis and Scan Time Optimization
@@ -667,9 +686,9 @@ result <- quick_optimize(
   proteome_file = "sample_data.parquet",
   instrument = "orbitrap_exploris",
   target_dppp = 1.5,
-  rt_segments = 5,
-  rt_mode = "density",
-  window_allocation = "rt_dependent",
+  rt_bin_width_min = 5,  # 5-minute RT bins
+  n_windows = 100,
+  dynamic = TRUE,  # Use DynamicDIA smoothed boundaries
   enable_iterative_mode = TRUE
 )
 ```
@@ -690,8 +709,9 @@ enhanced_result <- main_optimization(
 
   # Enhanced analysis
   fwhm_analysis_enabled = TRUE,
-  window_mode = "rt_dependent",
-  rt_mode = "quantile",
+  rt_bin_width_min = 5,  # 5-minute RT bins
+  n_windows = 100,
+  dynamic = TRUE,  # Use DynamicDIA smoothed boundaries
 
   create_plots = TRUE
 )
@@ -846,6 +866,6 @@ project_workspace/
 
 **Smart Parameter Adjustment**:
 - DPPP satisfaction → adjust scan_time proportionally
-- Segment imbalance > 0.3 → switch to density/quantile segmentation
+- High RT bin variance → adjust rt_bin_width_min for better temporal consistency
 - Coverage gaps > 5% → increase window overlap by 20%
-- Low precursors/window < 50 → increase target DPPP by 10%
+- Low precursors/window < 50 → adjust target DPPP or increase min_width_da by 10%

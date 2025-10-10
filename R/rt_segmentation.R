@@ -1,11 +1,17 @@
-# rt_segmentation.R - RT Segmentation Strategies for DIA Window Optimization
+# rt_segmentation.R - Time-Based RT Binning for DIA Window Optimization
 #
-# This module provides multiple RT segmentation strategies:
-# - Uniform: Equal time intervals (existing functionality)
-# - Density-based: Adaptive segmentation based on precursor density
-# - Quantile-based: Equal precursor count per segment
+# Module 2: RT Binning
 #
-# Includes comparison framework and balance scoring
+# This module provides time-based RT binning strategies:
+# - Time-Unit Binning: Equal time intervals (e.g., 5-minute bins)
+# - Explicit Breakpoints: User-defined RT boundaries
+# - Density-Based (experimental): Adaptive binning for comparison
+#
+# Purpose: Group precursors by retention time for RT-dependent window optimization
+# NOT for equalizing precursor counts (that's done in Module 3 window allocation)
+#
+# Key Principle: Different RT bins SHOULD have different precursor counts
+# This reflects the natural precursor density variation across the gradient
 
 library(dplyr)
 library(ggplot2)
@@ -13,31 +19,79 @@ library(gridExtra)
 library(scales)
 
 # ============================================================================
-# Core RT Segmentation Strategies
+# Core RT Binning Strategies
 # ============================================================================
 
-#' Segment RT range uniformly (equal time intervals)
+#' Segment RT range by time unit (equal time intervals)
+#'
+#' Groups precursors into RT bins based on time intervals (e.g., 5-minute bins).
+#' This ensures temporal consistency across the gradient.
+#' Each bin will have different precursor counts reflecting natural density variation.
 #'
 #' @param data DIA-NN data frame with RT.Start column
-#' @param n_segments Number of RT segments to create
-#' @return List with segmentation results
+#' @param rt_bin_width_min Time width per bin in minutes (default: 5)
+#' @return List with binning results
 #' @export
-segment_rt_uniform <- function(data, n_segments = 5) {
+#'
+#' @examples
+#' # 5-minute bins (default)
+#' result <- segment_rt_by_time_unit(data, rt_bin_width_min = 5)
+#' # Output: 10-15, 15-20, 20-25, ..., 105-110 min
+#'
+#' # 3-minute bins for finer temporal resolution
+#' result <- segment_rt_by_time_unit(data, rt_bin_width_min = 3)
+#' # Output: 10-13, 13-16, 16-19, ..., 107-110 min
+segment_rt_by_time_unit <- function(data, rt_bin_width_min = 5) {
 
-  cat(sprintf("\n=== Uniform RT Segmentation (n=%d) ===\n", n_segments))
+  cat(sprintf("\n=== Time-Based RT Binning (bin_width=%.1f min) ===\n", rt_bin_width_min))
 
+  # Validate input
+  if (rt_bin_width_min <= 0) {
+    stop("rt_bin_width_min must be positive")
+  }
+
+  if (!"RT.Start" %in% colnames(data)) {
+    stop("Data must contain RT.Start column")
+  }
+
+  # Calculate RT range
   rt_range <- range(data$RT.Start, na.rm = TRUE)
-  rt_breaks <- seq(rt_range[1], rt_range[2], length.out = n_segments + 1)
+  rt_min <- rt_range[1]
+  rt_max <- rt_range[2]
+  total_rt_span <- rt_max - rt_min
 
-  # Assign segments
-  data$rt_segment <- cut(data$RT.Start,
-                         breaks = rt_breaks,
-                         labels = paste0("Seg", 1:n_segments),
-                         include.lowest = TRUE)
+  cat(sprintf("RT range: %.2f - %.2f min (span: %.2f min)\n",
+              rt_min, rt_max, total_rt_span))
 
-  # Calculate segment statistics
-  segment_stats <- data %>%
-    group_by(rt_segment) %>%
+  # Generate time-based breaks
+  # Start from rounded minimum (nearest bin_width multiple)
+  rt_start_rounded <- floor(rt_min / rt_bin_width_min) * rt_bin_width_min
+
+  rt_breaks <- seq(rt_start_rounded, rt_max + rt_bin_width_min,
+                   by = rt_bin_width_min)
+
+  # Filter breaks to actual data range
+  rt_breaks <- rt_breaks[rt_breaks >= rt_min]
+  rt_breaks <- c(rt_min, rt_breaks[rt_breaks > rt_min])
+
+  # Ensure max RT is included
+  if (rt_breaks[length(rt_breaks)] < rt_max) {
+    rt_breaks <- c(rt_breaks, rt_max)
+  }
+
+  n_bins <- length(rt_breaks) - 1
+
+  cat(sprintf("Generated %d time-based RT bins\n", n_bins))
+
+  # Assign RT bins
+  data$rt_bin <- cut(data$RT.Start,
+                     breaks = rt_breaks,
+                     labels = paste0("Bin", 1:n_bins),
+                     include.lowest = TRUE)
+
+  # Calculate bin statistics
+  bin_stats <- data %>%
+    group_by(rt_bin) %>%
     summarise(
       rt_start = min(RT.Start),
       rt_end = max(RT.Start),
@@ -48,101 +102,219 @@ segment_rt_uniform <- function(data, n_segments = 5) {
       .groups = 'drop'
     )
 
-  # Calculate balance score (coefficient of variation)
-  balance_score <- calculate_balance_score(segment_stats$n_precursors)
+  # Calculate precursor count variation (CV)
+  # Note: High CV is EXPECTED and CORRECT for time-based binning
+  precursor_cv <- calculate_precursor_cv(bin_stats$n_precursors)
 
-  cat("Segment statistics:\n")
-  print(segment_stats)
-  cat(sprintf("\nBalance score (CV): %.3f\n", balance_score))
+  cat("\nBin statistics:\n")
+  print(bin_stats, n = Inf)
+
+  cat(sprintf("\nPrecursor count CV: %.3f (high CV is expected for time-based binning)\n",
+              precursor_cv))
+  cat("Note: Different bins SHOULD have different precursor counts.\n")
+  cat("      This reflects natural density variation across the gradient.\n")
+  cat("      Window allocation (Module 3) will equalize density within each bin.\n")
 
   return(list(
     data = data,
     breaks = rt_breaks,
-    stats = segment_stats,
-    balance_score = balance_score,
-    method = "uniform",
-    n_segments = n_segments
+    stats = bin_stats,
+    precursor_cv = precursor_cv,
+    method = "time_unit",
+    rt_bin_width_min = rt_bin_width_min,
+    n_bins = n_bins
   ))
 }
 
-#' Segment RT range based on precursor density (adaptive)
+#' Segment RT range by explicit breakpoints
+#'
+#' Groups precursors into RT bins using user-defined time boundaries.
+#' Allows custom bin widths for different regions of the gradient.
 #'
 #' @param data DIA-NN data frame with RT.Start column
-#' @param n_segments Target number of segments (approximate)
-#' @param density_threshold Density threshold for segment splitting (0-1, default: 0.8)
-#' @return List with segmentation results
+#' @param rt_breaks_min Vector of RT breakpoints in minutes
+#' @return List with binning results
 #' @export
-segment_rt_density <- function(data, n_segments = 5, density_threshold = 0.8) {
+#'
+#' @examples
+#' # Custom breakpoints for variable-width bins
+#' result <- segment_rt_by_time_breaks(data,
+#'                                     rt_breaks_min = c(10, 20, 35, 50, 70, 110))
+#' # Output bins:
+#' #   Bin1: 10-20 min (10 min width)
+#' #   Bin2: 20-35 min (15 min width)
+#' #   Bin3: 35-50 min (15 min width)
+#' #   Bin4: 50-70 min (20 min width)
+#' #   Bin5: 70-110 min (40 min width)
+segment_rt_by_time_breaks <- function(data, rt_breaks_min) {
 
-  cat(sprintf("\n=== Density-Based RT Segmentation (target n=%d, threshold=%.2f) ===\n",
-              n_segments, density_threshold))
+  cat(sprintf("\n=== Time-Based RT Binning (explicit breakpoints) ===\n"))
+
+  # Validate input
+  if (length(rt_breaks_min) < 2) {
+    stop("rt_breaks_min must have at least 2 values (start and end)")
+  }
+
+  if (!"RT.Start" %in% colnames(data)) {
+    stop("Data must contain RT.Start column")
+  }
+
+  # Sort breaks
+  rt_breaks_min <- sort(rt_breaks_min)
+
+  # Check for duplicates
+  if (any(duplicated(rt_breaks_min))) {
+    stop("rt_breaks_min contains duplicate values")
+  }
+
+  # Validate against data range
+  rt_range <- range(data$RT.Start, na.rm = TRUE)
+  rt_min <- rt_range[1]
+  rt_max <- rt_range[2]
+
+  if (rt_breaks_min[1] > rt_min) {
+    warning(sprintf("First break (%.2f min) > data minimum (%.2f min). Adjusting...",
+                   rt_breaks_min[1], rt_min))
+    rt_breaks_min[1] <- rt_min
+  }
+
+  if (rt_breaks_min[length(rt_breaks_min)] < rt_max) {
+    warning(sprintf("Last break (%.2f min) < data maximum (%.2f min). Adjusting...",
+                   rt_breaks_min[length(rt_breaks_min)], rt_max))
+    rt_breaks_min[length(rt_breaks_min)] <- rt_max
+  }
+
+  n_bins <- length(rt_breaks_min) - 1
+
+  cat(sprintf("RT range: %.2f - %.2f min\n", rt_min, rt_max))
+  cat(sprintf("Using %d explicit breakpoints → %d bins\n",
+              length(rt_breaks_min), n_bins))
+
+  # Print bin widths
+  bin_widths <- diff(rt_breaks_min)
+  cat("\nBin widths:\n")
+  for (i in 1:n_bins) {
+    cat(sprintf("  Bin%d: %.2f - %.2f min (%.2f min width)\n",
+                i, rt_breaks_min[i], rt_breaks_min[i+1], bin_widths[i]))
+  }
+
+  # Assign RT bins
+  data$rt_bin <- cut(data$RT.Start,
+                     breaks = rt_breaks_min,
+                     labels = paste0("Bin", 1:n_bins),
+                     include.lowest = TRUE)
+
+  # Calculate bin statistics
+  bin_stats <- data %>%
+    group_by(rt_bin) %>%
+    summarise(
+      rt_start = min(RT.Start),
+      rt_end = max(RT.Start),
+      rt_width = rt_end - rt_start,
+      n_precursors = n(),
+      density = n() / (rt_end - rt_start),
+      mean_mz = mean(Precursor.Mz, na.rm = TRUE),
+      .groups = 'drop'
+    )
+
+  # Calculate precursor count variation
+  precursor_cv <- calculate_precursor_cv(bin_stats$n_precursors)
+
+  cat("\nBin statistics:\n")
+  print(bin_stats, n = Inf)
+
+  cat(sprintf("\nPrecursor count CV: %.3f (high CV is expected for custom breakpoints)\n",
+              precursor_cv))
+  cat("Note: Variable bin widths allow adaptation to gradient characteristics.\n")
+
+  return(list(
+    data = data,
+    breaks = rt_breaks_min,
+    stats = bin_stats,
+    precursor_cv = precursor_cv,
+    method = "explicit_breaks",
+    rt_breaks_min = rt_breaks_min,
+    n_bins = n_bins
+  ))
+}
+
+#' Segment RT range based on precursor density (EXPERIMENTAL)
+#'
+#' Adaptive RT binning that places more bins in high-density regions.
+#' This is an experimental approach for comparison with time-based binning.
+#'
+#' WARNING: This method aims for balanced precursor counts, which may not
+#' provide optimal temporal consistency. Use time-based binning (Module 2)
+#' for production workflows.
+#'
+#' @param data DIA-NN data frame with RT.Start column
+#' @param target_n_bins Target number of bins (approximate)
+#' @param density_threshold Density threshold for bin splitting (0-1, default: 0.8)
+#' @return List with binning results
+#' @export
+segment_rt_density <- function(data, target_n_bins = 10, density_threshold = 0.8) {
+
+  cat(sprintf("\n=== EXPERIMENTAL: Density-Based RT Binning ===\n"))
+  cat("WARNING: This is an experimental method for comparison purposes.\n")
+  cat("         Use time-based binning (segment_rt_by_time_unit) for production.\n\n")
+
+  cat(sprintf("Target bins: %d, Density threshold: %.2f\n",
+              target_n_bins, density_threshold))
 
   # Calculate initial uniform breaks as starting point
   rt_range <- range(data$RT.Start, na.rm = TRUE)
-  initial_breaks <- seq(rt_range[1], rt_range[2], length.out = n_segments + 1)
+  rt_min <- rt_range[1]
+  rt_max <- rt_range[2]
 
-  # Calculate density in bins
-  n_bins <- n_segments * 10  # Fine-grained binning for density calculation
-  rt_bins <- seq(rt_range[1], rt_range[2], length.out = n_bins + 1)
+  # Calculate density in fine-grained bins
+  n_fine_bins <- target_n_bins * 10
+  rt_fine_bins <- seq(rt_min, rt_max, length.out = n_fine_bins + 1)
 
-  # Count precursors per bin
-  bin_counts <- hist(data$RT.Start, breaks = rt_bins, plot = FALSE)$counts
+  # Count precursors per fine bin
+  fine_counts <- hist(data$RT.Start, breaks = rt_fine_bins, plot = FALSE)$counts
 
   # Normalize density
-  max_count <- max(bin_counts)
-  normalized_density <- bin_counts / max_count
-
-  # Identify high-density regions (above threshold)
-  high_density_bins <- which(normalized_density >= density_threshold)
+  max_count <- max(fine_counts)
+  normalized_density <- fine_counts / max_count
 
   # Adaptive break placement
-  # More breaks in high-density regions, fewer in low-density regions
-  adaptive_breaks <- c(rt_range[1])  # Start with min RT
+  adaptive_breaks <- c(rt_min)
 
-  # Calculate cumulative precursor counts for adaptive splitting
-  cumulative_counts <- cumsum(bin_counts)
-  total_precursors <- sum(bin_counts)
-
-  # Target precursors per segment (approximately equal)
-  target_per_segment <- total_precursors / n_segments
+  # Calculate cumulative counts for adaptive splitting
+  total_precursors <- sum(fine_counts)
+  target_per_bin <- total_precursors / target_n_bins
 
   current_count <- 0
-  for (i in seq_along(bin_counts)) {
-    current_count <- current_count + bin_counts[i]
+  for (i in seq_along(fine_counts)) {
+    current_count <- current_count + fine_counts[i]
 
-    # Check if we should create a break here
-    # Break conditions:
-    # 1. Accumulated enough precursors
-    # 2. In a low-density region (to avoid splitting high-density peaks)
-    # 3. Not the last bin
-    if (current_count >= target_per_segment &&
+    # Create break if accumulated enough precursors AND in low-density region
+    if (current_count >= target_per_bin &&
         normalized_density[i] < density_threshold &&
-        i < length(bin_counts)) {
+        i < length(fine_counts)) {
 
-      adaptive_breaks <- c(adaptive_breaks, rt_bins[i + 1])
+      adaptive_breaks <- c(adaptive_breaks, rt_fine_bins[i + 1])
       current_count <- 0
     }
   }
 
   # Add final break
-  adaptive_breaks <- c(adaptive_breaks, rt_range[2])
-
-  # Remove duplicate breaks and ensure reasonable number of segments
+  adaptive_breaks <- c(adaptive_breaks, rt_max)
   adaptive_breaks <- unique(adaptive_breaks)
 
-  actual_n_segments <- length(adaptive_breaks) - 1
+  n_bins <- length(adaptive_breaks) - 1
 
-  cat(sprintf("Generated %d segments (target: %d)\n", actual_n_segments, n_segments))
+  cat(sprintf("Generated %d bins (target: %d)\n", n_bins, target_n_bins))
 
-  # Assign segments
-  data$rt_segment <- cut(data$RT.Start,
-                         breaks = adaptive_breaks,
-                         labels = paste0("Seg", 1:actual_n_segments),
-                         include.lowest = TRUE)
+  # Assign bins
+  data$rt_bin <- cut(data$RT.Start,
+                     breaks = adaptive_breaks,
+                     labels = paste0("Bin", 1:n_bins),
+                     include.lowest = TRUE)
 
-  # Calculate segment statistics
-  segment_stats <- data %>%
-    group_by(rt_segment) %>%
+  # Calculate statistics
+  bin_stats <- data %>%
+    group_by(rt_bin) %>%
     summarise(
       rt_start = min(RT.Start),
       rt_end = max(RT.Start),
@@ -153,175 +325,35 @@ segment_rt_density <- function(data, n_segments = 5, density_threshold = 0.8) {
       .groups = 'drop'
     )
 
-  # Calculate balance score
-  balance_score <- calculate_balance_score(segment_stats$n_precursors)
+  precursor_cv <- calculate_precursor_cv(bin_stats$n_precursors)
 
-  cat("Segment statistics:\n")
-  print(segment_stats)
-  cat(sprintf("\nBalance score (CV): %.3f\n", balance_score))
+  cat("\nBin statistics:\n")
+  print(bin_stats, n = Inf)
+  cat(sprintf("\nPrecursor count CV: %.3f (lower CV due to density-based balancing)\n",
+              precursor_cv))
 
   return(list(
     data = data,
     breaks = adaptive_breaks,
-    stats = segment_stats,
-    balance_score = balance_score,
-    method = "density",
-    n_segments = actual_n_segments,
-    density_threshold = density_threshold
-  ))
-}
-
-#' Segment RT range based on quantiles (equal precursor count)
-#'
-#' @param data DIA-NN data frame with RT.Start column
-#' @param n_segments Number of RT segments to create
-#' @return List with segmentation results
-#' @export
-segment_rt_quantile <- function(data, n_segments = 5) {
-
-  cat(sprintf("\n=== Quantile-Based RT Segmentation (n=%d) ===\n", n_segments))
-
-  # Calculate quantile breaks
-  quantile_probs <- seq(0, 1, length.out = n_segments + 1)
-  rt_breaks <- quantile(data$RT.Start, probs = quantile_probs, na.rm = TRUE)
-
-  # Ensure unique breaks (in case of tied quantiles)
-  rt_breaks <- unique(rt_breaks)
-
-  if (length(rt_breaks) < n_segments + 1) {
-    warning(sprintf("Only %d unique breaks generated (expected %d). Data may have many tied RT values.",
-                   length(rt_breaks), n_segments + 1))
-  }
-
-  actual_n_segments <- length(rt_breaks) - 1
-
-  # Assign segments
-  data$rt_segment <- cut(data$RT.Start,
-                         breaks = rt_breaks,
-                         labels = paste0("Seg", 1:actual_n_segments),
-                         include.lowest = TRUE)
-
-  # Calculate segment statistics
-  segment_stats <- data %>%
-    group_by(rt_segment) %>%
-    summarise(
-      rt_start = min(RT.Start),
-      rt_end = max(RT.Start),
-      rt_width = rt_end - rt_start,
-      n_precursors = n(),
-      density = n() / (rt_end - rt_start),
-      mean_mz = mean(Precursor.Mz, na.rm = TRUE),
-      .groups = 'drop'
-    )
-
-  # Calculate balance score
-  balance_score <- calculate_balance_score(segment_stats$n_precursors)
-
-  cat("Segment statistics:\n")
-  print(segment_stats)
-  cat(sprintf("\nBalance score (CV): %.3f\n", balance_score))
-
-  return(list(
-    data = data,
-    breaks = rt_breaks,
-    stats = segment_stats,
-    balance_score = balance_score,
-    method = "quantile",
-    n_segments = actual_n_segments
+    stats = bin_stats,
+    precursor_cv = precursor_cv,
+    method = "density_experimental",
+    target_n_bins = target_n_bins,
+    density_threshold = density_threshold,
+    n_bins = n_bins
   ))
 }
 
 # ============================================================================
-# Comparison and Analysis Functions
+# Analysis and Utility Functions
 # ============================================================================
 
-#' Compare multiple RT segmentation strategies
+#' Calculate precursor count coefficient of variation (CV)
 #'
-#' @param data DIA-NN data frame
-#' @param n_segments Number of segments for each strategy
-#' @param strategies Vector of strategies to compare (default: all)
-#' @param density_threshold Density threshold for density-based method
-#' @return List with comparison results
+#' @param precursor_counts Vector of precursor counts per bin
+#' @return CV value
 #' @export
-compare_segmentation_strategies <- function(data,
-                                           n_segments = 5,
-                                           strategies = c("uniform", "density", "quantile"),
-                                           density_threshold = 0.8) {
-
-  cat("\n╔════════════════════════════════════════════╗\n")
-  cat("║   RT SEGMENTATION STRATEGY COMPARISON     ║\n")
-  cat("╚════════════════════════════════════════════╝\n")
-
-  results <- list()
-
-  # Run each strategy
-  if ("uniform" %in% strategies) {
-    results$uniform <- segment_rt_uniform(data, n_segments)
-  }
-
-  if ("density" %in% strategies) {
-    results$density <- segment_rt_density(data, n_segments, density_threshold)
-  }
-
-  if ("quantile" %in% strategies) {
-    results$quantile <- segment_rt_quantile(data, n_segments)
-  }
-
-  # Create comparison summary
-  summary_data <- data.frame(
-    strategy = character(),
-    n_segments = integer(),
-    balance_score = numeric(),
-    min_precursors = integer(),
-    max_precursors = integer(),
-    mean_precursors = numeric(),
-    sd_precursors = numeric(),
-    cv_precursors = numeric(),
-    stringsAsFactors = FALSE
-  )
-
-  for (strategy_name in names(results)) {
-    result <- results[[strategy_name]]
-    stats <- result$stats
-
-    summary_data <- rbind(summary_data, data.frame(
-      strategy = strategy_name,
-      n_segments = result$n_segments,
-      balance_score = result$balance_score,
-      min_precursors = min(stats$n_precursors),
-      max_precursors = max(stats$n_precursors),
-      mean_precursors = mean(stats$n_precursors),
-      sd_precursors = sd(stats$n_precursors),
-      cv_precursors = sd(stats$n_precursors) / mean(stats$n_precursors),
-      stringsAsFactors = FALSE
-    ))
-  }
-
-  # Print comparison
-  cat("\n=== COMPARISON SUMMARY ===\n")
-  print(summary_data)
-
-  # Identify best strategy (lowest balance score = most balanced)
-  best_idx <- which.min(summary_data$balance_score)
-  best_strategy <- summary_data$strategy[best_idx]
-
-  cat(sprintf("\n✅ Best balanced strategy: %s (balance score: %.3f)\n",
-              best_strategy,
-              summary_data$balance_score[best_idx]))
-
-  return(list(
-    results = results,
-    summary = summary_data,
-    best_strategy = best_strategy
-  ))
-}
-
-#' Calculate balance score (coefficient of variation)
-#'
-#' @param precursor_counts Vector of precursor counts per segment
-#' @return Balance score (CV)
-#' @export
-calculate_balance_score <- function(precursor_counts) {
+calculate_precursor_cv <- function(precursor_counts) {
 
   if (length(precursor_counts) < 2) {
     return(NA)
@@ -336,282 +368,279 @@ calculate_balance_score <- function(precursor_counts) {
   return(cv)
 }
 
-#' Analyze segment balance across strategies
+#' Analyze RT bin balance
 #'
-#' @param comparison_result Result from compare_segmentation_strategies
-#' @return Balance analysis data frame
+#' Provides detailed analysis of precursor distribution across RT bins.
+#' For time-based binning, high variation is EXPECTED and reflects natural
+#' precursor density patterns.
+#'
+#' @param binning_result Result from segment_rt_by_time_unit or segment_rt_by_time_breaks
+#' @return Data frame with balance analysis
 #' @export
-analyze_segment_balance <- function(comparison_result) {
+analyze_rt_bin_balance <- function(binning_result) {
+
+  stats <- binning_result$stats
+  mean_precursors <- mean(stats$n_precursors)
 
   balance_data <- data.frame(
-    strategy = character(),
-    segment = character(),
-    n_precursors = integer(),
-    deviation_from_mean = numeric(),
-    deviation_pct = numeric(),
+    rt_bin = stats$rt_bin,
+    rt_start = stats$rt_start,
+    rt_end = stats$rt_end,
+    rt_width = stats$rt_width,
+    n_precursors = stats$n_precursors,
+    density = stats$density,
+    deviation_from_mean = stats$n_precursors - mean_precursors,
+    deviation_pct = ((stats$n_precursors - mean_precursors) / mean_precursors) * 100,
     stringsAsFactors = FALSE
   )
 
-  for (strategy_name in names(comparison_result$results)) {
-    result <- comparison_result$results[[strategy_name]]
-    stats <- result$stats
-
-    mean_precursors <- mean(stats$n_precursors)
-
-    for (i in 1:nrow(stats)) {
-      balance_data <- rbind(balance_data, data.frame(
-        strategy = strategy_name,
-        segment = as.character(stats$rt_segment[i]),
-        n_precursors = stats$n_precursors[i],
-        deviation_from_mean = stats$n_precursors[i] - mean_precursors,
-        deviation_pct = ((stats$n_precursors[i] - mean_precursors) / mean_precursors) * 100,
-        stringsAsFactors = FALSE
-      ))
-    }
-  }
+  # Add density classification
+  density_quantiles <- quantile(balance_data$density, probs = c(0.33, 0.67))
+  balance_data$density_class <- cut(balance_data$density,
+                                     breaks = c(0, density_quantiles, Inf),
+                                     labels = c("Low", "Medium", "High"),
+                                     include.lowest = TRUE)
 
   return(balance_data)
+}
+
+#' Compare time-based binning strategies
+#'
+#' Compares different RT bin widths to help select optimal temporal resolution.
+#'
+#' @param data DIA-NN data frame
+#' @param bin_widths_min Vector of bin widths to compare (in minutes)
+#' @return List with comparison results
+#' @export
+#'
+#' @examples
+#' # Compare 3-min, 5-min, and 10-min bins
+#' comparison <- compare_time_binning_strategies(data,
+#'                                               bin_widths_min = c(3, 5, 10))
+compare_time_binning_strategies <- function(data, bin_widths_min = c(3, 5, 10)) {
+
+  cat("\n╔═══════════════════════════════════════════════╗\n")
+  cat("║   TIME-BASED RT BINNING COMPARISON           ║\n")
+  cat("╚═══════════════════════════════════════════════╝\n")
+
+  results <- list()
+
+  for (width in bin_widths_min) {
+    cat(sprintf("\n--- Testing bin_width = %.1f min ---\n", width))
+    results[[paste0("width_", width)]] <- segment_rt_by_time_unit(data, width)
+  }
+
+  # Create comparison summary
+  summary_data <- data.frame(
+    bin_width_min = numeric(),
+    n_bins = integer(),
+    precursor_cv = numeric(),
+    min_precursors = integer(),
+    max_precursors = integer(),
+    mean_precursors = numeric(),
+    sd_precursors = numeric(),
+    min_bin_width = numeric(),
+    max_bin_width = numeric(),
+    stringsAsFactors = FALSE
+  )
+
+  for (result_name in names(results)) {
+    result <- results[[result_name]]
+    stats <- result$stats
+
+    summary_data <- rbind(summary_data, data.frame(
+      bin_width_min = result$rt_bin_width_min,
+      n_bins = result$n_bins,
+      precursor_cv = result$precursor_cv,
+      min_precursors = min(stats$n_precursors),
+      max_precursors = max(stats$n_precursors),
+      mean_precursors = mean(stats$n_precursors),
+      sd_precursors = sd(stats$n_precursors),
+      min_bin_width = min(stats$rt_width),
+      max_bin_width = max(stats$rt_width),
+      stringsAsFactors = FALSE
+    ))
+  }
+
+  cat("\n=== COMPARISON SUMMARY ===\n")
+  print(summary_data)
+
+  cat("\n📊 Interpretation:\n")
+  cat("  - Smaller bin width → finer temporal resolution, more bins\n")
+  cat("  - Larger bin width → coarser resolution, fewer bins\n")
+  cat("  - High precursor CV is EXPECTED (reflects natural density variation)\n")
+  cat("  - Select bin width based on gradient characteristics and instrument cycle time\n")
+
+  return(list(
+    results = results,
+    summary = summary_data
+  ))
 }
 
 # ============================================================================
 # Visualization Functions
 # ============================================================================
 
-#' Visualize RT segmentation comparison
+#' Visualize RT binning results
 #'
-#' @param comparison_result Result from compare_segmentation_strategies
-#' @param save_plots Whether to save plots (default: FALSE)
+#' Creates comprehensive visualization of RT bin distribution and statistics.
+#'
+#' @param binning_result Result from segment_rt_by_time_unit or segment_rt_by_time_breaks
+#' @param save_plot Whether to save plot (default: FALSE)
 #' @param plot_dir Directory for saving plots
-#' @return List of ggplot objects
+#' @return ggplot object
 #' @export
-visualize_segmentation_comparison <- function(comparison_result,
-                                             save_plots = FALSE,
-                                             plot_dir = "plots") {
+visualize_rt_binning <- function(binning_result,
+                                 save_plot = FALSE,
+                                 plot_dir = "plots") {
 
-  plots <- list()
+  stats <- binning_result$stats
 
-  # Plot 1: Precursor count distribution by strategy
-  plots$precursor_distribution <- plot_precursor_distribution_by_strategy(comparison_result)
+  # Create multi-panel plot
+  p1 <- plot_precursor_count_per_bin(stats, binning_result$method)
+  p2 <- plot_rt_bin_widths(stats, binning_result$method)
+  p3 <- plot_precursor_density_per_bin(stats, binning_result$method)
+  p4 <- plot_rt_coverage(stats, binning_result$method)
 
-  # Plot 2: Balance score comparison
-  plots$balance_comparison <- plot_balance_score_comparison(comparison_result)
+  combined_plot <- gridExtra::grid.arrange(p1, p2, p3, p4, nrow = 2, ncol = 2)
 
-  # Plot 3: Segment size distribution
-  plots$segment_sizes <- plot_segment_size_distribution(comparison_result)
-
-  # Plot 4: RT coverage visualization
-  plots$rt_coverage <- plot_rt_coverage_comparison(comparison_result)
-
-  # Save plots if requested
-  if (save_plots) {
+  if (save_plot) {
     if (!dir.exists(plot_dir)) {
       dir.create(plot_dir, recursive = TRUE)
     }
 
-    for (plot_name in names(plots)) {
-      filename <- file.path(plot_dir, paste0("rt_seg_", plot_name, ".png"))
-      ggsave(filename, plots[[plot_name]], width = 12, height = 8, dpi = 300)
-      cat(sprintf("Saved: %s\n", filename))
-    }
+    filename <- file.path(plot_dir, sprintf("rt_binning_%s.png", binning_result$method))
+    ggsave(filename, combined_plot, width = 14, height = 10, dpi = 300)
+    cat(sprintf("Saved: %s\n", filename))
   }
 
-  return(plots)
+  return(combined_plot)
 }
 
-#' Plot precursor distribution by segmentation strategy
-#'
-#' @param comparison_result Result from compare_segmentation_strategies
+#' Plot precursor count per RT bin
+#' @param stats Bin statistics data frame
+#' @param method Binning method name
 #' @return ggplot object
 #' @export
-plot_precursor_distribution_by_strategy <- function(comparison_result) {
+plot_precursor_count_per_bin <- function(stats, method) {
 
-  # Prepare data for plotting
-  plot_data <- data.frame(
-    strategy = character(),
-    segment = character(),
-    n_precursors = integer(),
-    stringsAsFactors = FALSE
-  )
-
-  for (strategy_name in names(comparison_result$results)) {
-    result <- comparison_result$results[[strategy_name]]
-    stats <- result$stats
-
-    for (i in 1:nrow(stats)) {
-      plot_data <- rbind(plot_data, data.frame(
-        strategy = strategy_name,
-        segment = paste0("Seg", i),
-        n_precursors = stats$n_precursors[i],
-        stringsAsFactors = FALSE
-      ))
-    }
-  }
-
-  # Create plot
-  p <- ggplot(plot_data, aes(x = segment, y = n_precursors, fill = strategy)) +
-    geom_bar(stat = "identity", position = "dodge", alpha = 0.8, color = "black", size = 0.3) +
+  p <- ggplot(stats, aes(x = rt_bin, y = n_precursors, fill = n_precursors)) +
+    geom_bar(stat = "identity", alpha = 0.8, color = "black", size = 0.3) +
     geom_text(aes(label = format(n_precursors, big.mark = ",")),
-              position = position_dodge(width = 0.9),
               vjust = -0.5, size = 3) +
-    scale_fill_brewer(palette = "Set2", name = "Strategy") +
+    scale_fill_viridis_c(option = "plasma", name = "Precursors") +
     labs(
-      title = "Precursor Distribution by RT Segmentation Strategy",
-      subtitle = "Comparison of precursor counts across segments",
-      x = "Segment",
+      title = "Precursor Count per RT Bin",
+      subtitle = sprintf("Method: %s | High variation is EXPECTED", method),
+      x = "RT Bin",
       y = "Number of Precursors"
     ) +
     theme_minimal() +
     theme(
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 11),
+      plot.title = element_text(size = 12, face = "bold"),
+      plot.subtitle = element_text(size = 9),
       axis.text.x = element_text(angle = 45, hjust = 1),
-      legend.position = "bottom"
+      legend.position = "right"
     ) +
     scale_y_continuous(labels = comma)
 
   return(p)
 }
 
-#' Plot balance score comparison
-#'
-#' @param comparison_result Result from compare_segmentation_strategies
+#' Plot RT bin widths
+#' @param stats Bin statistics data frame
+#' @param method Binning method name
 #' @return ggplot object
 #' @export
-plot_balance_score_comparison <- function(comparison_result) {
+plot_rt_bin_widths <- function(stats, method) {
 
-  summary_data <- comparison_result$summary
-
-  p <- ggplot(summary_data, aes(x = strategy, y = balance_score, fill = strategy)) +
-    geom_bar(stat = "identity", alpha = 0.8, color = "black", size = 0.5) +
-    geom_text(aes(label = sprintf("%.3f", balance_score)),
-              vjust = -0.5, size = 5, fontface = "bold") +
-    geom_hline(yintercept = 0.1, color = "green", linetype = "dashed", size = 0.8) +
-    geom_hline(yintercept = 0.3, color = "orange", linetype = "dashed", size = 0.8) +
-    annotate("text", x = 0.5, y = 0.1, label = "Excellent (< 0.1)",
-             hjust = 0, vjust = -0.5, color = "darkgreen", size = 3) +
-    annotate("text", x = 0.5, y = 0.3, label = "Good (< 0.3)",
-             hjust = 0, vjust = -0.5, color = "darkorange", size = 3) +
-    scale_fill_brewer(palette = "Set1", name = "Strategy") +
-    labs(
-      title = "Segment Balance Score Comparison",
-      subtitle = "Lower score = better balance (Coefficient of Variation)",
-      x = "Segmentation Strategy",
-      y = "Balance Score (CV)"
-    ) +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 11),
-      legend.position = "none"
-    )
-
-  return(p)
-}
-
-#' Plot segment size distribution
-#'
-#' @param comparison_result Result from compare_segmentation_strategies
-#' @return ggplot object
-#' @export
-plot_segment_size_distribution <- function(comparison_result) {
-
-  # Prepare data
-  plot_data <- data.frame(
-    strategy = character(),
-    segment = character(),
-    rt_width = numeric(),
-    stringsAsFactors = FALSE
-  )
-
-  for (strategy_name in names(comparison_result$results)) {
-    result <- comparison_result$results[[strategy_name]]
-    stats <- result$stats
-
-    for (i in 1:nrow(stats)) {
-      plot_data <- rbind(plot_data, data.frame(
-        strategy = strategy_name,
-        segment = paste0("Seg", i),
-        rt_width = stats$rt_width[i],
-        stringsAsFactors = FALSE
-      ))
-    }
-  }
-
-  p <- ggplot(plot_data, aes(x = segment, y = rt_width, fill = strategy)) +
-    geom_bar(stat = "identity", position = "dodge", alpha = 0.8, color = "black", size = 0.3) +
-    geom_text(aes(label = sprintf("%.1f min", rt_width)),
-              position = position_dodge(width = 0.9),
+  p <- ggplot(stats, aes(x = rt_bin, y = rt_width, fill = rt_width)) +
+    geom_bar(stat = "identity", alpha = 0.8, color = "black", size = 0.3) +
+    geom_text(aes(label = sprintf("%.1f", rt_width)),
               vjust = -0.5, size = 3) +
-    scale_fill_brewer(palette = "Set2", name = "Strategy") +
+    scale_fill_viridis_c(option = "viridis", name = "Width (min)") +
     labs(
-      title = "RT Segment Width Distribution",
-      subtitle = "Time width of each segment by strategy",
-      x = "Segment",
-      y = "RT Width (minutes)"
+      title = "RT Bin Width Distribution",
+      subtitle = sprintf("Method: %s | Temporal resolution", method),
+      x = "RT Bin",
+      y = "Bin Width (minutes)"
     ) +
     theme_minimal() +
     theme(
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 11),
+      plot.title = element_text(size = 12, face = "bold"),
+      plot.subtitle = element_text(size = 9),
       axis.text.x = element_text(angle = 45, hjust = 1),
-      legend.position = "bottom"
+      legend.position = "right"
     )
 
   return(p)
 }
 
-#' Plot RT coverage comparison
-#'
-#' @param comparison_result Result from compare_segmentation_strategies
+#' Plot precursor density per RT bin
+#' @param stats Bin statistics data frame
+#' @param method Binning method name
 #' @return ggplot object
 #' @export
-plot_rt_coverage_comparison <- function(comparison_result) {
+plot_precursor_density_per_bin <- function(stats, method) {
 
-  # Prepare data for visualization
-  plot_data <- data.frame(
-    strategy = character(),
-    rt_start = numeric(),
-    rt_end = numeric(),
-    segment = character(),
-    n_precursors = integer(),
-    stringsAsFactors = FALSE
-  )
-
-  for (strategy_name in names(comparison_result$results)) {
-    result <- comparison_result$results[[strategy_name]]
-    stats <- result$stats
-
-    for (i in 1:nrow(stats)) {
-      plot_data <- rbind(plot_data, data.frame(
-        strategy = strategy_name,
-        rt_start = stats$rt_start[i],
-        rt_end = stats$rt_end[i],
-        segment = as.character(stats$rt_segment[i]),
-        n_precursors = stats$n_precursors[i],
-        stringsAsFactors = FALSE
-      ))
-    }
-  }
-
-  p <- ggplot(plot_data, aes(xmin = rt_start, xmax = rt_end,
-                             ymin = 0, ymax = 1, fill = n_precursors)) +
-    geom_rect(alpha = 0.8, color = "black", size = 0.3) +
-    facet_wrap(~ strategy, ncol = 1) +
-    scale_fill_viridis_c(name = "Precursors", option = "plasma", labels = comma) +
+  p <- ggplot(stats, aes(x = rt_bin, y = density, fill = density)) +
+    geom_bar(stat = "identity", alpha = 0.8, color = "black", size = 0.3) +
+    geom_text(aes(label = sprintf("%.0f", density)),
+              vjust = -0.5, size = 3) +
+    scale_fill_viridis_c(option = "magma", name = "Density") +
     labs(
-      title = "RT Coverage Comparison by Strategy",
-      subtitle = "Segment boundaries and precursor distribution",
+      title = "Precursor Density per RT Bin",
+      subtitle = sprintf("Method: %s | Precursors per minute", method),
+      x = "RT Bin",
+      y = "Density (precursors/min)"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 12, face = "bold"),
+      plot.subtitle = element_text(size = 9),
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      legend.position = "right"
+    )
+
+  return(p)
+}
+
+#' Plot RT coverage visualization
+#' @param stats Bin statistics data frame
+#' @param method Binning method name
+#' @return ggplot object
+#' @export
+plot_rt_coverage <- function(stats, method) {
+
+  p <- ggplot(stats, aes(xmin = rt_start, xmax = rt_end,
+                         ymin = 0, ymax = 1, fill = n_precursors)) +
+    geom_rect(alpha = 0.8, color = "black", size = 0.5) +
+    geom_text(aes(x = (rt_start + rt_end) / 2, y = 0.5,
+                  label = as.character(rt_bin)),
+              size = 3, fontface = "bold") +
+    scale_fill_viridis_c(option = "plasma", name = "Precursors", labels = comma) +
+    labs(
+      title = "RT Coverage and Bin Boundaries",
+      subtitle = sprintf("Method: %s | Temporal segmentation", method),
       x = "Retention Time (min)",
       y = ""
     ) +
     theme_minimal() +
     theme(
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 11),
+      plot.title = element_text(size = 12, face = "bold"),
+      plot.subtitle = element_text(size = 9),
       axis.text.y = element_blank(),
-      axis.ticks.y = element_blank(),
-      strip.text = element_text(size = 12, face = "bold")
+      axis.ticks.y = element_blank()
     )
 
   return(p)
 }
+
+cat("✅ Module 2 (RT Segmentation) loaded successfully\n")
+cat("   Available functions:\n")
+cat("   - segment_rt_by_time_unit(data, rt_bin_width_min = 5)\n")
+cat("   - segment_rt_by_time_breaks(data, rt_breaks_min)\n")
+cat("   - segment_rt_density(data, target_n_bins, density_threshold) [experimental]\n")
+cat("   - analyze_rt_bin_balance(binning_result)\n")
+cat("   - compare_time_binning_strategies(data, bin_widths_min)\n")
+cat("   - visualize_rt_binning(binning_result)\n")

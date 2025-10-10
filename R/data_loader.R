@@ -36,14 +36,14 @@ load_diann_data <- function(file_path, rt_min = 0, rt_max = NULL,
   if (file_ext == "parquet") {
     cat("Loading parquet file...\n")
     data <- arrow::read_parquet(file_path)
-  } else if (file_ext == "tsv") {
-    cat("Loading TSV file...\n")
+  } else if (file_ext == "tsv" || file_ext == "txt") {
+    cat(sprintf("Loading %s file (tab-delimited)...\n", toupper(file_ext)))
     data <- read.delim(file_path, stringsAsFactors = FALSE)
   } else if (file_ext == "csv") {
     cat("Loading CSV file...\n")
     data <- read.csv(file_path, stringsAsFactors = FALSE)
   } else {
-    stop("Unsupported file format. Use parquet, tsv, or csv.")
+    stop("Unsupported file format. Use parquet, tsv, txt (tab-delimited), or csv.")
   }
   
   # Check for required columns
