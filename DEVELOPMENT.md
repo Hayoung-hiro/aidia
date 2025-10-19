@@ -218,14 +218,21 @@ R/
 
 ### Phase 3C: m/z Range Optimization ✅ 우선순위 4
 **파일**: `R/stage3_window_optimization/module3c_mz_range_optimization.R`
-**상태**: 🔴 개발 대기
-**담당자**: -
-**예상 기간**: 4-5일
+**상태**: ✅ **완료 (2025-10-17)**
+**담당자**: Claude+User
+**실제 소요**: 2일
 
 **주요 작업**:
-- 4가지 전략 구현 (Quantile, Smoothing, Outlier removal, Coverage-based)
-- 전략 비교 및 성능 평가
-- DynamicDIA smoothing 통합 (기존 활용)
+- ✅ 4가지 전략 구현 (Quantile, Smoothing, Outlier removal, Coverage-based)
+- ✅ DynamicDIA smoothing 통합 (Savitzky-Golay, Moving Average, Gaussian)
+- ✅ Continuous RT-based smoothing 추가
+- ✅ 전략 비교 기능 (compare_strategies = TRUE)
+
+**검증 결과**:
+- Quantile strategy: P5-P95 범위 계산 ✓
+- Smoothing strategy: RT-dependent boundary smoothing ✓
+- Outlier removal: 3-sigma 기반 outlier 제거 ✓
+- Coverage-based: Target coverage 달성 최소 범위 ✓
 
 **상세 문서**: [docs/phases/PHASE3C_MZ_RANGE.md](docs/phases/PHASE3C_MZ_RANGE.md)
 
@@ -233,15 +240,22 @@ R/
 
 ### Phase 3D: Window Generation ✅ 우선순위 5
 **파일**: `R/stage3_window_optimization/module3d_window_generation.R`
-**상태**: 🔴 개발 대기
-**담당자**: -
-**예상 기간**: 4-5일
+**상태**: ✅ **완료 (2025-10-17)**
+**담당자**: Claude+User
+**실제 소요**: 2일
 
 **주요 작업**:
-- Fixed window 생성
-- Overlapped window 생성
-- Variable window 생성 (기존 활용)
-- 3가지 모드 비교
+- ✅ Fixed window 생성 (equal-width per RT bin)
+- ✅ Variable window 생성 (density-based quantile per RT bin)
+- ✅ Overlap 기능 (optional post-processing)
+- ✅ Per-RT-bin architecture (n_bins × n_windows total windows)
+- ✅ Min/Max width constraints 적용
+
+**검증 결과**:
+- Fixed method: Equal-width windows with constraints ✓
+- Variable method: Quantile-based adaptive windows ✓
+- Overlap: Percentage or fixed Da expansion ✓
+- Per-bin generation: Independent window creation per RT segment ✓
 
 **상세 문서**: [docs/phases/PHASE3D_WINDOW_GENERATION.md](docs/phases/PHASE3D_WINDOW_GENERATION.md)
 
@@ -249,14 +263,24 @@ R/
 
 ### Phase 4: Visualization & Reporting ✅ 우선순위 6
 **파일**: `R/stage4_visualization.R`
-**상태**: 🔴 개발 대기
-**담당자**: -
-**예상 기간**: 5-6일
+**상태**: 🟡 **진행중 (2025-10-18 시작)**
+**담당자**: Claude+User
+**예상 기간**: 3-4일
 
 **주요 작업**:
-- 8가지 필수 plot 생성
-- PDF 리포트 생성
-- Method file 내보내기
+- 🟡 8가지 필수 plot 생성 (scientific journal 수준)
+- 🔴 PDF 리포트 생성
+- 🔴 Method file 내보내기 (CSV for Thermo instruments)
+
+**필수 Plot 목록**:
+1. DPPP Density Distribution (현재 vs 목표)
+2. RT-dependent Window Count Allocation
+3. RT-mz Precursor Density Heatmap
+4. m/z Normalized Density Profile
+5. m/z Window Width Distribution
+6. Precursor Coverage Map
+7. Window Efficiency Analysis
+8. DPPP Achievement Heatmap (RT × m/z)
 
 **상세 문서**: [docs/phases/PHASE4_VISUALIZATION.md](docs/phases/PHASE4_VISUALIZATION.md)
 
@@ -413,7 +437,7 @@ dia_window_optimizer/
 
 ## 진행 상황
 
-### 전체 진행률: 46%
+### 전체 진행률: 86%
 
 | Phase | 상태 | 진행률 | 담당자 | 완료일 |
 |-------|------|--------|--------|--------|
@@ -421,13 +445,21 @@ dia_window_optimizer/
 | Phase 2 | ✅ 완료 | 100% | Claude+User | 2025-10-15 |
 | Phase 3A | ✅ 완료 | 100% | Claude+User | 2025-10-16 |
 | Phase 3B | ✅ 완료 | 100% | 기존 코드 | - |
-| Phase 3C | 🔴 대기 | 0% | - | - |
-| Phase 3D | 🔴 대기 | 0% | - | - |
-| Phase 4 | 🔴 대기 | 0% | - | - |
-| 문서화 | 🟡 진행중 | 70% | - | - |
+| Phase 3C | ✅ 완료 | 100% | Claude+User | 2025-10-17 |
+| Phase 3D | ✅ 완료 | 100% | Claude+User | 2025-10-17 |
+| Phase 4 | 🟡 진행중 | 20% | Claude+User | - |
+| 문서화 | 🟡 진행중 | 80% | - | - |
 
 ### 최근 업데이트
 
+- **2025-10-18**: 🟡 **Phase 4 Visualization 개발 시작** - Scientific journal quality plots
+  - 8 essential plots for comprehensive optimization analysis
+  - ggplot2-based high-resolution figures
+  - DEVELOPMENT.md updated with Phase 3C-D completion status
+- **2025-10-17**: ✅ **Phase 3C & 3D 완료** - m/z Range Optimization + Window Generation
+  - Phase 3C: 4 strategies (Quantile, Smoothing, Outlier, Coverage) + continuous smoothing
+  - Phase 3D: Per-RT-bin architecture (Fixed/Variable/Overlap modes)
+  - Total windows = n_bins × n_windows (e.g., 22 bins × 200 = 4,400 windows)
 - **2025-10-16**: ✅ **Phase 3A Refactoring 완료** - Complete module redesign
   - 3-level config architecture: Static (instrument) / Module constants / Dynamic (user)
   - Terminology unified: `cycle_calculation = "parallel"/"sequential"`

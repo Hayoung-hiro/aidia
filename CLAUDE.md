@@ -4,15 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DIA Window Optimizer is an R-based tool for optimizing Data-Independent Acquisition (DIA) isolation windows for mass spectrometry. It implements a **4-stage pipeline** for DIA window optimization using DIA-NN results to diagnose current DPPP status and generate optimized RT-dependent isolation windows.
+DIA Window Optimizer is an R-based tool for optimizing Data-Independent Acquisition (DIA) isolation windows for mass spectrometry proteomics. It implements a **4-stage pipeline** using DIA-NN output to:
+1. Diagnose current DPPP (Data Points Per Peak) status
+2. Recommend optimal scan timing parameters
+3. Generate optimized RT-dependent isolation windows
 
-The tool is specifically designed for the **Thermo Fisher Orbitrap family** of mass spectrometers, with particular optimization for:
+**Target Instruments**: Primarily **Thermo Fisher Orbitrap family** (Astral, Exploris, traditional Orbitrap), with support for TimsTOF, SCIEX, and Waters instruments.
 
-- **Thermo Astral**: Ultra-high speed Orbitrap with parallel acquisition (50-100 Hz scan rate)
-- **Thermo Orbitrap Exploris**: Modern Orbitrap with sequential acquisition (25-40 Hz scan rate)
-- **Traditional Orbitrap**: High-resolution sequential acquisition (8-12 Hz scan rate)
+**Key Concept - DPPP**: Data Points Per Peak = (1.7 × FWHM_seconds) / cycle_time_seconds
+- Target DPPP 7.0 = Quantification mode (default)
+- Target DPPP 1.5 = Identification mode (maximum coverage)
 
-While other instrument types (TimsTOF, SCIEX, Waters) are supported, the optimization algorithms are tailored to Orbitrap-specific acquisition patterns and timing constraints.
+**Instrument Timing Models**:
+- **Parallel** (Astral, TimsTOF): cycle_time = max(MS1_time, n_windows × MS2_time)
+- **Sequential** (Orbitrap): cycle_time = MS1_time + (n_windows × MS2_time)
 
 ---
 
@@ -164,19 +169,21 @@ dia_window_optimizer/
     └── instruments.R                  # Instrument configurations
 ```
 
-### Development Phases
+### Development Phases Status
 
-**Current Status**: 🔴 All phases in development
+**Overall Progress**: ~60% (3.5/7 phases complete)
 
-| Phase | File | Status | Priority |
-|-------|------|--------|----------|
-| Phase 1 | `R/stage1_data_validation.R` | 🔴 Not started | ⭐⭐⭐ High |
-| Phase 2 | `R/stage2_dppp_diagnosis.R` | 🔴 Not started | ⭐⭐⭐ High |
-| Phase 3A | `R/stage3_window_optimization/module3a_window_count.R` | 🔴 Not started | ⭐⭐⭐ High |
-| Phase 3B | `R/stage3_window_optimization/module3b_rt_binning.R` | ✅ Existing code | ⭐⭐ Integration only |
-| Phase 3C | `R/stage3_window_optimization/module3c_mz_range_optimization.R` | 🔴 Not started | ⭐⭐ Medium |
-| Phase 3D | `R/stage3_window_optimization/module3d_window_generation.R` | 🟡 Partial | ⭐⭐ Medium |
-| Phase 4 | `R/stage4_visualization.R` | 🔴 Not started | ⭐ Low |
+| Phase | File | Status | Notes |
+|-------|------|--------|-------|
+| Phase 1 | `R/stage1_data_validation.R` | ✅ Complete | Tested with real data |
+| Phase 2 | `R/stage2_dppp_diagnosis.R` | ✅ Complete | DPPP calculation verified |
+| Phase 3A | `R/stage3_window_optimization/module3a_window_count.R` | ✅ Complete | 3-mode override logic |
+| Phase 3B | `R/stage3_window_optimization/module3b_rt_binning.R` | ✅ Complete | Wrapper around rt_segmentation.R |
+| Phase 3C | `R/stage3_window_optimization/module3c_mz_range_optimization.R` | ✅ Complete | 4 strategies implemented |
+| Phase 3D | `R/stage3_window_optimization/module3d_window_generation.R` | ✅ Complete | 3 modes: Fixed/Variable/Overlapped |
+| Phase 4 | `R/stage4_visualization.R` | 🟡 Partial | Basic plots exist in visualizer.R |
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed phase documentation and progress tracking.
 
 ### Independent Development
 
@@ -204,48 +211,99 @@ test_file("tests/test_stage2.R")
 
 ## Common Development Commands
 
-### Setup
+### Setup and Installation
 
 ```r
 # Install required packages
 install.packages(c("arrow", "dplyr", "ggplot2", "gridExtra",
                    "jsonlite", "tidyr", "viridis", "scales",
                    "prospectr", "testthat"))
+
+# Verify installation
+library(arrow)      # For parquet file support
+library(dplyr)      # Data manipulation
+library(ggplot2)    # Visualization
 ```
 
-### Running Tests
+### Running the Pipeline
 
 ```r
-# Run specific phase tests
-library(testthat)
-source("tests/test_stage1.R")
-test_file("tests/test_stage1.R")
+# Quick test with synthetic data
+source("main.R")
+result <- main_optimization(config_file = "config/example_config.json")
 
-# Run all tests
-test_dir("tests/")
+# Run specific test workflows
+source("test_modules_1_2_3.R")           # Test Phases 1-3
+source("test_final_workflow.R")          # End-to-end test
+source("test_real_data.R")               # Test with actual DIA-NN data
 ```
 
-### Development Workflow
+### Testing Individual Modules
 
 ```r
-# 1. Read phase development guide
-# docs/phases/PHASE2_DPPP_DIAGNOSIS.md
+# Test Stage 1 (Data Validation)
+source("R/stage1_data_validation.R")
+source("R/data_loader.R")
+data <- load_diann_data("path/to/report.parquet")
+validated <- validate_diann_data(data)
 
-# 2. Create mock input data
-source("tests/mocks/mock_stage1_output.R")
-input_data <- create_mock_stage1_output()
-
-# 3. Implement phase functions
+# Test Stage 2 (DPPP Diagnosis)
 source("R/stage2_dppp_diagnosis.R")
+diagnosis <- diagnose_dppp_status(
+  validated_data = validated,
+  current_cycle_time = 2.0,
+  target_dppp = 7.5,
+  target_satisfaction = 0.7
+)
 
-# 4. Test implementation
-source("tests/test_stage2.R")
-test_file("tests/test_stage2.R")
+# Test Stage 3A (Window Count)
+source("R/stage3_window_optimization/module3a_window_count.R")
+source("config/instruments.R")
+instrument <- get_instrument_configs()$astral
+window_count <- determine_window_count(
+  diagnosis = diagnosis,
+  instrument_config = instrument,
+  user_params = list(window_count_mode = "optimize")
+)
 
-# 5. Create mock output for next phase
-source("tests/mocks/mock_stage2_output.R")
-mock_output <- create_mock_stage2_output()
-saveRDS(mock_output, "tests/fixtures/stage2_output.rds")
+# Test using mock data (when upstream stages not ready)
+source("tests/mocks/mock_stage1_output.R")
+mock_data <- create_mock_stage1_output(n_precursors = 1000)
+```
+
+### Interactive Debugging
+
+```r
+# Enable debug mode for a specific function
+debug(diagnose_dppp_status)
+result <- diagnose_dppp_status(...)
+undebug(diagnose_dppp_status)
+
+# Step through code with browser()
+# Add browser() at any line in your R code, then:
+source("R/your_module.R")
+result <- your_function(...)  # Will pause at browser() call
+
+# Inspect objects in RStudio
+View(validated_data$data)           # Tabular view
+str(diagnosis)                      # Structure
+summary(diagnosis$current_status)   # Summary stats
+```
+
+### Viewing Results
+
+```r
+# View optimization results
+source("view_results.R")
+
+# Generate and view plots
+source("R/visualizer.R")
+plot_dppp_density(diagnosis$dppp_distribution)
+plot_rt_window_size(windows)
+
+# Examine output files
+list.files("output/", pattern = "*.csv")
+list.files("output/plots/", pattern = "*.png")
 ```
 
 ---
@@ -282,24 +340,152 @@ if (instrument_type == "astral") {
 
 ### Instrument Configurations
 
-**Thermo Astral**:
-- Max scan rate: 50 Hz (optimized: 100 Hz)
-- MS1 time: 0.1 sec
-- MS2 time: 0.015 sec/window
-- Acquisition: Parallel
-- Minimum window width: 2 Da (narrow-DIA)
+Instrument presets are defined in [config/instruments.R](config/instruments.R):
 
-**Thermo Orbitrap Exploris**:
-- Max scan rate: 25 Hz (optimized: 40 Hz)
-- MS1 time: 0.05 sec
-- MS2 time: 0.02 sec/window
-- Acquisition: Sequential
+```r
+# Access instrument configs
+source("config/instruments.R")
+configs <- get_instrument_configs()
 
-**Traditional Orbitrap**:
-- Max scan rate: 8 Hz (optimized: 12 Hz)
-- MS1 time: 0.1 sec
-- MS2 time: 0.08 sec/window
-- Acquisition: Sequential
+# Available presets
+configs$astral              # Thermo Astral (parallel acquisition)
+configs$orbitrap            # Traditional Orbitrap (sequential)
+configs$orbitrap_exploris   # Orbitrap Exploris (sequential)
+configs$timstof             # Bruker timsTOF (parallel)
+configs$timstof_pro         # Bruker timsTOF Pro (parallel)
+configs$sciex_7600          # SCIEX 7600 ZenoTOF
+configs$waters_synapt       # Waters SYNAPT
+```
+
+**Key Instrument Parameters**:
+- `ms1_time`: MS1 scan time (ms)
+- `ms2_time`: MS2 scan time per window (ms)
+- `max_scan_rate`: Maximum hardware scan rate (Hz)
+- `cycle_calculation`: "parallel" or "sequential" acquisition
+- `min_window_width`: Minimum isolation window width (Da)
+- `max_windows`: Maximum number of isolation windows
+
+**Example: Thermo Astral**
+```r
+astral <- get_instrument_configs()$astral
+# ms1_time = 5.0 ms
+# ms2_time = 3.0 ms
+# max_scan_rate = 100 Hz
+# cycle_calculation = "parallel"
+# min_window_width = 2.0 Da (narrow-DIA capability)
+```
+
+---
+
+## Working with R in This Codebase
+
+### R-Specific Patterns Used
+
+**File Sourcing**: This project uses `source()` to load modules rather than packages
+```r
+# Always source dependencies in order
+source("R/data_loader.R")          # Low-level utilities first
+source("R/dppp_calculator.R")
+source("R/stage1_data_validation.R")  # Higher-level modules next
+```
+
+**S3 Object System**: Custom classes for type safety
+```r
+# Creating typed objects
+validated_data <- structure(
+  list(data = df, metadata = meta),
+  class = c("ValidatedData", "list")
+)
+
+# Type checking
+stopifnot(inherits(validated_data, "ValidatedData"))
+```
+
+**Tidyverse-style Programming**
+```r
+# Prefer pipes for clarity
+data %>%
+  filter(RT.Start >= rt_min) %>%
+  mutate(dppp = calculate_dppp(FWHM, cycle_time)) %>%
+  group_by(rt_segment) %>%
+  summarize(mean_dppp = mean(dppp))
+```
+
+### Common Pitfalls
+
+**1. Time Unit Confusion**
+- DIA-NN reports RT in **minutes**
+- FWHM in **minutes**
+- Cycle time calculations use **seconds**
+- Instrument configs define times in **milliseconds**
+
+```r
+# Always convert explicitly
+cycle_time_sec <- cycle_time_ms / 1000
+fwhm_sec <- fwhm_min * 60
+```
+
+**2. DPPP Direction is Counter-Intuitive**
+- Higher DPPP requires **shorter** cycle time (not longer)
+- DPPP = (1.7 × FWHM) / cycle_time
+- Smaller cycle_time → Higher DPPP → Better quality
+
+**3. Satisfaction Ratio Logic**
+- Target DPPP is a **minimum threshold** (no upper limit)
+- `dppp >= target` = satisfied (higher is always better)
+- 70% satisfaction → use **30th percentile** FWHM (not 70th)
+  - Shortest FWHMs are hardest to satisfy
+  - `quantile(fwhm, 1 - 0.7)` gives critical FWHM
+
+**4. Scan Rate Calculation**
+```r
+# WRONG: scan_rate = 1 / cycle_time  (this is cycle frequency)
+# RIGHT: scan_rate = n_windows / cycle_time  (MS2 scans per second)
+```
+
+### Data Loading Best Practices
+
+```r
+# Always check file format and load appropriately
+if (grepl("\\.parquet$", file_path)) {
+  data <- arrow::read_parquet(file_path)
+} else if (grepl("\\.tsv$", file_path)) {
+  data <- read.delim(file_path)
+} else {
+  data <- read.csv(file_path)
+}
+
+# Verify required columns exist
+required <- c("RT.Start", "Precursor.Mz", "FWHM")
+missing <- setdiff(required, colnames(data))
+if (length(missing) > 0) {
+  stop(sprintf("Missing columns: %s", paste(missing, collapse = ", ")))
+}
+```
+
+### Output Structure Conventions
+
+All stage functions return a consistent structure:
+```r
+list(
+  # Primary output
+  data = main_result,
+
+  # Metadata about the computation
+  metadata = list(
+    n_items = nrow(main_result),
+    computation_time = elapsed,
+    parameters_used = params
+  ),
+
+  # Status information
+  status = list(
+    success = TRUE,
+    warnings = warning_messages,
+    errors = character(0)
+  )
+)
+```
 
 ---
 
@@ -368,92 +554,94 @@ VisualizationResult <- structure(
 
 ---
 
-## Existing Code to Leverage
+## Key Modules and Their Purposes
 
-### ✅ Already Implemented (Reuse)
+### Core Pipeline Modules (Completed)
 
-1. **RT Binning** (`R/rt_segmentation.R`):
-   - `segment_rt_by_time_unit()` - Time-based binning
-   - `segment_rt_by_time_breaks()` - Explicit breakpoints
-   - **Use in Phase 3B**: Create wrapper function
+**Stage 1: Data Validation** ([R/stage1_data_validation.R](R/stage1_data_validation.R))
+- Load DIA-NN output (Parquet/TSV/CSV)
+- Validate required columns and data quality
+- Optionally integrate raw file metadata
 
-2. **Variable Window Generation** (`R/window_generator.R`):
-   - `generate_windows_from_boundaries()` - Density-based windows
-   - Largest Remainder Method for exact window count
-   - **Use in Phase 3D**: Integrate as Variable mode
+**Stage 2: DPPP Diagnosis** ([R/stage2_dppp_diagnosis.R](R/stage2_dppp_diagnosis.R))
+- Calculate current DPPP distribution
+- Compute satisfaction ratio against target
+- Recommend optimal cycle time for next experiment
 
-3. **DynamicDIA Smoothing** (`R/dynamicDIA.R` + `R/mz_boundaries.R`):
-   - Savitzky-Golay, Moving Average, Gaussian smoothing
-   - `compute_smooth_mz_boundaries()` - RT-dependent m/z ranges
-   - **Use in Phase 3C**: Integrate as Smoothing strategy
+**Stage 3: Window Optimization**
+- **3A**: [module3a_window_count.R](R/stage3_window_optimization/module3a_window_count.R) - Determine window count from cycle time
+- **3B**: [module3b_rt_binning.R](R/stage3_window_optimization/module3b_rt_binning.R) - Wrapper around rt_segmentation.R for time-based binning
+- **3C**: [module3c_mz_range_optimization.R](R/stage3_window_optimization/module3c_mz_range_optimization.R) - 4 strategies (Quantile, Smoothing, Outlier removal, Coverage)
+- **3D**: [module3d_window_generation.R](R/stage3_window_optimization/module3d_window_generation.R) - Generate windows (Fixed/Variable/Overlapped)
 
-4. **Data Loading** (`R/data_loader.R`):
-   - `load_diann_data()` - Parquet/TSV/CSV loading
-   - **Use in Phase 1**: Integrate into validation pipeline
+**Stage 4: Visualization** ([R/visualizer.R](R/visualizer.R) - partial)
+- Generate diagnostic plots
+- Create PDF reports
+- Export method files for instrument programming
 
-5. **DPPP Calculator** (`R/dppp_calculator.R`):
-   - Basic DPPP calculation
-   - **Use in Phase 2**: Enhance with satisfaction ratio
+### Reusable Utility Modules
 
-6. **Visualization** (`R/visualizer.R`):
-   - Basic plotting functions
-   - **Use in Phase 4**: Expand with 8 required plots
-
-### 🔴 Need to Implement (New)
-
-1. **Phase 1**: Complete data validation framework
-2. **Phase 2**: DPPP diagnosis and scan_time recommendation
-3. **Phase 3A**: Window count determination with feasibility checks
-4. **Phase 3B**: Wrapper integration for RT binning
-5. **Phase 3C**: 4-strategy m/z range optimization framework
-6. **Phase 3D**: Fixed and Overlapped window modes
-7. **Phase 4**: Comprehensive visualization and reporting
+**[R/rt_segmentation.R](R/rt_segmentation.R)**: Time-based RT binning algorithms
+**[R/window_generator.R](R/window_generator.R)**: Density-based variable window generation
+**[R/dynamicDIA.R](R/dynamicDIA.R)**: DynamicDIA smoothing algorithms (Savitzky-Golay, etc.)
+**[R/data_loader.R](R/data_loader.R)**: Multi-format data loading (Parquet/TSV/CSV)
+**[R/dppp_calculator.R](R/dppp_calculator.R)**: DPPP calculation engine
+**[R/method_writer.R](R/method_writer.R)**: Export method files in vendor formats
+**[R/utils.R](R/utils.R)**: General utility functions
 
 ---
 
-## Testing Strategy
+## Testing and Validation
 
-### Unit Testing
+### Available Test Scripts
 
-Each phase has dedicated test files:
+**Integration Tests** (root directory):
 ```r
-tests/
-├── test_stage1.R    # Data validation tests
-├── test_stage2.R    # DPPP diagnosis tests
-├── test_stage3a.R   # Window count tests
-├── test_stage3b.R   # RT binning integration tests
-├── test_stage3c.R   # m/z range optimization tests
-├── test_stage3d.R   # Window generation tests
-└── test_stage4.R    # Visualization tests
+source("test_modules_1_2_3.R")        # Test complete Stages 1-3 pipeline
+source("test_final_workflow.R")       # End-to-end workflow test
+source("test_real_data.R")            # Validation with actual DIA-NN data
+source("test_redesigned_modules.R")   # Test redesigned module architecture
+source("test_window_generation.R")    # Window generation algorithms
 ```
 
-### Mock Data
-
-Each phase provides mock output for downstream development:
+**Analysis Scripts**:
 ```r
-# Example: Phase 2 mock
-source("tests/mocks/mock_stage2_output.R")
-mock_diagnosis <- create_mock_stage2_output(
-  n_precursors = 1000,
-  target_dppp = 7.0,
-  satisfaction_ratio = 0.85
-)
+source("analyze_fwhm_simple.R")       # Quick FWHM analysis
+source("analyze_fwhm_detailed.R")     # Detailed FWHM distribution
+source("dppp_threshold_analysis.R")   # DPPP threshold optimization
+source("compare_instruments.R")       # Compare instrument configurations
 ```
 
-### Integration Testing
+### Mock Data for Independent Development
 
-End-to-end testing with real data:
+Mock generators are in `tests/mocks/` (if the directory exists):
 ```r
-# Complete pipeline test
-source("test_real_data.R")
-
-# Or step-by-step
-data <- load_diann_data("report.parquet")
-validated <- validate_data(data)
-diagnosis <- diagnose_dppp_status(validated, ...)
-windows <- generate_isolation_windows(diagnosis, ...)
-viz <- generate_visualizations(windows, ...)
+# Example pattern for creating mocks
+create_mock_stage1_output <- function(n_precursors = 1000) {
+  structure(
+    list(
+      data = tibble(
+        RT.Start = runif(n_precursors, 10, 110),
+        Precursor.Mz = runif(n_precursors, 400, 900),
+        FWHM = rnorm(n_precursors, 0.3, 0.1)
+      ),
+      metadata = list(
+        n_precursors = n_precursors,
+        rt_range = c(10, 110),
+        mz_range = c(400, 900)
+      )
+    ),
+    class = c("ValidatedData", "list")
+  )
+}
 ```
+
+### Verification with Real Data
+
+The project includes test data fixtures in `tests/fixtures/` (if available):
+- Example DIA-NN parquet files
+- Expected output files for regression testing
+- Instrument-specific test cases (Astral, Orbitrap, etc.)
 
 ---
 
@@ -521,17 +709,36 @@ viz <- generate_visualizations(windows, ...)
 - Use mock data from `tests/mocks/` for independent development
 - Refer to `docs/API_SPECIFICATION.md` for module interfaces
 
-### For Claude Code
+### Claude Code Workflow
 
 When working on this project:
-1. **Start with the phase guide**: Read the relevant `docs/phases/PHASE[N]_*.md` file
-2. **Use mock data**: Load mock inputs from `tests/mocks/` for development
-3. **Follow API specs**: Ensure output matches `docs/API_SPECIFICATION.md`
-4. **Write tests**: Create unit tests in `tests/test_stage[N].R`
-5. **Update docs**: Keep DEVELOPMENT.md progress tracking current
+
+1. **Understand the phase**: Read relevant `docs/phases/PHASE[N]_*.md` for detailed specifications
+2. **Check instrument config**: Verify instrument parameters in `config/instruments.R`
+3. **Use existing modules**: Leverage completed stages and utility functions
+4. **Mind the units**: RT/FWHM (minutes), cycle_time (seconds), instrument times (milliseconds)
+5. **Follow API contracts**: Ensure output structure matches `docs/API_SPECIFICATION.md`
+6. **Test incrementally**: Use test scripts to validate changes
+7. **Update documentation**: Keep [DEVELOPMENT.md](DEVELOPMENT.md) current with progress
+
+### Critical Implementation Notes
+
+**DPPP Counter-Intuitive Behavior**:
+- Higher target DPPP → Need SHORTER cycle time
+- 70% satisfaction → Use 30th percentile (1 - 0.7) of FWHM distribution
+- No upper limit on DPPP (≥ target = satisfied)
+
+**Window Count Modes** (Phase 3A):
+- `"optimize"`: Auto-calculate from cycle_time and instrument constraints
+- `NULL`: Required user-specified window_count
+- User-specified: Direct override with feasibility check
+
+**Cycle Time Calculation**:
+- Parallel (Astral/TimsTOF): MS1 and MS2 overlap
+- Sequential (Orbitrap): MS1 then MS2 sequentially
 
 ---
 
 **Version**: 2.0 (4-Stage Architecture)
-**Last Updated**: 2025-10-13
-**Status**: Active Development
+**Last Updated**: 2025-10-18
+**Status**: Core pipeline complete (~60%), visualization in progress
