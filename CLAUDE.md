@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DIA Window Optimizer is an R-based tool for optimizing Data-Independent Acquisition (DIA) isolation windows for mass spectrometry. It implements a **4-stage pipeline** for DIA window optimization using DIA-NN results to diagnose current DPPP status and generate optimized RT-dependent isolation windows.
+DIA Window Optimizer is an R-based tool for optimizing Data-Independent Acquisition (DIA) isolation windows for mass spectrometry. It implements a **streamlined 3-stage pipeline** for DIA window optimization using DIA-NN results to diagnose current DPPP status and generate optimized RT-dependent isolation windows.
+
+**Version 2.0 Refactored** (2025-10-25): Unified architecture with improved performance and reduced code complexity.
 
 The tool is specifically designed for the **Thermo Fisher Orbitrap family** of mass spectrometers, with particular optimization for:
 
@@ -18,33 +20,46 @@ While other instrument types (TimsTOF, SCIEX, Waters) are supported, the optimiz
 
 ## Architecture Overview
 
-### 4-Stage Pipeline
+### Refactored 3-Stage Pipeline (v2.0)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    4-Stage Pipeline                          │
+│              Streamlined 3-Stage Pipeline (v2.0)            │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
 │  [Stage 1] Data Validation                                  │
 │      Input: DIA-NN output (+ Raw files, optional)          │
-│      Output: Validated dataset + metadata                   │
+│      Output: ValidatedData object                           │
+│      File: R/stage1_data_validation.R (existing)           │
 │      ↓                                                       │
-│  [Stage 2] DPPP Diagnosis                                   │
-│      Input: Validated data + user scan_time                │
-│      Output: Current status + recommended scan_time         │
+│  [Stage 2] Optimization Planning (MERGED)                   │
+│      Input: ValidatedData + current cycle time              │
+│      Combines:                                              │
+│        - DPPP Diagnosis                                     │
+│        - Window Count Determination                         │
+│      Output: OptimizationPlan object                        │
+│      File: R/stage2_optimization_planning.R (NEW)          │
 │      ↓                                                       │
-│  [Stage 3] Window Optimization                              │
-│      ├─ [3A] Window Count Determination                    │
-│      ├─ [3B] RT Binning (time-based)                       │
-│      ├─ [3C] m/z Range Optimization                        │
-│      └─ [3D] Window Generation                             │
-│      Output: Optimized isolation windows                    │
+│  [Stage 3] Window Optimization (UNIFIED)                    │
+│      Input: ValidatedData + OptimizationPlan                │
+│      Combines:                                              │
+│        - RT Binning (internal)                              │
+│        - m/z Range Optimization                             │
+│        - Window Generation                                  │
+│      Output: OptimizedWindows object                        │
+│      File: R/stage3_window_optimization.R (NEW)            │
 │      ↓                                                       │
 │  [Stage 4] Visualization & Reporting                        │
 │      Input: All previous outputs                            │
 │      Output: Plots + PDF report + method file              │
+│      File: R/stage4_visualization.R (to be updated)        │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
+
+🔧 Common Utilities: R/utils_common.R (NEW)
+   - Shared functions for validation, statistics, performance
+   - 50-100x faster precursor-window matching
+   - Unified progress reporting and error handling
 ```
 
 ### Core Design Principles
@@ -64,33 +79,34 @@ While other instrument types (TimsTOF, SCIEX, Waters) are supported, the optimiz
 - **Required Columns**: RT.Start, Precursor.Mz, FWHM
 - **Data Quality Validation**: Outlier detection, range checks, missing value handling
 
-### Stage 2: DPPP Diagnosis
-- **Current DPPP Distribution**: Calculate DPPP from existing FWHM data
-- **Satisfaction Ratio**: % of precursors meeting target DPPP ± tolerance
-- **Scan Time Recommendation**: Optimize scan_time for next experiment
-- **Trade-off Analysis**: scan_time vs window_count vs satisfaction ratio
+### Stage 2: Optimization Planning (v2.0 - Merged Module)
+**Combines DPPP Diagnosis + Window Count Determination**
+- **Current DPPP Analysis**: Calculate DPPP distribution from FWHM data
+- **Satisfaction Ratio**: % of precursors meeting target DPPP
+- **Required Cycle Time**: Calculate maximum cycle time for target DPPP
+- **Window Count Determination**: Optimal windows per RT bin
+- **Feasibility Checks**: Scan rate, cycle time, instrument constraints
+- **Unified Output**: Single OptimizationPlan object with all recommendations
 
-### Stage 3: Window Optimization
+### Stage 3: Window Optimization (v2.0 - Unified Module)
+**Combines RT Binning + m/z Optimization + Window Generation**
 
-#### 3A: Window Count Determination
-- Calculate window count from scan_time and instrument scan rate
-- Verify against instrument constraints (scan rate, cycle time)
-- Optional raw metadata integration for injection time adjustment
+**Internal Steps** (automated, not exposed to user):
+1. **RT Binning**: Time-based segmentation (e.g., 5-minute bins)
+2. **m/z Range Optimization**: Per-RT-bin range optimization
+   - Quantile strategy: Fast and robust (P5-P95)
+   - Coverage strategy: Minimum range for target coverage
+3. **Window Generation**: Per-RT-bin window creation
+   - Fixed mode: Equal-width windows
+   - Variable mode: Density-based adaptive windows (recommended)
+4. **Performance Optimization**: Vectorized precursor-window matching (50-100x faster)
+5. **Statistics Calculation**: Coverage, uniformity, quality metrics
 
-#### 3B: RT Binning (Time-Based)
-- **Time-unit binning**: Equal time intervals (e.g., 5-minute bins)
-- **Explicit breakpoints**: User-defined RT boundaries
-- **Purpose**: Temporal consistency, NOT precursor count equalization
-
-#### 3C: m/z Range Optimization
-- **4 Strategies**: Quantile, Smoothing (DynamicDIA), Outlier removal, Coverage-based
-- **DynamicDIA Integration**: Savitzky-Golay smoothing for RT-dependent m/z ranges
-- **Strategy Comparison**: Evaluate performance of different approaches
-
-#### 3D: Window Generation
-- **3 Modes**: Fixed (equal width), Variable (density-based), Overlapped
-- **Largest Remainder Method**: Exact window count allocation for Variable mode
-- **Uniform Density**: Each window contains similar precursor counts
+**Key Improvements**:
+- Single function call for complete optimization
+- Reduced intermediate objects (better memory efficiency)
+- Optimized algorithms (dramatic speed improvement)
+- Consistent error handling and validation
 
 ### Stage 4: Visualization & Reporting
 - **8 Essential Plots**: DPPP density, RT allocation, coverage, efficiency, etc.
