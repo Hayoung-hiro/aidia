@@ -156,11 +156,11 @@ stage3b_end <- Sys.time()
 stage3b_time <- as.numeric(difftime(stage3b_end, stage3b_start, units = "secs"))
 
 cat(sprintf("\n✅ Stage 3B complete (%.2f sec)\n", stage3b_time))
-cat(sprintf("   RT bins: %d\n", rt_binning_result$insights$n_segments))
+cat(sprintf("   RT bins: %d\n", rt_binning_result$parameters$n_bins))
 cat(sprintf("   Precursors per bin: %.0f (min: %d, max: %d)\n",
-            rt_binning_result$insights$mean_precursors_per_segment,
-            rt_binning_result$insights$min_precursors_per_segment,
-            rt_binning_result$insights$max_precursors_per_segment))
+            mean(rt_binning_result$rt_group_stats$n_precursors),
+            min(rt_binning_result$rt_group_stats$n_precursors),
+            max(rt_binning_result$rt_group_stats$n_precursors)))
 
 # Save Stage 3B output
 saveRDS(rt_binning_result, file.path(OUTPUT_DIR, "stage3b_rt_binning.rds"))

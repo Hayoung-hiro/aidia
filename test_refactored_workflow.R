@@ -167,6 +167,39 @@ cat("\n")
 summary(optimized_windows)
 
 # =============================================================================
+# Stage 4: Visualization & Reporting (NEW - Updated Module)
+# =============================================================================
+
+cat("\n")
+stage4_timer <- create_timer()
+
+# Load Stage 4
+source("R/stage4_visualization.R")
+
+# Generate visualizations
+viz_result <- generate_visualizations(
+  validated_data = validated_data,
+  optimization_plan = optimization_plan,
+  optimized_windows = optimized_windows,
+  output_dir = OUTPUT_DIR,
+  create_pdf = TRUE,
+  create_individual_plots = TRUE,
+  plot_format = "png",
+  plot_dpi = 300
+)
+
+stage4_time <- stage4_timer$elapsed()
+
+# Print visualization summary
+cat("\n")
+cat(sprintf("✅ Stage 4 complete (%.2f sec)\n", stage4_time))
+cat(sprintf("   Plots generated: %d\n", length(viz_result$plots)))
+cat(sprintf("   PDF report: %s\n",
+            if (!is.null(viz_result$report_files$pdf_report)) basename(viz_result$report_files$pdf_report) else "Not created"))
+cat(sprintf("   Method file: %s\n", basename(viz_result$report_files$method_file)))
+cat(sprintf("   Individual plots: %d files\n", length(viz_result$report_files$individual_plots)))
+
+# =============================================================================
 # Performance Comparison
 # =============================================================================
 
@@ -184,6 +217,8 @@ cat(sprintf("  Stage 2 (Optimization Planning): %7.2f sec (%5.1f%%)\n",
             stage2_time, stage2_time / total_time * 100))
 cat(sprintf("  Stage 3 (Window Optimization):   %7.2f sec (%5.1f%%)\n",
             stage3_time, stage3_time / total_time * 100))
+cat(sprintf("  Stage 4 (Visualization):         %7.2f sec (%5.1f%%)\n",
+            stage4_time, stage4_time / total_time * 100))
 cat(sprintf("  ─────────────────────────────────────────────────\n"))
 cat(sprintf("  Total:                           %7.2f sec\n\n", total_time))
 
@@ -294,10 +329,19 @@ summary_report <- list(
     time_sec = stage3_time
   ),
 
+  stage4 = list(
+    plots_generated = length(viz_result$plots),
+    pdf_report = basename(viz_result$report_files$pdf_report),
+    method_file = basename(viz_result$report_files$method_file),
+    individual_plots_count = length(viz_result$report_files$individual_plots),
+    time_sec = stage4_time
+  ),
+
   performance = list(
     stage1_sec = stage1_time,
     stage2_sec = stage2_time,
     stage3_sec = stage3_time,
+    stage4_sec = stage4_time,
     total_sec = total_time,
     precursors_per_sec = validated_data$metadata$n_precursors / total_time
   )
@@ -348,8 +392,14 @@ cat(sprintf("  Expected DPPP satisfaction: %.0f%% → %.0f%%\n",
             optimization_plan$diagnosis$current_satisfaction_ratio * 100,
             optimization_plan$parameters$target_satisfaction * 100))
 
-cat("\nMethod File Ready:\n")
-cat(sprintf("  📁 %s\n", method_file))
-cat("  → Upload this file to your instrument\n")
+cat("\nOutput Files Ready:\n")
+cat(sprintf("  📁 Method file: %s\n", basename(viz_result$report_files$method_file)))
+cat("     → Upload this file to your instrument\n")
+if (!is.null(viz_result$report_files$pdf_report)) {
+  cat(sprintf("  📊 PDF report: %s\n", basename(viz_result$report_files$pdf_report)))
+  cat("     → Comprehensive visualization report\n")
+}
+cat(sprintf("  📈 Individual plots: %d PNG files\n", length(viz_result$report_files$individual_plots)))
+cat("     → High-resolution plot images\n")
 
 cat("\n═══════════════════════════════════════════════════════════\n\n")

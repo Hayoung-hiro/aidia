@@ -1,6 +1,8 @@
-# stage4_visualization.R - Phase 4: Visualization & Reporting
+# stage4_visualization.R - Stage 4: Visualization & Reporting
 #
 # Purpose: Generate comprehensive visualizations and reports for DIA window optimization
+#
+# Version: 2.0 (Updated for 3-stage refactored pipeline)
 #
 # Main Functions:
 #   1. generate_visualizations() - Main orchestration function
@@ -9,7 +11,11 @@
 #   4. export_method_file() - Thermo Orbitrap method CSV
 #   5. export_individual_plots() - Individual plot export
 #
-# Input: All previous stage outputs (Stage 1-3D)
+# Input: Refactored pipeline outputs
+#   - validated_data (ValidatedData from Stage 1)
+#   - optimization_plan (OptimizationPlan from Stage 2)
+#   - optimized_windows (OptimizedWindows from Stage 3)
+#
 # Output: VisualizationResult with plots, reports, and method files
 
 library(ggplot2)
@@ -47,12 +53,12 @@ theme_dia_optimizer <- function() {
 
 #' Plot DPPP Density Across RT × m/z Space
 #'
-#' @param diagnosis DiagnosisResult object from Stage 2
+#' @param optimization_plan OptimizationPlan object from Stage 2
 #' @param validated_data ValidatedData object from Stage 1
 #'
 #' @return ggplot object
 #' @export
-plot_dppp_density <- function(diagnosis, validated_data) {
+plot_dppp_density <- function(optimization_plan, validated_data) {
 
   cat("  Generating Plot 1: DPPP Density Heatmap...\n")
 
@@ -60,7 +66,7 @@ plot_dppp_density <- function(diagnosis, validated_data) {
   precursor_data <- validated_data$data %>%
     select(RT.Start, Precursor.Mz, FWHM) %>%
     mutate(
-      dppp_value = (FWHM * 60 * 1.7) / diagnosis$recommendation$current_cycle_time_sec
+      dppp_value = (FWHM * 60 * 1.7) / optimization_plan$actual_cycle_time_sec
     )
 
   # Bin the data manually for tile plot
@@ -90,8 +96,9 @@ plot_dppp_density <- function(diagnosis, validated_data) {
     ) +
     labs(
       title = "DPPP Distribution Across RT × m/z Space",
-      subtitle = sprintf("Target DPPP: 7.0 | Current Satisfaction: %.1f%%",
-                        diagnosis$current_state$satisfaction_ratio * 100),
+      subtitle = sprintf("Target DPPP: %.1f | Current Satisfaction: %.1f%%",
+                        optimization_plan$parameters$target_dppp,
+                        optimization_plan$diagnosis$current_satisfaction_ratio * 100),
       x = "Retention Time (min)",
       y = "Precursor m/z (Da)",
       caption = "Color intensity = Mean DPPP in each bin"
@@ -107,16 +114,16 @@ plot_dppp_density <- function(diagnosis, validated_data) {
 
 #' Plot Window Allocation Across RT Segments
 #'
-#' @param windows WindowGenerationResult object from Stage 3D
+#' @param optimized_windows OptimizedWindows object from Stage 3
 #'
 #' @return ggplot object
 #' @export
-plot_rt_window_size <- function(windows) {
+plot_rt_window_size <- function(optimized_windows) {
 
   cat("  Generating Plot 2: RT Window Size Distribution...\n")
 
   # Count windows per RT segment
-  rt_summary <- windows$windows %>%
+  rt_summary <- optimized_windows$windows %>%
     group_by(rt_segment_id, rt_start, rt_end) %>%
     summarise(
       n_windows = n(),
@@ -132,7 +139,7 @@ plot_rt_window_size <- function(windows) {
     labs(
       title = "Window Allocation Across RT Segments",
       subtitle = sprintf("Total windows: %d | Mean: %.1f per segment",
-                        nrow(windows$windows),
+                        nrow(optimized_windows$windows),
                         mean(rt_summary$n_windows)),
       x = "Retention Time (min)",
       y = "Number of Windows",
@@ -192,46 +199,57 @@ plot_rt_mz_density_heatmap <- function(validated_data, bins = 50) {
 
 #' Plot m/z Density Profiles Across RT Segments
 #'
-#' @param rt_binning RTBinningResult object from Stage 3B
-#' @param mz_range MzRangeResult object from Stage 3C
+#' @param optimized_windows OptimizedWindows object from Stage 3
+#' @param validated_data ValidatedData object from Stage 1
 #'
 #' @return ggplot object
 #' @export
-plot_mz_normalized_density <- function(rt_binning, mz_range) {
+plot_mz_normalized_density <- function(optimized_windows, validated_data) {
 
   cat("  Generating Plot 4: m/z Normalized Density Profiles...\n")
 
-  # Sample a few RT segments for clarity (e.g., every 3rd segment)
-  n_segments <- nrow(rt_binning$rt_group_stats)
+  # Extract RT binning and m/z optimization info from optimized_windows
+  n_segments <- optimized_windows$rt_binning$n_bins
   sampled_segments <- seq(1, n_segments, by = max(1, floor(n_segments / 6)))
 
   # Extract density profiles for sampled segments
   density_profiles <- list()
 
-  # Get precursor data with RT group assignment
-  precursor_data <- rt_binning$data$data
-  rt_group_stats <- rt_binning$rt_group_stats
+  # Get precursor data
+  precursor_data <- validated_data$data
+
+  # Get mz_ranges from optimized_windows
+  if (!is.null(optimized_windows$mz_optimization$mz_ranges)) {
+    mz_ranges <- optimized_windows$mz_optimization$mz_ranges
+  } else {
+    # Fallback: compute from windows directly
+    mz_ranges <- optimized_windows$windows %>%
+      group_by(rt_segment_id) %>%
+      summarise(
+        rt_start = min(rt_start),
+        rt_end = max(rt_end),
+        mz_min = min(mz_start),
+        mz_max = max(mz_end),
+        .groups = "drop"
+      )
+  }
 
   for (i in sampled_segments) {
-    # Get RT range for this segment
-    rt_info <- rt_group_stats[rt_group_stats$rt_group == i, ]
+    # Get RT and m/z range for this segment
+    segment_range <- mz_ranges %>%
+      filter(rt_segment_id == i)
 
-    if (nrow(rt_info) == 0) next
+    if (nrow(segment_range) == 0) next
 
     # Extract scalar values
-    rt_start_val <- as.numeric(rt_info$rt_start[1])
-    rt_end_val <- as.numeric(rt_info$rt_end[1])
+    rt_start_val <- as.numeric(segment_range$rt_start[1])
+    rt_end_val <- as.numeric(segment_range$rt_end[1])
 
     # Filter precursors in this RT segment
     segment_data <- precursor_data %>%
       filter(RT.Start >= rt_start_val & RT.Start < rt_end_val)
 
     if (nrow(segment_data) == 0) next
-
-    segment_range <- mz_range$mz_ranges %>%
-      filter(rt_segment_id == i)
-
-    if (nrow(segment_range) == 0) next
 
     # Calculate density
     mz_values <- segment_data$Precursor.Mz
@@ -285,16 +303,16 @@ plot_mz_normalized_density <- function(rt_binning, mz_range) {
 
 #' Plot Window Width Distribution Across m/z Range
 #'
-#' @param windows WindowGenerationResult object from Stage 3D
+#' @param optimized_windows OptimizedWindows object from Stage 3
 #'
 #' @return ggplot object
 #' @export
-plot_mz_window_width <- function(windows) {
+plot_mz_window_width <- function(optimized_windows) {
 
   cat("  Generating Plot 5: m/z Window Width Profile...\n")
 
   # Extract window data
-  window_data <- windows$windows %>%
+  window_data <- optimized_windows$windows %>%
     mutate(rt_midpoint = (rt_start + rt_end) / 2)
 
   # Calculate statistics
@@ -327,12 +345,12 @@ plot_mz_window_width <- function(windows) {
 
 #' Plot Precursor Coverage Map
 #'
-#' @param windows WindowGenerationResult object from Stage 3D
+#' @param optimized_windows OptimizedWindows object from Stage 3
 #' @param validated_data ValidatedData object from Stage 1
 #'
 #' @return ggplot object
 #' @export
-plot_precursor_coverage_map <- function(windows, validated_data) {
+plot_precursor_coverage_map <- function(optimized_windows, validated_data) {
 
   cat("  Generating Plot 6: Precursor Coverage Map...\n")
 
@@ -345,7 +363,7 @@ plot_precursor_coverage_map <- function(windows, validated_data) {
     precursor_data <- precursor_data %>% sample_n(5000)
   }
 
-  window_data <- windows$windows
+  window_data <- optimized_windows$windows
 
   # Determine coverage for each precursor
   cat("    Calculating coverage (this may take a moment)...\n")
@@ -394,16 +412,16 @@ plot_precursor_coverage_map <- function(windows, validated_data) {
 
 #' Plot Window Efficiency (Precursors per Window)
 #'
-#' @param windows WindowGenerationResult object from Stage 3D
+#' @param optimized_windows OptimizedWindows object from Stage 3
 #'
 #' @return ggplot object
 #' @export
-plot_window_efficiency <- function(windows) {
+plot_window_efficiency <- function(optimized_windows) {
 
   cat("  Generating Plot 7: Window Efficiency Analysis...\n")
 
   # Extract window efficiency data
-  window_data <- windows$windows %>%
+  window_data <- optimized_windows$windows %>%
     arrange(n_precursors) %>%
     mutate(window_rank = row_number())
 
@@ -446,24 +464,29 @@ plot_window_efficiency <- function(windows) {
 
 #' Plot DPPP Achievement Heatmap by Window
 #'
-#' @param diagnosis DiagnosisResult object from Stage 2
-#' @param windows WindowGenerationResult object from Stage 3D
+#' @param optimization_plan OptimizationPlan object from Stage 2
+#' @param optimized_windows OptimizedWindows object from Stage 3
 #' @param validated_data ValidatedData object from Stage 1
-#' @param target_dppp Target DPPP value (default: 7.0)
+#' @param target_dppp Target DPPP value (default: NULL, uses plan target)
 #' @param dppp_tolerance DPPP tolerance (default: 0.5)
 #'
 #' @return ggplot object
 #' @export
-plot_dppp_achievement_heatmap <- function(diagnosis, windows, validated_data,
-                                         target_dppp = 7.0, dppp_tolerance = 0.5) {
+plot_dppp_achievement_heatmap <- function(optimization_plan, optimized_windows, validated_data,
+                                         target_dppp = NULL, dppp_tolerance = 0.5) {
 
   cat("  Generating Plot 8: DPPP Achievement Heatmap...\n")
+
+  # Use target from optimization_plan if not provided
+  if (is.null(target_dppp)) {
+    target_dppp <- optimization_plan$parameters$target_dppp
+  }
 
   # Calculate DPPP for each precursor
   dppp_data <- validated_data$data %>%
     select(RT.Start, Precursor.Mz, FWHM) %>%
     mutate(
-      dppp_value = (FWHM * 60 * 1.7) / diagnosis$recommendation$current_cycle_time_sec,
+      dppp_value = (FWHM * 60 * 1.7) / optimization_plan$actual_cycle_time_sec,
       meets_target = dppp_value >= (target_dppp - dppp_tolerance) &
                      dppp_value <= (target_dppp + dppp_tolerance)
     )
@@ -474,7 +497,7 @@ plot_dppp_achievement_heatmap <- function(diagnosis, windows, validated_data,
     dppp_data <- dppp_data %>% sample_n(5000)
   }
 
-  window_data <- windows$windows
+  window_data <- optimized_windows$windows
 
   # Assign each precursor to a window
   cat("    Assigning precursors to windows...\n")
@@ -523,7 +546,7 @@ plot_dppp_achievement_heatmap <- function(diagnosis, windows, validated_data,
     labs(
       title = "DPPP Achievement Heatmap (by Window)",
       subtitle = sprintf("Overall satisfaction: %.1f%% | Target: %.1f ± %.1f",
-                        diagnosis$current_state$satisfaction_ratio * 100,
+                        optimization_plan$diagnosis$current_satisfaction_ratio * 100,
                         target_dppp, dppp_tolerance),
       x = "Retention Time (min)",
       y = "Window Center m/z (Da)",
@@ -543,7 +566,9 @@ plot_dppp_achievement_heatmap <- function(diagnosis, windows, validated_data,
 #' Main orchestration function that generates all 8 plots, PDF report,
 #' method file, and individual plot exports.
 #'
-#' @param all_results List with all previous stage outputs
+#' @param validated_data ValidatedData object from Stage 1
+#' @param optimization_plan OptimizationPlan object from Stage 2
+#' @param optimized_windows OptimizedWindows object from Stage 3
 #' @param output_dir Character, output directory path
 #' @param create_pdf Logical, create comprehensive PDF report
 #' @param create_individual_plots Logical, export individual plots
@@ -553,7 +578,9 @@ plot_dppp_achievement_heatmap <- function(diagnosis, windows, validated_data,
 #' @return VisualizationResult object
 #' @export
 generate_visualizations <- function(
-  all_results,
+  validated_data,
+  optimization_plan,
+  optimized_windows,
   output_dir = "output/",
   create_pdf = TRUE,
   create_individual_plots = TRUE,
@@ -572,28 +599,20 @@ generate_visualizations <- function(
     dir.create(output_dir, recursive = TRUE)
   }
 
-  # Extract inputs
-  validated_data <- all_results$validated_data
-  diagnosis <- all_results$diagnosis
-  window_count <- all_results$window_count
-  rt_binning <- all_results$rt_binning
-  mz_range <- all_results$mz_range
-  windows <- all_results$windows
-
   cat("Step 1: Generating 8 required plots...\n")
 
   # Generate all plots
   plots <- list()
 
-  plots$dppp_density <- plot_dppp_density(diagnosis, validated_data)
-  plots$rt_window_size <- plot_rt_window_size(windows)
+  plots$dppp_density <- plot_dppp_density(optimization_plan, validated_data)
+  plots$rt_window_size <- plot_rt_window_size(optimized_windows)
   plots$rt_mz_heatmap <- plot_rt_mz_density_heatmap(validated_data)
-  plots$mz_normalized_density <- plot_mz_normalized_density(rt_binning, mz_range)
-  plots$mz_window_width <- plot_mz_window_width(windows)
-  plots$precursor_coverage_map <- plot_precursor_coverage_map(windows, validated_data)
-  plots$window_efficiency <- plot_window_efficiency(windows)
+  plots$mz_normalized_density <- plot_mz_normalized_density(optimized_windows, validated_data)
+  plots$mz_window_width <- plot_mz_window_width(optimized_windows)
+  plots$precursor_coverage_map <- plot_precursor_coverage_map(optimized_windows, validated_data)
+  plots$window_efficiency <- plot_window_efficiency(optimized_windows)
   plots$dppp_achievement_heatmap <- plot_dppp_achievement_heatmap(
-    diagnosis, windows, validated_data
+    optimization_plan, optimized_windows, validated_data
   )
 
   cat(sprintf("✅ All 8 plots generated successfully\n\n"))
@@ -620,7 +639,7 @@ generate_visualizations <- function(
   if (create_pdf) {
     cat("\nStep 3: Creating PDF report...\n")
     pdf_file <- file.path(output_dir, "optimization_report.pdf")
-    create_pdf_report(plots, all_results, pdf_file)
+    create_pdf_report(plots, validated_data, optimization_plan, optimized_windows, pdf_file)
     report_files$pdf_report <- pdf_file
   } else {
     cat("\nStep 3: Skipping PDF report creation\n")
@@ -630,12 +649,12 @@ generate_visualizations <- function(
   # Step 4: Export method file (CSV for Thermo)
   cat("\nStep 4: Exporting instrument method file...\n")
   method_file <- file.path(output_dir, "method.csv")
-  export_method_file(windows, method_file)
+  export_method_file(optimized_windows, method_file)
   report_files$method_file <- method_file
 
   # Step 5: Calculate summary statistics
   cat("\nStep 5: Calculating summary statistics...\n")
-  summary_stats <- calculate_summary_statistics(all_results)
+  summary_stats <- calculate_summary_statistics(validated_data, optimization_plan, optimized_windows)
 
   viz_end <- Sys.time()
   total_time <- as.numeric(difftime(viz_end, viz_start, units = "secs"))
@@ -650,9 +669,9 @@ generate_visualizations <- function(
       summary_statistics = summary_stats,
 
       metadata = list(
-        instrument_type = window_count$instrument_config$name,
-        mz_strategy = mz_range$metadata$strategy_used,
-        window_mode = windows$metadata$generation_method,
+        instrument_type = optimization_plan$instrument$preset,
+        mz_strategy = optimized_windows$parameters$mz_strategy,
+        window_mode = optimized_windows$parameters$window_mode,
         generation_timestamp = viz_start,
         plot_generation_time = plot_time,
         report_generation_time = total_time - plot_time,
@@ -727,11 +746,14 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
 #' Create PDF Report
 #'
 #' @param plots List of ggplot objects
-#' @param all_results All stage results
+#' @param validated_data ValidatedData object from Stage 1
+#' @param optimization_plan OptimizationPlan object from Stage 2
+#' @param optimized_windows OptimizedWindows object from Stage 3
 #' @param output_file PDF output path
 #'
 #' @export
-create_pdf_report <- function(plots, all_results, output_file) {
+create_pdf_report <- function(plots, validated_data, optimization_plan,
+                               optimized_windows, output_file) {
 
   # Create multi-panel PDF with all plots
   pdf(output_file, width = 16, height = 10)
@@ -744,6 +766,12 @@ create_pdf_report <- function(plots, all_results, output_file) {
   grid.text(sprintf("Generated: %s", Sys.time()),
             x = 0.5, y = 0.4,
             gp = gpar(fontsize = 14))
+  grid.text(sprintf("Instrument: %s | Windows: %d | Coverage: %.1f%%",
+                   optimization_plan$instrument$preset,
+                   nrow(optimized_windows$windows),
+                   optimized_windows$statistics$coverage_percentage),
+            x = 0.5, y = 0.3,
+            gp = gpar(fontsize = 12))
 
   # Plot pages (2 plots per page)
   plot_pairs <- list(
@@ -766,14 +794,14 @@ create_pdf_report <- function(plots, all_results, output_file) {
 
 #' Export Method File
 #'
-#' @param windows WindowGenerationResult object
+#' @param optimized_windows OptimizedWindows object from Stage 3
 #' @param output_file CSV output path
 #'
 #' @export
-export_method_file <- function(windows, output_file) {
+export_method_file <- function(optimized_windows, output_file) {
 
   # Create Thermo Orbitrap method file format
-  method_data <- windows$windows %>%
+  method_data <- optimized_windows$windows %>%
     select(
       RT_start = rt_start,
       RT_end = rt_end,
@@ -796,44 +824,48 @@ export_method_file <- function(windows, output_file) {
 
 #' Calculate Summary Statistics
 #'
-#' @param all_results All stage results
+#' @param validated_data ValidatedData object from Stage 1
+#' @param optimization_plan OptimizationPlan object from Stage 2
+#' @param optimized_windows OptimizedWindows object from Stage 3
 #'
 #' @return List of summary statistics
 #' @export
-calculate_summary_statistics <- function(all_results) {
+calculate_summary_statistics <- function(validated_data, optimization_plan, optimized_windows) {
 
-  windows <- all_results$windows$windows
-  window_stats <- all_results$windows$statistics
-  diagnosis <- all_results$diagnosis
-  window_count <- all_results$window_count
+  windows <- optimized_windows$windows
+  window_stats <- optimized_windows$statistics
 
   list(
     optimization_metrics = list(
       total_windows = nrow(windows),
-      window_count_per_rt = window_count$window_count,
+      window_count_per_rt = optimization_plan$window_count_per_bin,
       mean_window_width_da = mean(windows$window_width),
-      precursor_coverage_pct = window_stats$overall_coverage_ratio * 100,
+      precursor_coverage_pct = window_stats$coverage_percentage,
       mean_precursors_per_window = window_stats$mean_precursors_per_window,
       cv_precursors = window_stats$cv_precursors
     ),
 
     performance_metrics = list(
-      cycle_time_sec = diagnosis$recommendation$current_cycle_time_sec,
-      scan_rate_hz = 1 / diagnosis$recommendation$current_cycle_time_sec,
-      target_dppp = 7.0,
-      mean_dppp = diagnosis$current_state$dppp_stats$mean,
-      dppp_satisfaction_pct = diagnosis$current_state$satisfaction_ratio * 100
+      cycle_time_sec = optimization_plan$actual_cycle_time_sec,
+      scan_rate_hz = 1 / optimization_plan$actual_cycle_time_sec,
+      target_dppp = optimization_plan$parameters$target_dppp,
+      current_dppp_satisfaction_pct = optimization_plan$diagnosis$current_satisfaction_ratio * 100,
+      required_cycle_time_sec = optimization_plan$required_cycle_time_sec
     ),
 
     instrument_config = list(
-      instrument_type = window_count$instrument_config$name,
-      mz_strategy = all_results$mz_range$metadata$strategy_used,
-      window_mode = all_results$windows$metadata$generation_method
+      instrument_type = optimization_plan$instrument$preset,
+      mz_strategy = optimized_windows$parameters$mz_strategy,
+      window_mode = optimized_windows$parameters$window_mode,
+      n_precursors = validated_data$metadata$n_precursors,
+      rt_range = validated_data$metadata$rt_range,
+      mz_range = validated_data$metadata$mz_range
     )
   )
 }
 
 cat("✅ Stage 4 (Visualization & Reporting) loaded successfully\n")
+cat("   Version: 2.0 (Updated for 3-stage refactored pipeline)\n")
 cat("   Main function: generate_visualizations()\n")
 cat("   Plot functions: 8 available\n")
 cat("   Export functions: create_pdf_report(), export_method_file()\n")
