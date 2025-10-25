@@ -501,6 +501,13 @@ plot_dppp_achievement_heatmap <- function(optimization_plan, optimized_windows, 
 
   # Assign each precursor to a window
   cat("    Assigning precursors to windows...\n")
+
+  # Ensure window_data has proper window_id type
+  if (is.character(window_data$window_id)) {
+    window_data <- window_data %>%
+      mutate(window_id = as.integer(gsub("^window_", "", window_id)))
+  }
+
   dppp_data <- dppp_data %>%
     rowwise() %>%
     mutate(

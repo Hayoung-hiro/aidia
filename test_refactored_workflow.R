@@ -36,7 +36,7 @@ cat("✅ All modules loaded\n\n")
 
 # Configuration
 OUTPUT_DIR <- "test_refactored_output"
-INPUT_FILE <- "rawfile/report.parquet"
+INPUT_FILE <- "data/report.parquet"
 
 cat("Configuration:\n")
 cat(sprintf("  Input file: %s\n", INPUT_FILE))
@@ -134,36 +134,82 @@ summary(optimization_plan)
 cat("\n")
 stage3_timer <- create_timer()
 
-optimized_windows <- optimize_windows(
-  validated_data = validated_data,
-  optimization_plan = optimization_plan,
-  rt_bin_width_min = 5,  # 5-minute RT bins
-  mz_strategy = "quantile",  # Fast and robust
-  window_mode = "variable",  # Density-based
-  target_coverage = 0.95,
-  quantile_lower = 0.05,
-  quantile_upper = 0.95,
-  min_width_da = 2,
-  max_width_da = 80,
-  overlap_percentage = 0
-)
+# Define all combinations to generate
+mz_strategies <- c("quantile", "coverage")
+window_modes <- c("variable", "fixed")
+
+# Storage for all optimization results
+all_optimized_windows <- list()
+all_method_files <- list()
+
+cat("═══════════════════════════════════════════════════════════\n")
+cat(" Generating Windows for All Strategy/Mode Combinations\n")
+cat("═══════════════════════════════════════════════════════════\n\n")
+
+# Generate windows for each combination
+for (strategy in mz_strategies) {
+  for (mode in window_modes) {
+    combo_name <- sprintf("%s_%s", strategy, mode)
+    cat(sprintf("\n--- Combination: %s (strategy) × %s (mode) ---\n", strategy, mode))
+
+    optimized_windows <- optimize_windows(
+      validated_data = validated_data,
+      optimization_plan = optimization_plan,
+      rt_bin_width_min = 5,  # 5-minute RT bins
+      mz_strategy = strategy,
+      window_mode = mode,
+      target_coverage = 0.95,
+      quantile_lower = 0.05,
+      quantile_upper = 0.95,
+      min_width_da = 2,
+      max_width_da = 80,
+      overlap_percentage = 0
+    )
+
+    # Store results
+    all_optimized_windows[[combo_name]] <- optimized_windows
+
+    # Save RDS file
+    rds_file <- file.path(OUTPUT_DIR, sprintf("stage3_windows_%s.rds", combo_name))
+    saveRDS(optimized_windows, rds_file)
+    cat(sprintf("✅ Saved: %s\n", basename(rds_file)))
+
+    # Export method file (CSV)
+    method_file <- file.path(OUTPUT_DIR, sprintf("method_%s.csv", combo_name))
+    export_windows_to_csv(
+      optimized_windows,
+      output_file = method_file,
+      instrument_type = "orbitrap"
+    )
+    all_method_files[[combo_name]] <- method_file
+
+    # Print summary statistics
+    cat(sprintf("   Windows: %d | Coverage: %.1f%% | Width: %.2f±%.2f Da\n",
+                nrow(optimized_windows$windows),
+                optimized_windows$statistics$coverage_percentage,
+                optimized_windows$statistics$window_width_mean,
+                optimized_windows$statistics$window_width_sd))
+  }
+}
 
 stage3_time <- stage3_timer$elapsed()
 
-# Save Stage 3 output
-saveRDS(optimized_windows, file.path(OUTPUT_DIR, "stage3_optimized_windows.rds"))
-cat(sprintf("Saved: %s\n", file.path(OUTPUT_DIR, "stage3_optimized_windows.rds")))
+cat("\n═══════════════════════════════════════════════════════════\n")
+cat(sprintf("✅ Stage 3 Complete: Generated %d method configurations\n",
+            length(all_optimized_windows)))
+cat("═══════════════════════════════════════════════════════════\n\n")
 
-# Export method file (CSV)
-method_file <- file.path(OUTPUT_DIR, "method_file.csv")
-export_windows_to_csv(
-  optimized_windows,
-  output_file = method_file,
-  instrument_type = "orbitrap"
-)
+cat("Generated Method Files:\n")
+for (combo_name in names(all_method_files)) {
+  cat(sprintf("  - %s\n", basename(all_method_files[[combo_name]])))
+}
+cat("\n")
+
+# Use the first combination (quantile_variable) as default for visualization
+optimized_windows <- all_optimized_windows[["quantile_variable"]]
+cat("Using 'quantile_variable' configuration for visualization\n\n")
 
 # Print window summary
-cat("\n")
 summary(optimized_windows)
 
 # =============================================================================
@@ -316,6 +362,11 @@ summary_report <- list(
   ),
 
   stage3 = list(
+    configurations_generated = length(all_optimized_windows),
+    method_files = all_method_files,
+
+    # Summary for default configuration (quantile_variable)
+    default_config = "quantile_variable",
     total_windows = nrow(optimized_windows$windows),
     n_bins = optimized_windows$rt_binning$n_bins,
     rt_bin_width_min = optimized_windows$parameters$rt_bin_width_min,
@@ -326,6 +377,20 @@ summary_report <- list(
     window_width_cv = optimized_windows$statistics$window_width_cv,
     precursors_per_window_mean = optimized_windows$statistics$mean_precursors_per_window,
     precursors_per_window_cv = optimized_windows$statistics$cv_precursors,
+
+    # Statistics for all configurations
+    all_configurations = lapply(all_optimized_windows, function(w) {
+      list(
+        total_windows = nrow(w$windows),
+        coverage_pct = w$statistics$coverage_percentage,
+        window_width_mean = w$statistics$window_width_mean,
+        window_width_cv = w$statistics$window_width_cv,
+        precursors_per_window = w$statistics$mean_precursors_per_window,
+        mz_strategy = w$parameters$mz_strategy,
+        window_mode = w$parameters$window_mode
+      )
+    }),
+
     time_sec = stage3_time
   ),
 
@@ -375,31 +440,53 @@ for (f in output_files) {
   cat(sprintf("  - %s\n", f))
 }
 
-cat("\nRecommendations:\n")
+cat("\n═══════════════════════════════════════════════════════════\n")
+cat(" Generated Method Files Summary\n")
+cat("═══════════════════════════════════════════════════════════\n\n")
+
+cat(sprintf("Total configurations: %d\n\n", length(all_optimized_windows)))
+
+# Display summary table for all configurations
+cat("Configuration Comparison:\n")
+cat("┌─────────────────┬─────────┬──────────┬────────────┬──────────┐\n")
+cat("│ Configuration   │ Windows │ Coverage │ Width (Da) │ Prec/Win │\n")
+cat("├─────────────────┼─────────┼──────────┼────────────┼──────────┤\n")
+for (combo_name in names(all_optimized_windows)) {
+  w <- all_optimized_windows[[combo_name]]
+  cat(sprintf("│ %-15s │ %7d │ %7.1f%% │ %6.2f±%-3.2f │ %8.0f │\n",
+              combo_name,
+              nrow(w$windows),
+              w$statistics$coverage_percentage,
+              w$statistics$window_width_mean,
+              w$statistics$window_width_sd,
+              w$statistics$mean_precursors_per_window))
+}
+cat("└─────────────────┴─────────┴──────────┴────────────┴──────────┘\n\n")
+
+cat("Recommendations:\n")
 cat(sprintf("  Window count: %d per RT bin\n",
             optimization_plan$window_count_per_bin))
-cat(sprintf("  Total windows: %d\n", nrow(optimized_windows$windows)))
 cat(sprintf("  RT bins: %d (%.1f min each)\n",
             optimized_windows$rt_binning$n_bins,
             optimized_windows$parameters$rt_bin_width_min))
-cat(sprintf("  m/z strategy: %s\n",
-            optimized_windows$parameters$mz_strategy))
-cat(sprintf("  Window mode: %s\n",
-            optimized_windows$parameters$window_mode))
-cat(sprintf("  Expected coverage: %.1f%%\n",
-            optimized_windows$statistics$coverage_percentage))
-cat(sprintf("  Expected DPPP satisfaction: %.0f%% → %.0f%%\n",
+cat(sprintf("  Expected DPPP satisfaction: %.0f%% → %.0f%%\n\n",
             optimization_plan$diagnosis$current_satisfaction_ratio * 100,
             optimization_plan$parameters$target_satisfaction * 100))
 
-cat("\nOutput Files Ready:\n")
-cat(sprintf("  📁 Method file: %s\n", basename(viz_result$report_files$method_file)))
-cat("     → Upload this file to your instrument\n")
-if (!is.null(viz_result$report_files$pdf_report)) {
-  cat(sprintf("  📊 PDF report: %s\n", basename(viz_result$report_files$pdf_report)))
-  cat("     → Comprehensive visualization report\n")
+cat("Output Files Ready:\n\n")
+
+cat("📁 Method Files (upload to your instrument):\n")
+for (combo_name in names(all_method_files)) {
+  cat(sprintf("  - %s\n", basename(all_method_files[[combo_name]])))
 }
-cat(sprintf("  📈 Individual plots: %d PNG files\n", length(viz_result$report_files$individual_plots)))
-cat("     → High-resolution plot images\n")
+
+cat("\n📊 Analysis Outputs:\n")
+if (!is.null(viz_result$report_files$pdf_report)) {
+  cat(sprintf("  - %s (comprehensive report)\n",
+              basename(viz_result$report_files$pdf_report)))
+}
+cat(sprintf("  - %d individual plot PNG files\n",
+            length(viz_result$report_files$individual_plots)))
+cat(sprintf("  - summary_report.json (full metrics)\n"))
 
 cat("\n═══════════════════════════════════════════════════════════\n\n")
