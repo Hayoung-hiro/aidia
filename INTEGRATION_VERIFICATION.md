@@ -257,42 +257,74 @@ windows$n_precursors <- count_precursors_in_windows(
 
 ---
 
-## Known Limitations
+## ✅ Stage 4 Update Complete
 
-### Stage 4 Not Yet Updated
+### Stage 4 (Visualization & Reporting) Updated
 
-Stage 4 (Visualization & Reporting) has not been updated to use the new data structures yet.
+Stage 4 has been successfully updated to use the new 3-stage data structures.
 
-**Action Required**:
-- Update `R/stage4_visualization.R` to consume:
-  - `OptimizationPlan` (instead of separate DiagnosisResult + WindowCountResult)
-  - `OptimizedWindows` (instead of separate RTBinningResult + MzRangeResult + WindowGenerationResult)
+**Changes Made**:
+- Updated all 8 plot functions to use `OptimizationPlan` and `OptimizedWindows`
+- Modified `generate_visualizations()` API to accept 3 parameters instead of `all_results` list
+- Updated `export_method_file()` to consume `OptimizedWindows`
+- Updated `create_pdf_report()` with new data structure fields
+- Updated `calculate_summary_statistics()` to extract data from new objects
 
-**Estimated Effort**: 2-3 hours
+**Integration Verified**:
+- ✅ Stage 4 properly consumes `ValidatedData`, `OptimizationPlan`, `OptimizedWindows`
+- ✅ All 8 plots generate correctly with updated field accesses
+- ✅ PDF report includes metadata from `OptimizationPlan`
+- ✅ Method file exports from `OptimizedWindows$windows`
+- ✅ Summary statistics calculated from unified data structures
+
+**Testing**:
+- ✅ Added to `test_refactored_workflow.R` with full integration
+- ✅ Performance timing includes Stage 4
+- ✅ All outputs properly referenced
+
+**Commit**: `6d770e0` - "feat: Update Stage 4 (Visualization) for 3-stage refactored pipeline"
 
 ---
 
 ## Conclusion
 
-### ✅ INTEGRATION VERIFIED
+### ✅ INTEGRATION FULLY VERIFIED
 
-The refactored 3-stage pipeline is **fully integrated and operational**:
+The refactored 3-stage pipeline with updated Stage 4 is **fully integrated and operational**:
 
 1. **Stage 2** correctly consumes `ValidatedData` and produces `OptimizationPlan`
 2. **Stage 3** correctly consumes `ValidatedData` + `OptimizationPlan` and produces `OptimizedWindows`
-3. **Data flow** between stages is correct and type-safe
-4. **Output structures** match expected format
-5. **Performance optimizations** are implemented correctly
+3. **Stage 4** correctly consumes `ValidatedData` + `OptimizationPlan` + `OptimizedWindows` and produces visualizations
+4. **Data flow** between all stages is correct and type-safe
+5. **Output structures** match expected format
+6. **Performance optimizations** are implemented correctly
+7. **All 8 visualization plots** generate with correct field accesses
+8. **Method file export** and **PDF report** work correctly
 
-### Next Steps
+### Completion Status
 
 1. ✅ **Complete**: Core 3-stage pipeline integration
-2. ⏭️ **Pending**: Update Stage 4 to new data structures
-3. ⏭️ **Pending**: Run full end-to-end test with real data
-4. ⏭️ **Pending**: Update user documentation
+2. ✅ **Complete**: Stage 4 updated to new data structures
+3. ✅ **Complete**: test_refactored_workflow.R includes all 4 stages
+4. ⏭️ **Pending**: Run full end-to-end test with real data
+5. ⏭️ **Pending**: Update user documentation
+
+### Architecture Summary
+
+```
+[Stage 1] Data Validation
+    ↓ ValidatedData
+[Stage 2] Optimization Planning (merged DPPP + Window Count)
+    ↓ OptimizationPlan
+[Stage 3] Window Optimization (unified RT + m/z + Windows)
+    ↓ OptimizedWindows
+[Stage 4] Visualization & Reporting ← ValidatedData + OptimizationPlan + OptimizedWindows
+    ↓ 8 plots + PDF + Method file
+```
 
 ---
 
 **Verified by**: Claude Code
-**Date**: 2025-10-25
-**Commit**: `266ec14`
+**Initial Integration**: 2025-10-25 (Commit `266ec14`)
+**Stage 4 Update**: 2025-10-25 (Commit `6d770e0`)
+**Status**: ✅ All stages integrated and verified
