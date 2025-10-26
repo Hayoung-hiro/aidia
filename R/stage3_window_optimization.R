@@ -83,6 +83,9 @@ optimize_windows <- function(
   target_coverage = 0.95,
   quantile_lower = 0.05,
   quantile_upper = 0.95,
+  outlier_threshold = 3.0,      # NEW: For outlier strategy
+  smoothing_window = 7,          # NEW: For smoothing strategy
+  polynomial_order = 3,          # NEW: For smoothing strategy
   min_width_da = 2,
   max_width_da = 80,
   overlap_percentage = 0
@@ -105,11 +108,14 @@ optimize_windows <- function(
   validate_numeric_range(target_coverage, min = 0, max = 1, param_name = "target_coverage")
   validate_numeric_range(quantile_lower, min = 0, max = 1, param_name = "quantile_lower")
   validate_numeric_range(quantile_upper, min = 0, max = 1, param_name = "quantile_upper")
+  validate_numeric_range(outlier_threshold, min = 0, param_name = "outlier_threshold")
+  validate_numeric_range(smoothing_window, min = 3, param_name = "smoothing_window")
+  validate_numeric_range(polynomial_order, min = 1, max = 5, param_name = "polynomial_order")
   validate_numeric_range(min_width_da, min = 0, param_name = "min_width_da")
   validate_numeric_range(max_width_da, min = min_width_da, param_name = "max_width_da")
   validate_numeric_range(overlap_percentage, min = 0, max = 50, param_name = "overlap_percentage")
 
-  valid_strategies <- c("quantile", "coverage")
+  valid_strategies <- c("quantile", "coverage", "outlier", "smoothing")
   if (!mz_strategy %in% valid_strategies) {
     stop(sprintf("mz_strategy must be one of: %s",
                  paste(valid_strategies, collapse = ", ")))
@@ -167,7 +173,10 @@ optimize_windows <- function(
     strategy = mz_strategy,
     target_coverage = target_coverage,
     quantile_lower = quantile_lower,
-    quantile_upper = quantile_upper
+    quantile_upper = quantile_upper,
+    outlier_threshold = outlier_threshold,
+    smoothing_window = smoothing_window,
+    polynomial_order = polynomial_order
   )
 
   print_info(sprintf("Optimized m/z ranges for %d RT bins", nrow(mz_ranges)))
@@ -347,9 +356,20 @@ perform_rt_binning_internal <- function(precursor_data, rt_bin_width_min) {
 #' @keywords internal
 optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
                                        target_coverage, quantile_lower,
-                                       quantile_upper) {
+                                       quantile_upper, outlier_threshold,
+                                       smoothing_window, polynomial_order) {
 
   n_bins <- nrow(rt_stats)
+
+  # Special handling for smoothing strategy (needs all bins at once)
+  if (strategy == "smoothing") {
+    return(optimize_mz_ranges_smoothing_internal(
+      precursor_data, rt_stats, quantile_lower, quantile_upper,
+      smoothing_window, polynomial_order
+    ))
+  }
+
+  # For other strategies: bin-by-bin processing
   mz_ranges <- vector("list", n_bins)
 
   for (i in 1:n_bins) {
@@ -403,6 +423,27 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
 
       mz_min <- best_min
       mz_max <- best_max
+
+    } else if (strategy == "outlier") {
+      # Outlier removal: mean ± threshold*SD
+      mz_mean <- mean(mz_values, na.rm = TRUE)
+      mz_sd <- sd(mz_values, na.rm = TRUE)
+
+      lower_bound <- mz_mean - (outlier_threshold * mz_sd)
+      upper_bound <- mz_mean + (outlier_threshold * mz_sd)
+
+      # Filter outliers
+      inliers <- mz_values >= lower_bound & mz_values <= upper_bound
+      mz_inliers <- mz_values[inliers]
+
+      if (length(mz_inliers) > 0) {
+        mz_min <- min(mz_inliers, na.rm = TRUE)
+        mz_max <- max(mz_inliers, na.rm = TRUE)
+      } else {
+        # All outliers - use full range
+        mz_min <- min(mz_values, na.rm = TRUE)
+        mz_max <- max(mz_values, na.rm = TRUE)
+      }
     }
 
     # Calculate coverage
@@ -644,58 +685,197 @@ calculate_window_statistics_internal <- function(windows, precursor_data) {
   )
 }
 
+#' Optimize m/z Ranges with Smoothing Strategy (Internal)
+#' @keywords internal
+optimize_mz_ranges_smoothing_internal <- function(precursor_data, rt_stats,
+                                                   quantile_lower, quantile_upper,
+                                                   smoothing_window, polynomial_order) {
+  # Load smoothing utilities if not already loaded
+  if (!exists("smooth_savgol")) {
+    source("R/smoothing_utils.R")
+  }
+
+  n_bins <- nrow(rt_stats)
+
+  # Step 1: Extract quantile-based boundaries for each RT bin
+  mz_min_raw <- numeric(n_bins)
+  mz_max_raw <- numeric(n_bins)
+
+  for (i in 1:n_bins) {
+    bin_data <- precursor_data %>%
+      filter(rt_group == i)
+
+    if (nrow(bin_data) > 0) {
+      mz_values <- bin_data$Precursor.Mz
+      mz_min_raw[i] <- quantile(mz_values, quantile_lower, na.rm = TRUE, names = FALSE)
+      mz_max_raw[i] <- quantile(mz_values, quantile_upper, na.rm = TRUE, names = FALSE)
+    } else {
+      mz_min_raw[i] <- 400
+      mz_max_raw[i] <- 1200
+    }
+  }
+
+  # Step 2: Apply Savitzky-Golay smoothing
+  mz_min_smooth <- smooth_savgol(mz_min_raw,
+                                  window_size = smoothing_window,
+                                  poly_order = polynomial_order)
+  mz_max_smooth <- smooth_savgol(mz_max_raw,
+                                  window_size = smoothing_window,
+                                  poly_order = polynomial_order)
+
+  # Handle potential length mismatch from edge effects
+  if (length(mz_min_smooth) != n_bins) {
+    n_missing <- n_bins - length(mz_min_smooth)
+    if (n_missing > 0) {
+      pad_start <- ceiling(n_missing / 2)
+      pad_end <- floor(n_missing / 2)
+
+      mz_min_smooth <- c(rep(mz_min_smooth[1], pad_start),
+                         mz_min_smooth,
+                         rep(tail(mz_min_smooth, 1), pad_end))
+      mz_max_smooth <- c(rep(mz_max_smooth[1], pad_start),
+                         mz_max_smooth,
+                         rep(tail(mz_max_smooth, 1), pad_end))
+    }
+  }
+
+  # Step 3: Calculate coverage for smoothed ranges
+  mz_ranges <- vector("list", n_bins)
+
+  for (i in 1:n_bins) {
+    bin_data <- precursor_data %>%
+      filter(rt_group == i)
+
+    mz_min <- mz_min_smooth[i]
+    mz_max <- mz_max_smooth[i]
+
+    if (nrow(bin_data) > 0) {
+      mz_values <- bin_data$Precursor.Mz
+      covered <- sum(mz_values >= mz_min & mz_values <= mz_max)
+      coverage_ratio <- covered / length(mz_values)
+    } else {
+      covered <- 0
+      coverage_ratio <- NA
+    }
+
+    mz_ranges[[i]] <- data.frame(
+      rt_segment_id = i,
+      rt_start = rt_stats$rt_start[i],
+      rt_end = rt_stats$rt_end[i],
+      mz_min = mz_min,
+      mz_max = mz_max,
+      mz_width = mz_max - mz_min,
+      n_precursors_covered = covered,
+      coverage_ratio = coverage_ratio
+    )
+  }
+
+  bind_rows(mz_ranges)
+}
+
+
+# =============================================================================
+# Helper Functions for CSV Export
+# =============================================================================
+
+#' Calculate N_Precursors for Each Window (Internal)
+#' @keywords internal
+calculate_precursors_per_window <- function(windows, precursor_data) {
+  # Vectorized matching for performance
+  windows$n_precursors <- sapply(1:nrow(windows), function(i) {
+    w <- windows[i, ]
+    sum(
+      precursor_data$RT.Start >= w$rt_start &
+      precursor_data$RT.Start <= w$rt_end &
+      precursor_data$Precursor.Mz >= w$mz_start &
+      precursor_data$Precursor.Mz <= w$mz_end,
+      na.rm = TRUE
+    )
+  })
+
+  windows
+}
+
 
 # =============================================================================
 # CSV Export Function
 # =============================================================================
 
-#' Export Windows to CSV for Instrument Upload
+#' Export Windows to CSV for Instrument Upload (Extended Format)
 #'
-#' Creates instrument-ready CSV file with isolation windows.
+#' Creates instrument-ready CSV file with 21-column extended format
+#' compatible with Thermo Orbitrap instruments.
 #'
 #' @param optimized_windows OptimizedWindows object
 #' @param output_file Character, output CSV file path
+#' @param validated_data ValidatedData object (for N_Precursors calculation)
 #' @param instrument_type Character, instrument type (default: "orbitrap")
+#' @param project_name Character, project name for filename (default: "report")
+#' @param normalized_agc_target Numeric, AGC target percentage (default: 800)
 #'
 #' @return NULL (invisible), writes CSV file
 #' @export
 export_windows_to_csv <- function(optimized_windows, output_file,
-                                  instrument_type = "orbitrap") {
+                                  validated_data,
+                                  instrument_type = "orbitrap",
+                                  project_name = "report",
+                                  normalized_agc_target = 800) {
 
   validate_input_type(optimized_windows, "OptimizedWindows", "optimized_windows")
+  validate_input_type(validated_data, "ValidatedData", "validated_data")
 
   windows <- optimized_windows$windows
+  precursor_data <- get_precursor_data(validated_data)
 
-  # Format for instrument (Thermo Orbitrap standard)
-  method_file <- windows %>%
-    select(window_id, rt_start, rt_end, mz_start, mz_end, mz_center) %>%
+  # Calculate N_Precursors for each window
+  cat("  Calculating precursors per window...\n")
+  windows_with_counts <- calculate_precursors_per_window(windows, precursor_data)
+
+  # Create 21-column extended format (Thermo Orbitrap compatible)
+  method_file <- windows_with_counts %>%
     mutate(
-      rt_start = round(rt_start, 2),
-      rt_end = round(rt_end, 2),
-      mz_start = round(mz_start, 4),
-      mz_end = round(mz_end, 4),
-      mz_center = round(mz_center, 4)
-    )
+      # Empty columns (Thermo format compatibility)
+      Compound = "",
+      Formula = "",
+      Adduct = "(no adduct)",
 
-  # Add header comment
-  header_lines <- c(
-    "# DIA Window Optimizer - Method File",
-    sprintf("# Generated: %s", Sys.time()),
-    sprintf("# Instrument: %s", instrument_type),
-    sprintf("# Total windows: %d", nrow(method_file)),
-    sprintf("# RT bins: %d", optimized_windows$rt_binning$n_bins),
-    sprintf("# Strategy: %s (%s)",
-            optimized_windows$parameters$mz_strategy,
-            optimized_windows$parameters$window_mode),
-    "#"
-  )
+      # Core columns
+      `m/z` = round(mz_center, 1),
+      z = 1,
+      `t start (min)` = round(rt_start, 1),
+      `t stop (min)` = round(rt_end, 1),
+      `Isolation Window (m/z)` = round(mz_end - mz_start, 1),
+      `Normalized AGC Target (%)` = normalized_agc_target,
+      `Start (m/z)` = round(mz_start, 1),
+      `End (m/z)` = round(mz_end, 1),
 
-  # Write file
-  writeLines(header_lines, output_file)
-  write.table(method_file, output_file, append = TRUE, sep = ",",
-              row.names = FALSE, quote = FALSE)
+      # Metadata columns
+      Window_ID = row_number(),
+      RT_Segment_ID = rt_segment_id,
+      RT_Center = round((rt_start + rt_end) / 2, 1),
+      RT_Width = round(rt_end - rt_start, 1),
+      N_Precursors = n_precursors,
+      Overlap_Prev = 0,
+      Overlap_Next = 0,
 
-  cat(sprintf("✅ Method file exported: %s\n", output_file))
+      # Configuration
+      Instrument = instrument_type,
+      Generation_Method = optimized_windows$parameters$mz_strategy,
+      Window_Type = optimized_windows$parameters$window_mode
+    ) %>%
+    select(Compound, Formula, Adduct, `m/z`, z,
+           `t start (min)`, `t stop (min)`,
+           `Isolation Window (m/z)`, `Normalized AGC Target (%)`,
+           `Start (m/z)`, `End (m/z)`,
+           Window_ID, RT_Segment_ID, RT_Center, RT_Width,
+           N_Precursors, Overlap_Prev, Overlap_Next,
+           Instrument, Generation_Method, Window_Type)
+
+  # Write CSV file (no header comments for extended format)
+  write.csv(method_file, output_file, row.names = FALSE, quote = TRUE)
+
+  cat(sprintf("✅ Method file exported: %s (%d windows, 21 columns)\n",
+              output_file, nrow(method_file)))
   invisible(NULL)
 }
 

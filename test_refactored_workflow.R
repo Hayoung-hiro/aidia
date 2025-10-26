@@ -37,6 +37,7 @@ cat("✅ All modules loaded\n\n")
 # Configuration
 OUTPUT_DIR <- "test_refactored_output"
 INPUT_FILE <- "data/report.parquet"
+PROJECT_NAME <- "report"  # Project name for method file naming
 
 cat("Configuration:\n")
 cat(sprintf("  Input file: %s\n", INPUT_FILE))
@@ -135,8 +136,9 @@ cat("\n")
 stage3_timer <- create_timer()
 
 # Define all combinations to generate
-mz_strategies <- c("quantile", "coverage")
-window_modes <- c("variable", "fixed")
+mz_strategies <- c("quantile", "coverage", "outlier", "smoothing")  # 4 strategies
+window_modes <- c("variable", "fixed")  # 2 modes
+# Total: 8 configurations
 
 # Storage for all optimization results
 all_optimized_windows <- list()
@@ -145,6 +147,18 @@ all_method_files <- list()
 cat("═══════════════════════════════════════════════════════════\n")
 cat(" Generating Windows for All Strategy/Mode Combinations\n")
 cat("═══════════════════════════════════════════════════════════\n\n")
+
+# Calculate gradient time (RT bin unit rounding)
+rt_range <- validated_data$metadata$rt_range
+rt_bin_width <- 5  # minutes
+
+rt_start_rounded <- floor(rt_range[1] / rt_bin_width) * rt_bin_width
+rt_end_rounded <- ceiling(rt_range[2] / rt_bin_width) * rt_bin_width
+gradient_min <- rt_end_rounded - rt_start_rounded
+
+cat(sprintf("RT range: %.2f - %.2f min\n", rt_range[1], rt_range[2]))
+cat(sprintf("RT rounded: %d - %d min\n", rt_start_rounded, rt_end_rounded))
+cat(sprintf("Gradient time: %d min\n\n", gradient_min))
 
 # Generate windows for each combination
 for (strategy in mz_strategies) {
@@ -161,6 +175,9 @@ for (strategy in mz_strategies) {
       target_coverage = 0.95,
       quantile_lower = 0.05,
       quantile_upper = 0.95,
+      outlier_threshold = 3.0,    # NEW: For outlier strategy
+      smoothing_window = 7,        # NEW: For smoothing strategy
+      polynomial_order = 3,        # NEW: For smoothing strategy
       min_width_da = 2,
       max_width_da = 80,
       overlap_percentage = 0
@@ -174,12 +191,25 @@ for (strategy in mz_strategies) {
     saveRDS(optimized_windows, rds_file)
     cat(sprintf("✅ Saved: %s\n", basename(rds_file)))
 
-    # Export method file (CSV)
-    method_file <- file.path(OUTPUT_DIR, sprintf("method_%s.csv", combo_name))
+    # Export method file (CSV) with new naming convention
+    # Format: {gradient}min_{project}_{strategy}_{mode}_{instrument}.csv
+    method_file <- file.path(
+      OUTPUT_DIR,
+      sprintf("%dmin_%s_%s_%s_%s.csv",
+              gradient_min,      # e.g., "50min"
+              PROJECT_NAME,      # e.g., "report"
+              strategy,          # e.g., "quantile"
+              mode,              # e.g., "variable"
+              "orbitrap")        # instrument
+    )
+
     export_windows_to_csv(
       optimized_windows,
       output_file = method_file,
-      instrument_type = "orbitrap"
+      validated_data = validated_data,  # NEW: For N_Precursors calculation
+      instrument_type = "orbitrap",
+      project_name = PROJECT_NAME,
+      normalized_agc_target = 800
     )
     all_method_files[[combo_name]] <- method_file
 
