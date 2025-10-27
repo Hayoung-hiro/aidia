@@ -1,0 +1,20 @@
+Key Results Summary
+30min Gradient (64 windows)
+Expected 63, Actual 64 (1.6% deviation)
+Mean width 25.7 ± 12.5 Da
+Coverage 98.5% (23,55623,926 precursors)
+mz ranges 415-965 → 434-991 → 457-996 Da
+
+
+60min Gradient (120 windows)
+Expected 120, Actual 120 (0.0% deviation) ✅
+Mean width 17.9 ± 11.2 Da
+Coverage 98.8% (62,72463,482 precursors)
+mz ranges 414-917 → 420-961 → 428-984 → 456-993 Da
+
+
+90min Gradient (185 windows)
+Expected 185, Actual 185 (0.0% deviation) ✅
+Mean width 14.8 ± 9.4 Da
+Coverage 101.9% (85,54983,943 precursors)
+mz ranges 412-915 → 417-949 → 425-975 → 431-983 → 480-992 Da

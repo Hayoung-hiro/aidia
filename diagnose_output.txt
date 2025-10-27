@@ -1,0 +1,529 @@
+
+다음의 패키지를 부착합니다: 'arrow'
+
+The following object is masked from 'package:utils':
+
+    timestamp
+
+경고메시지(들):
+패키지 'arrow'는 R 버전 4.4.3에서 작성되었습니다 
+
+다음의 패키지를 부착합니다: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+경고메시지(들):
+패키지 'tibble'는 R 버전 4.4.3에서 작성되었습니다 
+✅ Common utilities loaded successfully
+   Available functions:
+   - UI: print_header(), print_step(), print_success(), print_warning()
+   - Stats: calculate_summary_stats(), calculate_cv()
+   - Validation: validate_input_type(), validate_numeric_range()
+   - DPPP: calculate_dppp(), calculate_satisfaction_ratio()
+   - Performance: count_precursors_in_windows()
+   - Timing: create_timer()
+✅ Stage 2 (Optimization Planning) loaded successfully
+   Main function: plan_optimization(validated_data, current_cycle_time, ...)
+   Output: OptimizationPlan object
+✅ Common utilities loaded successfully
+   Available functions:
+   - UI: print_header(), print_step(), print_success(), print_warning()
+   - Stats: calculate_summary_stats(), calculate_cv()
+   - Validation: validate_input_type(), validate_numeric_range()
+   - DPPP: calculate_dppp(), calculate_satisfaction_ratio()
+   - Performance: count_precursors_in_windows()
+   - Timing: create_timer()
+
+╔════════════════════════════════════════════════════════════════╗
+║   Window Count Diagnostic Analysis                            ║
+╚════════════════════════════════════════════════════════════════╝
+
+Configuration:
+  Instrument: orbitrap
+  Target DPPP: 7.0
+  Target Satisfaction: 85%
+  Load Factor: 80%
+
+═══════════════════════════════════════════════════════════════
+Analyzing: 30min (current cycle time: 1.2 sec)
+═══════════════════════════════════════════════════════════════
+
+Stage 1: Loading and validating data...
+
+╔═══════════════════════════════════════════════╗
+║   STAGE 1: Data Validation                   ║
+╚═══════════════════════════════════════════════╝
+
+Step 1: Loading DIA-NN data...
+Loading parquet file...
+
+=== Data Validation and Quality Control ===
+=== Applying DIA-NN Quality Filters ===
+Initial precursors: 23379
+Q.Value <= 0.010: 23379 -> 23379 (removed 0)
+Lib.Q.Value <= 0.010: 23379 -> 23379 (removed 0)
+Global.Q.Value <= 0.010: 23379 -> 22692 (removed 687)
+Lib.PG.Q.Value <= 0.050: 22692 -> 22680 (removed 12)
+Global.PG.Q.Value <= 0.050: 22680 -> 22680 (removed 0)
+Lib.Peptidoform.Q.Value <= 0.010: 22680 -> 22680 (removed 0)
+Global.Peptidoform.Q.Value <= 0.010: 22680 -> 22680 (removed 0)
+PG.Q.Value <= 0.050: 22680 -> 22680 (removed 0)
+Quantity.Quality >= 0.5: 22680 -> 22265 (removed 415)
+PG.MaxLFQ.Quality >= 0.7: 22265 -> 22063 (removed 202)
+
+=== Quality Filtering Summary ===
+Total removed: 1316 (5.6%)
+Final precursors: 22063
+Removed 16 duplicate precursors
+
+=== Overall Validation Summary ===
+Total validation: 23379 -> 22047 (94.3% retained)
+
+=== Final Data Summary ===
+  Total precursors: 22047
+  m/z range: 401.2 - 1002.5
+  RT range: 11.9 - 21.8 minutes
+  Mean FWHM: 0.09 minutes (5.4 seconds)
+✓ Loaded 22047 precursors
+
+Step 2: Validating required columns...
+✓ All required columns present
+
+Step 3: Skipping raw metadata (not requested)
+
+Step 4: Validating data quality...
+✓ Quality score: 0.93
+
+Step 5: Computing metadata statistics...
+✓ Metadata computed
+
+Step 6: Creating ValidatedData object...
+✓ ValidatedData object created
+
+═══ STAGE 1 COMPLETE ═══
+Processing time: 0.76 seconds
+  ✅ Loaded 22,047 precursors
+
+FWHM Statistics:
+  Mean: 0.09 min (5.4 sec)
+  Median: 0.08 min (4.9 sec)
+  P15: 0.08 min (4.8 sec)
+  P50: 0.08 min (4.9 sec)
+  P85: 0.11 min (6.5 sec)
+
+Theoretical Calculation:
+  FWHM critical (P15): 4.82 sec
+  Required cycle time: (1.7 × 4.82) / 7.0 = 1.170 sec
+
+Stage 2: Running optimization planning...
+
+═══════════════════════════════════════════════════════
+║          Stage 2: Optimization Planning           ║
+═══════════════════════════════════════════════════════
+
+
+─── Step 1: Input Validation ───
+ ✅ Input validation passed
+  ✅ Input validation passed
+
+─── Step 2: Load Instrument Configuration ───
+ Instrument: Thermo Orbitrap
+  Instrument: Thermo Orbitrap
+ Max scan rate: 12 Hz (sequential acquisition)
+  Max scan rate: 12 Hz (sequential acquisition)
+ MS1 scans reserved: 1
+  MS1 scans reserved: 1
+ Load factor: 80% (effective: 9.6 Hz)
+  Load factor: 80% (effective: 9.6 Hz)
+
+─── Step 3: DPPP Diagnosis ───
+ Current satisfaction: 46.9% (10335 / 22047 precursors)
+  Current satisfaction: 46.9% (10335 / 22047 precursors)
+ Current DPPP: 7.72 ± 2.09 (median: 6.98)
+  Current DPPP: 7.72 ± 2.09 (median: 6.98)
+
+─── Step 4: Calculate Required Cycle Time ───
+ Current cycle time: 1.200 sec
+  Current cycle time: 1.200 sec
+ Required cycle time: ≤ 1.170 sec
+  Required cycle time: ≤ 1.170 sec
+ ⚠️  Need to REDUCE cycle time by 0.030 sec (2.5%)
+  ⚠️  Need to REDUCE cycle time by 0.030 sec (2.5%)
+
+─── Step 5: Determine Window Count ───
+ Window count: 20 per RT bin
+  Window count: 20 per RT bin
+ Calculation: floor(1.170 sec × 9.6 Hz) - 1 MS1 = 20
+  Calculation: floor(1.170 sec × 9.6 Hz) - 1 MS1 = 20
+
+─── Step 6: Feasibility Checks ───
+ Actual cycle time: 1.100 sec
+  Actual cycle time: 1.100 sec
+ ✅ Cycle time check: PASS (1.100 ≤ 1.170 sec)
+  ✅ Cycle time check: PASS (1.100 ≤ 1.170 sec)
+ ⚠️  Scan rate check: FAIL (21 scans > 14 max)
+  ⚠️  Scan rate check: FAIL (21 scans > 14 max)
+ ✅ Window range check: PASS (20 in [20, 500])
+  ✅ Window range check: PASS (20 in [20, 500])
+
+─── Step 7: Package Results ───
+
+───────────────────────────────────────────────────────
+Stage 2 Complete
+───────────────────────────────────────────────────────
+⚠️  Optimization plan has WARNINGS
+   Window count: 20 per RT bin
+   Required cycle time: ≤ 1.170 sec
+   Actual cycle time: 1.100 sec
+   Target satisfaction: 85% (current: 46.9%)
+   Processing time: 0.05 sec
+
+
+Planning Results:
+  Current cycle time: 1.200 sec
+  Required cycle time: ≤ 1.170 sec
+  Window count per bin: 20
+  Actual cycle time: 1.100 sec
+
+Window Count Calculation Breakdown:
+  Max scan rate: 12 Hz (Traditional Orbitrap)
+  Load factor: 80%
+  Effective scan rate: 9.6 Hz
+  Total scans: floor(1.170 × 9.6) = 11
+  MS1 scans reserved: 1
+  Window count: 11 - 1 = 10
+
+═══════════════════════════════════════════════════════════════
+Analyzing: 60min (current cycle time: 1.6 sec)
+═══════════════════════════════════════════════════════════════
+
+Stage 1: Loading and validating data...
+
+╔═══════════════════════════════════════════════╗
+║   STAGE 1: Data Validation                   ║
+╚═══════════════════════════════════════════════╝
+
+Step 1: Loading DIA-NN data...
+Loading parquet file...
+
+=== Data Validation and Quality Control ===
+=== Applying DIA-NN Quality Filters ===
+Initial precursors: 65059
+Q.Value <= 0.010: 65059 -> 65059 (removed 0)
+Lib.Q.Value <= 0.010: 65059 -> 65059 (removed 0)
+Global.Q.Value <= 0.010: 65059 -> 64123 (removed 936)
+Lib.PG.Q.Value <= 0.050: 64123 -> 64005 (removed 118)
+Global.PG.Q.Value <= 0.050: 64005 -> 64005 (removed 0)
+Lib.Peptidoform.Q.Value <= 0.010: 64005 -> 64005 (removed 0)
+Global.Peptidoform.Q.Value <= 0.010: 64005 -> 64005 (removed 0)
+PG.Q.Value <= 0.050: 64005 -> 64005 (removed 0)
+Quantity.Quality >= 0.5: 64005 -> 62993 (removed 1012)
+PG.MaxLFQ.Quality >= 0.7: 62993 -> 62779 (removed 214)
+
+=== Quality Filtering Summary ===
+Total removed: 2280 (3.5%)
+Final precursors: 62779
+Removed 30 duplicate precursors
+
+=== Overall Validation Summary ===
+Total validation: 65059 -> 62749 (96.4% retained)
+
+=== Final Data Summary ===
+  Total precursors: 62749
+  m/z range: 402.2 - 1002.5
+  RT range: 11.1 - 45.1 minutes
+  Mean FWHM: 0.12 minutes (7.0 seconds)
+✓ Loaded 62749 precursors
+
+Step 2: Validating required columns...
+✓ All required columns present
+
+Step 3: Skipping raw metadata (not requested)
+
+Step 4: Validating data quality...
+✓ Quality score: 0.98
+
+Step 5: Computing metadata statistics...
+✓ Metadata computed
+
+Step 6: Creating ValidatedData object...
+✓ ValidatedData object created
+
+═══ STAGE 1 COMPLETE ═══
+Processing time: 1.61 seconds
+  ✅ Loaded 62,749 precursors
+
+FWHM Statistics:
+  Mean: 0.12 min (7.0 sec)
+  Median: 0.11 min (6.7 sec)
+  P15: 0.08 min (4.9 sec)
+  P50: 0.11 min (6.7 sec)
+  P85: 0.14 min (8.1 sec)
+
+Theoretical Calculation:
+  FWHM critical (P15): 4.94 sec
+  Required cycle time: (1.7 × 4.94) / 7.0 = 1.200 sec
+
+Stage 2: Running optimization planning...
+
+═══════════════════════════════════════════════════════
+║          Stage 2: Optimization Planning           ║
+═══════════════════════════════════════════════════════
+
+
+─── Step 1: Input Validation ───
+ ✅ Input validation passed
+  ✅ Input validation passed
+
+─── Step 2: Load Instrument Configuration ───
+ Instrument: Thermo Orbitrap
+  Instrument: Thermo Orbitrap
+ Max scan rate: 12 Hz (sequential acquisition)
+  Max scan rate: 12 Hz (sequential acquisition)
+ MS1 scans reserved: 1
+  MS1 scans reserved: 1
+ Load factor: 80% (effective: 9.6 Hz)
+  Load factor: 80% (effective: 9.6 Hz)
+
+─── Step 3: DPPP Diagnosis ───
+ Current satisfaction: 52.5% (32971 / 62749 precursors)
+  Current satisfaction: 52.5% (32971 / 62749 precursors)
+ Current DPPP: 7.41 ± 3.01 (median: 7.16)
+  Current DPPP: 7.41 ± 3.01 (median: 7.16)
+
+─── Step 4: Calculate Required Cycle Time ───
+ Current cycle time: 1.600 sec
+  Current cycle time: 1.600 sec
+ Required cycle time: ≤ 1.200 sec
+  Required cycle time: ≤ 1.200 sec
+ ⚠️  Need to REDUCE cycle time by 0.400 sec (25.0%)
+  ⚠️  Need to REDUCE cycle time by 0.400 sec (25.0%)
+
+─── Step 5: Determine Window Count ───
+ Window count: 20 per RT bin
+  Window count: 20 per RT bin
+ Calculation: floor(1.200 sec × 9.6 Hz) - 1 MS1 = 20
+  Calculation: floor(1.200 sec × 9.6 Hz) - 1 MS1 = 20
+
+─── Step 6: Feasibility Checks ───
+ Actual cycle time: 1.100 sec
+  Actual cycle time: 1.100 sec
+ ✅ Cycle time check: PASS (1.100 ≤ 1.200 sec)
+  ✅ Cycle time check: PASS (1.100 ≤ 1.200 sec)
+ ⚠️  Scan rate check: FAIL (21 scans > 14 max)
+  ⚠️  Scan rate check: FAIL (21 scans > 14 max)
+ ✅ Window range check: PASS (20 in [20, 500])
+  ✅ Window range check: PASS (20 in [20, 500])
+
+─── Step 7: Package Results ───
+
+───────────────────────────────────────────────────────
+Stage 2 Complete
+───────────────────────────────────────────────────────
+⚠️  Optimization plan has WARNINGS
+   Window count: 20 per RT bin
+   Required cycle time: ≤ 1.200 sec
+   Actual cycle time: 1.100 sec
+   Target satisfaction: 85% (current: 52.5%)
+   Processing time: 0.04 sec
+
+
+Planning Results:
+  Current cycle time: 1.600 sec
+  Required cycle time: ≤ 1.200 sec
+  Window count per bin: 20
+  Actual cycle time: 1.100 sec
+
+Window Count Calculation Breakdown:
+  Max scan rate: 12 Hz (Traditional Orbitrap)
+  Load factor: 80%
+  Effective scan rate: 9.6 Hz
+  Total scans: floor(1.200 × 9.6) = 11
+  MS1 scans reserved: 1
+  Window count: 11 - 1 = 10
+
+═══════════════════════════════════════════════════════════════
+Analyzing: 90min (current cycle time: 2.0 sec)
+═══════════════════════════════════════════════════════════════
+
+Stage 1: Loading and validating data...
+
+╔═══════════════════════════════════════════════╗
+║   STAGE 1: Data Validation                   ║
+╚═══════════════════════════════════════════════╝
+
+Step 1: Loading DIA-NN data...
+Loading parquet file...
+
+=== Data Validation and Quality Control ===
+=== Applying DIA-NN Quality Filters ===
+Initial precursors: 84803
+Q.Value <= 0.010: 84803 -> 84803 (removed 0)
+Lib.Q.Value <= 0.010: 84803 -> 84803 (removed 0)
+Global.Q.Value <= 0.010: 84803 -> 83829 (removed 974)
+Lib.PG.Q.Value <= 0.050: 83829 -> 83660 (removed 169)
+Global.PG.Q.Value <= 0.050: 83660 -> 83660 (removed 0)
+Lib.Peptidoform.Q.Value <= 0.010: 83660 -> 83660 (removed 0)
+Global.Peptidoform.Q.Value <= 0.010: 83660 -> 83660 (removed 0)
+PG.Q.Value <= 0.050: 83660 -> 83660 (removed 0)
+Quantity.Quality >= 0.5: 83660 -> 81247 (removed 2413)
+PG.MaxLFQ.Quality >= 0.7: 81247 -> 80848 (removed 399)
+
+=== Quality Filtering Summary ===
+Total removed: 3955 (4.7%)
+Final precursors: 80848
+Removed 85 duplicate precursors
+
+=== Overall Validation Summary ===
+Total validation: 84803 -> 80763 (95.2% retained)
+
+=== Final Data Summary ===
+  Total precursors: 80763
+  m/z range: 401.2 - 1002.5
+  RT range: 11.1 - 74.7 minutes
+  Mean FWHM: 0.15 minutes (8.9 seconds)
+✓ Loaded 80763 precursors
+
+Step 2: Validating required columns...
+✓ All required columns present
+
+Step 3: Skipping raw metadata (not requested)
+
+Step 4: Validating data quality...
+✓ Quality score: 0.98
+
+Step 5: Computing metadata statistics...
+✓ Metadata computed
+
+Step 6: Creating ValidatedData object...
+✓ ValidatedData object created
+
+═══ STAGE 1 COMPLETE ═══
+Processing time: 1.82 seconds
+  ✅ Loaded 80,763 precursors
+
+FWHM Statistics:
+  Mean: 0.15 min (8.9 sec)
+  Median: 0.14 min (8.1 sec)
+  P15: 0.08 min (5.1 sec)
+  P50: 0.14 min (8.1 sec)
+  P85: 0.19 min (11.2 sec)
+
+Theoretical Calculation:
+  FWHM critical (P15): 5.09 sec
+  Required cycle time: (1.7 × 5.09) / 7.0 = 1.237 sec
+
+Stage 2: Running optimization planning...
+
+═══════════════════════════════════════════════════════
+║          Stage 2: Optimization Planning           ║
+═══════════════════════════════════════════════════════
+
+
+─── Step 1: Input Validation ───
+ ✅ Input validation passed
+  ✅ Input validation passed
+
+─── Step 2: Load Instrument Configuration ───
+ Instrument: Thermo Orbitrap
+  Instrument: Thermo Orbitrap
+ Max scan rate: 12 Hz (sequential acquisition)
+  Max scan rate: 12 Hz (sequential acquisition)
+ MS1 scans reserved: 1
+  MS1 scans reserved: 1
+ Load factor: 80% (effective: 9.6 Hz)
+  Load factor: 80% (effective: 9.6 Hz)
+
+─── Step 3: DPPP Diagnosis ───
+ Current satisfaction: 48.8% (39423 / 80763 precursors)
+  Current satisfaction: 48.8% (39423 / 80763 precursors)
+ Current DPPP: 7.56 ± 3.69 (median: 6.91)
+  Current DPPP: 7.56 ± 3.69 (median: 6.91)
+
+─── Step 4: Calculate Required Cycle Time ───
+ Current cycle time: 2.000 sec
+  Current cycle time: 2.000 sec
+ Required cycle time: ≤ 1.237 sec
+  Required cycle time: ≤ 1.237 sec
+ ⚠️  Need to REDUCE cycle time by 0.763 sec (38.2%)
+  ⚠️  Need to REDUCE cycle time by 0.763 sec (38.2%)
+
+─── Step 5: Determine Window Count ───
+ Window count: 20 per RT bin
+  Window count: 20 per RT bin
+ Calculation: floor(1.237 sec × 9.6 Hz) - 1 MS1 = 20
+  Calculation: floor(1.237 sec × 9.6 Hz) - 1 MS1 = 20
+
+─── Step 6: Feasibility Checks ───
+ Actual cycle time: 1.100 sec
+  Actual cycle time: 1.100 sec
+ ✅ Cycle time check: PASS (1.100 ≤ 1.237 sec)
+  ✅ Cycle time check: PASS (1.100 ≤ 1.237 sec)
+ ⚠️  Scan rate check: FAIL (21 scans > 14 max)
+  ⚠️  Scan rate check: FAIL (21 scans > 14 max)
+ ✅ Window range check: PASS (20 in [20, 500])
+  ✅ Window range check: PASS (20 in [20, 500])
+
+─── Step 7: Package Results ───
+
+───────────────────────────────────────────────────────
+Stage 2 Complete
+───────────────────────────────────────────────────────
+⚠️  Optimization plan has WARNINGS
+   Window count: 20 per RT bin
+   Required cycle time: ≤ 1.237 sec
+   Actual cycle time: 1.100 sec
+   Target satisfaction: 85% (current: 48.8%)
+   Processing time: 0.01 sec
+
+
+Planning Results:
+  Current cycle time: 2.000 sec
+  Required cycle time: ≤ 1.237 sec
+  Window count per bin: 20
+  Actual cycle time: 1.100 sec
+
+Window Count Calculation Breakdown:
+  Max scan rate: 12 Hz (Traditional Orbitrap)
+  Load factor: 80%
+  Effective scan rate: 9.6 Hz
+  Total scans: floor(1.237 × 9.6) = 11
+  MS1 scans reserved: 1
+  Window count: 11 - 1 = 10
+
+
+╔════════════════════════════════════════════════════════════════╗
+║                    SUMMARY COMPARISON                          ║
+╚════════════════════════════════════════════════════════════════╝
+
+      Gradient Input_CT FWHM_P15 Required_CT Window_Count Eff_Scan_Rate
+30min    30min      1.2 4.815874    1.169569           20           9.6
+60min    60min      1.6 4.941101    1.199982           20           9.6
+90min    90min      2.0 5.091820    1.236585           20           9.6
+
+Key Findings:
+─────────────────────────────────────────────────────────────
+✅ EXPLANATION FOUND:
+   All gradients have similar required cycle times (1.202 ± 0.034 sec)
+   This is because FWHM distributions are similar across gradients.
+   With Traditional Orbitrap (9.6 Hz effective):
+   → floor(1.202 × 9.6) - 1 = 20 windows per RT bin
+
+   The input cycle time (1.2, 1.6, 2.0 sec) is only used to calculate
+   current DPPP satisfaction, NOT to determine window count.
+
+   Window count is determined by:
+   1. Analyzing FWHM distribution
+   2. Finding critical FWHM (P15 for 85% satisfaction)
+   3. Calculating REQUIRED cycle time for target DPPP 7.0
+   4. Converting to window count based on instrument scan rate
+
+═══════════════════════════════════════════════════════════════
+Diagnostic Complete
+═══════════════════════════════════════════════════════════════
