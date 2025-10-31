@@ -1,0 +1,60 @@
+{
+  "project_metadata": {
+    "project_name": "Fusion_Lumos_70pct_Satisfaction_Custom_Cycle",
+    "date": "2025-10-31",
+    "description": "DIA window optimization with user-specified cycle time (1.5 sec)",
+    "analyst": "User"
+  },
+
+  "input_data": {
+    "input_files": [
+      "data/30min_report.parquet"
+    ],
+    "current_cycle_time": 1.5,
+    "_comment_current_cycle_time": "Current cycle time in seconds (e.g., 1.5). If null, auto-estimated from gradient length. Used for Stage 2 DPPP diagnosis."
+  },
+
+  "instrument": {
+    "preset": "fusion_lumos",
+    "custom_settings": null
+  },
+
+  "dppp_parameters": {
+    "target_dppp": 7.0,
+    "target_satisfaction": 0.70,
+    "dppp_tolerance": 0.0
+  },
+
+  "scan_settings": {
+    "load_factor": 0.8,
+    "ms1_scans_per_cycle": null,
+    "warning_threshold_windows": 5
+  },
+
+  "rt_binning": {
+    "rt_bin_width_min": 5.0
+  },
+
+  "mz_optimization": {
+    "strategies": ["quantile", "smoothing", "outlier", "coverage"],
+    "quantile_lower": 0.05,
+    "quantile_upper": 0.95,
+    "target_coverage": 0.95,
+    "outlier_threshold": 3.0,
+    "smoothing_window": 3,
+    "polynomial_order": 2
+  },
+
+  "window_generation": {
+    "modes": ["variable"],
+    "min_width_da": 2,
+    "max_width_da": 80,
+    "overlap_percentage": 0
+  },
+
+  "output": {
+    "output_dir": "output_custom_cycle_time_1.5sec",
+    "include_summary": true,
+    "include_plots": false
+  }
+}

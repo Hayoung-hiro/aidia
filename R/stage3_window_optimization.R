@@ -817,12 +817,20 @@ calculate_precursors_per_window <- function(windows, precursor_data) {
 #' @export
 export_windows_to_csv <- function(optimized_windows, output_file,
                                   validated_data,
+                                  optimization_plan = NULL,
                                   instrument_type = "orbitrap",
                                   project_name = "report",
                                   normalized_agc_target = 800) {
 
   validate_input_type(optimized_windows, "OptimizedWindows", "optimized_windows")
   validate_input_type(validated_data, "ValidatedData", "validated_data")
+
+  # Extract recommended cycle time
+  recommended_cycle_time <- if (!is.null(optimization_plan)) {
+    optimization_plan$required_cycle_time_sec
+  } else {
+    NA_real_
+  }
 
   windows <- optimized_windows$windows
   precursor_data <- get_precursor_data(validated_data)
@@ -831,7 +839,7 @@ export_windows_to_csv <- function(optimized_windows, output_file,
   cat("  Calculating precursors per window...\n")
   windows_with_counts <- calculate_precursors_per_window(windows, precursor_data)
 
-  # Create 21-column extended format (Thermo Orbitrap compatible)
+  # Create 22-column extended format (Thermo Orbitrap compatible)
   method_file <- windows_with_counts %>%
     mutate(
       # Empty columns (Thermo format compatibility)
@@ -861,7 +869,10 @@ export_windows_to_csv <- function(optimized_windows, output_file,
       # Configuration
       Instrument = instrument_type,
       Generation_Method = optimized_windows$parameters$mz_strategy,
-      Window_Type = optimized_windows$parameters$window_mode
+      Window_Type = optimized_windows$parameters$window_mode,
+
+      # Column 22: Recommended cycle time (rounded to 1 decimal)
+      Recommended_Cycle_Time_Sec = round(recommended_cycle_time, 1)
     ) %>%
     select(Compound, Formula, Adduct, `m/z`, z,
            `t start (min)`, `t stop (min)`,
@@ -869,12 +880,13 @@ export_windows_to_csv <- function(optimized_windows, output_file,
            `Start (m/z)`, `End (m/z)`,
            Window_ID, RT_Segment_ID, RT_Center, RT_Width,
            N_Precursors, Overlap_Prev, Overlap_Next,
-           Instrument, Generation_Method, Window_Type)
+           Instrument, Generation_Method, Window_Type,
+           Recommended_Cycle_Time_Sec)
 
   # Write CSV file (no header comments for extended format)
   write.csv(method_file, output_file, row.names = FALSE, quote = TRUE)
 
-  cat(sprintf("✅ Method file exported: %s (%d windows, 21 columns)\n",
+  cat(sprintf("✅ Method file exported: %s (%d windows, 22 columns)\n",
               output_file, nrow(method_file)))
   invisible(NULL)
 }

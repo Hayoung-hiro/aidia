@@ -1,272 +1,334 @@
-# test_stage4_real_data.R - Test Stage 4 Visualization with Real Data
-#
-# Purpose: Test the complete Stage 4 visualization module using real outputs
-# from final_test workflow run
+# =============================================================================
+# Stage 4 Visualization Test with Real Pipeline Data
+# =============================================================================
+# Tests all 8 essential plots and PDF report generation using actual output
+# from the completed full pipeline test
+# =============================================================================
 
-cat("\n╔════════════════════════════════════════════════╗\n")
-cat("║  Stage 4 Visualization Test (Real Data)      ║\n")
-cat("╚════════════════════════════════════════════════╝\n\n")
-
-# ============================================================================
-# Setup
-# ============================================================================
-
-cat("=== Setup ===\n")
-cat("Loading Stage 4 module...\n")
-source("R/stage4_visualization.R")
-
-# Check for required packages
-required_packages <- c("ggplot2", "dplyr", "tidyr", "viridis", "scales", "gridExtra")
-missing_packages <- required_packages[!sapply(required_packages, requireNamespace, quietly = TRUE)]
-
-if (length(missing_packages) > 0) {
-  cat("Installing missing packages:", paste(missing_packages, collapse = ", "), "\n")
-  install.packages(missing_packages)
-}
-
-library(ggplot2)
+library(arrow)
 library(dplyr)
-library(tidyr)
+library(ggplot2)
 
-cat("✅ All modules loaded successfully\n\n")
+# Source modules
+source("R/stage1_data_validation.R")
+source("R/stage2_optimization_planning.R")
+source("R/stage3_window_optimization.R")
+source("R/stage4_visualization.R")
+source("R/config_loader.R")
+source("R/instrument_utils.R")
 
-# ============================================================================
-# Load Real Data from final_test
-# ============================================================================
+# =============================================================================
+# Test Configuration
+# =============================================================================
 
-cat("=== Loading Real Data ===\n")
+cat("\n╔════════════════════════════════════════════════════════════════╗\n")
+cat("║          Stage 4 Visualization Test (Real Data)               ║\n")
+cat("╚════════════════════════════════════════════════════════════════╝\n\n")
 
-# Check if final_test directory exists
-if (!dir.exists("final_test")) {
-  stop("final_test directory not found. Run test_final_workflow.R first.")
-}
+# Use 30min gradient with quantile strategy and fixed mode
+test_input_file <- "data/30min_report.parquet"
+test_output_dir <- "results_stage4_test"
+dir.create(test_output_dir, showWarnings = FALSE, recursive = TRUE)
 
-# Load all stage outputs
-cat("Loading Stage 1 output...\n")
-validated_data <- readRDS("final_test/stage1_validated_data.rds")
+# Load configuration
+config <- load_optimization_config("config/test_config.json")
 
-cat("Loading Stage 2 output...\n")
-diagnosis <- readRDS("final_test/stage2_diagnosis.rds")
+# =============================================================================
+# Stage 1: Data Validation
+# =============================================================================
 
-cat("Loading Stage 3A output...\n")
-window_count <- readRDS("final_test/stage3a_window_count.rds")
+cat("Stage 1: Data Validation\n")
+cat("─────────────────────────────────────────────────────────────\n")
 
-cat("Loading Stage 3B output...\n")
-rt_binning <- readRDS("final_test/stage3b_rt_binning.rds")
+validated_data <- create_validated_dataset(
+  proteome_file = test_input_file,
+  apply_quality_filters = TRUE
+)
 
-cat("Loading Stage 3C output (smoothing strategy)...\n")
-mz_range <- readRDS("final_test/stage3c_mz_smoothing.rds")
+cat(sprintf("✅ Validated %s precursors\n",
+            format(nrow(validated_data$data), big.mark = ",")))
 
-cat("Loading Stage 3D output (variable mode)...\n")
-windows <- readRDS("final_test/stage3d_windows_smoothing_variable.rds")
+# =============================================================================
+# Stage 2: Optimization Planning
+# =============================================================================
 
-cat("✅ All stage outputs loaded successfully\n\n")
+cat("\nStage 2: Optimization Planning\n")
+cat("─────────────────────────────────────────────────────────────\n")
 
-# Print data summary
-cat("=== Data Summary ===\n")
-cat(sprintf("Precursors: %d\n", nrow(validated_data$data)))
-cat(sprintf("RT segments: %d\n", rt_binning$stats$n_segments))
-cat(sprintf("Total windows: %d\n", nrow(windows$windows)))
-cat(sprintf("Window count: %d\n", window_count$window_count))
-cat(sprintf("Instrument: %s\n", window_count$instrument_config$name))
-cat("\n")
-
-# ============================================================================
-# Test Stage 4 Visualization
-# ============================================================================
-
-cat("\n╔════════════════════════════════════════════════╗\n")
-cat("║  Generating Visualizations                    ║\n")
-cat("╚════════════════════════════════════════════════╝\n\n")
-
-# Create all_results structure
-all_results <- list(
+optimization_plan <- plan_optimization(
   validated_data = validated_data,
-  diagnosis = diagnosis,
-  window_count = window_count,
-  rt_binning = rt_binning,
-  mz_range = mz_range,
-  windows = windows
+  current_cycle_time = 1.2,  # 30min gradient estimate
+  instrument_preset = config$instrument$preset,
+  target_dppp = config$dppp_parameters$target_dppp,
+  target_satisfaction = config$dppp_parameters$target_satisfaction,
+  dppp_tolerance = 0.0,
+  load_factor = config$scan_settings$load_factor,
+  ms1_scans_per_cycle = config$scan_settings$ms1_scans_per_cycle,
+  warning_threshold_windows = 5
 )
 
-# Generate visualizations
-output_dir <- "final_test/visualizations/"
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+cat(sprintf("✅ Planning complete:\n"))
+cat(sprintf("   Required cycle time: %.3f sec\n",
+            optimization_plan$required_cycle_time_sec))
+cat(sprintf("   Windows per RT bin: %d\n",
+            optimization_plan$window_count_per_bin))
 
-cat("Calling generate_visualizations()...\n\n")
+# =============================================================================
+# Stage 3: Window Optimization (Quantile + Fixed)
+# =============================================================================
 
-viz_result <- generate_visualizations(
-  all_results = all_results,
-  output_dir = output_dir,
-  create_pdf = TRUE,
-  create_individual_plots = TRUE,
-  plot_format = "png",
-  plot_dpi = 300
+cat("\nStage 3: Window Optimization (Quantile + Fixed)\n")
+cat("─────────────────────────────────────────────────────────────\n")
+
+windows_result <- optimize_windows(
+  validated_data = validated_data,
+  optimization_plan = optimization_plan,
+  rt_bin_width_min = config$rt_binning$rt_bin_width_min,
+  mz_strategy = "quantile",
+  window_mode = "fixed",
+  target_coverage = 0.95,
+  quantile_lower = 0.05,
+  quantile_upper = 0.95,
+  outlier_threshold = 3.0,
+  smoothing_window = 3,
+  polynomial_order = 2,
+  min_width_da = config$window_generation$min_width_da,
+  max_width_da = config$window_generation$max_width_da,
+  overlap_percentage = 0
 )
 
-cat("\n✅ Visualization generation complete!\n\n")
+cat(sprintf("✅ Window optimization complete:\n"))
+cat(sprintf("   Total windows: %d\n", nrow(windows_result$windows)))
+cat(sprintf("   Coverage: %.1f%%\n", windows_result$statistics$coverage_percentage))
+cat(sprintf("   Mean width: %.2f ± %.2f Da\n",
+            windows_result$statistics$window_width_mean,
+            windows_result$statistics$window_width_sd))
 
-# ============================================================================
-# Verify Outputs
-# ============================================================================
+# =============================================================================
+# Stage 4: Visualization Testing
+# =============================================================================
 
-cat("\n╔════════════════════════════════════════════════╗\n")
-cat("║  Verification                                  ║\n")
-cat("╚════════════════════════════════════════════════╝\n\n")
+cat("\n╔════════════════════════════════════════════════════════════════╗\n")
+cat("║                    STAGE 4 VISUALIZATION                       ║\n")
+cat("╚════════════════════════════════════════════════════════════════╝\n\n")
 
-cat("=== Generated Plots ===\n")
-plot_names <- names(viz_result$plots)
-for (i in seq_along(plot_names)) {
-  cat(sprintf("%d. %s\n", i, plot_names[i]))
-}
+# Test individual plot generation
+cat("Testing Individual Plots:\n")
+cat("─────────────────────────────────────────────────────────────\n")
 
-cat("\n=== Report Files ===\n")
-cat(sprintf("PDF Report: %s (exists: %s)\n",
-            viz_result$report_files$pdf_report,
-            file.exists(viz_result$report_files$pdf_report)))
-cat(sprintf("Method File: %s (exists: %s)\n",
-            viz_result$report_files$method_file,
-            file.exists(viz_result$report_files$method_file)))
+# Plot 1: DPPP Density 2D Heatmap
+cat("[1/8] Testing plot_dppp_density()...")
+tryCatch({
+  plot1 <- plot_dppp_density(
+    validated_data = validated_data,
+    optimization_plan = optimization_plan
+  )
+  ggsave(file.path(test_output_dir, "plot1_dppp_density.png"),
+         plot1, width = 10, height = 6, dpi = 300)
+  cat(" ✅ PASS\n")
+}, error = function(e) {
+  cat(" ❌ FAIL\n")
+  cat(sprintf("   Error: %s\n", e$message))
+})
 
-cat("\n=== Individual Plots ===\n")
-individual_plots <- viz_result$report_files$individual_plots
-if (length(individual_plots) > 0) {
-  for (plot_file in individual_plots) {
-    cat(sprintf("  - %s (exists: %s)\n",
-                basename(plot_file),
-                file.exists(plot_file)))
-  }
-} else {
-  cat("  (No individual plots generated)\n")
-}
+# Plot 2: RT Window Size
+cat("[2/8] Testing plot_rt_window_size()...")
+tryCatch({
+  plot2 <- plot_rt_window_size(optimized_windows = windows_result)
+  ggsave(file.path(test_output_dir, "plot2_rt_window_size.png"),
+         plot2, width = 10, height = 6, dpi = 300)
+  cat(" ✅ PASS\n")
+}, error = function(e) {
+  cat(" ❌ FAIL\n")
+  cat(sprintf("   Error: %s\n", e$message))
+})
 
-cat("\n=== Summary Statistics ===\n")
-summary_stats <- viz_result$summary_statistics
-cat(sprintf("Total Windows: %d\n", summary_stats$optimization_metrics$total_windows))
-cat(sprintf("Window Count per RT: %.1f\n", summary_stats$optimization_metrics$window_count_per_rt))
-cat(sprintf("Mean Window Width: %.2f Da\n", summary_stats$optimization_metrics$mean_window_width_da))
-cat(sprintf("Precursor Coverage: %.2f%%\n", summary_stats$optimization_metrics$precursor_coverage_pct))
-cat(sprintf("Mean Precursors/Window: %.1f\n", summary_stats$optimization_metrics$mean_precursors_per_window))
-cat(sprintf("CV Precursors: %.3f\n", summary_stats$optimization_metrics$cv_precursors))
+# Plot 3: RT-m/z Density Heatmap
+cat("[3/8] Testing plot_rt_mz_density_heatmap()...")
+tryCatch({
+  plot3 <- plot_rt_mz_density_heatmap(validated_data = validated_data)
+  ggsave(file.path(test_output_dir, "plot3_rt_mz_density_heatmap.png"),
+         plot3, width = 10, height = 6, dpi = 300)
+  cat(" ✅ PASS\n")
+}, error = function(e) {
+  cat(" ❌ FAIL\n")
+  cat(sprintf("   Error: %s\n", e$message))
+})
 
-cat("\n=== Performance Metrics ===\n")
-cat(sprintf("Cycle Time: %.3f sec\n", summary_stats$performance_metrics$cycle_time_sec))
-cat(sprintf("Scan Rate: %.1f Hz\n", summary_stats$performance_metrics$scan_rate_hz))
-cat(sprintf("Target DPPP: %.1f\n", summary_stats$performance_metrics$target_dppp))
-cat(sprintf("Mean DPPP: %.2f\n", summary_stats$performance_metrics$mean_dppp))
-cat(sprintf("DPPP Satisfaction: %.2f%%\n", summary_stats$performance_metrics$dppp_satisfaction_pct))
+# Plot 4: RT-Normalized m/z Density
+cat("[4/8] Testing plot_mz_normalized_density()...")
+tryCatch({
+  plot4 <- plot_mz_normalized_density(
+    optimized_windows = windows_result,
+    validated_data = validated_data
+  )
+  ggsave(file.path(test_output_dir, "plot4_mz_normalized_density.png"),
+         plot4, width = 10, height = 6, dpi = 300)
+  cat(" ✅ PASS\n")
+}, error = function(e) {
+  cat(" ❌ FAIL\n")
+  cat(sprintf("   Error: %s\n", e$message))
+})
 
-cat("\n=== Metadata ===\n")
-metadata <- viz_result$metadata
-cat(sprintf("Instrument: %s\n", metadata$instrument_type))
-cat(sprintf("m/z Strategy: %s\n", metadata$mz_strategy))
-cat(sprintf("Window Mode: %s\n", metadata$window_mode))
-cat(sprintf("Generated: %s\n", metadata$generation_timestamp))
+# Plot 5: Window Width Distribution
+cat("[5/8] Testing plot_mz_window_width()...")
+tryCatch({
+  plot5 <- plot_mz_window_width(optimized_windows = windows_result)
+  ggsave(file.path(test_output_dir, "plot5_mz_window_width.png"),
+         plot5, width = 10, height = 6, dpi = 300)
+  cat(" ✅ PASS\n")
+}, error = function(e) {
+  cat(" ❌ FAIL\n")
+  cat(sprintf("   Error: %s\n", e$message))
+})
 
-# ============================================================================
-# Test with Orbitrap Data
-# ============================================================================
+# Plot 6: Precursor Coverage Map
+cat("[6/8] Testing plot_precursor_coverage_map()...")
+tryCatch({
+  plot6 <- plot_precursor_coverage_map(
+    optimized_windows = windows_result,
+    validated_data = validated_data
+  )
+  ggsave(file.path(test_output_dir, "plot6_precursor_coverage_map.png"),
+         plot6, width = 10, height = 6, dpi = 300)
+  cat(" ✅ PASS\n")
+}, error = function(e) {
+  cat(" ❌ FAIL\n")
+  cat(sprintf("   Error: %s\n", e$message))
+})
 
-if (dir.exists("final_test_orbitrap")) {
-  cat("\n\n╔════════════════════════════════════════════════╗\n")
-  cat("║  Testing with Orbitrap Data                   ║\n")
-  cat("╚════════════════════════════════════════════════╝\n\n")
+# Plot 7: Window Efficiency
+cat("[7/8] Testing plot_window_efficiency()...")
+tryCatch({
+  plot7 <- plot_window_efficiency(optimized_windows = windows_result)
+  ggsave(file.path(test_output_dir, "plot7_window_efficiency.png"),
+         plot7, width = 10, height = 6, dpi = 300)
+  cat(" ✅ PASS\n")
+}, error = function(e) {
+  cat(" ❌ FAIL\n")
+  cat(sprintf("   Error: %s\n", e$message))
+})
 
-  # Check if smoothing variable file exists, otherwise use available one
-  orbitrap_window_file <- "final_test_orbitrap/stage3d_windows_smoothing_variable.rds"
-  if (!file.exists(orbitrap_window_file)) {
-    # Try alternative file
-    orbitrap_window_file <- "final_test_orbitrap/stage3d_windows_coverage_variable.rds"
-    if (!file.exists(orbitrap_window_file)) {
-      cat("⚠️  No window generation output found for Orbitrap, skipping visualization\n")
+# Plot 8: DPPP Achievement Heatmap
+cat("[8/8] Testing plot_dppp_achievement_heatmap()...")
+tryCatch({
+  plot8 <- plot_dppp_achievement_heatmap(
+    optimization_plan = optimization_plan,
+    optimized_windows = windows_result,
+    validated_data = validated_data
+  )
+  ggsave(file.path(test_output_dir, "plot8_dppp_achievement_heatmap.png"),
+         plot8, width = 10, height = 6, dpi = 300)
+  cat(" ✅ PASS\n")
+}, error = function(e) {
+  cat(" ❌ FAIL\n")
+  cat(sprintf("   Error: %s\n", e$message))
+})
+
+# =============================================================================
+# Test Main Orchestration Function
+# =============================================================================
+
+cat("\n─────────────────────────────────────────────────────────────\n")
+cat("Testing Main Orchestration Function:\n")
+cat("─────────────────────────────────────────────────────────────\n")
+
+cat("Testing generate_visualizations()...")
+tryCatch({
+  viz_result <- generate_visualizations(
+    validated_data = validated_data,
+    optimization_plan = optimization_plan,
+    optimized_windows = windows_result,
+    output_dir = test_output_dir,
+    create_pdf = FALSE,
+    create_individual_plots = TRUE
+  )
+  cat(" ✅ PASS\n")
+
+  # Verify all plots exist
+  cat("\nVerifying individual plot files:\n")
+  expected_plots <- c(
+    "plot1_dppp_density.png",
+    "plot2_rt_window_size.png",
+    "plot3_rt_mz_heatmap.png",
+    "plot4_mz_normalized_density.png",
+    "plot5_mz_window_width.png",
+    "plot6_precursor_coverage_map.png",
+    "plot7_window_efficiency.png",
+    "plot8_dppp_achievement_heatmap.png"
+  )
+
+  for (plot_file in expected_plots) {
+    plot_path <- file.path(test_output_dir, plot_file)
+    if (file.exists(plot_path)) {
+      cat(sprintf("   ✅ %s\n", plot_file))
     } else {
-      cat("Loading Orbitrap data (using coverage strategy)...\n")
-
-      all_results_orbitrap <- list(
-        validated_data = readRDS("final_test_orbitrap/stage1_validated_data.rds"),
-        diagnosis = readRDS("final_test_orbitrap/stage2_diagnosis.rds"),
-        window_count = readRDS("final_test_orbitrap/stage3a_window_count.rds"),
-        rt_binning = readRDS("final_test_orbitrap/stage3b_rt_binning.rds"),
-        mz_range = readRDS("final_test_orbitrap/stage3c_mz_coverage.rds"),
-        windows = readRDS(orbitrap_window_file)
-      )
-
-      output_dir_orbitrap <- "final_test_orbitrap/visualizations/"
-      dir.create(output_dir_orbitrap, showWarnings = FALSE, recursive = TRUE)
-
-      cat("Generating Orbitrap visualizations...\n\n")
-
-      viz_result_orbitrap <- generate_visualizations(
-        all_results = all_results_orbitrap,
-        output_dir = output_dir_orbitrap,
-        create_pdf = TRUE,
-        create_individual_plots = TRUE,
-        plot_format = "png",
-        plot_dpi = 300
-      )
-
-      cat("\n✅ Orbitrap visualization generation complete!\n")
-      cat(sprintf("PDF Report: %s\n", viz_result_orbitrap$report_files$pdf_report))
-      cat(sprintf("Method File: %s\n", viz_result_orbitrap$report_files$method_file))
+      cat(sprintf("   ❌ %s (MISSING)\n", plot_file))
     }
-  } else {
-    cat("Loading Orbitrap data...\n")
-
-    all_results_orbitrap <- list(
-      validated_data = readRDS("final_test_orbitrap/stage1_validated_data.rds"),
-      diagnosis = readRDS("final_test_orbitrap/stage2_diagnosis.rds"),
-      window_count = readRDS("final_test_orbitrap/stage3a_window_count.rds"),
-      rt_binning = readRDS("final_test_orbitrap/stage3b_rt_binning.rds"),
-      mz_range = readRDS("final_test_orbitrap/stage3c_mz_smoothing.rds"),
-      windows = readRDS(orbitrap_window_file)
-    )
-
-    output_dir_orbitrap <- "final_test_orbitrap/visualizations/"
-    dir.create(output_dir_orbitrap, showWarnings = FALSE, recursive = TRUE)
-
-    cat("Generating Orbitrap visualizations...\n\n")
-
-    viz_result_orbitrap <- generate_visualizations(
-      all_results = all_results_orbitrap,
-      output_dir = output_dir_orbitrap,
-      create_pdf = TRUE,
-      create_individual_plots = TRUE,
-      plot_format = "png",
-      plot_dpi = 300
-    )
-
-    cat("\n✅ Orbitrap visualization generation complete!\n")
-    cat(sprintf("PDF Report: %s\n", viz_result_orbitrap$report_files$pdf_report))
-    cat(sprintf("Method File: %s\n", viz_result_orbitrap$report_files$method_file))
   }
-}
 
-# ============================================================================
-# Summary
-# ============================================================================
+}, error = function(e) {
+  cat(" ❌ FAIL\n")
+  cat(sprintf("   Error: %s\n", e$message))
+})
 
-cat("\n\n╔════════════════════════════════════════════════╗\n")
-cat("║  TEST SUMMARY                                  ║\n")
-cat("╚════════════════════════════════════════════════╝\n\n")
+# =============================================================================
+# Test PDF Report Generation
+# =============================================================================
 
-cat("Stage 4 Visualization Module:\n")
-cat("  ✅ All 8 plots generated successfully\n")
-cat("  ✅ PDF report created\n")
-cat("  ✅ Method file exported\n")
-cat("  ✅ Individual plots saved\n")
-cat("  ✅ Summary statistics calculated\n")
-cat("  ✅ Tested with Astral data\n")
-if (dir.exists("final_test_orbitrap")) {
-  cat("  ✅ Tested with Orbitrap data\n")
-}
+cat("\n─────────────────────────────────────────────────────────────\n")
+cat("Testing PDF Report Generation:\n")
+cat("─────────────────────────────────────────────────────────────\n")
 
-cat("\n╔════════════════════════════════════════════════╗\n")
-cat("║  ALL TESTS PASSED ✅                           ║\n")
-cat("╚════════════════════════════════════════════════╝\n\n")
+cat("Testing create_pdf_report()...")
+tryCatch({
+  # First generate all plots
+  plots <- list()
+  plots[[1]] <- plot_dppp_density(optimization_plan, validated_data)
+  plots[[2]] <- plot_rt_window_size(windows_result)
+  plots[[3]] <- plot_rt_mz_density_heatmap(validated_data)
+  plots[[4]] <- plot_mz_normalized_density(windows_result, validated_data)
+  plots[[5]] <- plot_mz_window_width(windows_result)
+  plots[[6]] <- plot_precursor_coverage_map(windows_result, validated_data)
+  plots[[7]] <- plot_window_efficiency(windows_result)
+  plots[[8]] <- plot_dppp_achievement_heatmap(optimization_plan, windows_result, validated_data)
 
-cat("Output directories:\n")
-cat("  - final_test/visualizations/\n")
-if (dir.exists("final_test_orbitrap")) {
-  cat("  - final_test_orbitrap/visualizations/\n")
-}
+  pdf_path <- file.path(test_output_dir, "stage4_test_report.pdf")
+  create_pdf_report(
+    plots = plots,
+    validated_data = validated_data,
+    optimization_plan = optimization_plan,
+    optimized_windows = windows_result,
+    output_file = pdf_path
+  )
+
+  if (file.exists(pdf_path)) {
+    cat(" ✅ PASS\n")
+    cat(sprintf("   PDF report: %s\n", pdf_path))
+    cat(sprintf("   File size: %.2f KB\n", file.info(pdf_path)$size / 1024))
+  } else {
+    cat(" ❌ FAIL (file not created)\n")
+  }
+
+}, error = function(e) {
+  cat(" ❌ FAIL\n")
+  cat(sprintf("   Error: %s\n", e$message))
+})
+
+# =============================================================================
+# Final Summary
+# =============================================================================
+
+cat("\n╔════════════════════════════════════════════════════════════════╗\n")
+cat("║                    STAGE 4 TEST COMPLETE                       ║\n")
+cat("╚════════════════════════════════════════════════════════════════╝\n\n")
+
+cat(sprintf("✅ Test output directory: %s\n", test_output_dir))
+cat(sprintf("✅ Configuration: %s\n", "config/test_config.json"))
+cat(sprintf("✅ Input file: %s\n", test_input_file))
+cat(sprintf("✅ Strategy: quantile + fixed mode\n"))
+cat("\nExpected outputs:\n")
+cat("   - 8 individual PNG plot files (300 DPI)\n")
+cat("   - 8 PNG files from generate_visualizations()\n")
+cat("   - 1 PDF comprehensive report\n")
 cat("\n")

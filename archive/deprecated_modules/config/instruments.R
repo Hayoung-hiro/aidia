@@ -35,6 +35,15 @@ get_instrument_configs <- function() {
       description = "Orbitrap Exploris series with FAIMS"
     ),
 
+    fusion_lumos = list(
+      name = "Thermo Fusion Lumos",
+      ms1_time = 50.0,       # ms
+      ms2_time = 50.0,       # ms
+      max_scan_rate = 20,    # Hz - hardware maximum
+      cycle_calculation = "sequential",  # MS1 then MS2
+      description = "Orbitrap Fusion Lumos Tribrid mass spectrometer"
+    ),
+
     timstof = list(
       name = "Bruker timsTOF",
       ms1_time = 10.0,       # ms

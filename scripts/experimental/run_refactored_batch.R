@@ -34,7 +34,7 @@ INPUT_FILES <- c(
 )
 
 # Instrument configuration
-INSTRUMENT_PRESET <- "orbitrap"  # Traditional Orbitrap
+INSTRUMENT_PRESET <- "fusion_lumos"  # Thermo Fusion Lumos (20 Hz)
 
 # DPPP parameters (MODIFIED: 70% satisfaction, min_windows=10)
 TARGET_DPPP <- 7.0
@@ -56,8 +56,8 @@ MIN_WIDTH_DA <- 2
 MAX_WIDTH_DA <- 80
 OVERLAP_PERCENTAGE <- 0
 
-# Output directory (MODIFIED: separate folder for min10_sat70)
-OUTPUT_DIR <- "results_min10_sat70"
+# Output directory (MODIFIED: Fusion Lumos results)
+OUTPUT_DIR <- "results_fusion_lumos_min10_sat70"
 dir.create(OUTPUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
 # =============================================================================
@@ -276,7 +276,10 @@ export_windows_thermo_format <- function(
   overlap_next[overlap_next < 0] <- 0
   overlap_next <- abs(overlap_next)
 
-  # Create 20-column Thermo standard CSV
+  # Extract recommended cycle time from optimization plan
+  recommended_cycle_time <- optimization_plan$required_cycle_time_sec
+
+  # Create 22-column Thermo standard CSV (added Recommended_Cycle_Time_Sec)
   csv_data <- windows %>%
     mutate(
       # Columns 1-3: Compound identification (empty for DIA)
@@ -328,7 +331,10 @@ export_windows_thermo_format <- function(
       Generation_Method = paste0(strategy, "_", mode),
 
       # Column 21: Window type
-      Window_Type = mode
+      Window_Type = mode,
+
+      # Column 22: Recommended cycle time (NEW - important for analysis)
+      Recommended_Cycle_Time_Sec = round(recommended_cycle_time, 1)
     ) %>%
     select(
       Compound, Formula, Adduct,
@@ -340,7 +346,8 @@ export_windows_thermo_format <- function(
       Window_ID, RT_Segment_ID, RT_Center, RT_Width,
       N_Precursors,
       Overlap_Prev, Overlap_Next,
-      Instrument, Generation_Method, Window_Type
+      Instrument, Generation_Method, Window_Type,
+      Recommended_Cycle_Time_Sec
     )
 
   # Write CSV

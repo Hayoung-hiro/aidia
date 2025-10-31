@@ -21,7 +21,7 @@ if (!exists("print_header")) {
 }
 
 if (!exists("get_instrument_config")) {
-  source("config/instruments.R")
+  source("R/instrument_utils.R")
 }
 
 # =============================================================================
@@ -49,12 +49,12 @@ if (!exists("get_instrument_config")) {
 #'   - 0.8: Conservative (recommended for stability)
 #'   - 0.9: Moderate
 #'   - 1.0: Aggressive (may cause instability)
-#' @param ms1_scans Integer, MS1 scans to reserve (default: NULL = auto-detect)
+#' @param ms1_scans_per_cycle Integer, MS1 scans per duty cycle (default: NULL = auto-detect)
 #'   - NULL: Auto-detect from instrument (parallel=0, sequential=1)
-#'   - 0: Parallel instruments (Astral, TimsTOF)
-#'   - 1: Sequential instruments (Orbitrap)
-#' @param min_windows Integer, minimum allowed windows (default: 20)
-#' @param max_windows Integer, maximum allowed windows (default: 500)
+#'   - 0: Parallel instruments (Astral, TimsTOF) - MS1 acquired during MS2
+#'   - 1: Sequential instruments (Orbitrap) - MS1 acquired before MS2
+#' @param warning_threshold_windows Integer, low window count warning threshold (default: 5)
+#'   - Issues warning if window count falls below this threshold
 #'
 #' @return OptimizationPlan S3 object
 #' @export
@@ -84,9 +84,8 @@ plan_optimization <- function(
   target_satisfaction = 0.85,
   dppp_tolerance = 0.0,
   load_factor = 0.8,
-  ms1_scans = NULL,
-  min_windows = 20,
-  max_windows = 500
+  ms1_scans_per_cycle = NULL,
+  warning_threshold_windows = 5
 ) {
 
   # Start timing
@@ -114,16 +113,20 @@ plan_optimization <- function(
 
   instrument_config <- get_instrument_config(instrument_preset)
 
-  # Auto-detect MS1 scans if not specified
-  if (is.null(ms1_scans)) {
-    ms1_scans <- if (instrument_config$cycle_calculation == "parallel") 0 else 1
+  # Auto-detect MS1 scans per cycle if not specified
+  if (is.null(ms1_scans_per_cycle)) {
+    ms1_scans_per_cycle <- get_ms1_scans_per_cycle(NULL, instrument_config)
   }
+
+  # Get max_windows from instrument config (hardware constraint)
+  max_windows <- instrument_config$max_windows
 
   print_info(sprintf("Instrument: %s", instrument_config$name))
   print_info(sprintf("Max scan rate: %.0f Hz (%s acquisition)",
                      instrument_config$max_scan_rate,
                      instrument_config$cycle_calculation))
-  print_info(sprintf("MS1 scans reserved: %d", ms1_scans))
+  print_info(sprintf("MS1 scans per cycle: %d", ms1_scans_per_cycle))
+  print_info(sprintf("Max windows: %d (hardware limit)", max_windows))
   print_info(sprintf("Load factor: %.0f%% (effective: %.1f Hz)",
                      load_factor * 100,
                      instrument_config$max_scan_rate * load_factor))
@@ -161,8 +164,11 @@ plan_optimization <- function(
     target_satisfaction = target_satisfaction
   )
 
+  # Round to 2 decimal places (instrument precision limit)
+  required_cycle_time <- round(required_cycle_time, 2)
+
   print_info(sprintf("Current cycle time: %.3f sec", current_cycle_time))
-  print_info(sprintf("Required cycle time: ≤ %.3f sec", required_cycle_time))
+  print_info(sprintf("Required cycle time: ≤ %.2f sec", required_cycle_time))
 
   # Determine adjustment needed
   needs_adjustment <- abs(required_cycle_time - current_cycle_time) > 0.01
@@ -194,8 +200,8 @@ plan_optimization <- function(
   window_count <- calculate_window_count_internal(
     target_cycle_time_sec = required_cycle_time,
     scan_rate_hz = effective_scan_rate,
-    ms1_scans = ms1_scans,
-    min_windows = min_windows,
+    ms1_scans_per_cycle = ms1_scans_per_cycle,
+    warning_threshold_windows = warning_threshold_windows,
     max_windows = max_windows
   )
 
@@ -203,7 +209,7 @@ plan_optimization <- function(
   print_info(sprintf("Calculation: floor(%.3f sec × %.1f Hz) - %d MS1 = %d",
                      required_cycle_time,
                      effective_scan_rate,
-                     ms1_scans,
+                     ms1_scans_per_cycle,
                      window_count))
 
   # ===================================================================
@@ -238,7 +244,7 @@ plan_optimization <- function(
   }
 
   # Check 2: Scan rate
-  total_scans_needed <- window_count + ms1_scans
+  total_scans_needed <- window_count + ms1_scans_per_cycle
   max_possible_scans <- floor(required_cycle_time * instrument_config$max_scan_rate)
   feasibility$scan_rate_ok <- total_scans_needed <= max_possible_scans
 
@@ -250,14 +256,14 @@ plan_optimization <- function(
                           total_scans_needed, max_possible_scans))
   }
 
-  # Check 3: Window count range
-  feasibility$window_range_ok <- window_count >= min_windows && window_count <= max_windows
+  # Check 3: Window count - max only (warning threshold handled in calculation)
+  feasibility$window_range_ok <- window_count <= max_windows
   if (feasibility$window_range_ok) {
-    print_success(sprintf("Window range check: PASS (%d in [%d, %d])",
-                          window_count, min_windows, max_windows))
+    print_success(sprintf("Window range check: PASS (%d ≤ %d max)",
+                          window_count, max_windows))
   } else {
-    print_warning(sprintf("Window range check: FAIL (%d not in [%d, %d])",
-                          window_count, min_windows, max_windows))
+    print_warning(sprintf("Window range check: FAIL (%d > %d max)",
+                          window_count, max_windows))
   }
 
   # Overall feasibility
@@ -311,7 +317,7 @@ plan_optimization <- function(
         max_scan_rate_hz = instrument_config$max_scan_rate,
         effective_scan_rate_hz = effective_scan_rate,
         load_factor = load_factor,
-        ms1_scans = ms1_scans,
+        ms1_scans_per_cycle = ms1_scans_per_cycle,
         cycle_mode = instrument_config$cycle_calculation,
         ms1_time_sec = ms1_time,
         ms2_time_sec = ms2_time
@@ -322,7 +328,7 @@ plan_optimization <- function(
         target_dppp = target_dppp,
         target_satisfaction = target_satisfaction,
         dppp_tolerance = dppp_tolerance,
-        min_windows = min_windows,
+        warning_threshold_windows = warning_threshold_windows,
         max_windows = max_windows
       ),
 
@@ -416,16 +422,24 @@ calculate_required_cycle_time_internal <- function(fwhm_seconds, target_dppp,
 #' Calculate Window Count from Cycle Time (Internal)
 #' @keywords internal
 calculate_window_count_internal <- function(target_cycle_time_sec, scan_rate_hz,
-                                            ms1_scans, min_windows, max_windows) {
+                                            ms1_scans_per_cycle, warning_threshold_windows,
+                                            max_windows) {
 
   # Total possible scans
   total_scans <- floor(target_cycle_time_sec * scan_rate_hz)
 
   # Reserve MS1 scans
-  n_windows <- total_scans - ms1_scans
+  n_windows <- total_scans - ms1_scans_per_cycle
 
-  # Apply constraints
-  n_windows <- max(n_windows, min_windows)
+  # Warning if too low (no enforcement)
+  if (n_windows <= warning_threshold_windows) {
+    warning(sprintf(
+      "Window count is low (%d ≤ %d). Consider adjusting target_cycle_time or load_factor.",
+      n_windows, warning_threshold_windows
+    ))
+  }
+
+  # Apply max constraint only
   n_windows <- min(n_windows, max_windows)
 
   return(as.integer(n_windows))

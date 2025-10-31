@@ -1,0 +1,100 @@
+{
+  "astral": {
+    "name": "Thermo Astral",
+    "ms1_time": 5.0,
+    "ms2_time": 3.0,
+    "max_scan_rate": 100,
+    "cycle_calculation": "parallel",
+    "ms1_scans_per_cycle": 0,
+    "max_windows": 300,
+    "description": "Astral narrow-DIA optimized configuration"
+  },
+
+  "orbitrap": {
+    "name": "Thermo Orbitrap",
+    "ms1_time": 100.0,
+    "ms2_time": 50.0,
+    "max_scan_rate": 12,
+    "cycle_calculation": "sequential",
+    "ms1_scans_per_cycle": 1,
+    "max_windows": 150,
+    "description": "High-resolution Orbitrap (12Hz, typical max ~100-150 windows - TODO: verify)"
+  },
+
+  "orbitrap_exploris": {
+    "name": "Thermo Orbitrap Exploris",
+    "ms1_time": 50.0,
+    "ms2_time": 22.0,
+    "max_scan_rate": 40,
+    "cycle_calculation": "sequential",
+    "ms1_scans_per_cycle": 1,
+    "max_windows": 400,
+    "description": "Orbitrap Exploris with FAIMS (40Hz - TODO: verify exact limit)"
+  },
+
+  "fusion_lumos": {
+    "name": "Thermo Fusion Lumos",
+    "ms1_time": 50.0,
+    "ms2_time": 50.0,
+    "max_scan_rate": 20,
+    "cycle_calculation": "sequential",
+    "ms1_scans_per_cycle": 1,
+    "max_windows": 300,
+    "description": "Fusion Lumos Tribrid (20Hz - TODO: verify exact limit)"
+  },
+
+  "timstof": {
+    "name": "Bruker timsTOF",
+    "ms1_time": 10.0,
+    "ms2_time": 2.0,
+    "max_scan_rate": 100,
+    "cycle_calculation": "parallel",
+    "ms1_scans_per_cycle": 0,
+    "max_windows": 150,
+    "description": "Trapped ion mobility mass spectrometer"
+  },
+
+  "timstof_pro": {
+    "name": "Bruker timsTOF Pro",
+    "ms1_time": 10.0,
+    "ms2_time": 1.5,
+    "max_scan_rate": 120,
+    "cycle_calculation": "parallel",
+    "ms1_scans_per_cycle": 0,
+    "max_windows": 200,
+    "description": "timsTOF Pro with PASEF technology"
+  },
+
+  "sciex_7600": {
+    "name": "SCIEX 7600 ZenoTOF",
+    "ms1_time": 20.0,
+    "ms2_time": 10.0,
+    "max_scan_rate": 50,
+    "cycle_calculation": "sequential",
+    "ms1_scans_per_cycle": 1,
+    "max_windows": 400,
+    "description": "QTOF with Zeno trap technology"
+  },
+
+  "waters_synapt": {
+    "name": "Waters SYNAPT",
+    "ms1_time": 50.0,
+    "ms2_time": 20.0,
+    "max_scan_rate": 20,
+    "cycle_calculation": "sequential",
+    "ms1_scans_per_cycle": 1,
+    "max_windows": 400,
+    "description": "Ion mobility-enabled QTOF"
+  },
+
+  "custom": {
+    "name": "Custom Instrument",
+    "ms1_time": 50.0,
+    "ms2_time": 25.0,
+    "max_scan_rate": 20,
+    "cycle_calculation": "sequential",
+    "ms1_scans_per_cycle": 1,
+    "max_windows": 500,
+    "description": "User-defined instrument settings"
+  }
+}

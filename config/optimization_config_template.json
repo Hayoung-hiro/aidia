@@ -1,0 +1,144 @@
+{
+  "_comment_project_metadata": "=== PROJECT METADATA ===",
+  "_comment_pm_1": "Project identification and documentation",
+  "project_metadata": {
+    "project_name": "PROJECT_NAME_HERE",
+    "_comment": "🔴 REQUIRED: Unique identifier for this optimization project",
+
+    "date": "YYYY-MM-DD",
+    "_comment_date": "🔴 REQUIRED: Analysis date in ISO format",
+
+    "description": "Description of the optimization goals and conditions",
+    "_comment_desc": "⚪ OPTIONAL: Brief description of project objectives",
+
+    "analyst": "Your Name",
+    "_comment_analyst": "⚪ OPTIONAL: Person conducting the analysis"
+  },
+
+  "_comment_input": "=== INPUT DATA ===",
+  "_comment_input_1": "DIA-NN output files (parquet, TSV, or CSV format)",
+  "input_data": {
+    "input_files": [
+      "data/30min_report.parquet",
+      "data/60min_report.parquet",
+      "data/90min_report.parquet"
+    ],
+    "_comment": "🔴 REQUIRED: List of DIA-NN output files to process. Each file generates multiple optimization results."
+  },
+
+  "_comment_instrument": "=== INSTRUMENT CONFIGURATION ===",
+  "_comment_inst_1": "Mass spectrometer settings and capabilities",
+  "instrument": {
+    "preset": "fusion_lumos",
+    "_comment_preset": "🔴 REQUIRED: Instrument type preset",
+    "_comment_options": "Options: astral, orbitrap, orbitrap_exploris, fusion_lumos, timstof, timstof_pro, sciex_7600, waters_synapt, custom",
+
+    "custom_settings": null,
+    "_comment_custom": "⚪ OPTIONAL: Override preset values (null = use preset defaults)",
+    "_comment_custom_example": "Example: {\"ms1_time\": 50.0, \"ms2_time\": 25.0, \"max_scan_rate\": 20, \"cycle_calculation\": \"sequential\"}"
+  },
+
+  "_comment_dppp": "=== DPPP PARAMETERS ===",
+  "_comment_dppp_1": "Data Points Per Peak (DPPP) optimization targets",
+  "_comment_dppp_2": "DPPP = (1.7 × FWHM) / Cycle Time",
+  "dppp_parameters": {
+    "target_dppp": 7.0,
+    "_comment_dppp": "🟡 IMPORTANT: Target DPPP value",
+    "_comment_dppp_modes": "1.5 = ID mode (max identifications), 4.0 = Balanced, 7.0 = Quant mode (best quantification, recommended)",
+
+    "target_satisfaction": 0.70,
+    "_comment_satisfaction": "🟡 IMPORTANT: Target percentage of precursors meeting DPPP goal",
+    "_comment_sat_range": "0.70 = 70% (relaxed), 0.85 = 85% (standard), 0.90 = 90% (strict)",
+
+    "dppp_tolerance": 0.0,
+    "_comment_tolerance": "⚪ OPTIONAL: Tolerance for DPPP matching (0.0 = exact match)"
+  },
+
+  "_comment_scan_settings": "=== SCAN SETTINGS ===",
+  "_comment_ss_1": "Instrument scan configuration and constraints",
+  "scan_settings": {
+    "load_factor": 0.8,
+    "_comment_load": "🟢 ADVANCED: Scan rate utilization factor",
+    "_comment_load_options": "0.8 = Conservative (recommended for stability), 0.9 = Moderate, 1.0 = Aggressive (may cause instability)",
+
+    "ms1_scans_per_cycle": null,
+    "_comment_ms1": "⚪ OPTIONAL: Number of MS1 scans per duty cycle",
+    "_comment_ms1_note": "null = auto-detect (0 for parallel instruments, 1 for sequential)",
+
+    "warning_threshold_windows": 5,
+    "_comment_warning": "🟢 ADVANCED: Low window count warning threshold",
+    "_comment_warning_note": "Warning issued if window count falls below this value (not enforced)"
+  },
+
+  "_comment_rt": "=== RT BINNING ===",
+  "_comment_rt_1": "Retention time segmentation strategy",
+  "rt_binning": {
+    "rt_bin_width_min": 5.0,
+    "_comment": "🟡 IMPORTANT: RT bin width in minutes",
+    "_comment_range": "Recommended: 3-7 minutes for typical proteomics gradients",
+    "_comment_tradeoff": "Shorter bins = better RT specificity but more bins to manage; Longer bins = simpler but less specific"
+  },
+
+  "_comment_mz": "=== m/z OPTIMIZATION ===",
+  "_comment_mz_1": "m/z range optimization strategies",
+  "mz_optimization": {
+    "strategies": ["quantile", "smoothing", "outlier", "coverage"],
+    "_comment_strategies": "🟡 IMPORTANT: m/z optimization strategies to apply",
+    "_comment_options": "Options: quantile (percentile-based), smoothing (DynamicDIA), outlier (robust), coverage (conservative)",
+    "_comment_recommendation": "Use all 4 for comprehensive comparison, or select specific strategies for targeted optimization",
+
+    "quantile_lower": 0.05,
+    "quantile_upper": 0.95,
+    "_comment_quantile": "🟢 ADVANCED: Percentile range for quantile strategy (P5-P95 = 90% coverage)",
+
+    "target_coverage": 0.95,
+    "_comment_coverage": "🟢 ADVANCED: Target m/z coverage for coverage strategy (95% recommended)",
+
+    "outlier_threshold": 3.0,
+    "_comment_outlier": "🟢 ADVANCED: Standard deviation threshold for outlier removal (3.0 = 99.7% retention)",
+
+    "smoothing_window": 3,
+    "_comment_smoothing": "🟢 ADVANCED: Smoothing window size for DynamicDIA strategy",
+    "_comment_smoothing_note": "Reduce if few RT bins (<5). Default 7 for standard gradients.",
+
+    "polynomial_order": 2,
+    "_comment_poly": "🟢 ADVANCED: Polynomial order for Savitzky-Golay smoothing (2-3 recommended)"
+  },
+
+  "_comment_window_gen": "=== WINDOW GENERATION ===",
+  "_comment_wg_1": "Isolation window generation modes and constraints",
+  "window_generation": {
+    "modes": ["fixed", "variable"],
+    "_comment_modes": "🟡 IMPORTANT: Window generation modes",
+    "_comment_fixed": "fixed = equal-width windows, variable = density-based adaptive windows (recommended for uniform coverage)",
+    "_comment_recommendation": "Use both for comparison, or select 'variable' for optimal results",
+
+    "min_width_da": 2,
+    "_comment_min_width": "🟢 ADVANCED: Minimum window width in Da (2 Da for narrow-DIA, 5-10 Da for traditional)",
+
+    "max_width_da": 80,
+    "_comment_max_width": "🟢 ADVANCED: Maximum window width in Da (80 Da typical upper limit)",
+
+    "overlap_percentage": 0,
+    "_comment_overlap": "🟢 ADVANCED: Overlap percentage between adjacent windows",
+    "_comment_overlap_note": "0 = no overlap (standard), 1-5 = slight overlap for edge coverage"
+  },
+
+  "_comment_output": "=== OUTPUT SETTINGS ===",
+  "_comment_out_1": "Result file generation options",
+  "output": {
+    "output_dir": "results_optimization",
+    "_comment_dir": "🔴 REQUIRED: Output directory for CSV files and summary",
+
+    "include_summary": true,
+    "_comment_summary": "⚪ OPTIONAL: Generate batch_processing_summary.csv (recommended: true)",
+
+    "include_plots": false,
+    "_comment_plots": "⚪ OPTIONAL: Generate visualization plots (not yet implemented, default: false)"
+  },
+
+  "_comment_footer": "========================================",
+  "_comment_usage": "USAGE: Modify values above, remove comment lines, and save as optimization_config.json",
+  "_comment_validation": "Run: source('validate_config.R'); validate_config_file('config/optimization_config.json')",
+  "_comment_execution": "Run: source('run_with_config.R'); run_optimization('config/optimization_config.json')"
+}

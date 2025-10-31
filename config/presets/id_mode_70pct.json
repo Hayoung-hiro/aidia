@@ -1,0 +1,60 @@
+{
+  "project_metadata": {
+    "project_name": "ID_Mode_70pct_Satisfaction",
+    "date": "2025-10-27",
+    "description": "Identification mode with 70% satisfaction (optimized for maximum precursor identification)",
+    "analyst": ""
+  },
+
+  "input_data": {
+    "input_files": [
+      "data/30min_report.parquet",
+      "data/60min_report.parquet",
+      "data/90min_report.parquet"
+    ]
+  },
+
+  "instrument": {
+    "preset": "orbitrap",
+    "custom_settings": null
+  },
+
+  "dppp_parameters": {
+    "target_dppp": 1.5,
+    "target_satisfaction": 0.70,
+    "dppp_tolerance": 0.0
+  },
+
+  "scan_settings": {
+    "load_factor": 0.9,
+    "ms1_scans_per_cycle": null,
+    "warning_threshold_windows": 5
+  },
+
+  "rt_binning": {
+    "rt_bin_width_min": 5.0
+  },
+
+  "mz_optimization": {
+    "strategies": ["quantile", "coverage"],
+    "quantile_lower": 0.05,
+    "quantile_upper": 0.95,
+    "target_coverage": 0.98,
+    "outlier_threshold": 3.0,
+    "smoothing_window": 3,
+    "polynomial_order": 2
+  },
+
+  "window_generation": {
+    "modes": ["variable"],
+    "min_width_da": 2,
+    "max_width_da": 80,
+    "overlap_percentage": 0
+  },
+
+  "output": {
+    "output_dir": "results_id_mode_70pct",
+    "include_summary": true,
+    "include_plots": false
+  }
+}

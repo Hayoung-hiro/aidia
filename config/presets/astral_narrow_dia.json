@@ -1,0 +1,60 @@
+{
+  "project_metadata": {
+    "project_name": "Astral_Narrow_DIA",
+    "date": "2025-10-27",
+    "description": "Narrow-DIA optimization for Thermo Astral (100 Hz scan rate, parallel acquisition)",
+    "analyst": ""
+  },
+
+  "input_data": {
+    "input_files": [
+      "data/30min_report.parquet",
+      "data/60min_report.parquet",
+      "data/90min_report.parquet"
+    ]
+  },
+
+  "instrument": {
+    "preset": "astral",
+    "custom_settings": null
+  },
+
+  "dppp_parameters": {
+    "target_dppp": 7.0,
+    "target_satisfaction": 0.90,
+    "dppp_tolerance": 0.0
+  },
+
+  "scan_settings": {
+    "load_factor": 0.8,
+    "ms1_scans_per_cycle": null,
+    "warning_threshold_windows": 5
+  },
+
+  "rt_binning": {
+    "rt_bin_width_min": 3.0
+  },
+
+  "mz_optimization": {
+    "strategies": ["quantile", "smoothing"],
+    "quantile_lower": 0.02,
+    "quantile_upper": 0.98,
+    "target_coverage": 0.98,
+    "outlier_threshold": 3.5,
+    "smoothing_window": 5,
+    "polynomial_order": 3
+  },
+
+  "window_generation": {
+    "modes": ["variable"],
+    "min_width_da": 2,
+    "max_width_da": 20,
+    "overlap_percentage": 0
+  },
+
+  "output": {
+    "output_dir": "results_astral_narrow_dia",
+    "include_summary": true,
+    "include_plots": false
+  }
+}

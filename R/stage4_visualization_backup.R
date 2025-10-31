@@ -2,38 +2,14 @@
 #
 # Purpose: Generate comprehensive visualizations and reports for DIA window optimization
 #
-# Version: 4.0 (Complete plot suite with multi-strategy comparison)
+# Version: 2.0 (Updated for 3-stage refactored pipeline)
 #
 # Main Functions:
 #   1. generate_visualizations() - Main orchestration function
-#   2. Complete plot suite (24 plots total):
-#      - Plot 1A/1B: DPPP Distribution Comparison (Simple & Enhanced)
-#      - Plot 2: RT × m/z Density Heatmap
-#      - Plot 2B: RT Histogram (Continuous & 5-min binned)
-#      - Plot 3: m/z Density Overlay by RT Segment
-#      - Plot 4 (A-E): m/z Range Optimization (4 strategies + comparison)
-#      - Plot 5: Coverage Map 2×2 Grid (All strategies)
-#      - Plot 6: Satisfaction vs Cycle Time Trade-off Curve
-#      - Plot 7 (×4): Window Width Distribution by Strategy (Quantile, Smoothing, Outlier, Coverage)
-#      - Plot 7B (×4): Window Index Width Bars by Strategy
-#      - Plot 8A: Ridge Plot - Strategy Width Comparison (ggridges)
-#      - Plot 8B: Box Plot - Strategy Statistical Summary
-#      - Plot 8C: CDF - Strategy Cumulative Distribution
+#   2. 8 plot functions (plot_dppp_density, plot_rt_window_size, etc.)
 #   3. create_pdf_report() - Multi-panel PDF generation
 #   4. export_method_file() - Thermo Orbitrap method CSV
 #   5. export_individual_plots() - Individual plot export
-#
-# New in Version 4.0:
-#   - Plot 8 (A/B/C): 4-strategy window width comparison with 3 visualization types
-#   - ggridges integration for professional ridge plots
-#   - Comprehensive multi-strategy analysis across Plot 4, 5, 7, and 8
-#   - Total plot count increased from 13 to 24
-#
-# Deprecated Functions Removed:
-#   - plot_rt_window_size (replaced by Plot 3 overlay)
-#   - plot_precursor_coverage_map (replaced by Plot 5)
-#   - plot_window_efficiency (no longer needed)
-#   - plot_dppp_achievement_heatmap (removed in redesign)
 #
 # Input: Refactored pipeline outputs
 #   - validated_data (ValidatedData from Stage 1)
@@ -49,41 +25,6 @@ library(viridis)
 library(scales)
 library(gridExtra)
 library(grid)
-
-# =============================================================================
-# Source Modular Plot Functions
-# =============================================================================
-
-# Plot 2B: RT Histogram (supplementary to density heatmap)
-if (file.exists("R/plot2b_rt_histogram.R")) {
-  source("R/plot2b_rt_histogram.R")
-}
-
-# Plot 4: m/z Range Optimization (multiple strategies)
-if (file.exists("R/plot4_mz_distribution_excluded.R")) {
-  source("R/plot4_mz_distribution_excluded.R")
-}
-if (file.exists("R/plot4_mz_width_comparison.R")) {
-  source("R/plot4_mz_width_comparison.R")
-}
-if (file.exists("R/plot4_mz_range_optimization.R")) {
-  source("R/plot4_mz_range_optimization.R")
-}
-
-# Plot 5: Coverage Map 2×2 Grid
-if (file.exists("R/plot5_density_with_mz_ranges.R")) {
-  source("R/plot5_density_with_mz_ranges.R")
-}
-
-# Plot 7: Window Width Distribution by RT Segment
-if (file.exists("R/plot7_window_width_distribution.R")) {
-  source("R/plot7_window_width_distribution.R")
-}
-
-# Plot 8: Strategy Width Comparison (Ridge, Box, CDF)
-if (file.exists("R/plot8_strategy_width_comparison.R")) {
-  source("R/plot8_strategy_width_comparison.R")
-}
 
 # =============================================================================
 # Custom Theme
@@ -466,10 +407,48 @@ plot_dppp_comparison_enhanced <- function(optimization_plan, validated_data) {
 }
 
 # =============================================================================
-# Plot 2: RT Window Size - DEPRECATED (Replaced by Plot 3 overlay)
+# Plot 2: RT Window Size (Bar Plot)
 # =============================================================================
-# This function has been removed as part of the redesign.
-# RT window allocation is now visualized in Plot 3 (m/z Density Overlay).
+
+#' Plot Window Allocation Across RT Segments
+#'
+#' @param optimized_windows OptimizedWindows object from Stage 3
+#'
+#' @return ggplot object
+#' @export
+plot_rt_window_size <- function(optimized_windows) {
+
+  cat("  Generating Plot 2: RT Window Size Distribution...\n")
+
+  # Count windows per RT segment
+  rt_summary <- optimized_windows$windows %>%
+    group_by(rt_segment_id, rt_start, rt_end) %>%
+    summarise(
+      n_windows = n(),
+      mean_width = mean(window_width),
+      .groups = "drop"
+    ) %>%
+    mutate(rt_midpoint = (rt_start + rt_end) / 2)
+
+  # Plot window count
+  p <- ggplot(rt_summary, aes(x = rt_midpoint, y = n_windows)) +
+    geom_col(fill = "steelblue", alpha = 0.7, width = 4) +
+    geom_text(aes(label = n_windows), vjust = -0.5, size = 3) +
+    labs(
+      title = "Window Allocation Across RT Segments",
+      subtitle = sprintf("Total windows: %d | Mean: %.1f per segment",
+                        nrow(optimized_windows$windows),
+                        mean(rt_summary$n_windows)),
+      x = "Retention Time (min)",
+      y = "Number of Windows",
+      caption = "Higher bars indicate more windows allocated to that RT region"
+    ) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+    theme_dia_optimizer() +
+    theme(panel.grid.major.x = element_blank())
+
+  return(p)
+}
 
 # =============================================================================
 # Plot 3: RT × m/z Density Heatmap
@@ -815,18 +794,232 @@ plot_mz_window_width <- function(optimized_windows) {
   return(p)
 }
 
+# =============================================================================
+# Plot 6: Precursor Coverage Map
+# =============================================================================
+
+#' Plot Precursor Coverage Map
+#'
+#' @param optimized_windows OptimizedWindows object from Stage 3
+#' @param validated_data ValidatedData object from Stage 1
+#'
+#' @return ggplot object
+#' @export
+plot_precursor_coverage_map <- function(optimized_windows, validated_data) {
+
+  cat("  Generating Plot 6: Precursor Coverage Map...\n")
+
+  # Sample precursors for visualization (max 5000 points for performance)
+  precursor_data <- validated_data$data %>%
+    select(RT.Start, Precursor.Mz)
+
+  if (nrow(precursor_data) > 5000) {
+    set.seed(42)
+    precursor_data <- precursor_data %>% sample_n(5000)
+  }
+
+  window_data <- optimized_windows$windows
+
+  # Determine coverage for each precursor
+  cat("    Calculating coverage (this may take a moment)...\n")
+  precursor_data <- precursor_data %>%
+    rowwise() %>%
+    mutate(
+      is_covered = any(
+        window_data$mz_start <= Precursor.Mz &
+        window_data$mz_end >= Precursor.Mz &
+        window_data$rt_start <= RT.Start &
+        window_data$rt_end >= RT.Start
+      )
+    ) %>%
+    ungroup()
+
+  # Calculate coverage stats
+  coverage_pct <- mean(precursor_data$is_covered) * 100
+  n_covered <- sum(precursor_data$is_covered)
+  n_total <- nrow(precursor_data)
+
+  # Plot coverage
+  p <- ggplot(precursor_data, aes(x = RT.Start, y = Precursor.Mz,
+                                   color = is_covered)) +
+    geom_point(alpha = 0.4, size = 0.8) +
+    scale_color_manual(
+      values = c("TRUE" = "#2ecc71", "FALSE" = "#e74c3c"),
+      labels = c("TRUE" = "Covered", "FALSE" = "Not covered"),
+      name = "Status"
+    ) +
+    labs(
+      title = "Precursor Coverage Map",
+      subtitle = sprintf("Coverage: %.1f%% (%d/%d precursors)",
+                        coverage_pct, n_covered, n_total),
+      x = "Retention Time (min)",
+      y = "Precursor m/z (Da)",
+      caption = "Green = covered by windows | Red = not covered (gaps)"
+    ) +
+    theme_dia_optimizer()
+
+  return(p)
+}
 
 # =============================================================================
-# Deprecated Plot Functions (Removed in v3.0)
+# Plot 7: Window Efficiency
 # =============================================================================
-# The following functions have been removed as part of the redesign:
-#   - plot_precursor_coverage_map() → Replaced by Plot 5 (2×2 coverage grid)
-#   - plot_window_efficiency() → No longer needed per redesign
-#   - plot_dppp_achievement_heatmap() → To be redesigned in future version
-#
-# New modular plot functions are sourced from separate files at the top of this module.
-# See: plot4_*.R and plot5_*.R
 
+#' Plot Window Efficiency (Precursors per Window)
+#'
+#' @param optimized_windows OptimizedWindows object from Stage 3
+#'
+#' @return ggplot object
+#' @export
+plot_window_efficiency <- function(optimized_windows) {
+
+  cat("  Generating Plot 7: Window Efficiency Analysis...\n")
+
+  # Extract window efficiency data
+  window_data <- optimized_windows$windows %>%
+    arrange(n_precursors) %>%
+    mutate(window_rank = row_number())
+
+  # Calculate statistics
+  mean_prec <- mean(window_data$n_precursors)
+  cv_prec <- sd(window_data$n_precursors) / mean_prec
+
+  # Plot precursors per window
+  p <- ggplot(window_data, aes(x = window_rank, y = n_precursors)) +
+    geom_col(fill = "coral", alpha = 0.7, width = 1) +
+    geom_hline(yintercept = mean_prec,
+               linetype = "dashed", color = "blue", linewidth = 1) +
+    annotate("text", x = nrow(window_data) * 0.85,
+             y = mean_prec * 1.15,
+             label = sprintf("Mean: %.1f", mean_prec),
+             color = "blue", fontface = "bold", size = 4) +
+    labs(
+      title = "Window Efficiency: Precursors per Window",
+      subtitle = sprintf("CV: %.3f | Range: %d - %d precursors",
+                        cv_prec,
+                        min(window_data$n_precursors),
+                        max(window_data$n_precursors)),
+      x = "Window Rank (sorted by precursor count)",
+      y = "Number of Precursors",
+      caption = "Blue line = mean | Low CV indicates uniform distribution"
+    ) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+    theme_dia_optimizer() +
+    theme(
+      axis.text.x = element_blank(),
+      panel.grid.major.x = element_blank()
+    )
+
+  return(p)
+}
+
+# =============================================================================
+# Plot 8: DPPP Achievement Heatmap
+# =============================================================================
+
+#' Plot DPPP Achievement Heatmap by Window
+#'
+#' @param optimization_plan OptimizationPlan object from Stage 2
+#' @param optimized_windows OptimizedWindows object from Stage 3
+#' @param validated_data ValidatedData object from Stage 1
+#' @param target_dppp Target DPPP value (default: NULL, uses plan target)
+#' @param dppp_tolerance DPPP tolerance (default: 0.5)
+#'
+#' @return ggplot object
+#' @export
+plot_dppp_achievement_heatmap <- function(optimization_plan, optimized_windows, validated_data,
+                                         target_dppp = NULL, dppp_tolerance = 0.5) {
+
+  cat("  Generating Plot 8: DPPP Achievement Heatmap...\n")
+
+  # Use target from optimization_plan if not provided
+  if (is.null(target_dppp)) {
+    target_dppp <- optimization_plan$parameters$target_dppp
+  }
+
+  # Calculate DPPP for each precursor
+  dppp_data <- validated_data$data %>%
+    select(RT.Start, Precursor.Mz, FWHM) %>%
+    mutate(
+      dppp_value = (FWHM * 60 * 1.7) / optimization_plan$actual_cycle_time_sec,
+      meets_target = dppp_value >= (target_dppp - dppp_tolerance) &
+                     dppp_value <= (target_dppp + dppp_tolerance)
+    )
+
+  # Sample for performance
+  if (nrow(dppp_data) > 5000) {
+    set.seed(42)
+    dppp_data <- dppp_data %>% sample_n(5000)
+  }
+
+  window_data <- optimized_windows$windows
+
+  # Assign each precursor to a window
+  cat("    Assigning precursors to windows...\n")
+
+  # Add numeric index for window assignment
+  # window_id format: "RT1_W1", "RT2_W3", etc. (keep as character)
+  window_data <- window_data %>%
+    mutate(
+      window_index = row_number()  # Sequential index for matching
+    )
+
+  # Assign precursors to windows based on RT and m/z ranges
+  dppp_data <- dppp_data %>%
+    rowwise() %>%
+    mutate(
+      window_index = {
+        matching_windows <- which(
+          window_data$mz_start <= Precursor.Mz &
+          window_data$mz_end >= Precursor.Mz &
+          window_data$rt_start <= RT.Start &
+          window_data$rt_end >= RT.Start
+        )
+        if (length(matching_windows) > 0) matching_windows[1] else NA_integer_
+      }
+    ) %>%
+    ungroup() %>%
+    filter(!is.na(window_index))
+
+  # Calculate mean achievement per window
+  window_dppp <- dppp_data %>%
+    group_by(window_index) %>%
+    summarise(
+      mean_dppp = mean(dppp_value),
+      achievement_ratio = mean(as.numeric(meets_target)),
+      .groups = "drop"
+    ) %>%
+    left_join(window_data, by = "window_index") %>%
+    mutate(
+      rt_midpoint = (rt_start + rt_end) / 2
+    )
+
+  # Plot heatmap
+  p <- ggplot(window_dppp, aes(x = rt_midpoint, y = mz_center,
+                                fill = achievement_ratio)) +
+    geom_tile() +
+    scale_fill_gradient2(
+      low = "#e74c3c",
+      mid = "#f39c12",
+      high = "#2ecc71",
+      midpoint = 0.5,
+      limits = c(0, 1),
+      name = "Target\nAchievement",
+      labels = percent_format()
+    ) +
+    labs(
+      title = "DPPP Achievement Heatmap (by Window)",
+      subtitle = sprintf("Overall satisfaction: %.1f%% | Target: %.1f ± %.1f",
+                        optimization_plan$diagnosis$current_satisfaction_ratio * 100,
+                        target_dppp, dppp_tolerance),
+      x = "Retention Time (min)",
+      y = "Window Center m/z (Da)",
+      caption = "Green = meeting target DPPP | Red = not meeting target"
+    ) +
+    theme_dia_optimizer()
+
+  return(p)
+}
 
 # =============================================================================
 # Main Visualization Function
@@ -856,8 +1049,7 @@ generate_visualizations <- function(
   create_pdf = TRUE,
   create_individual_plots = TRUE,
   plot_format = "png",
-  plot_dpi = 300,
-  windows_list = NULL  # Optional: Pre-computed windows for all strategies
+  plot_dpi = 300
 ) {
 
   cat("\n╔═══════════════════════════════════════════════╗\n")
@@ -873,154 +1065,28 @@ generate_visualizations <- function(
 
   cat("Step 1: Generating all plots...\n")
 
-  # Generate all plots with standardized naming: {plot순서}_{plot이름}
+  # Generate all plots
   plots <- list()
 
-  # Plot 1: DPPP Comparison - Both versions (always generate both)
-  cat("  Generating Plot 1A: DPPP Comparison (Simple)...\n")
-  plots$`plot1a_dppp_comparison_simple` <- plot_dppp_comparison(optimization_plan, validated_data)
+  # Plot 1: DPPP Comparison - Both versions
+  plots$dppp_comparison_simple <- plot_dppp_comparison(optimization_plan, validated_data)
+  plots$dppp_comparison_enhanced <- plot_dppp_comparison_enhanced(optimization_plan, validated_data)
 
-  cat("  Generating Plot 1B: DPPP Comparison (Enhanced)...\n")
-  plots$`plot1b_dppp_comparison_enhanced` <- plot_dppp_comparison_enhanced(optimization_plan, validated_data)
+  # Plot 2-8: Existing plots
+  plots$rt_window_size <- plot_rt_window_size(optimized_windows)
+  plots$rt_mz_heatmap <- plot_rt_mz_density_heatmap(validated_data)
+  plots$mz_normalized_density <- plot_mz_normalized_density(optimized_windows, validated_data)
+  plots$mz_window_width <- plot_mz_window_width(optimized_windows)
+  plots$precursor_coverage_map <- plot_precursor_coverage_map(optimized_windows, validated_data)
+  plots$window_efficiency <- plot_window_efficiency(optimized_windows)
+  plots$dppp_achievement_heatmap <- plot_dppp_achievement_heatmap(
+    optimization_plan, optimized_windows, validated_data
+  )
 
-  # Plot 2: RT × m/z Density Heatmap
-  cat("  Generating Plot 2: RT × m/z Density Heatmap...\n")
-  plots$`plot2_rt_mz_density_heatmap` <- plot_rt_mz_density_heatmap(validated_data)
+  # Plot 9: Satisfaction Curve (new)
+  plots$satisfaction_curve <- plot_satisfaction_curve(optimization_plan, validated_data)
 
-  # Plot 2B: RT Histogram (supplementary - always generate if available)
-  if (exists("plot_rt_histogram")) {
-    cat("  Generating Plot 2B: RT Histogram...\n")
-    plots$`plot2b_rt_histogram_continuous` <- plot_rt_histogram(validated_data)
-    plots$`plot2b_rt_histogram_5min` <- plot_rt_histogram_binned(validated_data, bin_width_min = 5)
-  }
-
-  # Plot 3: m/z Density Overlay by RT Segment (limit to 6 bins for clarity)
-  cat("  Generating Plot 3: m/z Density Overlay...\n")
-  plots$`plot3_mz_density_overlay` <- plot_mz_normalized_density(optimized_windows, validated_data)
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # Plot 4: Multi-Strategy m/z Range Optimization Comparison
-  # ═══════════════════════════════════════════════════════════════════════
-  # Generate optimization for all 4 strategies to compare approaches
-
-  cat("\n  Preparing Plot 4: Multi-Strategy Comparison...\n")
-
-  strategies <- c("quantile", "smoothing", "outlier", "coverage")
-
-  # Use pre-computed windows_list if provided, otherwise compute
-  if (is.null(windows_list)) {
-    cat("  Running optimization with all 4 m/z strategies...\n")
-    windows_list <- list()
-
-    # Load Stage 3 module for optimization
-    if (!exists("optimize_windows")) {
-      if (file.exists("R/stage3_window_optimization.R")) {
-        source("R/stage3_window_optimization.R")
-      }
-    }
-
-    # Generate windows for each strategy
-    for (strategy in strategies) {
-      cat(sprintf("    - Optimizing with '%s' strategy...\n", strategy))
-      windows_list[[strategy]] <- optimize_windows(
-        validated_data = validated_data,
-        optimization_plan = optimization_plan,
-        rt_bin_width_min = optimized_windows$parameters$rt_bin_width_min,
-        mz_strategy = strategy,
-        window_mode = optimized_windows$parameters$window_mode,
-        quantile_lower = 0.05,
-        quantile_upper = 0.95,
-        outlier_threshold = 3.0,
-        smoothing_window = 7,
-        polynomial_order = 3,
-        target_coverage = 0.95
-      )
-    }
-  } else {
-    cat("  Using pre-computed windows for all 4 strategies (skipping re-optimization)...\n")
-  }
-
-  # Plot 4A-4D: Individual strategy m/z excluded regions (6 RT bins each)
-  if (exists("plot_mz_distribution_with_exclusions")) {
-    for (strategy in strategies) {
-      plot_name <- sprintf("plot4_%s_mz_excluded", strategy)
-      cat(sprintf("  Generating Plot 4 (%s): m/z Excluded Regions...\n", toupper(strategy)))
-      plots[[plot_name]] <- plot_mz_distribution_with_exclusions(
-        windows_list[[strategy]], validated_data, max_bins_to_show = 6
-      )
-    }
-  }
-
-  # Plot 4E: All-strategy width comparison
-  if (exists("plot_mz_width_comparison_all_strategies")) {
-    cat("  Generating Plot 4E: Width Comparison (All Strategies)...\n")
-    plots$`plot4e_mz_width_all_strategies` <- plot_mz_width_comparison_all_strategies(
-      windows_list, validated_data
-    )
-  }
-
-  # Plot 5: Coverage Map 2×2 Grid (multi-strategy comparison)
-  if (exists("plot_density_with_mz_ranges_grid")) {
-    cat("  Generating Plot 5: Coverage Map 2×2 Grid (All Strategies)...\n")
-    plots$`plot5_coverage_map_2x2` <- plot_density_with_mz_ranges_grid(
-      windows_list, validated_data
-    )
-  } else if (exists("plot_density_with_mz_range")) {
-    cat("  Generating Plot 5: Coverage Map (Single Strategy - fallback)...\n")
-    plots$`plot5_coverage_map_single` <- plot_density_with_mz_range(optimized_windows, validated_data)
-  }
-
-  # Plot 6: Satisfaction Curve
-  cat("  Generating Plot 6: Satisfaction vs Cycle Time Curve...\n")
-  plots$`plot6_satisfaction_curve` <- plot_satisfaction_curve(optimization_plan, validated_data)
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # Plot 7: Window Width Distribution by RT Segment (Multi-Strategy)
-  # ═══════════════════════════════════════════════════════════════════════
-  # Generate Plot 7 and 7B for each strategy to compare window width patterns
-
-  if (exists("plot_window_width_distribution") && exists("plot_cumulative_window_count")) {
-    cat("\n  Preparing Plot 7 & 7B: Window Width Analysis (Multi-Strategy)...\n")
-
-    for (strategy in strategies) {
-      # Plot 7: Density + Window Width overlay
-      plot7_name <- sprintf("plot7_%s_window_width_distribution", strategy)
-      cat(sprintf("  Generating Plot 7 (%s): Density + Width Overlay...\n", toupper(strategy)))
-      plots[[plot7_name]] <- plot_window_width_distribution(
-        windows_list[[strategy]], validated_data, max_segments_to_show = 6
-      )
-
-      # Plot 7B: Window Index + Width bars
-      plot7b_name <- sprintf("plot7b_%s_window_index_width", strategy)
-      cat(sprintf("  Generating Plot 7B (%s): Window Index Width Bars...\n", toupper(strategy)))
-      plots[[plot7b_name]] <- plot_cumulative_window_count(
-        windows_list[[strategy]], validated_data, max_segments_to_show = 6
-      )
-    }
-  }
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # Plot 8: Strategy Width Comparison (Ridge, Box, CDF)
-  # ═══════════════════════════════════════════════════════════════════════
-  # Compare window width distributions across all 4 strategies
-
-  if (exists("plot_strategy_width_ridge") && exists("plot_strategy_width_boxplot") && exists("plot_strategy_width_cdf")) {
-    cat("\n  Preparing Plot 8: Strategy Width Comparison (3 visualization types)...\n")
-
-    # Plot 8A: Ridge plot
-    cat("  Generating Plot 8A: Ridge Plot...\n")
-    plots$`plot8a_strategy_width_ridge` <- plot_strategy_width_ridge(windows_list, validated_data)
-
-    # Plot 8B: Box plot
-    cat("  Generating Plot 8B: Box Plot...\n")
-    plots$`plot8b_strategy_width_boxplot` <- plot_strategy_width_boxplot(windows_list, validated_data)
-
-    # Plot 8C: CDF plot
-    cat("  Generating Plot 8C: CDF Plot...\n")
-    plots$`plot8c_strategy_width_cdf` <- plot_strategy_width_cdf(windows_list, validated_data)
-  }
-
-  cat(sprintf("✅ All %d plots generated successfully\n\n", length(plots)))
+  cat(sprintf("✅ All 10 plots generated successfully (2 DPPP comparison versions + 7 standard + 1 satisfaction curve)\n\n"))
 
   plot_end <- Sys.time()
   plot_time <- as.numeric(difftime(plot_end, viz_start, units = "secs"))
@@ -1115,13 +1181,18 @@ generate_visualizations <- function(
 #' @export
 export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300) {
 
-  # Use plot names directly from the list
-  # This makes it flexible and handles dynamically generated plots
-  plot_names <- names(plots)
-
-  if (is.null(plot_names) || length(plot_names) == 0) {
-    stop("Plot list must have named elements")
-  }
+  plot_names <- c(
+    "plot1a_dppp_density_simple",
+    "plot1b_dppp_density_enhanced",
+    "plot2_rt_window_size",
+    "plot3_rt_mz_heatmap",
+    "plot4_mz_normalized_density",
+    "plot5_mz_window_width",
+    "plot6_precursor_coverage_map",
+    "plot7_window_efficiency",
+    "plot8_dppp_achievement_heatmap",
+    "plot9_satisfaction_curve"
+  )
 
   file_paths <- character(length(plots))
 
@@ -1486,16 +1557,10 @@ plot_satisfaction_curve <- function(optimization_plan, validated_data,
 }
 
 cat("✅ Stage 4 (Visualization & Reporting) loaded successfully\n")
-cat("   Version: 4.0 (Complete suite with multi-strategy comparison)\n")
-cat("   Main function: generate_visualizations() → produces 24 plots\n")
-cat("   Plot suite:\n")
-cat("     - Plot 1A/1B: DPPP Distribution (Simple + Enhanced)\n")
-cat("     - Plot 2/2B: RT × m/z Density Heatmap + RT Histogram\n")
-cat("     - Plot 3: m/z Density Overlay by RT Segment\n")
-cat("     - Plot 4 (A-E): m/z Optimization (4 strategies + comparison)\n")
-cat("     - Plot 5: Coverage Map 2×2 Grid\n")
-cat("     - Plot 6: Satisfaction vs Cycle Time Trade-off\n")
-cat("     - Plot 7/7B (×4): Window Width Distribution (4 strategies)\n")
-cat("     - Plot 8 (A/B/C): Strategy Width Comparison (Ridge/Box/CDF)\n")
+cat("   Version: 2.1 (Enhanced with dual Plot 1 + Satisfaction Curve)\n")
+cat("   Main function: generate_visualizations() → produces 10 plots\n")
+cat("   Plot functions: 10 available\n")
+cat("     - Plot 1: DPPP Comparison (Simple + Enhanced versions)\n")
+cat("     - Plot 2-8: Standard optimization plots\n")
+cat("     - Plot 9: Satisfaction vs Cycle Time Trade-off Curve\n")
 cat("   Export functions: create_pdf_report(), export_method_file()\n")
-cat("   Dependencies: ggplot2, dplyr, tidyr, viridis, scales, gridExtra, grid, ggridges\n")

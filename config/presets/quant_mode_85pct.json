@@ -1,0 +1,60 @@
+{
+  "project_metadata": {
+    "project_name": "Quant_Mode_85pct_Satisfaction",
+    "date": "2025-10-27",
+    "description": "Standard quantification mode with 85% satisfaction (recommended for accurate quantification)",
+    "analyst": ""
+  },
+
+  "input_data": {
+    "input_files": [
+      "data/30min_report.parquet",
+      "data/60min_report.parquet",
+      "data/90min_report.parquet"
+    ]
+  },
+
+  "instrument": {
+    "preset": "orbitrap",
+    "custom_settings": null
+  },
+
+  "dppp_parameters": {
+    "target_dppp": 7.0,
+    "target_satisfaction": 0.85,
+    "dppp_tolerance": 0.0
+  },
+
+  "scan_settings": {
+    "load_factor": 0.8,
+    "ms1_scans_per_cycle": null,
+    "warning_threshold_windows": 5
+  },
+
+  "rt_binning": {
+    "rt_bin_width_min": 5.0
+  },
+
+  "mz_optimization": {
+    "strategies": ["quantile", "smoothing", "outlier", "coverage"],
+    "quantile_lower": 0.05,
+    "quantile_upper": 0.95,
+    "target_coverage": 0.95,
+    "outlier_threshold": 3.0,
+    "smoothing_window": 3,
+    "polynomial_order": 2
+  },
+
+  "window_generation": {
+    "modes": ["fixed", "variable"],
+    "min_width_da": 2,
+    "max_width_da": 80,
+    "overlap_percentage": 0
+  },
+
+  "output": {
+    "output_dir": "results_quant_mode_85pct",
+    "include_summary": true,
+    "include_plots": false
+  }
+}
