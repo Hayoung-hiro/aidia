@@ -1,19 +1,16 @@
 {
   "project_metadata": {
-    "project_name": "Fusion_Lumos_70pct_Satisfaction",
-    "date": "2025-10-27",
-    "description": "DIA window optimization for Fusion Lumos with 70% satisfaction target",
-    "analyst": "User"
+    "project_name": "Test_Single_File_With_Viz",
+    "date": "2025-11-03",
+    "description": "Test config-based pipeline with Stage 4 visualization",
+    "analyst": "Test"
   },
 
   "input_data": {
     "input_files": [
-      "data/30min_report.parquet",
-      "data/60min_report.parquet",
       "data/90min_report.parquet"
     ],
-    "current_cycle_time": 2.0,
-    "_comment_current_cycle_time": "Current cycle time in seconds (e.g., 1.5). If null, auto-estimated from gradient length. Used for Stage 2 DPPP diagnosis."
+    "current_cycle_time": 2.0
   },
 
   "instrument": {
@@ -38,7 +35,7 @@
   },
 
   "mz_optimization": {
-    "strategies": ["quantile", "smoothing", "outlier", "coverage"],
+    "strategies": ["quantile", "smoothing"],
     "quantile_lower": 0.05,
     "quantile_upper": 0.95,
     "target_coverage": 0.95,
@@ -48,14 +45,14 @@
   },
 
   "window_generation": {
-    "modes": ["fixed", "variable"],
+    "modes": ["variable"],
     "min_width_da": 2,
     "max_width_da": 80,
     "overlap_percentage": 0
   },
 
   "output": {
-    "output_dir": "results_config_based_with_viz",
+    "output_dir": "results_test_single_viz",
     "include_summary": true,
     "include_plots": true
   }

@@ -14,6 +14,7 @@ source("R/instrument_utils.R")
 source("R/stage1_data_validation.R")
 source("R/stage2_optimization_planning.R")
 source("R/stage3_window_optimization.R")
+source("R/stage4_visualization.R")  # Added for Stage 4
 source("R/utils_common.R")
 
 # =============================================================================
@@ -225,6 +226,72 @@ run_optimization <- function(config_path) {
     }
 
     all_results[[gradient_name]] <- file_results
+
+    # ==================================================================
+    # Stage 4: Visualization & Reporting (if enabled)
+    # ==================================================================
+
+    if (config$output$include_plots) {
+
+      cat("\n")
+      cat("╔════════════════════════════════════════════════════════════════╗\n")
+      cat(sprintf("║   Stage 4: Visualization & Reporting - %-20s   ║\n", gradient_name))
+      cat("╚════════════════════════════════════════════════════════════════╝\n\n")
+
+      # Create gradient-specific output directory
+      viz_output_dir <- file.path(output_dir, paste0(gradient_name, "_visualization"))
+      dir.create(viz_output_dir, showWarnings = FALSE, recursive = TRUE)
+
+      # Prepare windows_list for comparison (use 'variable' mode for multi-strategy plots)
+      # Only include strategies that have 'variable' mode results
+      windows_list_variable <- list()
+      for (strategy in mz_strategies) {
+        combo_name <- paste(strategy, "variable", sep = "_")
+        if (combo_name %in% names(file_results)) {
+          windows_list_variable[[strategy]] <- file_results[[combo_name]]$windows_result
+        }
+      }
+
+      # If no variable mode results, try fixed mode
+      if (length(windows_list_variable) == 0) {
+        for (strategy in mz_strategies) {
+          combo_name <- paste(strategy, "fixed", sep = "_")
+          if (combo_name %in% names(file_results)) {
+            windows_list_variable[[strategy]] <- file_results[[combo_name]]$windows_result
+          }
+        }
+      }
+
+      # Use first variable mode result as primary (or fallback to first fixed)
+      primary_combo <- paste(mz_strategies[1], "variable", sep = "_")
+      if (!primary_combo %in% names(file_results)) {
+        primary_combo <- paste(mz_strategies[1], "fixed", sep = "_")
+      }
+
+      # Generate visualizations
+      # Pass windows_list only if all 4 strategies are present (to avoid re-computation issues)
+      pass_windows_list <- if (length(windows_list_variable) >= 4) {
+        windows_list_variable
+      } else {
+        NULL  # Let generate_visualizations() re-compute with available strategies
+      }
+
+      viz_result <- generate_visualizations(
+        validated_data = validated_data,
+        optimization_plan = optimization_plan,
+        optimized_windows = file_results[[primary_combo]]$windows_result,
+        output_dir = viz_output_dir,
+        create_pdf = TRUE,
+        create_individual_plots = TRUE,
+        plot_format = "png",
+        plot_dpi = 300,
+        windows_list = pass_windows_list
+      )
+
+      cat(sprintf("✅ Generated %d plots for %s\n",
+                  length(viz_result$plots), gradient_name))
+      cat(sprintf("✅ Visualization output: %s\n", viz_output_dir))
+    }
   }
 
   # ===================================================================
@@ -289,6 +356,19 @@ run_optimization <- function(config_path) {
   cat(sprintf("✅ Total CSV files generated: %d\n", length(summary_rows)))
   cat(sprintf("✅ Output directory: %s\n", output_dir))
   cat(sprintf("✅ Configuration: %s\n", config_path))
+
+  if (config$output$include_plots) {
+    cat(sprintf("✅ Visualizations: Generated for %d gradients\n", length(input_files)))
+    cat(sprintf("   - Each gradient: 24 plots + PDF report + method CSV\n"))
+    for (input_file in input_files) {
+      if (file.exists(input_file)) {
+        gradient <- extract_gradient_name(input_file)
+        viz_dir <- file.path(output_dir, paste0(gradient, "_visualization"))
+        cat(sprintf("   - %s: %s/\n", gradient, viz_dir))
+      }
+    }
+  }
+
   cat("\n")
 
   return(invisible(all_results))
