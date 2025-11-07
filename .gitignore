@@ -48,3 +48,8 @@ desktop.ini
 # Temporary files
 *.tmp
 *.temp
+
+# Output directories (Phase 1 reorganization)
+output/
+results_*/
+final_test*/
