@@ -361,15 +361,29 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
 
   n_bins <- nrow(rt_stats)
 
-  # Special handling for smoothing strategy (needs all bins at once)
+  # =================================================================
+  # Strategy-Specific Processing
+  # =================================================================
+  # SMOOTHING: GLOBAL optimization (continuous RT function)
+  # OTHERS: LOCAL optimization (per RT bin)
+  # =================================================================
+
   if (strategy == "smoothing") {
+    cat("  Strategy: SMOOTHING (GLOBAL optimization)\n")
+    cat("  → Fine RT sampling → Sliding window → Smooth → Assign to bins\n\n")
+
     return(optimize_mz_ranges_smoothing_internal(
       precursor_data, rt_stats, quantile_lower, quantile_upper,
       smoothing_window, polynomial_order
     ))
   }
 
-  # For other strategies: bin-by-bin processing
+  # =================================================================
+  # LOCAL OPTIMIZATION for quantile, coverage, outlier strategies
+  # =================================================================
+  cat(sprintf("  Strategy: %s (LOCAL optimization)\n", toupper(strategy)))
+  cat("  → Calculate m/z independently per RT bin\n\n")
+
   mz_ranges <- vector("list", n_bins)
 
   for (i in 1:n_bins) {
@@ -685,7 +699,17 @@ calculate_window_statistics_internal <- function(windows, precursor_data) {
   )
 }
 
-#' Optimize m/z Ranges with Smoothing Strategy (Internal)
+#' Optimize m/z Ranges with GLOBAL Smoothing Strategy (Internal)
+#'
+#' This function implements GLOBAL optimization for smoothing strategy:
+#' 1. Fine RT sampling across entire gradient (high-resolution)
+#' 2. Calculate m/z at each RT point using sliding window
+#' 3. Apply Savitzky-Golay smoothing to high-resolution curve
+#' 4. Assign smoothed values to RT bins
+#'
+#' This differs from local strategies (quantile, coverage, outlier) which
+#' calculate m/z independently per RT bin.
+#'
 #' @keywords internal
 optimize_mz_ranges_smoothing_internal <- function(precursor_data, rt_stats,
                                                    quantile_lower, quantile_upper,
@@ -697,57 +721,124 @@ optimize_mz_ranges_smoothing_internal <- function(precursor_data, rt_stats,
 
   n_bins <- nrow(rt_stats)
 
-  # Step 1: Extract quantile-based boundaries for each RT bin
-  mz_min_raw <- numeric(n_bins)
-  mz_max_raw <- numeric(n_bins)
+  # Get full RT range
+  rt_min <- min(precursor_data$RT.Start, na.rm = TRUE)
+  rt_max <- max(precursor_data$RT.Start, na.rm = TRUE)
+  rt_range <- rt_max - rt_min
 
-  for (i in 1:n_bins) {
-    bin_data <- precursor_data %>%
-      filter(rt_group == i)
+  cat(sprintf("  🌐 GLOBAL smoothing mode\n"))
+  cat(sprintf("     RT range: %.2f - %.2f min (span: %.2f min)\n",
+              rt_min, rt_max, rt_range))
 
-    if (nrow(bin_data) > 0) {
-      mz_values <- bin_data$Precursor.Mz
+  # =================================================================
+  # Step 1: Fine RT sampling (high-resolution)
+  # =================================================================
+  # Adaptive sampling interval based on gradient length
+  if (rt_range <= 15) {
+    rt_sampling_interval <- 0.5  # Short gradient: 0.5 min
+  } else if (rt_range <= 40) {
+    rt_sampling_interval <- 0.75  # Medium gradient: 0.75 min
+  } else {
+    rt_sampling_interval <- 1.0  # Long gradient: 1 min
+  }
+
+  # Sliding window width (±window around each RT point)
+  rt_window_halfwidth <- max(1.0, rt_range / 20)  # Adaptive: ~5% of gradient
+
+  # Generate fine RT grid
+  rt_points <- seq(rt_min, rt_max, by = rt_sampling_interval)
+  n_rt_points <- length(rt_points)
+
+  cat(sprintf("     Sampling: %d RT points (interval: %.2f min)\n",
+              n_rt_points, rt_sampling_interval))
+  cat(sprintf("     Sliding window: ± %.2f min\n", rt_window_halfwidth))
+
+  # Check if we have enough points for smoothing
+  if (n_rt_points < smoothing_window) {
+    cat(sprintf("  ⚠️  WARNING: %d RT points < smoothing window (%d)\n",
+                n_rt_points, smoothing_window))
+    cat("     Reducing sampling interval to ensure sufficient points...\n")
+
+    # Calculate required interval
+    required_points <- smoothing_window + 2
+    rt_sampling_interval <- rt_range / required_points
+    rt_points <- seq(rt_min, rt_max, by = rt_sampling_interval)
+    n_rt_points <- length(rt_points)
+
+    cat(sprintf("     Adjusted: %d RT points (interval: %.2f min)\n",
+                n_rt_points, rt_sampling_interval))
+  }
+
+  # =================================================================
+  # Step 2: Calculate m/z at each RT point (sliding window)
+  # =================================================================
+  mz_min_raw <- numeric(n_rt_points)
+  mz_max_raw <- numeric(n_rt_points)
+
+  for (i in 1:n_rt_points) {
+    rt_center <- rt_points[i]
+    rt_lower <- rt_center - rt_window_halfwidth
+    rt_upper <- rt_center + rt_window_halfwidth
+
+    # Get precursors in sliding window
+    window_precursors <- precursor_data %>%
+      filter(RT.Start >= rt_lower & RT.Start <= rt_upper)
+
+    if (nrow(window_precursors) > 0) {
+      mz_values <- window_precursors$Precursor.Mz
       mz_min_raw[i] <- quantile(mz_values, quantile_lower, na.rm = TRUE, names = FALSE)
       mz_max_raw[i] <- quantile(mz_values, quantile_upper, na.rm = TRUE, names = FALSE)
     } else {
+      # Empty window - use global fallback
       mz_min_raw[i] <- 400
       mz_max_raw[i] <- 1200
     }
   }
 
-  # Step 2: Apply Savitzky-Golay smoothing
+  cat(sprintf("     Calculated m/z at %d RT points\n", n_rt_points))
+  cat(sprintf("     m/z range: %.1f - %.1f Da (min), %.1f - %.1f Da (max)\n",
+              min(mz_min_raw), max(mz_min_raw),
+              min(mz_max_raw), max(mz_max_raw)))
+
+  # =================================================================
+  # Step 3: Apply Savitzky-Golay smoothing
+  # =================================================================
+  # Adaptive smoothing window
+  adaptive_window <- min(smoothing_window, floor(n_rt_points * 0.7))
+  if (adaptive_window %% 2 == 0) adaptive_window <- adaptive_window + 1
+  adaptive_window <- max(3, adaptive_window)  # Minimum 3
+
+  adaptive_poly <- min(polynomial_order, adaptive_window - 2)
+
+  cat(sprintf("     Smoothing: window=%d, poly_order=%d\n",
+              adaptive_window, adaptive_poly))
+
   mz_min_smooth <- smooth_savgol(mz_min_raw,
-                                  window_size = smoothing_window,
-                                  poly_order = polynomial_order)
+                                  window_size = adaptive_window,
+                                  poly_order = adaptive_poly)
   mz_max_smooth <- smooth_savgol(mz_max_raw,
-                                  window_size = smoothing_window,
-                                  poly_order = polynomial_order)
+                                  window_size = adaptive_window,
+                                  poly_order = adaptive_poly)
 
-  # Handle potential length mismatch from edge effects
-  if (length(mz_min_smooth) != n_bins) {
-    n_missing <- n_bins - length(mz_min_smooth)
-    if (n_missing > 0) {
-      pad_start <- ceiling(n_missing / 2)
-      pad_end <- floor(n_missing / 2)
+  cat(sprintf("     ✓ Smoothing successful\n"))
 
-      mz_min_smooth <- c(rep(mz_min_smooth[1], pad_start),
-                         mz_min_smooth,
-                         rep(tail(mz_min_smooth, 1), pad_end))
-      mz_max_smooth <- c(rep(mz_max_smooth[1], pad_start),
-                         mz_max_smooth,
-                         rep(tail(mz_max_smooth, 1), pad_end))
-    }
-  }
-
-  # Step 3: Calculate coverage for smoothed ranges
+  # =================================================================
+  # Step 4: Assign to RT bins (interpolation)
+  # =================================================================
   mz_ranges <- vector("list", n_bins)
 
   for (i in 1:n_bins) {
+    rt_bin_start <- rt_stats$rt_start[i]
+    rt_bin_end <- rt_stats$rt_end[i]
+    rt_bin_center <- (rt_bin_start + rt_bin_end) / 2
+
+    # Interpolate from smoothed curve
+    mz_min <- interpolate_at_rt(rt_points, mz_min_smooth, rt_bin_center)
+    mz_max <- interpolate_at_rt(rt_points, mz_max_smooth, rt_bin_center)
+
+    # Calculate coverage for this bin
     bin_data <- precursor_data %>%
       filter(rt_group == i)
-
-    mz_min <- mz_min_smooth[i]
-    mz_max <- mz_max_smooth[i]
 
     if (nrow(bin_data) > 0) {
       mz_values <- bin_data$Precursor.Mz
@@ -760,8 +851,8 @@ optimize_mz_ranges_smoothing_internal <- function(precursor_data, rt_stats,
 
     mz_ranges[[i]] <- data.frame(
       rt_segment_id = i,
-      rt_start = rt_stats$rt_start[i],
-      rt_end = rt_stats$rt_end[i],
+      rt_start = rt_bin_start,
+      rt_end = rt_bin_end,
       mz_min = mz_min,
       mz_max = mz_max,
       mz_width = mz_max - mz_min,
@@ -770,7 +861,38 @@ optimize_mz_ranges_smoothing_internal <- function(precursor_data, rt_stats,
     )
   }
 
+  cat(sprintf("     Assigned to %d RT bins\n", n_bins))
+
   bind_rows(mz_ranges)
+}
+
+#' Interpolate value at given RT from RT-value curve
+#' @keywords internal
+interpolate_at_rt <- function(rt_points, values, target_rt) {
+
+  # Find bounding points
+  if (target_rt <= rt_points[1]) {
+    return(values[1])
+  }
+
+  if (target_rt >= rt_points[length(rt_points)]) {
+    return(values[length(values)])
+  }
+
+  # Linear interpolation
+  idx_upper <- which(rt_points >= target_rt)[1]
+  idx_lower <- idx_upper - 1
+
+  rt_lower <- rt_points[idx_lower]
+  rt_upper <- rt_points[idx_upper]
+  val_lower <- values[idx_lower]
+  val_upper <- values[idx_upper]
+
+  # Interpolate
+  fraction <- (target_rt - rt_lower) / (rt_upper - rt_lower)
+  interpolated <- val_lower + fraction * (val_upper - val_lower)
+
+  return(interpolated)
 }
 
 
