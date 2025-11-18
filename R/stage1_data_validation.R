@@ -16,6 +16,7 @@ source_if_exists <- function(file_path) {
 # Try to source existing utilities
 source_if_exists("R/data_loader.R")
 source_if_exists("R/utils.R")
+source_if_exists("R/replicate_utils.R")
 
 #' Validate DIA-NN Data and Create ValidatedData Structure
 #'
@@ -27,6 +28,9 @@ source_if_exists("R/utils.R")
 #' @param rt_range RT filtering range c(min, max) in minutes (optional)
 #' @param mz_range m/z filtering range c(min, max) in Da (optional)
 #' @param enable_raw_metadata Whether to attempt raw file metadata extraction (default: FALSE)
+#' @param enable_replicate_consensus Enable technical replicate consensus handling (default: TRUE)
+#' @param min_replicates Minimum number of replicates to keep (default: 1)
+#' @param max_cv_percent Maximum CV% threshold for replicate filtering (default: 20)
 #' @param quality_threshold Minimum quality score 0-1 (default: 0.8)
 #' @param apply_quality_filters Apply DIA-NN Q-value filters (default: TRUE)
 #' @param ... Additional arguments passed to filter_diann_quality()
@@ -39,6 +43,9 @@ create_validated_dataset <- function(
   rt_range = NULL,
   mz_range = NULL,
   enable_raw_metadata = FALSE,
+  enable_replicate_consensus = TRUE,
+  min_replicates = 1,
+  max_cv_percent = 20,
   quality_threshold = 0.8,
   apply_quality_filters = TRUE,
   ...
@@ -91,10 +98,53 @@ create_validated_dataset <- function(
     cat("\nStep 3: Skipping raw metadata (not requested)\n")
   }
 
-  # Step 4: Validate data quality
-  cat("\nStep 4: Validating data quality...\n")
+  # Step 4: Handle technical replicates (if present)
+  cat("\nStep 4: Checking for technical replicates...\n")
 
-  quality_results <- validate_data_quality_wrapper(loaded_data$data)
+  # Check if "Run" column exists
+  has_run_column <- "Run" %in% colnames(loaded_data$data)
+
+  if (has_run_column) {
+    n_runs <- length(unique(loaded_data$data$Run))
+    cat(sprintf("✓ Detected %d run(s)\n", n_runs))
+  } else {
+    n_runs <- 1
+    cat("✓ No Run column - treating as single run\n")
+  }
+
+  # Apply replicate consensus if enabled and multiple runs detected
+  data_for_validation <- loaded_data$data
+  consensus_meta <- list(n_runs = n_runs)
+
+  if (n_runs > 1 && enable_replicate_consensus && has_run_column) {
+    cat(sprintf("  → Creating consensus dataset (max CV: %d%%)...\n", max_cv_percent))
+
+    data_for_validation <- calculate_consensus_dataset(
+      loaded_data$data,
+      min_replicates = min_replicates,
+      max_cv_percent = max_cv_percent
+    )
+
+    # Extract consensus metadata
+    consensus_meta <- attr(data_for_validation, "metadata")
+    if (is.null(consensus_meta)) {
+      consensus_meta <- list(n_runs = n_runs)
+    }
+
+    cat(sprintf("  ✓ Consensus: %d → %d precursors (filtered %d by CV)\n",
+                consensus_meta$n_precursors_before,
+                consensus_meta$n_precursors_after,
+                consensus_meta$n_filtered_cv))
+  } else if (enable_replicate_consensus && n_runs == 1) {
+    cat("  → Single run detected - skipping consensus\n")
+  } else if (!enable_replicate_consensus) {
+    cat("  → Replicate consensus disabled\n")
+  }
+
+  # Step 5: Validate data quality
+  cat("\nStep 5: Validating data quality...\n")
+
+  quality_results <- validate_data_quality_wrapper(data_for_validation)
   quality_score <- quality_results$quality_score
 
   cat(sprintf("✓ Quality score: %.2f\n", quality_score))
@@ -109,39 +159,44 @@ create_validated_dataset <- function(
     ))
   }
 
-  # Step 5: Calculate metadata statistics
-  cat("\nStep 5: Computing metadata statistics...\n")
+  # Step 6: Calculate metadata statistics
+  cat("\nStep 6: Computing metadata statistics...\n")
 
-  fwhm_stats <- calculate_fwhm_stats(loaded_data$data$FWHM)
-  rt_range_actual <- range(loaded_data$data$RT.Start, na.rm = TRUE)
-  mz_range_actual <- range(loaded_data$data$Precursor.Mz, na.rm = TRUE)
+  fwhm_stats <- calculate_fwhm_stats(data_for_validation$FWHM)
+  rt_range_actual <- range(data_for_validation$RT.Start, na.rm = TRUE)
+  mz_range_actual <- range(data_for_validation$Precursor.Mz, na.rm = TRUE)
 
   cat("✓ Metadata computed\n")
 
-  # Step 6: Construct ValidatedData object
-  cat("\nStep 6: Creating ValidatedData object...\n")
+  # Step 7: Construct ValidatedData object
+  cat("\nStep 7: Creating ValidatedData object...\n")
 
   end_time <- Sys.time()
   processing_time <- as.numeric(difftime(end_time, start_time, units = "secs"))
 
+  # Merge consensus metadata with base metadata
+  base_metadata <- list(
+    n_precursors = nrow(data_for_validation),
+    rt_range = rt_range_actual,
+    mz_range = mz_range_actual,
+    fwhm_stats = fwhm_stats,
+    has_raw_metadata = has_raw_metadata,
+    raw_metadata = raw_metadata,
+    file_info = list(
+      proteome_file = proteome_file,
+      file_format = loaded_data$file_format,
+      load_time_sec = loaded_data$load_time_sec
+    ),
+    processing_time_sec = processing_time
+  )
+
+  # Merge with consensus metadata
+  metadata <- c(base_metadata, consensus_meta)
+
   validated_data <- structure(
     list(
-      data = loaded_data$data,
-
-      metadata = list(
-        n_precursors = nrow(loaded_data$data),
-        rt_range = rt_range_actual,
-        mz_range = mz_range_actual,
-        fwhm_stats = fwhm_stats,
-        has_raw_metadata = has_raw_metadata,
-        raw_metadata = raw_metadata,
-        file_info = list(
-          proteome_file = proteome_file,
-          file_format = loaded_data$file_format,
-          load_time_sec = loaded_data$load_time_sec
-        ),
-        processing_time_sec = processing_time
-      ),
+      data = data_for_validation,
+      metadata = metadata,
 
       validation_status = list(
         all_passed = quality_passed,
