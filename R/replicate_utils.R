@@ -45,3 +45,33 @@ identify_replicate_groups <- function(data) {
     replicate_distribution = table(replicate_counts)
   )
 }
+
+# ============================================================================
+# Task 2.1.2: Geometric CV Calculation - GREEN Phase (Minimal Implementation)
+# ============================================================================
+
+#' Calculate Geometric Coefficient of Variation
+#'
+#' Calculates geometric CV% for log-transformed data following the formula:
+#' CV = sqrt(exp(sd(log(x))^2) - 1) * 100
+#'
+#' Reference: docs/GEOMETRIC_CV_GUIDE.md
+#'
+#' @param x Numeric vector of values
+#' @return Geometric CV percentage, or NA if n < 2
+#' @export
+geometric_cv <- function(x) {
+  # Remove NA values
+  x <- x[!is.na(x)]
+
+  if (length(x) < 2) return(NA_real_)
+
+  # Geometric CV formula
+  # CV = sqrt(exp(sd(log(x))^2) - 1) * 100
+  log_x <- log(x)
+  sigma_log <- sd(log_x)
+
+  cv_pct <- sqrt(exp(sigma_log^2) - 1) * 100
+
+  return(cv_pct)
+}
