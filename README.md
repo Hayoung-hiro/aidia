@@ -5,6 +5,7 @@ Advanced R-based tool for optimizing Data-Independent Acquisition (DIA) isolatio
 ## Features
 
 - **Dynamic Window Optimization**: RT segment-based precursor distribution equalization
+- **Technical Replicate Handling**: Automatic detection and median-based consensus with CV filtering (NEW v2.0)
 - **Multiple Instrument Support**: Astral, Orbitrap, TimsTOF, and custom configurations
 - **DPPP-Based Optimization**: Target DPPP of 1.25-1.5 for optimal sampling
 - **Comprehensive Visualization**: Pre/post-optimization analysis plots
@@ -91,6 +92,59 @@ Rscript main.R data.parquet astral 1.25
 | timstof_pro | timsTOF Pro | 10.0 ms | 1.5 ms | 120 Hz |
 | sciex_7600 | SCIEX 7600 ZenoTOF | 20.0 ms | 10.0 ms | 50 Hz |
 | waters_synapt | Waters SYNAPT | 50.0 ms | 20.0 ms | 20 Hz |
+
+## Technical Replicate Handling (NEW in v2.0)
+
+### Automatic Replicate Detection
+
+The optimizer **automatically detects** and handles technical replicates:
+
+```r
+# Load data with 3 technical replicates
+result <- create_validated_dataset(
+  proteome_file = "data/30min_3runs_report.parquet",
+  enable_replicate_consensus = TRUE,  # Default
+  max_cv_percent = 20                 # CV% filtering threshold
+)
+
+# Check replicate statistics
+result$metadata$n_runs                # 3
+result$metadata$n_precursors_before   # e.g., 15000 (5000 × 3 runs)
+result$metadata$n_precursors_after    # e.g., 4200 (after consensus)
+result$metadata$mean_fwhm_cv_pct      # e.g., 8.5%
+```
+
+### How It Works
+
+1. **Auto-detection**: Checks for `Run` column in DIA-NN output
+2. **Consensus creation**: Uses **median** (robust to outliers)
+3. **Quality filtering**: Removes precursors with high CV% (>20% by default)
+4. **Singleton preservation**: Precursors in only 1 run are always kept
+
+### Configuration
+
+```json
+{
+  "input_data": {
+    "enable_replicate_consensus": true,
+    "min_replicates": 1,
+    "max_cv_percent": 20
+  }
+}
+```
+
+### When to Use
+
+✅ **Use replicate handling when**:
+- You have multiple LC-MS runs of the same sample
+- DIA-NN analyzed multiple raw files together
+- You want to improve data quality
+
+❌ **Disable when**:
+- You have a single run (auto-detected)
+- You want to analyze runs separately
+
+**Full Guide**: See [docs/REPLICATE_HANDLING_GUIDE.md](docs/REPLICATE_HANDLING_GUIDE.md)
 
 ## Input Data Requirements
 
