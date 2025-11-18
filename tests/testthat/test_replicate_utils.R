@@ -106,3 +106,73 @@ test_that("geometric_cv handles NA values correctly", {
   expect_false(is.na(result))  # Should remove NA and calculate
   expect_gt(result, 0)
 })
+
+# ============================================================================
+# Task 2.1.3: calculate_consensus_dataset() - RED Phase
+# ============================================================================
+
+test_that("calculate_consensus_dataset handles replicates correctly", {
+  # Arrange
+  test_data <- tibble(
+    Precursor.Id = c("P1", "P1", "P1", "P2", "P3"),
+    Run = c("R1", "R2", "R3", "R1", "R1"),
+    RT.Start = c(10.0, 10.2, 10.1, 20.0, 30.0),
+    Precursor.Mz = c(400, 401, 400.5, 500, 600),
+    FWHM = c(0.5, 0.55, 0.52, 0.6, 0.45)
+  )
+
+  # Act
+  result <- calculate_consensus_dataset(test_data)
+
+  # Assert - P1 (n=3)
+  p1 <- result %>% filter(Precursor.Id == "P1")
+  expect_equal(nrow(p1), 1)
+  expect_equal(p1$RT.Start, 10.1)  # median of 10.0, 10.1, 10.2
+  expect_equal(p1$n_replicates, 3)
+  expect_false(is.na(p1$RT_CV_pct))
+
+  # Assert - P3 (n=1, singleton)
+  p3 <- result %>% filter(Precursor.Id == "P3")
+  expect_equal(nrow(p3), 1)
+  expect_equal(p3$RT.Start, 30.0)  # original value
+  expect_equal(p3$n_replicates, 1)
+  expect_true(is.na(p3$RT_CV_pct))  # Singleton CV = NA
+})
+
+test_that("calculate_consensus_dataset filters high CV precursors", {
+  # Arrange - Create data with high CV for P2
+  test_data <- tibble(
+    Precursor.Id = c("P1", "P1", "P2", "P2"),
+    Run = c("R1", "R2", "R1", "R2"),
+    RT.Start = c(10.0, 10.1, 20.0, 30.0),  # P2 has huge RT difference
+    Precursor.Mz = c(400, 401, 500, 501),
+    FWHM = c(0.5, 0.52, 0.5, 50.0)  # P2 has huge FWHM difference
+  )
+
+  # Act
+  result <- calculate_consensus_dataset(test_data, max_cv_percent = 20)
+
+  # Assert - P2 should be filtered out due to high FWHM CV
+  expect_equal(nrow(result), 1)  # Only P1 remains
+  expect_true("P1" %in% result$Precursor.Id)
+  expect_false("P2" %in% result$Precursor.Id)
+})
+
+test_that("calculate_consensus_dataset keeps singletons regardless of CV threshold", {
+  # Arrange
+  test_data <- tibble(
+    Precursor.Id = c("P1", "P1", "P2"),
+    Run = c("R1", "R2", "R1"),
+    RT.Start = c(10.0, 50.0, 30.0),  # P1 has huge CV
+    Precursor.Mz = c(400, 401, 600),
+    FWHM = c(0.5, 50.0, 0.45)  # P1 has huge CV
+  )
+
+  # Act
+  result <- calculate_consensus_dataset(test_data, max_cv_percent = 5)
+
+  # Assert - P2 (singleton) should be kept despite strict threshold
+  p2 <- result %>% filter(Precursor.Id == "P2")
+  expect_equal(nrow(p2), 1)
+  expect_equal(p2$n_replicates, 1)
+})
