@@ -13,7 +13,14 @@
       "data/90min_report.parquet"
     ],
     "current_cycle_time": 2.0,
-    "_comment_current_cycle_time": "Current cycle time in seconds (e.g., 1.5). If null, auto-estimated from gradient length. Used for Stage 2 DPPP diagnosis."
+    "_comment_current_cycle_time": "Current cycle time in seconds (e.g., 1.5). If null, auto-estimated from gradient length. Used for Stage 2 DPPP diagnosis.",
+
+    "enable_replicate_consensus": true,
+    "_comment_enable_replicate_consensus": "Enable technical replicate consensus handling. Auto-detects multiple runs from Run column.",
+    "min_replicates": 1,
+    "_comment_min_replicates": "Minimum number of replicates to keep (default: 1 includes singletons).",
+    "max_cv_percent": 20,
+    "_comment_max_cv_percent": "Maximum geometric CV% threshold for filtering (default: 20). Singletons always kept."
   },
 
   "instrument": {
