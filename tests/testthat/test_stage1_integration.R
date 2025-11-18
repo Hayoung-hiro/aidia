@@ -47,8 +47,12 @@ create_replicate_test_data <- function(n_precursors = 100) {
 # ============================================================================
 
 test_that("create_validated_dataset handles replicates when enabled", {
-  # Arrange - Create temporary parquet file with 3 replicates
+  # Arrange - Create temporary parquet file with 3 replicates (with intensity)
   test_data <- create_replicate_test_data(n_precursors = 50)
+  # Add Precursor.Quantity column
+  test_data <- test_data %>%
+    mutate(Precursor.Quantity = abs(rnorm(n(), mean = 1e5, sd = 2e4)))
+
   temp_file <- tempfile(fileext = ".parquet")
   write_parquet(test_data, temp_file)
 
@@ -56,7 +60,7 @@ test_that("create_validated_dataset handles replicates when enabled", {
   result <- create_validated_dataset(
     proteome_file = temp_file,
     enable_replicate_consensus = TRUE,
-    max_cv_percent = 20,
+    max_intensity_cv_percent = 30,  # Changed parameter name
     apply_quality_filters = FALSE  # Skip quality filters for test
   )
 
@@ -75,6 +79,8 @@ test_that("create_validated_dataset handles replicates when enabled", {
   expect_true("RT_CV_pct" %in% colnames(result$data))
   expect_true("n_replicates" %in% colnames(result$data))
   expect_true("FWHM_CV_pct" %in% colnames(result$data))
+  expect_true("Intensity_CV_pct" %in% colnames(result$data))  # New: intensity CV
+  expect_true("Precursor.Quantity" %in% colnames(result$data))  # Intensity preserved
 
   # Assert - Check consensus worked (should have ~50 precursors, not 150)
   expect_lt(nrow(result$data), 60)  # Should be close to 50, not 150

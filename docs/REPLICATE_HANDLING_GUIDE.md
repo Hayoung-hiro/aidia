@@ -142,26 +142,39 @@ diann.exe \
 
 #### Step 1: Calculate CV% on Original Replicates
 
-For each precursor, calculate geometric CV across all replicate runs:
+For each precursor, calculate CV across all replicate runs:
+- **RT/FWHM**: Use **base CV** (linear scale data)
+- **Intensity**: Use **geometric CV** (log-normal distribution)
 
 ```r
 cv_stats <- data %>%
   group_by(Precursor.Id) %>%
   summarise(
     n_replicates = n(),
-    RT_CV_pct = if (n() >= 2) geometric_cv(RT.Start) else NA_real_,
-    FWHM_CV_pct = if (n() >= 2) geometric_cv(FWHM) else NA_real_
+    RT_CV_pct = if (n() >= 2) base_cv(RT.Start) else NA_real_,
+    FWHM_CV_pct = if (n() >= 2) base_cv(FWHM) else NA_real_,
+    Intensity_CV_pct = if (n() >= 2 && "Precursor.Quantity" %in% names(data)) {
+      geometric_cv(Precursor.Quantity)
+    } else NA_real_
   )
 ```
 
-**Geometric CV Formula**:
+**CV Formulas**:
 ```r
+# Base CV for linear-scale data (RT, FWHM)
+base_cv <- function(x) {
+  (sd(x) / mean(x)) * 100
+}
+
+# Geometric CV for log-normal data (intensity)
 geometric_cv <- function(x) {
   log_x <- log(x)
   sigma_log <- sd(log_x)
   sqrt(exp(sigma_log^2) - 1) * 100
 }
 ```
+
+Reference: See [docs/GEOMETRIC_CV_GUIDE.md](GEOMETRIC_CV_GUIDE.md) for detailed CV calculation guide.
 
 **Why Geometric CV?**
 See [GEOMETRIC_CV_GUIDE.md](GEOMETRIC_CV_GUIDE.md) for scientific rationale.
@@ -189,17 +202,23 @@ consensus_values <- data %>%
 
 ---
 
-#### Step 3: Filter by CV% Threshold
+#### Step 3: Filter by Intensity CV% Threshold
 
-Remove precursors with high FWHM variability:
+Remove precursors with high **intensity variability** (proteomics standard QC):
 
 ```r
 filtered <- consensus %>%
   filter(
     n_replicates >= min_replicates,
-    (n_replicates == 1 | FWHM_CV_pct <= max_cv_percent)
+    (n_replicates == 1 | is.na(Intensity_CV_pct) | Intensity_CV_pct <= max_intensity_cv_percent)
   )
 ```
+
+**CRITICAL**:
+- **Filtering criterion**: **Intensity CV** (Precursor.Quantity), not FWHM CV
+- **Standard proteomics QC**: Intensity CV ≤ 30% for technical replicates
+- **FWHM/RT CV**: Calculated for QC reporting, but not used for filtering
+- **Singletons**: Always kept regardless of CV threshold (n_replicates == 1)
 
 **Key Rule**: **Singletons always kept** (n_replicates == 1)
 - Prevents data loss
@@ -220,7 +239,7 @@ source("R/stage1_data_validation.R")
 validated <- create_validated_dataset(
   proteome_file = "data/30min_3runs_report.parquet",
   enable_replicate_consensus = TRUE,
-  max_cv_percent = 20
+  max_intensity_cv_percent = 30  # Standard proteomics QC threshold
 )
 
 # Check results
@@ -300,7 +319,7 @@ Step 8: Recommendation
   Suggested parameters:
     enable_replicate_consensus = TRUE
     min_replicates = 1  # Include singletons
-    max_cv_percent = 20  # Standard threshold
+    max_intensity_cv_percent = 30  # Standard proteomics QC threshold
 ```
 
 ---
@@ -353,7 +372,7 @@ nrow(validated$data)       # 15000 (all rows kept)
 validated <- create_validated_dataset(
   proteome_file = "data/report.parquet",
   enable_replicate_consensus = TRUE,
-  max_cv_percent = 10  # Strict (default: 20)
+  max_intensity_cv_percent = 20  # Stricter than default (30)
 )
 
 # Result: More precursors filtered
@@ -373,7 +392,7 @@ create_validated_dataset(
   # Replicate parameters
   enable_replicate_consensus = TRUE,  # Enable/disable
   min_replicates = 1,                 # Minimum n (usually 1)
-  max_cv_percent = 20,                # CV% threshold
+  max_intensity_cv_percent = 30,      # Intensity CV% threshold
 
   # Other parameters
   apply_quality_filters = TRUE,
@@ -392,7 +411,7 @@ create_validated_dataset(
 
     "enable_replicate_consensus": true,
     "min_replicates": 1,
-    "max_cv_percent": 20
+    "max_intensity_cv_percent": 30
   }
 }
 ```
@@ -404,7 +423,7 @@ config <- jsonlite::fromJSON("config/optimization_config.json")
 validated <- create_validated_dataset(
   proteome_file = config$input_data$input_files[1],
   enable_replicate_consensus = config$input_data$enable_replicate_consensus,
-  max_cv_percent = config$input_data$max_cv_percent
+  max_intensity_cv_percent = config$input_data$max_intensity_cv_percent
 )
 ```
 
@@ -432,9 +451,10 @@ validated <- create_validated_dataset(
 
 **Added columns** when `n_runs > 1`:
 - `n_replicates` - Number of runs for this precursor
-- `RT_CV_pct` - RT geometric CV%
-- `Mz_CV_pct` - m/z geometric CV%
-- `FWHM_CV_pct` - FWHM geometric CV%
+- `RT_CV_pct` - RT base CV% (linear scale)
+- `Mz_CV_pct` - m/z base CV% (linear scale)
+- `FWHM_CV_pct` - FWHM base CV% (linear scale)
+- `Intensity_CV_pct` - Intensity geometric CV% (log-normal, if Precursor.Quantity present)
 
 ### QC Recommendations
 
@@ -483,13 +503,14 @@ Step 4: Checking for technical replicates...
 ✓ Consensus: 15000 → 2000 precursors (filtered 3000 by CV)
 ```
 
-**Cause**: High CV threshold filtering (60% filtered).
+**Cause**: High intensity CV threshold filtering (60% filtered).
 
 **Solutions**:
-1. **Increase CV threshold**: Try `max_cv_percent = 30` or `40`
+1. **Increase intensity CV threshold**: Try `max_intensity_cv_percent = 40` or `50`
 2. **Check run quality**: Inspect individual runs for problems
-3. **Review FWHM distribution**: Use diagnostic script
+3. **Review intensity distribution**: Use diagnostic script
 4. **Accept if appropriate**: Some experiments have high natural variability
+5. **Check if intensity data exists**: If no Precursor.Quantity column, no filtering will occur
 
 ---
 
@@ -526,9 +547,9 @@ print(result$replicate_info)
 # 2. Check filtering
 validated <- create_validated_dataset(
   "data/report.parquet",
-  max_cv_percent = 100  # Disable CV filtering
+  max_intensity_cv_percent = 100  # Disable intensity CV filtering
 )
-# How many now? If much higher, CV filtering is the issue.
+# How many now? If much higher, intensity CV filtering is the issue.
 
 # 3. Check min_replicates
 validated <- create_validated_dataset(
@@ -655,19 +676,19 @@ Do you have multiple runs?
 
 **For most users**:
 ```r
-enable_replicate_consensus = TRUE   # Auto-detect and handle
-min_replicates = 1                 # Keep singletons
-max_cv_percent = 20                # Standard QC threshold
+enable_replicate_consensus = TRUE       # Auto-detect and handle
+min_replicates = 1                     # Keep singletons
+max_intensity_cv_percent = 30          # Standard proteomics QC threshold
 ```
 
 **For high-quality data only**:
 ```r
-max_cv_percent = 10  # Stricter filtering
+max_intensity_cv_percent = 20  # Stricter than default
 ```
 
 **For exploratory analysis**:
 ```r
-max_cv_percent = 100  # Disable CV filtering
+max_intensity_cv_percent = 100  # Effectively disable intensity CV filtering
 ```
 
 ---

@@ -47,12 +47,34 @@ identify_replicate_groups <- function(data) {
 }
 
 # ============================================================================
-# Task 2.1.2: Geometric CV Calculation - GREEN Phase (Minimal Implementation)
+# Task 2.1.2: CV Calculation Functions - GREEN Phase (CORRECTED)
 # ============================================================================
 
-#' Calculate Geometric Coefficient of Variation
+#' Calculate Base Coefficient of Variation (for Linear-Scale Data)
 #'
-#' Calculates geometric CV% for log-transformed data following the formula:
+#' Calculates standard CV% for linear-scale data (RT, FWHM) using:
+#' CV = (sd / mean) * 100
+#'
+#' Reference: docs/GEOMETRIC_CV_GUIDE.md
+#'
+#' @param x Numeric vector of values
+#' @return Base CV percentage, or NA if n < 2
+#' @export
+base_cv <- function(x) {
+  # Remove NA values
+  x <- x[!is.na(x)]
+
+  if (length(x) < 2) return(NA_real_)
+
+  # Base CV formula: (SD / Mean) * 100
+  cv_pct <- (sd(x) / mean(x)) * 100
+
+  return(cv_pct)
+}
+
+#' Calculate Geometric Coefficient of Variation (for Log-Normal Data)
+#'
+#' Calculates geometric CV% for log-normal data (intensity) following:
 #' CV = sqrt(exp(sd(log(x))^2) - 1) * 100
 #'
 #' Reference: docs/GEOMETRIC_CV_GUIDE.md
@@ -80,57 +102,93 @@ geometric_cv <- function(x) {
 # Task 2.1.3: Consensus Dataset Calculation - GREEN Phase (Minimal Implementation)
 # ============================================================================
 
-#' Calculate Consensus Dataset from Technical Replicates
+#' Calculate Consensus Dataset from Technical Replicates (CORRECTED)
 #'
 #' Creates a consensus dataset by taking median values across replicates
-#' and filtering based on geometric CV%.
+#' and filtering based on intensity CV% (proteomics standard).
 #'
-#' @param data Tibble with columns Precursor.Id, Run, RT.Start, Precursor.Mz, FWHM
+#' @param data Tibble with columns Precursor.Id, Run, RT.Start, Precursor.Mz, FWHM, Precursor.Quantity (optional)
 #' @param min_replicates Minimum number of replicates (default: 1)
-#' @param max_cv_percent Maximum CV% threshold for filtering (default: 20)
+#' @param max_intensity_cv_percent Maximum intensity CV% threshold for filtering (default: 30)
 #' @return Tibble with consensus values and replicate statistics
 #' @export
 calculate_consensus_dataset <- function(data, min_replicates = 1,
-                                        max_cv_percent = 20) {
+                                        max_intensity_cv_percent = 30) {
   n_before <- nrow(data)
 
   # Identify replicates
   rep_info <- identify_replicate_groups(data)
 
+  # Check if intensity column exists
+  has_intensity <- "Precursor.Quantity" %in% colnames(data)
+
   # Step 1: Calculate CV% for each precursor across replicates
-  cv_stats <- data %>%
-    group_by(Precursor.Id) %>%
-    summarise(
-      n_replicates = n(),
-      RT_CV_pct = if (n() >= 2) geometric_cv(RT.Start) else NA_real_,
-      Mz_CV_pct = if (n() >= 2) geometric_cv(Precursor.Mz) else NA_real_,
-      FWHM_CV_pct = if (n() >= 2) geometric_cv(FWHM) else NA_real_,
-      .groups = "drop"
-    )
+  # Use base_cv for RT/FWHM (linear scale), geometric_cv for intensity (log-normal)
+  if (has_intensity) {
+    cv_stats <- data %>%
+      group_by(Precursor.Id) %>%
+      summarise(
+        n_replicates = n(),
+        RT_CV_pct = if (n() >= 2) base_cv(RT.Start) else NA_real_,
+        Mz_CV_pct = if (n() >= 2) base_cv(Precursor.Mz) else NA_real_,
+        FWHM_CV_pct = if (n() >= 2) base_cv(FWHM) else NA_real_,
+        Intensity_CV_pct = if (n() >= 2) geometric_cv(Precursor.Quantity) else NA_real_,
+        .groups = "drop"
+      )
+  } else {
+    cv_stats <- data %>%
+      group_by(Precursor.Id) %>%
+      summarise(
+        n_replicates = n(),
+        RT_CV_pct = if (n() >= 2) base_cv(RT.Start) else NA_real_,
+        Mz_CV_pct = if (n() >= 2) base_cv(Precursor.Mz) else NA_real_,
+        FWHM_CV_pct = if (n() >= 2) base_cv(FWHM) else NA_real_,
+        .groups = "drop"
+      )
+  }
 
   # Step 2: Calculate median values
-  consensus_values <- data %>%
-    group_by(Precursor.Id) %>%
-    summarise(
-      RT.Start = median(RT.Start, na.rm = TRUE),
-      Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
-      FWHM = median(FWHM, na.rm = TRUE),
-      .groups = "drop"
-    )
+  if (has_intensity) {
+    consensus_values <- data %>%
+      group_by(Precursor.Id) %>%
+      summarise(
+        RT.Start = median(RT.Start, na.rm = TRUE),
+        Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
+        FWHM = median(FWHM, na.rm = TRUE),
+        Precursor.Quantity = median(Precursor.Quantity, na.rm = TRUE),
+        .groups = "drop"
+      )
+  } else {
+    consensus_values <- data %>%
+      group_by(Precursor.Id) %>%
+      summarise(
+        RT.Start = median(RT.Start, na.rm = TRUE),
+        Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
+        FWHM = median(FWHM, na.rm = TRUE),
+        .groups = "drop"
+      )
+  }
 
   # Step 3: Join consensus values with CV stats
   consensus <- consensus_values %>%
     left_join(cv_stats, by = "Precursor.Id")
 
-  # Step 4: CV filtering (keep singletons)
-  filtered <- consensus %>%
-    filter(
-      n_replicates >= min_replicates,
-      (n_replicates == 1 | is.na(FWHM_CV_pct) | FWHM_CV_pct <= max_cv_percent)
-    )
+  # Step 4: Intensity CV filtering (keep singletons)
+  # CRITICAL: Use intensity CV for filtering (proteomics standard), not FWHM CV
+  if (has_intensity) {
+    filtered <- consensus %>%
+      filter(
+        n_replicates >= min_replicates,
+        (n_replicates == 1 | is.na(Intensity_CV_pct) | Intensity_CV_pct <= max_intensity_cv_percent)
+      )
+  } else {
+    # If no intensity column, keep all precursors (no CV filtering)
+    filtered <- consensus %>%
+      filter(n_replicates >= min_replicates)
+  }
 
   # Add metadata
-  attr(filtered, "metadata") <- list(
+  metadata_list <- list(
     n_runs = rep_info$n_runs,
     n_precursors_before = n_before,
     n_precursors_unique = rep_info$n_precursors_unique,
@@ -141,6 +199,13 @@ calculate_consensus_dataset <- function(data, min_replicates = 1,
     mean_rt_cv_pct = mean(filtered$RT_CV_pct, na.rm = TRUE),
     mean_fwhm_cv_pct = mean(filtered$FWHM_CV_pct, na.rm = TRUE)
   )
+
+  # Add intensity CV to metadata if available
+  if (has_intensity) {
+    metadata_list$mean_intensity_cv_pct <- mean(filtered$Intensity_CV_pct, na.rm = TRUE)
+  }
+
+  attr(filtered, "metadata") <- metadata_list
 
   filtered
 }

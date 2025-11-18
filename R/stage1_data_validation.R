@@ -30,7 +30,7 @@ source_if_exists("R/replicate_utils.R")
 #' @param enable_raw_metadata Whether to attempt raw file metadata extraction (default: FALSE)
 #' @param enable_replicate_consensus Enable technical replicate consensus handling (default: TRUE)
 #' @param min_replicates Minimum number of replicates to keep (default: 1)
-#' @param max_cv_percent Maximum CV% threshold for replicate filtering (default: 20)
+#' @param max_intensity_cv_percent Maximum intensity CV% threshold for filtering (default: 30)
 #' @param quality_threshold Minimum quality score 0-1 (default: 0.8)
 #' @param apply_quality_filters Apply DIA-NN Q-value filters (default: TRUE)
 #' @param ... Additional arguments passed to filter_diann_quality()
@@ -45,7 +45,7 @@ create_validated_dataset <- function(
   enable_raw_metadata = FALSE,
   enable_replicate_consensus = TRUE,
   min_replicates = 1,
-  max_cv_percent = 20,
+  max_intensity_cv_percent = 30,
   quality_threshold = 0.8,
   apply_quality_filters = TRUE,
   ...
@@ -117,12 +117,12 @@ create_validated_dataset <- function(
   consensus_meta <- list(n_runs = n_runs)
 
   if (n_runs > 1 && enable_replicate_consensus && has_run_column) {
-    cat(sprintf("  → Creating consensus dataset (max CV: %d%%)...\n", max_cv_percent))
+    cat(sprintf("  → Creating consensus dataset (max intensity CV: %d%%)...\n", max_intensity_cv_percent))
 
     data_for_validation <- calculate_consensus_dataset(
       loaded_data$data,
       min_replicates = min_replicates,
-      max_cv_percent = max_cv_percent
+      max_intensity_cv_percent = max_intensity_cv_percent
     )
 
     # Extract consensus metadata

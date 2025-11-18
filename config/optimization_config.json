@@ -19,8 +19,8 @@
     "_comment_enable_replicate_consensus": "Enable technical replicate consensus handling. Auto-detects multiple runs from Run column.",
     "min_replicates": 1,
     "_comment_min_replicates": "Minimum number of replicates to keep (default: 1 includes singletons).",
-    "max_cv_percent": 20,
-    "_comment_max_cv_percent": "Maximum geometric CV% threshold for filtering (default: 20). Singletons always kept."
+    "max_intensity_cv_percent": 30,
+    "_comment_max_intensity_cv_percent": "Maximum intensity (Precursor.Quantity) geometric CV% threshold for filtering (default: 30). Singletons always kept. Standard proteomics QC metric."
   },
 
   "instrument": {

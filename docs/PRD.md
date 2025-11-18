@@ -1,9 +1,10 @@
 # 제품 요구사항 문서 (PRD)
 # DIA Window Optimizer v2.0
 
-**작성일**: 2025년 10월 13일
-**버전**: 2.0
-**상태**: 승인됨
+**작성일**: 2025년 10월 13일 (최초)
+**최종 업데이트**: 2025년 11월 17일
+**버전**: 2.0.1 (v2.0 Refactored Architecture)
+**상태**: 승인됨 - 구현 진행 중
 
 ---
 
@@ -17,15 +18,28 @@ DIA (Data-Independent Acquisition) 질량분석법은 proteomics 연구에서 �
 - **샘플별 차이**: 전구체 분포가 샘플마다 다름
 - **장비 제약**: Scan rate, injection time 등 물리적 한계
 - **실험 계획**: 현재 상태 진단 없이 다음 실험 설계가 어려움
+- **Technical Replicate 관리**: 여러 Run의 데이터를 통합하여 재현성 향상
 
 본 도구는 **DIA-NN 분석 결과를 기반으로 다음 실험을 위한 최적화된 isolation window method**를 생성하고, **현재 acquisition 설정의 적절성을 진단**하는 것을 목표로 합니다.
+
+**Version 2.0 특징**:
+- **3-Stage Streamlined Pipeline**: 통합된 아키텍처로 단순화
+- **GLOBAL vs LOCAL Optimization**: m/z 최적화 전략의 이중 접근법
+- **Adaptive Parameters**: Gradient 길이에 따른 자동 파라미터 조정
+- **Technical Replicate Support**: 여러 Run의 데이터 통합 및 QC
 
 ### 1.2 핵심 가치 제안
 
 1. **진단 우선 접근**: 현재 DPPP 달성도를 분석하여 개선 방향 제시
 2. **실측 데이터 기반**: Raw file의 실제 injection time을 반영한 현실적 최적화
-3. **다양한 최적화 전략**: Fixed, Overlapped, Variable window 모드 및 다양한 m/z range 전략
-4. **Quant 중심 기본값**: DPPP 7.0을 기본으로 하되 ID 모드(1.5) 지원
+3. **통합 최적화 파이프라인**: 3-Stage 아키텍처로 단순화된 워크플로우
+4. **Adaptive 전략**:
+   - **GLOBAL Smoothing**: 연속적인 m/z 함수 (모든 gradient 길이 지원)
+   - **LOCAL Strategies**: Bin-specific 정확한 m/z range (Quantile, Coverage, Outlier)
+   - **Auto Parameter Selection**: Gradient 특성에 따른 자동 파라미터 조정
+5. **Technical Replicate 관리**: Consensus 방식으로 재현성 향상 및 QC
+6. **다양한 Window 모드**: Fixed, Variable (density-based) window 생성
+7. **Quant 중심 기본값**: DPPP 7.0을 기본으로 하되 ID 모드(1.5) 지원
 
 ---
 
@@ -96,10 +110,26 @@ Then:
 
 ## 3. 기능 요구사항
 
+**v2.0 아키텍처 개요**:
+```
+[Stage 1] Data Validation → ValidatedData
+    ↓
+[Stage 2] Optimization Planning (MERGED) → OptimizationPlan
+    (DPPP Diagnosis + Window Count Determination)
+    ↓
+[Stage 3] Window Optimization (UNIFIED) → OptimizedWindows
+    (RT Binning + m/z Range + Window Generation)
+    ↓
+[Stage 4] Visualization & Reporting → Plots + PDF + Method file
+```
+
 ### 3.1 Stage 1: 데이터 검증 (Data Validation)
+
+**상태**: ✅ 구현 완료 (Technical Replicate 기능 제외)
 
 #### FR-1.1: DIA-NN 데이터 로딩
 **우선순위**: P0 (필수)
+**구현 상태**: ✅ 완료
 
 **요구사항**:
 - Parquet, TSV, CSV 형식 자동 감지 및 로딩
@@ -122,15 +152,99 @@ list(
 ```
 
 **검증 조건**:
-- [ ] 필수 컬럼 존재 (RT.Start, Precursor.Mz, FWHM)
-- [ ] RT 값이 양수이며 순서대로 정렬
-- [ ] m/z 값이 유효 범위 내 (50-5000 Da)
-- [ ] FWHM 값이 양수 (0.01-10 min)
+- [x] 필수 컬럼 존재 (RT.Start, Precursor.Mz, FWHM)
+- [x] RT 값이 양수이며 순서대로 정렬
+- [x] m/z 값이 유효 범위 내 (50-5000 Da)
+- [x] FWHM 값이 양수 (0.01-10 min)
 
 ---
 
-#### FR-1.2: Raw File Metadata 추출 (선택)
-**우선순위**: P1 (높음)
+#### FR-1.2: Technical Replicate 관리 (**NEW in v2.0**)
+**우선순위**: P0 (필수)
+**구현 상태**: 📋 Milestone 2 계획됨
+
+**1. Replicate 그룹 인식**:
+- DIA-NN `Run` 컬럼 기반 자동 인식
+- `Precursor.Id` 기준으로 Replicate 매칭
+- Replicate 수 분포 분석 (1개, 2개, 3개 등)
+
+**2. Consensus 전략 (Median 기반)**:
+- **Replicate ≥ 2**: Median 값 사용 + CV% 계산
+- **Replicate = 1**: 원본 값 유지 + CV% = NA
+- **필터링**: CV% > threshold인 precursor 제거 (단, n=1은 유지)
+
+**3. Geometric CV% 계산**:
+- RT, m/z, FWHM에 대한 Replicate간 CV%
+- Formula: `Geometric CV = sqrt(exp(sd(log(x))^2) - 1) * 100`
+- Replicate=1인 경우 CV% = NA로 표시
+
+**입력**:
+```r
+create_validated_dataset(
+  proteome_file,
+  enable_replicate_consensus = TRUE,
+  min_replicates = 1,  # Minimum 1 (include singletons)
+  max_cv_percent = 20  # Filter out high-CV precursors (n≥2)
+)
+```
+
+**출력**:
+```r
+list(
+  data = tibble(
+    Precursor.Id,
+    RT.Start,        # Consensus (median or original)
+    Precursor.Mz,    # Consensus
+    FWHM,            # Consensus
+    RT_CV_pct,       # Geometric CV% or NA
+    FWHM_CV_pct,     # Geometric CV% or NA
+    n_replicates,    # 1, 2, 3, ...
+    ...
+  ),
+  metadata = list(
+    n_runs = 3,
+    n_precursors_unique = 7793,
+    n_singleton = 143,      # Replicate=1 only
+    n_replicated = 7650,    # Replicate≥2
+    n_filtered_cv = 15,     # Removed by CV filter
+    mean_rt_cv_pct = 2.3,
+    mean_fwhm_cv_pct = 8.5
+  )
+)
+```
+
+**처리 로직**:
+```
+Step 1: Replicate 그룹 식별
+  - Precursor.Id별 Run 개수 계산
+
+Step 2: Consensus 계산
+  - IF n_replicates ≥ 2:
+      → Value = median(values)
+      → CV% = geometric_cv(values)
+  - ELSE (n_replicates = 1):
+      → Value = original_value
+      → CV% = NA
+
+Step 3: CV 필터링
+  - IF n_replicates ≥ 2 AND CV% > max_cv_percent:
+      → Remove precursor
+  - ELSE:
+      → Keep (including singletons)
+
+Step 4: 통계 요약
+  - Singleton vs Replicated 비율
+  - Mean CV% (replicated only)
+  - Filtered count
+```
+
+**참고**: `docs/GEOMETRIC_CV_GUIDE.md`
+
+---
+
+#### FR-1.3: Raw File Metadata 추출 (선택)
+**우선순위**: P2 (낮음)
+**구현 상태**: 🔴 미구현
 
 **요구사항**:
 - Raw file에서 실제 injection time 추출
@@ -153,8 +267,9 @@ list(
 
 ---
 
-#### FR-1.3: 데이터 품질 검증
+#### FR-1.4: 데이터 품질 검증
 **우선순위**: P0 (필수)
+**구현 상태**: ✅ 완료
 
 **요구사항**:
 - FWHM outlier 감지 (IQR 방법)
@@ -209,30 +324,36 @@ list(
 
 #### FR-2.2: DPPP Satisfaction Ratio 계산
 **우선순위**: P0 (필수)
+**구현 상태**: ✅ 완료
 
 **요구사항**:
-- Target DPPP ± tolerance 범위 내 전구체 비율 계산
+- Target DPPP 이상인 전구체 비율 계산
 - RT bin별 satisfaction ratio 분석
 - m/z bin별 satisfaction ratio 분석
 
 **공식**:
 ```r
-satisfaction_ratio =
-  sum(abs(DPPP - target_dppp) <= tolerance) / length(DPPP)
+# Proportion of precursors meeting minimum DPPP requirement
+satisfaction_ratio = sum(DPPP >= target_dppp) / length(DPPP)
 ```
 
 **기본값**:
 - `target_dppp = 7.0` (Quant 모드)
-- `dppp_tolerance = 0.5` (±0.5 허용)
+- `target_dppp = 1.5` (ID 모드)
+
+**설명**:
+- **Satisfaction Ratio = 0.72** → 전체의 72%가 DPPP ≥ 7.0
+- **Goal**: Maximize proportion of precursors meeting target DPPP
+- **Optimization**: Adjust scan_time to maximize satisfaction ratio
 
 **출력**:
 ```r
 list(
-  satisfaction_ratio = 0.72,  # 72%
-  n_satisfied = 857,709,
-  n_total = 1,190,706,
-  by_rt_bin = tibble(...),
-  by_mz_bin = tibble(...)
+  satisfaction_ratio = 0.72,  # 72% with DPPP ≥ 7.0
+  n_satisfied = 857709,
+  n_total = 1190706,
+  by_rt_bin = tibble(rt_bin, satisfaction_ratio, ...),
+  by_mz_bin = tibble(mz_bin, satisfaction_ratio, ...)
 )
 ```
 
@@ -380,38 +501,110 @@ mz_min <- quantile(Precursor.Mz, 0.01)  # 1st percentile
 mz_max <- quantile(Precursor.Mz, 0.99)  # 99th percentile
 ```
 
-**전략 2: Smoothing-based (DynamicDIA)**
+**전략 분류** (**v2.0 구조**):
+
+**GLOBAL Optimization** (Smoothing):
+- **Step 1**: 전체 gradient에 대해 high-resolution RT sampling
+- **Step 2**: Sliding window로 각 RT point의 m/z 계산
+- **Step 3**: Savitzky-Golay curve fitting
+- **Step 4**: Fitted curve를 RT bin으로 분할 (interpolation)
+
+**LOCAL Optimization** (Quantile, Coverage, Outlier):
+- **Step 1**: RT bin으로 먼저 분할 (adaptive binning 적용 가능)
+- **Step 2**: 각 RT bin에서 독립적으로 m/z range 계산
+- **Step 3**: 전략별 최적화 (quantile/coverage/outlier)
+
+---
+
+**전략 1: Quantile (LOCAL)**
 ```r
-# 기존 dynamicDIA.R 활용
-boundaries <- compute_smooth_mz_boundaries(
-  rt_binning_result,
-  dynamic = TRUE,
-  smoothing_method = "savgol"
-)
+# LOCAL: RT binning → per-bin optimization
+rt_bins <- segment_rt_by_time_unit(data, rt_bin_width_min)
+
+for (bin in rt_bins) {
+  bin_precursors <- filter(data, rt_group == bin)
+  mz_min[bin] <- quantile(bin_precursors$Mz, 0.05)  # P5
+  mz_max[bin] <- quantile(bin_precursors$Mz, 0.95)  # P95
+}
 ```
 
-**전략 3: Outlier Removal**
+**전략 2: Coverage (LOCAL)**
 ```r
-Q1 <- quantile(Precursor.Mz, 0.25)
-Q3 <- quantile(Precursor.Mz, 0.75)
-IQR <- Q3 - Q1
-mz_min <- Q1 - 1.5 * IQR
-mz_max <- Q3 + 1.5 * IQR
+# LOCAL: RT binning → per-bin optimization
+rt_bins <- segment_rt_by_time_unit(data, rt_bin_width_min)
+
+for (bin in rt_bins) {
+  bin_precursors <- filter(data, rt_group == bin)
+  mz_min[bin] <- quantile(bin_precursors$Mz, 0.025)  # 2.5%
+  mz_max[bin] <- quantile(bin_precursors$Mz, 0.975)  # 97.5%
+}
+# Coverage target: 95%
 ```
 
-**전략 4: Coverage-based (NEW)**
+**전략 3: Outlier (LOCAL)**
 ```r
-# 목표: 95% precursor를 커버하면서 range 최소화
-cumulative_dist <- ecdf(Precursor.Mz)
-mz_min <- quantile(Precursor.Mz, 0.025)  # 2.5%
-mz_max <- quantile(Precursor.Mz, 0.975)  # 97.5%
-coverage <- 0.95
+# LOCAL: RT binning → per-bin optimization
+rt_bins <- segment_rt_by_time_unit(data, rt_bin_width_min)
+
+for (bin in rt_bins) {
+  bin_precursors <- filter(data, rt_group == bin)
+  Q1 <- quantile(bin_precursors$Mz, 0.25)
+  Q3 <- quantile(bin_precursors$Mz, 0.75)
+  IQR <- Q3 - Q1
+  mz_min[bin] <- Q1 - 1.5 * IQR
+  mz_max[bin] <- Q3 + 1.5 * IQR
+}
 ```
+
+**전략 4: Smoothing (GLOBAL)** (**v2.0 Refactored**)
+```r
+# GLOBAL: Curve fitting → RT binning
+
+# Step 1: Fine RT sampling (entire gradient)
+rt_points <- seq(rt_min, rt_max, by = 0.5)  # 0.5-1 min interval
+
+# Step 2: Sliding window m/z calculation
+for (rt in rt_points) {
+  window_precursors <- filter(data, abs(RT - rt) <= window_halfwidth)
+  mz_min_raw[rt] <- quantile(window_precursors$Mz, 0.05)
+  mz_max_raw[rt] <- quantile(window_precursors$Mz, 0.95)
+}
+
+# Step 3: Savitzky-Golay curve fitting
+mz_min_smooth <- sgolayfilt(mz_min_raw, p = 3, n = 7)
+mz_max_smooth <- sgolayfilt(mz_max_raw, p = 3, n = 7)
+
+# Step 4: Divide into RT bins (interpolation from fitted curve)
+rt_bins <- segment_rt_by_time_unit(data, rt_bin_width_min)
+
+for (bin in rt_bins) {
+  bin_center_rt <- (bin_start + bin_end) / 2
+  mz_min[bin] <- interpolate_at_rt(mz_min_smooth, rt_points, bin_center_rt)
+  mz_max[bin] <- interpolate_at_rt(mz_max_smooth, rt_points, bin_center_rt)
+}
+```
+
+**Adaptive RT Binning** (LOCAL 전략에서만):
+```r
+# LOCAL strategies can use adaptive RT binning
+if (gradient_length < 15) {
+  rt_bin_width <- 2.0  # Short gradient
+} else if (gradient_length < 40) {
+  rt_bin_width <- 3.0  # Medium
+} else {
+  rt_bin_width <- 5.0  # Long (default)
+}
+```
+
+**참고**: `docs/SMOOTHING_GLOBAL_VS_LOCAL.md`
+
+---
 
 **비교 출력**:
 ```r
 tibble(
-  strategy = c("quantile", "smoothing", "outlier_removal", "coverage_based"),
+  strategy = c("quantile", "coverage", "outlier", "smoothing"),
+  optimization_type = c("LOCAL", "LOCAL", "LOCAL", "GLOBAL"),
   mz_min = c(...),
   mz_max = c(...),
   range_width = mz_max - mz_min,
@@ -422,31 +615,109 @@ tibble(
 
 ---
 
-#### FR-3.5: Window Generation (3가지 모드)
+#### FR-3.5: Window Generation (v2.0 통합)
 **우선순위**: P0 (필수)
+**구현 상태**: ✅ 완료 (Fixed, Variable)
 
-**모드 1: Fixed Windows**
+**요구사항**:
+- RT bin별 window 생성
+- 정확한 window 개수 보장
+- Optional overlap 지원 (향후)
+
+---
+
+**모드 1: Fixed Windows** (**구현 완료**)
 ```r
-# 균등 간격
-window_width <- (mz_max - mz_min) / n_windows
-windows <- seq(mz_min, mz_max, by = window_width)
+# Equal-width windows per RT bin
+generate_windows(
+  data,
+  mz_ranges,
+  n_windows_per_bin,
+  mode = "fixed",
+  overlap_percent = 0  # Optional (future)
+)
+
+# Implementation
+for (bin in rt_bins) {
+  n_windows_bin <- n_windows_per_bin[bin]
+  window_width <- (mz_max[bin] - mz_min[bin]) / n_windows_bin
+
+  windows[[bin]] <- tibble(
+    mz_start = mz_min[bin] + (0:(n_windows_bin-1)) * window_width,
+    mz_end = mz_min[bin] + (1:n_windows_bin) * window_width
+  )
+}
 ```
 
-**모드 2: Overlapped Windows**
+**특징**:
+- ✅ Simple, predictable
+- ✅ Equal-width windows
+- ⚠️ May have uneven precursor distribution
+
+---
+
+**모드 2: Variable Windows** (**구현 완료, 권장**)
 ```r
-# Fixed + overlap (1% overlap 기본값)
-overlap_da <- window_width * 0.01
-windows_overlapped <- Fixed windows - (overlap_da / 2)
+# Density-based adaptive windows
+generate_windows(
+  data,
+  mz_ranges,
+  n_windows_per_bin,
+  mode = "variable",
+  overlap_percent = 0  # Optional (future)
+)
+
+# Uses Largest Remainder Method
+# 기존 window_generator.R::generate_windows_from_boundaries()
 ```
 
-**모드 3: Variable Windows (Density equalization)**
+**Largest Remainder Method**:
+1. Target: Equal precursors per window
+2. 누적 분포 기반 boundary 생성
+3. Remainder 처리로 정확한 개수 보장
+
+**특징**:
+- ✅ Even precursor distribution
+- ✅ Adaptive to density
+- ✅ Exact window count
+
+---
+
+**Optional: Overlap** (**향후 추가**)
 ```r
-# 기존 window_generator.R 활용
-# Largest remainder method로 정확한 n_windows 보장
-windows <- generate_windows_from_boundaries(
-  rt_binning_result,
-  boundary_result,
-  n_windows = 215
+# Future enhancement: overlap_percent parameter
+# Works with both Fixed and Variable modes
+
+generate_windows(
+  ...,
+  overlap_percent = 1.0  # 1% overlap (default: 0)
+)
+
+# Implementation (future)
+if (overlap_percent > 0) {
+  overlap_da <- window_width * (overlap_percent / 100)
+  mz_start <- mz_start - (overlap_da / 2)
+  mz_end <- mz_end + (overlap_da / 2)
+}
+```
+
+**구현 우선순위**: P2 (낮음)
+
+---
+
+**출력**:
+```r
+list(
+  windows = tibble(
+    window_id, rt_bin, mz_start, mz_end,
+    window_width, n_precursors
+  ),
+  statistics = list(
+    total_windows = 215,
+    mean_precursors_per_window = 5539,
+    cv_precursors = 15.3,  # Lower = more uniform
+    coverage_ratio = 0.982
+  )
 )
 ```
 
@@ -454,8 +725,11 @@ windows <- generate_windows_from_boundaries(
 
 ### 3.4 Stage 4: 시각화 및 보고
 
+**상태**: ✅ 구현 완료 (8 plots, PDF report, method file)
+
 #### FR-4.1: 필수 Plots (8개)
 **우선순위**: P0 (필수)
+**구현 상태**: ✅ 완료
 
 1. **DPPP Density Plot**
    - DPPP 분포 히스토그램
@@ -608,13 +882,31 @@ Window_ID,Center_mz,Start_mz,End_mz,Width_Da,RT_Bin
 
 ### 6.1 기능 수용 기준
 
-- [ ] Stage 1: 1M precursors를 30초 이내 로딩 및 검증
-- [ ] Stage 2: DPPP satisfaction ratio 정확히 계산 (수동 검증 대비 오차 < 1%)
-- [ ] Stage 2: Scan_time 추천이 satisfaction ratio 향상 (실제 테스트 검증)
-- [ ] Stage 3: 정확히 지정된 개수의 windows 생성 (오차 ±1개 이내)
-- [ ] Stage 3: Variable mode에서 CV(precursors per window) < 0.2
-- [ ] Stage 4: 모든 필수 plot 정상 생성
-- [ ] Stage 4: PDF 리포트 생성 및 method file 내보내기
+**Stage 1**:
+- [x] 1M precursors를 30초 이내 로딩 및 검증
+- [ ] Technical replicate consensus 생성 (median-based)
+- [ ] Geometric CV% 계산
+
+**Stage 2**:
+- [x] DPPP satisfaction ratio 계산 (DPPP ≥ target)
+- [x] Scan_time 추천이 instrument parameter 제약 조건 반영
+- [x] 추천 scan_time 기반 window 개수 계산
+
+**Stage 3**:
+- [x] Window 개수가 Stage 2 추천값 사용 확인
+- [x] 생성된 window 개수 정확성 (오차 ±1개 이내)
+- [x] GLOBAL Smoothing: 모든 gradient 길이 지원
+- [x] LOCAL strategies: RT bin별 독립 계산
+
+**Stage 4**:
+- [x] 8개 필수 plot 생성
+- [x] PDF 리포트 생성
+- [x] Method file 내보내기
+
+**End-to-End Workflow**:
+- [ ] Stage 2 추천 scan_time → Stage 3 window count 전달 확인
+- [ ] Instrument constraints → window count 제한 반영 확인
+- [ ] Generated windows → Method file 정확성 검증
 
 ### 6.2 품질 수용 기준
 
@@ -641,9 +933,49 @@ Window_ID,Center_mz,Start_mz,End_mz,Width_Da,RT_Bin
 - DynamicDIA: Tsou et al. (2015)
 - Thermo Astral specifications
 
-### 7.3 변경 이력
+### 7.3 v2.0 구현 상태 요약
+
+**✅ 완료된 기능**:
+- **Stage 1**: Data validation and loading (Replicate 기능 제외)
+- **Stage 2**: DPPP diagnosis, satisfaction ratio, scan time optimization
+- **Stage 3**:
+  - Window count determination
+  - m/z optimization (GLOBAL Smoothing + LOCAL Quantile/Coverage/Outlier)
+  - Window generation (Fixed, Variable modes)
+- **Stage 4**: 8 essential plots, PDF report, method file export
+
+**📋 계획된 기능 (Milestones)**:
+- **Milestone 2** (2h): Technical Replicate Management
+  - Consensus strategy (median-based)
+  - Geometric CV% calculation
+  - QC filtering
+- **Milestone 3** (1h): Documentation & Validation
+  - User guide updates
+  - Troubleshooting guide
+  - End-to-end testing
+
+**🔴 미구현 기능 (P2 우선순위)**:
+- Raw file metadata extraction (FR-1.3)
+- Window overlap mode (FR-3.5)
+- Injection time-based adjustment (FR-3.2)
+
+**📚 주요 문서**:
+- `docs/SMOOTHING_GLOBAL_VS_LOCAL.md` - m/z 최적화 전략 비교
+- `docs/GEOMETRIC_CV_GUIDE.md` - Technical replicate CV 계산
+- `docs/ARCHITECTURE.md` - System architecture
+- `IMPROVEMENT_PLAN.md` - 3 milestones roadmap
+
+---
+
+### 7.4 변경 이력
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
 | 1.0 | 2025-09-01 | 초기 버전 (단일 최적화) |
 | 2.0 | 2025-10-13 | 4-Stage 아키텍처로 재설계 |
+| 2.0.1 | 2025-11-17 | v2.0 Refactored 아키텍처 반영 |
+|     |            | - 3-Stage 통합 구조 (Stage 2+3A 병합) |
+|     |            | - GLOBAL vs LOCAL m/z 최적화 전략 |
+|     |            | - Technical Replicate 관리 추가 |
+|     |            | - Satisfaction Ratio 정의 수정 |
+|     |            | - Adaptive parameters 지원 |
