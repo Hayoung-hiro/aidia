@@ -490,10 +490,7 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
   all_windows <- vector("list", n_bins)
 
   for (i in 1:n_bins) {
-    # Get data for this RT bin
-    bin_data <- precursor_data %>%
-      filter(rt_group == i)
-
+    # Get m/z range for this RT bin
     mz_range <- mz_ranges %>%
       filter(rt_segment_id == i)
 
@@ -503,6 +500,16 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
     mz_max <- mz_range$mz_max[1]
     rt_start <- rt_stats$rt_start[i]
     rt_end <- rt_stats$rt_end[i]
+
+    # Get precursors for this RT bin
+    # Use rt_group if available (LOCAL strategies), otherwise use RT range (GLOBAL smoothing)
+    if ("rt_group" %in% colnames(precursor_data)) {
+      bin_data <- precursor_data %>%
+        filter(rt_group == i)
+    } else {
+      bin_data <- precursor_data %>%
+        filter(RT.Start >= rt_start & RT.Start <= rt_end)
+    }
 
     # Generate windows based on mode
     if (window_mode == "fixed") {
@@ -837,8 +844,9 @@ optimize_mz_ranges_smoothing_internal <- function(precursor_data, rt_stats,
     mz_max <- interpolate_at_rt(rt_points, mz_max_smooth, rt_bin_center)
 
     # Calculate coverage for this bin
+    # GLOBAL smoothing: Filter by RT range (not rt_group)
     bin_data <- precursor_data %>%
-      filter(rt_group == i)
+      filter(RT.Start >= rt_bin_start & RT.Start <= rt_bin_end)
 
     if (nrow(bin_data) > 0) {
       mz_values <- bin_data$Precursor.Mz

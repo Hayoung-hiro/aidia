@@ -31,10 +31,14 @@ smooth_savgol <- function(y_array, window_size = 7, poly_order = 3) {
     warning(sprintf("Window size must be odd. Adjusted to %d.", window_size))
   }
 
+  # Store original length for boundary restoration
+  original_length <- length(y_array)
+
   # Convert to matrix for prospectr (expects matrix input)
   y_matrix <- matrix(y_array, nrow = 1)
 
   # Apply Savitzky-Golay filter using prospectr
+  # NOTE: prospectr returns shorter vector (removes boundary points)
   smoothed_matrix <- prospectr::savitzkyGolay(
     X = y_matrix,
     m = 0,              # 0th derivative (smoothing)
@@ -43,7 +47,31 @@ smooth_savgol <- function(y_array, window_size = 7, poly_order = 3) {
   )
 
   # Convert back to vector
-  return(as.vector(smoothed_matrix))
+  smoothed <- as.vector(smoothed_matrix)
+
+  # Handle boundary truncation by prospectr
+  # Following dynamicDIA.py approach: keep original values at boundaries
+  # prospectr removes (window_size - 1) / 2 points from each end
+  if (length(smoothed) < original_length) {
+    half_window <- (window_size - 1) / 2
+
+    # Create result vector
+    result <- numeric(original_length)
+
+    # Keep original values at boundaries (dynamicDIA method)
+    # This is scientifically correct: boundaries lack sufficient neighboring points
+    # for reliable smoothing, so we preserve the actual measured values
+    result[1:half_window] <- y_array[1:half_window]
+    result[(original_length - half_window + 1):original_length] <-
+      y_array[(original_length - half_window + 1):original_length]
+
+    # Fill middle section with smoothed values
+    result[(half_window + 1):(original_length - half_window)] <- smoothed
+
+    return(result)
+  }
+
+  return(smoothed)
 }
 
 #' Smooth m/z boundaries with optional quantile pre-filtering
