@@ -147,8 +147,10 @@ calculate_consensus_dataset <- function(data, min_replicates = 1,
       )
   }
 
-  # Step 2: Calculate median values
-  if (has_intensity) {
+  # Step 2: Calculate median values (preserve Protein.Group if present)
+  has_protein_group <- "Protein.Group" %in% colnames(data)
+
+  if (has_intensity && has_protein_group) {
     consensus_values <- data %>%
       group_by(Precursor.Id) %>%
       summarise(
@@ -156,6 +158,27 @@ calculate_consensus_dataset <- function(data, min_replicates = 1,
         Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
         FWHM = median(FWHM, na.rm = TRUE),
         Precursor.Quantity = median(Precursor.Quantity, na.rm = TRUE),
+        Protein.Group = first(Protein.Group),  # Keep first value (identical across replicates)
+        .groups = "drop"
+      )
+  } else if (has_intensity) {
+    consensus_values <- data %>%
+      group_by(Precursor.Id) %>%
+      summarise(
+        RT.Start = median(RT.Start, na.rm = TRUE),
+        Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
+        FWHM = median(FWHM, na.rm = TRUE),
+        Precursor.Quantity = median(Precursor.Quantity, na.rm = TRUE),
+        .groups = "drop"
+      )
+  } else if (has_protein_group) {
+    consensus_values <- data %>%
+      group_by(Precursor.Id) %>%
+      summarise(
+        RT.Start = median(RT.Start, na.rm = TRUE),
+        Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
+        FWHM = median(FWHM, na.rm = TRUE),
+        Protein.Group = first(Protein.Group),  # Keep first value
         .groups = "drop"
       )
   } else {

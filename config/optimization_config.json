@@ -20,7 +20,9 @@
     "min_replicates": 1,
     "_comment_min_replicates": "Minimum number of replicates to keep (default: 1 includes singletons).",
     "max_intensity_cv_percent": 30,
-    "_comment_max_intensity_cv_percent": "Maximum intensity (Precursor.Quantity) geometric CV% threshold for filtering (default: 30). Singletons always kept. Standard proteomics QC metric."
+    "_comment_max_intensity_cv_percent": "Maximum intensity (Precursor.Quantity) geometric CV% threshold for filtering (default: 30). Singletons always kept. Standard proteomics QC metric.",
+
+    "_comment_column_selection": "Column selection is AUTOMATIC (no configuration needed). Always keeps: Precursor.Id, RT.Start, Precursor.Mz, FWHM, Protein.Group + QC columns (if present). Typical memory savings: ~80% (e.g., 40 columns → 5-10 columns)"
   },
 
   "instrument": {
