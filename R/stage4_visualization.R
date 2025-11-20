@@ -1054,7 +1054,7 @@ generate_visualizations <- function(
   # Step 4: Export method file (CSV for Thermo)
   cat("\nStep 4: Exporting instrument method file...\n")
   method_file <- file.path(output_dir, "method.csv")
-  export_method_file(optimized_windows, method_file)
+  export_method_file(optimized_windows, optimization_plan, method_file, validated_data)
   report_files$method_file <- method_file
 
   # Step 5: Calculate summary statistics
@@ -1200,28 +1200,19 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
 #' @param output_file CSV output path
 #'
 #' @export
-export_method_file <- function(optimized_windows, output_file) {
+export_method_file <- function(optimized_windows, optimization_plan, output_file, validated_data = NULL) {
 
-  # Create Thermo Orbitrap method file format
-  method_data <- optimized_windows$windows %>%
-    select(
-      RT_start = rt_start,
-      RT_end = rt_end,
-      Center_mz = mz_center,
-      Window_width = window_width
-    ) %>%
-    mutate(
-      RT_start = round(RT_start, 2),
-      RT_end = round(RT_end, 2),
-      Center_mz = round(Center_mz, 1),
-      Window_width = round(Window_width, 1)
-    )
-
-  # Write CSV
-  write.csv(method_data, output_file, row.names = FALSE)
-
-  cat(sprintf("  ✓ Method file saved: %s (%d windows)\n",
-              basename(output_file), nrow(method_data)))
+  # Use Stage 3's export_windows_to_csv() for 22-column format consistency
+  # This ensures compatibility with legacy format from results_config_based_with_viz/
+  export_windows_to_csv(
+    optimized_windows = optimized_windows,
+    output_file = output_file,
+    validated_data = validated_data,
+    optimization_plan = optimization_plan,
+    instrument_type = optimization_plan$instrument$preset,
+    project_name = "report",
+    normalized_agc_target = 100
+  )
 }
 
 #' Calculate Summary Statistics

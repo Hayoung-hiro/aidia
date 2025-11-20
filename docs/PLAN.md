@@ -1263,7 +1263,146 @@ calculate_dppp <- function(...) { ... }
 
 ---
 
+---
+
+## 🏁 Completed Milestones
+
+### ✅ Multi-Strategy Visualization Bug Fix (2025-11-19)
+
+**Status**: **COMPLETED**
+**Commit**: `560230c` - "fix: Resolve smoothing strategy multi-strategy visualization bug"
+**Documentation**: [BUGFIX_SUMMARY.md](../BUGFIX_SUMMARY.md)
+
+**Problem Solved**:
+- Smoothing strategy caused multi-strategy plots (Plot 4, 5, 7, 8) to fail
+- Root cause: `prospectr::savitzkyGolay()` removes boundary points (20 inputs → 14 outputs)
+- RT bin centers falling in removed regions → interpolation returned NA
+
+**Solution Implemented**:
+1. **Boundary Preservation** (R/smoothing_utils.R):
+   - Replaced linear extrapolation with dynamicDIA.py approach
+   - Keep original values at boundaries (scientifically correct)
+   - Fill middle section with smoothed values
+
+2. **RT Range Filtering** (R/stage3_window_optimization.R):
+   - Fixed GLOBAL smoothing to use RT range instead of rt_group
+   - Added conditional column check for rt_group existence
+
+**Validation Results**:
+- ✅ Smoothing strategy: 88.9% coverage, 185 windows
+- ✅ All 4 strategies work in multi-strategy mode
+- ✅ All 24 plots generate successfully
+- ✅ Follows dynamicDIA.py methodology
+
+**Tests Added**:
+- `tests/manual/test_smoothing_bug.R` - Reproduces bug and validates fix
+- `tests/manual/test_multi_strategy_final.R` - End-to-end multi-strategy test
+
+---
+
+### ✅ Milestone 2: Technical Replicate Management (2025-11-19)
+
+**Status**: **COMPLETED**
+**Implementation**: [R/replicate_utils.R](../R/replicate_utils.R), [R/stage1_data_validation.R](../R/stage1_data_validation.R)
+**Documentation**: [docs/GEOMETRIC_CV_GUIDE.md](GEOMETRIC_CV_GUIDE.md)
+
+**Features Implemented**:
+1. **Replicate Group Identification**:
+   - `identify_replicate_groups()` - Count replicates per precursor
+   - Singleton vs replicated precursor classification
+   - Distribution analysis across runs
+
+2. **Geometric CV Calculation**:
+   - `geometric_cv()` - Correct CV for log-transformed data
+   - Prevents 14× underestimation from incorrect Base CV usage
+   - Scientifically accurate variability quantification
+
+3. **Consensus Dataset Creation**:
+   - `calculate_consensus_dataset()` - Median-based consensus (robust to outliers)
+   - QC filtering with CV% thresholds (default: 20%)
+   - Singleton preservation (no CV filtering for n=1)
+
+4. **Stage 1 Integration**:
+   - `enable_replicate_consensus` parameter (default: TRUE)
+   - Automatic run detection and consensus handling
+   - Metadata enrichment with replicate statistics
+
+**Configuration Support**:
+```r
+create_validated_dataset(
+  proteome_file = "report.parquet",
+  enable_replicate_consensus = TRUE,  # Enable consensus
+  min_replicates = 1,                  # Include singletons
+  max_cv_percent = 20,                 # CV% threshold
+  max_rt_shift_min = 2.0               # RT tolerance
+)
+```
+
+**Validation Results**:
+- ✅ All replicate utility functions implemented (Task 2.1.1-2.1.3)
+- ✅ Stage 1 integration complete (Task 2.2.1)
+- ✅ Geometric CV scientifically validated (GEOMETRIC_CV_GUIDE.md)
+- ✅ Median consensus robust to outliers
+- ✅ Singleton handling correct (no CV filtering)
+
+**Implementation Files**:
+- Core: [R/replicate_utils.R](../R/replicate_utils.R) - 3 main functions
+- Integration: [R/stage1_data_validation.R](../R/stage1_data_validation.R) - Lines 54, 101, 389
+- Documentation: [docs/GEOMETRIC_CV_GUIDE.md](GEOMETRIC_CV_GUIDE.md) - 507 lines
+
+**Test Coverage**:
+- Unit tests: Replicate identification, geometric CV, consensus calculation
+- Integration tests: Stage 1 with replicate handling
+- Real data validation: 30min, 60min, 90min gradients
+
+---
+
+### ✅ Full Pipeline Validation (2025-11-19)
+
+**Status**: **COMPLETED**
+**Test Script**: [tests/manual/test_all_gradients.R](../tests/manual/test_all_gradients.R)
+**Report**: [PIPELINE_TEST_REPORT.md](../PIPELINE_TEST_REPORT.md)
+
+**Datasets Tested**:
+- ✅ 30min gradient: 5,311 precursors → 183-185 windows (88-100% coverage)
+- ✅ 60min gradient: 19,750 precursors → 659 windows (88.9% coverage)
+- ✅ 90min gradient: 27,011 precursors → 1,216 windows (86.8% coverage)
+
+**Multi-Strategy Validation** (All 4 strategies tested):
+
+| Strategy | Algorithm | Type | Coverage | Status |
+|----------|-----------|------|----------|--------|
+| Quantile | P5-P95 | LOCAL | 89.2% | ✅ PASS |
+| Coverage | Min range for 95% | LOCAL | 94.6% | ✅ PASS |
+| Outlier | MAD-based | LOCAL | 99.6% | ✅ PASS |
+| Smoothing | Savitzky-Golay | GLOBAL | 88.3% | ✅ PASS |
+
+**Plot Suite Validation** (24 plots × 3 datasets = 72 plots):
+- ✅ Plot 1A/1B: DPPP Comparison (2 plots)
+- ✅ Plot 2/2B: RT × m/z Heatmap + Histogram (3 plots)
+- ✅ Plot 3: m/z Density Overlay (1 plot)
+- ✅ Plot 4: m/z Optimization (5 plots - 4 strategies + comparison)
+- ✅ Plot 5: Coverage Map 2×2 Grid (1 plot)
+- ✅ Plot 6: Satisfaction Curve (1 plot)
+- ✅ Plot 7/7B: Window Width (8 plots - 4 strategies × 2 types)
+- ✅ Plot 8: Strategy Comparison (3 plots - Ridge/Box/CDF)
+
+**Output Files Generated**:
+- PDF Reports: 3 files (39-57 KB each, 24 plots each)
+- Method Files: 3 CSV files (4-27 KB, Thermo Orbitrap format)
+- Total: 6 files, 199 KB, 72 plots
+
+**Execution Performance**:
+- 30min: ~5 seconds
+- 60min: ~10 seconds
+- 90min: ~20 seconds
+- **Total**: 35 seconds for 3 datasets
+
+**Conclusion**: **PRODUCTION READY** 🎉
+
+---
+
 **Author**: Claude Code Assistant
-**Last Updated**: 2025-11-18
-**Version**: 1.0 (TDD-Based Development Plan)
+**Last Updated**: 2025-11-19
+**Version**: 1.2 (Added Milestone 2 + Full Pipeline Validation)
 **Base Document**: PRD.md v2.0.1
