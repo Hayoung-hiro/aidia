@@ -5,7 +5,7 @@ source("R/data_loader.R")
 source("R/dppp_calculator.R")
 source("R/optimizer.R")
 source("R/visualizer.R")
-source("R/method_writer.R")
+# source("R/method_writer.R")  # DEPRECATED: Moved to archive/legacy_scripts/method_writer_old.R
 source("R/utils.R")
 source("R/fwhm_analyzer.R")
 source("config/instruments.R")
