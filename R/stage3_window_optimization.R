@@ -1021,6 +1021,99 @@ export_windows_to_csv <- function(optimized_windows, output_file,
   invisible(NULL)
 }
 
+#' Export Method Files for Multiple Strategies
+#'
+#' Batch export method CSV files for multiple optimization strategies.
+#' Default behavior exports all 4 strategies (quantile, coverage, outlier, smoothing).
+#'
+#' @param windows_list Named list of OptimizedWindows objects from different strategies
+#' @param output_dir Character, output directory path
+#' @param validated_data ValidatedData object from Stage 1
+#' @param optimization_plan OptimizationPlan object from Stage 2 (optional)
+#' @param strategies Character vector of strategies to export (default: all 4)
+#' @param instrument_type Character, instrument type (default: "orbitrap")
+#' @param normalized_agc_target Numeric, AGC target percentage (default: 100)
+#'
+#' @return Named list of exported file paths
+#'
+#' @examples
+#' # Export all 4 strategies (default)
+#' method_files <- export_method_files(windows_list, "output/", validated_data, plan)
+#'
+#' # Export specific strategies only
+#' method_files <- export_method_files(
+#'   windows_list, "output/", validated_data, plan,
+#'   strategies = c("smoothing", "quantile")
+#' )
+#'
+#' @export
+export_method_files <- function(windows_list,
+                                output_dir,
+                                validated_data,
+                                optimization_plan = NULL,
+                                strategies = c("quantile", "coverage", "outlier", "smoothing"),
+                                instrument_type = "orbitrap",
+                                normalized_agc_target = 100) {
+
+  # Validate inputs
+  if (!is.list(windows_list)) {
+    stop("windows_list must be a named list of OptimizedWindows objects")
+  }
+
+  if (length(windows_list) == 0) {
+    stop("windows_list is empty")
+  }
+
+  validate_input_type(validated_data, "ValidatedData", "validated_data")
+
+  # Create output directory if needed
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+
+  # Filter strategies to available ones
+  available_strategies <- names(windows_list)
+  if (is.null(available_strategies)) {
+    stop("windows_list must be a named list (names = strategy names)")
+  }
+
+  strategies_to_export <- intersect(strategies, available_strategies)
+
+  if (length(strategies_to_export) == 0) {
+    warning(sprintf(
+      "No matching strategies found. Available: %s, Requested: %s",
+      paste(available_strategies, collapse = ", "),
+      paste(strategies, collapse = ", ")
+    ))
+    return(list())
+  }
+
+  # Export each strategy
+  cat(sprintf("\n📁 Exporting method files for %d strategies...\n", length(strategies_to_export)))
+
+  method_files <- list()
+  for (strategy in strategies_to_export) {
+    output_file <- file.path(output_dir, sprintf("method_%s.csv", strategy))
+
+    cat(sprintf("  ├─ %s: ", strategy))
+
+    export_windows_to_csv(
+      optimized_windows = windows_list[[strategy]],
+      output_file = output_file,
+      validated_data = validated_data,
+      optimization_plan = optimization_plan,
+      instrument_type = instrument_type,
+      normalized_agc_target = normalized_agc_target
+    )
+
+    method_files[[strategy]] <- output_file
+  }
+
+  cat("✅ All method files exported successfully\n\n")
+
+  invisible(method_files)
+}
+
 
 # =============================================================================
 # S3 Methods
@@ -1107,4 +1200,6 @@ summary.OptimizedWindows <- function(object, ...) {
 cat("✅ Stage 3 (Window Optimization) loaded successfully\n")
 cat("   Main function: optimize_windows(validated_data, optimization_plan, ...)\n")
 cat("   Output: OptimizedWindows object\n")
-cat("   Export: export_windows_to_csv(optimized_windows, output_file)\n")
+cat("   Export:\n")
+cat("     - export_windows_to_csv(optimized_windows, output_file)  # Single strategy\n")
+cat("     - export_method_files(windows_list, output_dir, ...)     # All strategies\n")

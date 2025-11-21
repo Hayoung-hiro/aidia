@@ -1051,14 +1051,11 @@ generate_visualizations <- function(
     report_files$pdf_report <- NULL
   }
 
-  # Step 4: Export method file (CSV for Thermo)
-  cat("\nStep 4: Exporting instrument method file...\n")
-  method_file <- file.path(output_dir, "method.csv")
-  export_method_file(optimized_windows, optimization_plan, method_file, validated_data)
-  report_files$method_file <- method_file
+  # NOTE: Method file export has been moved to Stage 3 (export_method_files)
+  # Stage 4 now focuses solely on visualization
 
-  # Step 5: Calculate summary statistics
-  cat("\nStep 5: Calculating summary statistics...\n")
+  # Step 4: Calculate summary statistics
+  cat("\nStep 4: Calculating summary statistics...\n")
   summary_stats <- calculate_summary_statistics(validated_data, optimization_plan, optimized_windows)
 
   viz_end <- Sys.time()
@@ -1087,14 +1084,14 @@ generate_visualizations <- function(
   )
 
   cat("\n═══════════════════════════════════════════════\n")
-  cat(" STAGE 4 COMPLETE\n")
+  cat(" STAGE 4 COMPLETE (Visualization Only)\n")
   cat("═══════════════════════════════════════════════\n")
   cat(sprintf("✓ Generated: %d plots\n", length(plots)))
-  cat(sprintf("✓ Method file: %s\n", basename(method_file)))
   if (!is.null(report_files$pdf_report)) {
     cat(sprintf("✓ PDF report: %s\n", basename(report_files$pdf_report)))
   }
   cat(sprintf("✓ Total time: %.2f seconds\n", total_time))
+  cat("\nℹ Note: Method files should be exported using Stage 3's export_method_files()\n")
   cat("\n")
 
   return(result)
@@ -1194,26 +1191,11 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   cat(sprintf("  ✓ PDF report saved: %s\n", basename(output_file)))
 }
 
-#' Export Method File
-#'
-#' @param optimized_windows OptimizedWindows object from Stage 3
-#' @param output_file CSV output path
-#'
-#' @export
-export_method_file <- function(optimized_windows, optimization_plan, output_file, validated_data = NULL) {
-
-  # Use Stage 3's export_windows_to_csv() for 22-column format consistency
-  # This ensures compatibility with legacy format from results_config_based_with_viz/
-  export_windows_to_csv(
-    optimized_windows = optimized_windows,
-    output_file = output_file,
-    validated_data = validated_data,
-    optimization_plan = optimization_plan,
-    instrument_type = optimization_plan$instrument$preset,
-    project_name = "report",
-    normalized_agc_target = 100
-  )
-}
+# NOTE: export_method_file() has been REMOVED (2025-11-20)
+# Method file export is now handled by Stage 3's export_method_files()
+# This ensures proper separation of concerns:
+#   - Stage 3: Data generation + export
+#   - Stage 4: Visualization only
 
 #' Calculate Summary Statistics
 #'
