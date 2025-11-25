@@ -1,24 +1,52 @@
-# config_loader.R - JSON configuration file loader and validator
+# config_loader.R - Configuration file loader and validator
 #
-# Purpose: Load and validate JSON configuration files for DIA window optimization
+# Purpose: Load and validate YAML/JSON configuration files for DIA window optimization
+#          YAML is the primary format (recommended). JSON supported for legacy compatibility.
 #
-# Version: 1.0
-# Last Updated: 2025-10-27
+# Version: 2.0
+# Last Updated: 2025-11-17
 
-library(jsonlite)
+library(jsonlite)  # For JSON support (legacy)
+
+# =============================================================================
+# YAML Parser (Using yaml package for reliability)
+# =============================================================================
+
+#' Parse YAML file into R list
+#'
+#' Uses yaml package for robust YAML parsing.
+#' Falls back to jsonlite for JSON files.
+#'
+#' @param yaml_path Path to YAML file
+#' @return Parsed configuration list
+#' @keywords internal
+parse_yaml <- function(yaml_path) {
+
+  # Check if yaml package is available
+  if (!requireNamespace("yaml", quietly = TRUE)) {
+    stop("yaml package is required for YAML configuration files.\n",
+         "Please install it with: install.packages('yaml')")
+  }
+
+  # Parse YAML using yaml package
+  config <- yaml::read_yaml(yaml_path)
+
+  return(config)
+}
 
 # =============================================================================
 # Configuration Loading
 # =============================================================================
 
-#' Load optimization configuration from JSON file
+#' Load optimization configuration from YAML or JSON file
 #'
-#' @param config_path Path to JSON configuration file
+#' @param config_path Path to YAML (.yaml, .yml) or JSON (.json) configuration file
 #' @return List with configuration parameters
 #' @export
 #'
 #' @examples
-#' config <- load_optimization_config("config/optimization_config.json")
+#' config <- load_optimization_config("config/optimization_config.yaml")
+#' config <- load_optimization_config("config/optimization_config.json")  # Legacy
 load_optimization_config <- function(config_path) {
 
   # Check file existence
@@ -26,14 +54,26 @@ load_optimization_config <- function(config_path) {
     stop(sprintf("Configuration file not found: %s", config_path))
   }
 
-  # Load JSON
+  # Detect file format
+  file_ext <- tolower(tools::file_ext(config_path))
+
+  # Load configuration
   cat(sprintf("Loading configuration: %s\n", config_path))
   config <- tryCatch(
     {
-      fromJSON(config_path, simplifyVector = TRUE, simplifyDataFrame = FALSE)
+      if (file_ext %in% c("yaml", "yml")) {
+        # YAML (primary format)
+        parse_yaml(config_path)
+      } else if (file_ext == "json") {
+        # JSON (legacy format)
+        cat("  ℹ️  Note: JSON format is legacy. Consider converting to YAML for better readability.\n")
+        fromJSON(config_path, simplifyVector = TRUE, simplifyDataFrame = FALSE)
+      } else {
+        stop(sprintf("Unsupported file format: %s (use .yaml, .yml, or .json)", file_ext))
+      }
     },
     error = function(e) {
-      stop(sprintf("Failed to parse JSON: %s\nError: %s", config_path, e$message))
+      stop(sprintf("Failed to parse configuration: %s\nError: %s", config_path, e$message))
     }
   )
 
@@ -413,9 +453,16 @@ print_config_summary <- function(config) {
   cat("───────────────────────────────────────────────────────────────\n")
   cat(sprintf("  Target DPPP: %.1f\n", config$dppp_parameters$target_dppp))
   cat(sprintf("  Target satisfaction: %.0f%%\n", config$dppp_parameters$target_satisfaction * 100))
-  cat(sprintf("  Load factor: %.0f%%\n", config$dppp_parameters$load_factor * 100))
   if (!is.null(config$dppp_parameters$dppp_tolerance)) {
     cat(sprintf("  DPPP tolerance: %.2f\n", config$dppp_parameters$dppp_tolerance))
+  }
+
+  # Scan settings
+  cat("\n⚙️  SCAN SETTINGS\n")
+  cat("───────────────────────────────────────────────────────────────\n")
+  cat(sprintf("  Load factor: %.0f%%\n", config$scan_settings$load_factor * 100))
+  if (!is.null(config$scan_settings$ms1_scans_per_cycle)) {
+    cat(sprintf("  MS1 scans per cycle: %d\n", config$scan_settings$ms1_scans_per_cycle))
   }
 
   # RT binning

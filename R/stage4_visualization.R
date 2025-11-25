@@ -137,8 +137,8 @@ plot_dppp_comparison <- function(optimization_plan, validated_data) {
   # Calculate current and expected DPPP
   dppp_data <- fwhm_data %>%
     mutate(
-      current_dppp = (FWHM_sec * 1.7) / current_cycle_time,
-      expected_dppp = (FWHM_sec * 1.7) / required_cycle_time
+      current_dppp = calculate_dppp(FWHM_sec, current_cycle_time),
+      expected_dppp = calculate_dppp(FWHM_sec, required_cycle_time)
     ) %>%
     select(current_dppp, expected_dppp) %>%
     pivot_longer(
@@ -269,8 +269,8 @@ plot_dppp_comparison_enhanced <- function(optimization_plan, validated_data) {
   # Calculate current and expected DPPP
   dppp_data <- fwhm_data %>%
     mutate(
-      current_dppp = (FWHM_sec * 1.7) / current_cycle_time,
-      expected_dppp = (FWHM_sec * 1.7) / required_cycle_time
+      current_dppp = calculate_dppp(FWHM_sec, current_cycle_time),
+      expected_dppp = calculate_dppp(FWHM_sec, required_cycle_time)
     )
 
   # Calculate median DPPP for both conditions
@@ -1277,16 +1277,16 @@ plot_satisfaction_curve <- function(optimization_plan, validated_data,
   satisfaction_data <- data.frame(
     cycle_time = cycle_times,
     satisfaction_pct = sapply(cycle_times, function(ct) {
-      dppp <- (fwhm_sec * 1.7) / ct
+      dppp <- calculate_dppp(fwhm_sec, ct)
       mean(dppp >= target_dppp, na.rm = TRUE) * 100
     })
   )
 
   # Calculate current and recommended satisfaction
-  dppp_current <- (fwhm_sec * 1.7) / current_cycle_time
+  dppp_current <- calculate_dppp(fwhm_sec, current_cycle_time)
   current_satisfaction_pct <- mean(dppp_current >= target_dppp, na.rm = TRUE) * 100
 
-  dppp_recommended <- (fwhm_sec * 1.7) / required_cycle_time
+  dppp_recommended <- calculate_dppp(fwhm_sec, required_cycle_time)
   recommended_satisfaction_pct <- mean(dppp_recommended >= target_dppp, na.rm = TRUE) * 100
 
   # Calculate improvement metrics

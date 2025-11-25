@@ -1,0 +1,78 @@
+# =============================================================================
+# Quick Test Configuration (30min gradient only)
+# =============================================================================
+# Purpose: Fast pipeline test for YAML functionality validation
+# Expected runtime: 1-2 minutes (without plots), 3-5 minutes (with plots)
+# =============================================================================
+
+project_metadata:
+  project_name: "Test_Quick_YAML_30min"
+  date: "2025-11-17"
+  description: "Quick test of YAML configuration system"
+  analyst: "Claude"
+
+input_data:
+  # Single file for fast testing
+  input_files:
+    - "data/30min_report.parquet"
+
+  # Auto-estimate cycle time from gradient length
+  current_cycle_time: null
+
+  # Enable replicate consensus
+  enable_replicate_consensus: true
+  min_replicates: 1
+  max_intensity_cv_percent: 30
+
+instrument:
+  preset: "fusion_lumos"
+  custom_settings: null
+
+dppp_parameters:
+  target_dppp: 7.0
+  target_satisfaction: 0.70
+  dppp_tolerance: 0.0
+
+scan_settings:
+  load_factor: 0.8
+  ms1_scans_per_cycle: null
+  warning_threshold_windows: 5
+
+rt_binning:
+  rt_bin_width_min: 5.0
+
+mz_optimization:
+  # Test with 2 strategies only (faster)
+  strategies:
+    - "quantile"
+    - "smoothing"
+  quantile_lower: 0.05
+  quantile_upper: 0.95
+  target_coverage: 0.95
+  outlier_threshold: 3.0
+  smoothing_window: 3
+  polynomial_order: 2
+
+window_generation:
+  # Variable mode only for quick test
+  modes:
+    - "variable"
+  min_width_da: 2
+  max_width_da: 80
+  overlap_percentage: 0
+
+output:
+  output_dir: "results_yaml_test"
+  include_summary: true
+  include_plots: false  # Disable plots for speed
+
+# =============================================================================
+# Test Expectations
+# =============================================================================
+# Output:
+#   results_yaml_test/
+#   ├── 30min/
+#   │   ├── quantile_variable_method.csv  (2 method files)
+#   │   └── smoothing_variable_method.csv
+#   └── batch_processing_summary.csv
+# =============================================================================

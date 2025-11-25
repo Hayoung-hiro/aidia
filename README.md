@@ -27,9 +27,47 @@ Advanced R-based tool for optimizing Data-Independent Acquisition (DIA) isolatio
 ```r
 # Install required packages
 install.packages(c("arrow", "dplyr", "ggplot2", "gridExtra",
-                   "jsonlite", "tidyr", "viridis", "scales",
+                   "yaml", "tidyr", "viridis", "scales",
                    "prospectr", "ggridges"))
 ```
+
+### Recommended: YAML Configuration (Easy & User-Friendly)
+
+**Interactive Configuration Builder** - No code required!
+
+```r
+# Launch interactive builder
+source("scripts/config_builder.R")
+config <- run_config_builder()
+
+# Follow prompts to create YAML configuration
+# Output: config/your_project.yaml
+
+# Run optimization with YAML
+source("run_with_config.R")
+results <- run_optimization("config/your_project.yaml")
+```
+
+**Output**:
+- Method files for all strategies (CSV, Thermo-compatible)
+- 24 plots per gradient (PNG, 300 DPI)
+- PDF reports with all visualizations
+- Summary table comparing all strategies
+
+**Why YAML?**
+- ✅ Human-readable format with comments
+- ✅ Easy to edit in any text editor
+- ✅ Interactive builder (no coding needed)
+- ✅ Comprehensive validation
+- ✅ Reproducible configurations
+
+See [docs/CONFIG_BUILDER_GUIDE.md](docs/CONFIG_BUILDER_GUIDE.md) for detailed usage.
+
+---
+
+### Alternative: Direct R Code (Advanced)
+
+For advanced users who prefer programmatic control:
 
 ### Basic Usage (Single Strategy)
 
