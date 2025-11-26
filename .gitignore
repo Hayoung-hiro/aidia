@@ -9,7 +9,9 @@ rawfile/
 
 # Analysis outputs
 test_output/
-plots/
+/plots/
+!R/plots/
+!R/stage3/
 *.pdf
 *.png
 *.rds
