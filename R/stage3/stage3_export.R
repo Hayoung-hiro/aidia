@@ -207,78 +207,8 @@ export_method_files <- function(windows_list,
 # =============================================================================
 # S3 Methods
 # =============================================================================
-
-#' Print method for OptimizedWindows
-#' @export
-print.OptimizedWindows <- function(x, ...) {
-  cat("OptimizedWindows object\n")
-  cat(sprintf("  Total windows: %d\n", nrow(x$windows)))
-  cat(sprintf("  RT bins: %d (%.1f min each)\n",
-              x$rt_binning$n_bins,
-              x$parameters$rt_bin_width_min))
-  cat(sprintf("  Windows per bin: %d\n", x$parameters$n_windows_per_bin))
-  cat(sprintf("  Coverage: %.1f%%\n", x$statistics$coverage_percentage))
-  cat(sprintf("  Window mode: %s\n", x$parameters$window_mode))
-  cat(sprintf("  m/z strategy: %s\n", x$parameters$mz_strategy))
-  invisible(x)
-}
-
-#' Summary method for OptimizedWindows
-#' @export
-summary.OptimizedWindows <- function(object, ...) {
-  cat("===================================================\n")
-  cat(" Optimized Windows Summary\n")
-  cat("===================================================\n\n")
-
-  cat("Window Generation:\n")
-  cat(sprintf("  Total windows: %d\n", object$statistics$total_windows))
-  cat(sprintf("  RT bins: %d (%.1f min each)\n",
-              object$rt_binning$n_bins,
-              object$parameters$rt_bin_width_min))
-  cat(sprintf("  Windows per bin: %d\n", object$parameters$n_windows_per_bin))
-  cat(sprintf("  Expected total: %d\n",
-              object$rt_binning$n_bins * object$parameters$n_windows_per_bin))
-
-  cat("\nWindow Characteristics:\n")
-  cat(sprintf("  Width: %.2f +/- %.2f Da (range: %.1f - %.1f)\n",
-              object$statistics$window_width_mean,
-              object$statistics$window_width_sd,
-              object$statistics$min_window_width,
-              object$statistics$max_window_width))
-  cat(sprintf("  Width CV: %.2f\n", object$statistics$window_width_cv))
-
-  cat("\nPrecursor Distribution:\n")
-  cat(sprintf("  Precursors per window: %.1f +/- %.1f\n",
-              object$statistics$mean_precursors_per_window,
-              object$statistics$sd_precursors_per_window))
-  cat(sprintf("  CV: %.2f\n", object$statistics$cv_precursors))
-  cat(sprintf("  Range: %d - %d\n",
-              object$statistics$min_precursors_per_window,
-              object$statistics$max_precursors_per_window))
-
-  cat("\nCoverage:\n")
-  cat(sprintf("  Total precursors: %s\n",
-              format(object$statistics$total_precursors, big.mark = ",")))
-  cat(sprintf("  Covered precursors: %s (%.1f%%)\n",
-              format(object$statistics$covered_precursors, big.mark = ","),
-              object$statistics$coverage_percentage))
-
-  cat("\nm/z Optimization:\n")
-  cat(sprintf("  Strategy: %s\n", object$mz_optimization$strategy))
-  cat(sprintf("  Mean m/z range: %.1f Da\n", object$mz_optimization$mean_width))
-  cat(sprintf("  Mean coverage: %.1f%%\n",
-              object$mz_optimization$mean_coverage * 100))
-
-  cat("\nParameters:\n")
-  cat(sprintf("  Window mode: %s\n", object$parameters$window_mode))
-  cat(sprintf("  Width constraints: %.1f - %.1f Da\n",
-              object$parameters$min_width_da,
-              object$parameters$max_width_da))
-  if (object$parameters$overlap_percentage > 0) {
-    cat(sprintf("  Overlap: %.1f%%\n", object$parameters$overlap_percentage))
-  }
-
-  invisible(object)
-}
+# Note: S3 methods (print, summary) are now centralized in R/s3_classes.R
+# This ensures consistency and reduces code duplication.
+# See: print.OptimizedWindows(), summary.OptimizedWindows()
 
 cat("  [stage3_export.R] Export functions loaded\n")

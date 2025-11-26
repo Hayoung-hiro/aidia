@@ -577,10 +577,23 @@ create_s3_object <- function(data, class_name) {
 
 
 # =============================================================================
+# Source S3 Classes Module
+# =============================================================================
+
+# Source centralized S3 class definitions if not already loaded
+if (!exists("new_ValidatedData")) {
+  s3_classes_path <- "R/s3_classes.R"
+  if (file.exists(s3_classes_path)) {
+    source(s3_classes_path)
+  }
+}
+
+
+# =============================================================================
 # Module Loading
 # =============================================================================
 
-cat("✅ Common utilities loaded successfully\n")
+cat("OK Common utilities loaded successfully\n")
 cat("   Available functions:\n")
 cat("   - UI: print_header(), print_step(), print_success(), print_warning()\n")
 cat("   - Stats: calculate_summary_stats(), calculate_cv()\n")
@@ -588,3 +601,4 @@ cat("   - Validation: validate_input_type(), validate_numeric_range()\n")
 cat("   - DPPP: calculate_dppp(), calculate_satisfaction_ratio()\n")
 cat("   - Performance: count_precursors_in_windows()\n")
 cat("   - Timing: create_timer()\n")
+cat("   - S3 Classes: ValidatedData, OptimizationPlan, OptimizedWindows\n")

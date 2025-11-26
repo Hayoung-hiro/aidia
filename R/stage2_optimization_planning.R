@@ -467,77 +467,9 @@ calculate_cycle_time_internal <- function(n_windows, cycle_mode, ms1_time,
 # =============================================================================
 # S3 Methods
 # =============================================================================
-
-#' Print method for OptimizationPlan
-#' @export
-print.OptimizationPlan <- function(x, ...) {
-  cat("OptimizationPlan object\n")
-  cat(sprintf("  Window count: %d per RT bin\n", x$window_count_per_bin))
-  cat(sprintf("  Required cycle time: ≤ %.3f sec\n", x$required_cycle_time_sec))
-  cat(sprintf("  Actual cycle time: %.3f sec\n", x$actual_cycle_time_sec))
-  cat(sprintf("  Feasibility: %s\n",
-              if (x$feasibility$is_feasible) "✅ PASS" else "⚠️  WARNINGS"))
-  cat(sprintf("  Instrument: %s\n", x$instrument$name))
-  invisible(x)
-}
-
-#' Summary method for OptimizationPlan
-#' @export
-summary.OptimizationPlan <- function(object, ...) {
-  cat("═══════════════════════════════════════════════════════\n")
-  cat(" Optimization Plan Summary\n")
-  cat("═══════════════════════════════════════════════════════\n\n")
-
-  cat("Planning Results:\n")
-  cat(sprintf("  Window count per RT bin: %d\n", object$window_count_per_bin))
-  cat(sprintf("  Required cycle time: ≤ %.3f sec\n", object$required_cycle_time_sec))
-  cat(sprintf("  Actual cycle time: %.3f sec\n", object$actual_cycle_time_sec))
-  cat(sprintf("  Cycle time margin: %.3f sec\n",
-              object$required_cycle_time_sec - object$actual_cycle_time_sec))
-
-  cat("\nCurrent Status:\n")
-  cat(sprintf("  Current cycle time: %.3f sec\n",
-              object$diagnosis$current_cycle_time_sec))
-  cat(sprintf("  Current satisfaction: %.1f%%\n",
-              object$diagnosis$current_satisfaction_ratio * 100))
-  cat(sprintf("  Current DPPP: %.2f (median: %.2f)\n",
-              object$diagnosis$current_dppp_mean,
-              object$diagnosis$current_dppp_median))
-
-  cat("\nRecommendation:\n")
-  if (object$recommendation$needs_adjustment) {
-    cat(sprintf("  Action: %s cycle time\n",
-                object$recommendation$adjustment_direction))
-    cat(sprintf("  Magnitude: %.3f sec (%.1f%%)\n",
-                object$recommendation$adjustment_magnitude_sec,
-                object$recommendation$adjustment_magnitude_pct))
-  } else {
-    cat("  Action: No adjustment needed\n")
-  }
-
-  cat("\nFeasibility:\n")
-  cat(sprintf("  Overall: %s\n",
-              if (object$feasibility$is_feasible) "✅ FEASIBLE" else "⚠️  WARNINGS"))
-  cat(sprintf("  Cycle time check: %s\n",
-              if (object$feasibility$cycle_time_ok) "✅ PASS" else "❌ FAIL"))
-  cat(sprintf("  Scan rate check: %s (%d / %d scans)\n",
-              if (object$feasibility$scan_rate_ok) "✅ PASS" else "❌ FAIL",
-              object$feasibility$total_scans_needed,
-              object$feasibility$max_possible_scans))
-  cat(sprintf("  Window range check: %s\n",
-              if (object$feasibility$window_range_ok) "✅ PASS" else "❌ FAIL"))
-
-  cat("\nInstrument Configuration:\n")
-  cat(sprintf("  Instrument: %s\n", object$instrument$name))
-  cat(sprintf("  Max scan rate: %.0f Hz\n", object$instrument$max_scan_rate_hz))
-  cat(sprintf("  Effective scan rate: %.1f Hz (%.0f%% load factor)\n",
-              object$instrument$effective_scan_rate_hz,
-              object$instrument$load_factor * 100))
-  cat(sprintf("  Acquisition mode: %s\n", object$instrument$cycle_mode))
-  cat(sprintf("  MS1 scans reserved: %d\n", object$instrument$ms1_scans))
-
-  invisible(object)
-}
+# Note: S3 methods (print, summary) are now centralized in R/s3_classes.R
+# This ensures consistency and reduces code duplication.
+# See: print.OptimizationPlan(), summary.OptimizationPlan()
 
 
 # =============================================================================

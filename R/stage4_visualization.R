@@ -45,6 +45,17 @@ library(gridExtra)
 library(grid)
 
 # =============================================================================
+# Source Dependencies
+# =============================================================================
+
+# Load common utilities and S3 classes
+if (!exists("print_header")) {
+  if (file.exists("R/utils_common.R")) {
+    source("R/utils_common.R")
+  }
+}
+
+# =============================================================================
 # Source Modular Plot Functions
 # =============================================================================
 
