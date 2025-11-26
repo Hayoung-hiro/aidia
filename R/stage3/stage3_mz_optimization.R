@@ -50,10 +50,44 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
     cat("  Strategy: SMOOTHING (GLOBAL optimization)\n")
     cat("  -> Fine RT sampling -> Sliding window -> Smooth -> Assign to bins\n\n")
 
-    return(optimize_mz_ranges_smoothing_internal(
-      precursor_data, rt_stats, quantile_lower, quantile_upper,
-      smoothing_window, polynomial_order
-    ))
+    # Wrap smoothing in tryCatch with automatic fallback to quantile
+    smoothing_result <- tryCatch({
+      result <- optimize_mz_ranges_smoothing_internal(
+        precursor_data, rt_stats, quantile_lower, quantile_upper,
+        smoothing_window, polynomial_order
+      )
+
+      # Validate result - check for empty or invalid data
+      if (is.null(result) || nrow(result) == 0) {
+        stop("Smoothing returned empty result")
+      }
+
+      # Check for NA/NaN in critical columns
+      if (any(is.na(result$mz_min)) || any(is.na(result$mz_max))) {
+        stop("Smoothing produced NA values in m/z ranges")
+      }
+
+      # Check for invalid m/z ranges (min > max)
+      if (any(result$mz_min > result$mz_max)) {
+        stop("Smoothing produced invalid m/z ranges (min > max)")
+      }
+
+      result
+    }, error = function(e) {
+      cat(sprintf("\n  !! WARNING: Smoothing strategy failed: %s\n", e$message))
+      cat("  !! Falling back to QUANTILE strategy (robust alternative)\n\n")
+      NULL
+    })
+
+    # If smoothing succeeded, return result
+    if (!is.null(smoothing_result)) {
+      return(smoothing_result)
+    }
+
+    # Fallback: Use quantile strategy instead
+    cat("  Strategy: QUANTILE (FALLBACK from smoothing)\n")
+    cat("  -> Calculate m/z using P5-P95 percentiles per RT bin\n\n")
+    strategy <- "quantile"  # Continue with quantile below
   }
 
   # =================================================================
