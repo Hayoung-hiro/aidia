@@ -35,7 +35,8 @@ if (!exists("get_instrument_config")) {
 #' required cycle time, and determines feasible window count.
 #'
 #' @param validated_data ValidatedData object from Stage 1
-#' @param current_cycle_time Numeric, current cycle time in seconds
+#' @param current_cycle_time Numeric, current cycle time in seconds (default: NULL = auto-estimate)
+#'   If NULL, automatically estimated from gradient length (gradient_min / 15, max 3.5 sec)
 #' @param instrument_preset Character, instrument type (default: "astral")
 #'   Options: "astral", "orbitrap", "exploris", "timstof", etc.
 #' @param target_dppp Numeric, target minimum DPPP value (default: 7.0)
@@ -78,7 +79,7 @@ if (!exists("get_instrument_config")) {
 #' )
 plan_optimization <- function(
   validated_data,
-  current_cycle_time,
+  current_cycle_time = NULL,
   instrument_preset = "astral",
   target_dppp = 7.0,
   target_satisfaction = 0.85,
@@ -99,6 +100,17 @@ plan_optimization <- function(
   print_step(1, "Input Validation")
 
   validate_input_type(validated_data, "ValidatedData", "validated_data")
+
+  # Auto-estimate cycle_time if not provided
+  if (is.null(current_cycle_time)) {
+    # Estimate from gradient length: cycle_time ≈ gradient_length / 15
+    # This assumes ~15 data points per chromatographic peak as initial estimate
+    gradient_length <- max(validated_data$data$RT.Start) - min(validated_data$data$RT.Start)
+    current_cycle_time <- min(gradient_length / 15, 3.5)  # Cap at 3.5 sec
+    cat(sprintf("  ℹ️  Auto-estimated cycle time: %.3f sec (from %.1f min gradient)\n",
+                current_cycle_time, gradient_length))
+  }
+
   validate_numeric_range(current_cycle_time, min = 0, param_name = "current_cycle_time")
   validate_numeric_range(target_dppp, min = 0, param_name = "target_dppp")
   validate_numeric_range(target_satisfaction, min = 0, max = 1, param_name = "target_satisfaction")
