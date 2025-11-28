@@ -438,6 +438,44 @@ for (name in datasets) {
 
 ---
 
+## 🧪 Validation & Performance Testing
+
+### Quick Start: 1-Week Validation
+
+Test the optimizer with minimal resources before full deployment:
+
+**Quick Validation** (1 week, HeLa standard):
+- See [**Quick Start Validation Guide**](docs/QUICK_START_VALIDATION.md)
+- 6 LC-MS runs (3 current + 3 optimized)
+- Expected: +10% precursor IDs, +8% protein groups, -12% CV%
+- Decision criteria provided
+
+### Comprehensive Validation Strategy
+
+Full 6-week validation protocol for real-world labs:
+
+**3-Tier Validation Plan**:
+1. **Tier 1**: Standard QC samples (HeLa, K562) - 2 weeks
+2. **Tier 2**: Biological diversity (tissues, cells, clinical) - 2 weeks
+3. **Tier 3**: Method development (edge cases, new applications) - 2 weeks
+
+See [**Validation Strategy Guide**](docs/VALIDATION_STRATEGY.md) for:
+- Sample selection recommendations (tissues, cells, plasma, etc.)
+- Experimental design templates
+- Statistical analysis methods
+- Performance metrics (IDs, CV%, DPPP satisfaction)
+- Success criteria and decision trees
+- Resource requirements and timeline
+
+**Key Metrics to Track**:
+- ✅ Precursor/protein identification (+5-15% expected)
+- ✅ Quantification CV% (-10-20% expected)
+- ✅ DPPP satisfaction ratio (>70% target)
+- ✅ Missing value reduction (-15-25% expected)
+- ✅ Dynamic range coverage (similar or better)
+
+---
+
 ## 🔍 Troubleshooting
 
 ### Common Issues
