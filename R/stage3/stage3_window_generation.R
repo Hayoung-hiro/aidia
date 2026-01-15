@@ -180,8 +180,8 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   # Filter precursors within range
   precursor_mz <- precursor_mz[precursor_mz >= mz_min & precursor_mz <= mz_max]
 
-  if (length(precursor_mz) == 0) {
-    # No precursors - fallback to fixed
+  # Fallback to fixed windows if insufficient precursors for density-based splitting
+  if (length(precursor_mz) < n_windows) {
     return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
                                            min_width_da, max_width_da))
   }
