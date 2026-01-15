@@ -103,6 +103,7 @@ for (module in stage3_modules) {
 #'   target_coverage = 0.98,
 #'   window_mode = "variable"
 #' )
+#' @export
 optimize_windows <- function(
   validated_data,
   optimization_plan,

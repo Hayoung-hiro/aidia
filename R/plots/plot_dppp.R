@@ -135,7 +135,8 @@ plot_dppp_comparison <- function(optimization_plan, validated_data) {
     ) +
     theme_dia_optimizer() +
     theme(
-      legend.position = c(0.02, 0.85),  # Moved down to avoid title overlap
+      legend.position.inside = c(0.02, 0.85),  # ggplot2 3.5.0+ syntax
+      legend.position = "inside",
       legend.justification = c(0, 1),
       legend.background = element_rect(fill = "white", color = "gray80"),
       legend.key.size = unit(0.8, "cm"),
@@ -365,7 +366,8 @@ plot_dppp_comparison_enhanced <- function(optimization_plan, validated_data) {
     # Theme
     theme_dia_optimizer() +
     theme(
-      legend.position = c(0.02, 0.75),
+      legend.position.inside = c(0.02, 0.75),  # ggplot2 3.5.0+ syntax
+      legend.position = "inside",
       legend.justification = c(0, 1),
       legend.background = element_rect(fill = "white", color = "gray80"),
       legend.key.size = unit(0.8, "cm"),

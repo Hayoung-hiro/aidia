@@ -77,6 +77,7 @@ if (!exists("get_instrument_config")) {
 #'   target_satisfaction = 0.90,  # Stricter
 #'   load_factor = 0.9  # More aggressive
 #' )
+#' @export
 plan_optimization <- function(
   validated_data,
   current_cycle_time = NULL,

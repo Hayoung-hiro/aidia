@@ -19,15 +19,18 @@ library(jsonlite)
 #' configs <- load_instruments_config()
 #' names(configs)  # List available instruments
 load_instruments_config <- function() {
+  # Support both project root and shiny_app/ subdirectory
   json_path <- "config/instruments.json"
 
   if (!file.exists(json_path)) {
-    stop(sprintf(
-      paste(
-        "Instrument configuration file not found: %s",
-        "Please ensure config/instruments.json exists."
-      ),
-      json_path
+    # Try parent directory (for shiny_app/)
+    json_path <- "../config/instruments.json"
+  }
+
+  if (!file.exists(json_path)) {
+    stop(paste(
+      "Instrument configuration file not found.",
+      "Please ensure config/instruments.json exists."
     ))
   }
 
