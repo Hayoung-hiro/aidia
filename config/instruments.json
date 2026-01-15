@@ -1,46 +1,79 @@
 {
+  "astral_zoom": {
+    "name": "Thermo Orbitrap Astral Zoom",
+    "ms1_time": 5.0,
+    "ms2_time": 3.5,
+    "max_scan_rate": 270,
+    "cycle_calculation": "parallel",
+    "ms1_scans_per_cycle": 0,
+    "max_windows": 350,
+    "description": "Orbitrap Astral Zoom with pre-accumulation (270 Hz, 3.5ms injection, 300 SPD capable)"
+  },
+
   "astral": {
-    "name": "Thermo Astral",
+    "name": "Thermo Orbitrap Astral",
     "ms1_time": 5.0,
     "ms2_time": 3.0,
-    "max_scan_rate": 100,
+    "max_scan_rate": 200,
     "cycle_calculation": "parallel",
     "ms1_scans_per_cycle": 0,
     "max_windows": 300,
-    "description": "Astral narrow-DIA optimized configuration"
+    "description": "Orbitrap Astral with 200 Hz Astral analyzer"
   },
 
-  "orbitrap": {
-    "name": "Thermo Orbitrap",
+  "qexactive": {
+    "name": "Thermo Q Exactive",
     "ms1_time": 100.0,
     "ms2_time": 50.0,
     "max_scan_rate": 12,
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 150,
-    "description": "High-resolution Orbitrap (12Hz, typical max ~100-150 windows - TODO: verify)"
+    "description": "Q Exactive high-resolution Orbitrap (12 Hz at 17,500 resolution)"
   },
 
-  "orbitrap_exploris": {
-    "name": "Thermo Orbitrap Exploris",
+  "qexactive_hfx": {
+    "name": "Thermo Q Exactive HF-X",
+    "ms1_time": 50.0,
+    "ms2_time": 25.0,
+    "max_scan_rate": 40,
+    "cycle_calculation": "sequential",
+    "ms1_scans_per_cycle": 1,
+    "max_windows": 300,
+    "description": "Q Exactive HF-X with aHCD (40 Hz at 7,500 resolution)"
+  },
+
+  "exploris": {
+    "name": "Thermo Orbitrap Exploris 480",
     "ms1_time": 50.0,
     "ms2_time": 22.0,
     "max_scan_rate": 40,
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 400,
-    "description": "Orbitrap Exploris with FAIMS (40Hz - TODO: verify exact limit)"
+    "description": "Orbitrap Exploris 480 (40 Hz at 7,500 resolution, up to 480K resolution)"
+  },
+
+  "eclipse": {
+    "name": "Thermo Orbitrap Eclipse Tribrid",
+    "ms1_time": 50.0,
+    "ms2_time": 25.0,
+    "max_scan_rate": 40,
+    "cycle_calculation": "sequential",
+    "ms1_scans_per_cycle": 1,
+    "max_windows": 400,
+    "description": "Orbitrap Eclipse Tribrid (40 Hz Orbitrap, 45 Hz LIT, ETD/HCD capable)"
   },
 
   "fusion_lumos": {
-    "name": "Thermo Fusion Lumos",
+    "name": "Thermo Fusion Lumos Tribrid",
     "ms1_time": 50.0,
-    "ms2_time": 50.0,
+    "ms2_time": 54.0,
     "max_scan_rate": 20,
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 300,
-    "description": "Fusion Lumos Tribrid (20Hz - TODO: verify exact limit)"
+    "description": "Fusion Lumos Tribrid (20 Hz Orbitrap, 54ms optimal injection at 30K)"
   },
 
   "timstof": {
@@ -51,40 +84,51 @@
     "cycle_calculation": "parallel",
     "ms1_scans_per_cycle": 0,
     "max_windows": 150,
-    "description": "Trapped ion mobility mass spectrometer"
+    "description": "timsTOF with PASEF technology (>100 Hz sequencing speed)"
   },
 
   "timstof_pro": {
-    "name": "Bruker timsTOF Pro",
+    "name": "Bruker timsTOF Pro 2",
     "ms1_time": 10.0,
     "ms2_time": 1.5,
     "max_scan_rate": 120,
     "cycle_calculation": "parallel",
     "ms1_scans_per_cycle": 0,
     "max_windows": 200,
-    "description": "timsTOF Pro with PASEF technology"
+    "description": "timsTOF Pro 2 with PASEF (>120 Hz sequencing speed)"
+  },
+
+  "timstof_ultra": {
+    "name": "Bruker timsTOF Ultra",
+    "ms1_time": 10.0,
+    "ms2_time": 1.0,
+    "max_scan_rate": 300,
+    "cycle_calculation": "parallel",
+    "ms1_scans_per_cycle": 0,
+    "max_windows": 300,
+    "description": "timsTOF Ultra with CSI-Ultra (300 Hz PASEF MS/MS)"
   },
 
   "sciex_7600": {
-    "name": "SCIEX 7600 ZenoTOF",
-    "ms1_time": 20.0,
-    "ms2_time": 10.0,
-    "max_scan_rate": 50,
+    "name": "SCIEX ZenoTOF 7600",
+    "ms1_time": 40.0,
+    "ms2_time": 7.5,
+    "max_scan_rate": 133,
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
-    "max_windows": 400,
-    "description": "QTOF with Zeno trap technology"
+    "max_windows": 500,
+    "description": "ZenoTOF 7600 with Zeno trap (133 Hz MS/MS, 90% duty cycle)"
   },
 
   "waters_synapt": {
-    "name": "Waters SYNAPT",
+    "name": "Waters SYNAPT XS",
     "ms1_time": 50.0,
     "ms2_time": 20.0,
     "max_scan_rate": 20,
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 400,
-    "description": "Ion mobility-enabled QTOF"
+    "description": "SYNAPT XS with IMS (Ion Mobility, SONAR DIA)"
   },
 
   "custom": {

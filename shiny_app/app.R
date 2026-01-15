@@ -62,13 +62,20 @@ ui <- dashboardPage(
       inputId = "instrument",
       label = "Instrument Preset",
       choices = c(
-        "Thermo Astral" = "astral",
-        "Thermo Exploris" = "exploris",
-        "Thermo Orbitrap" = "orbitrap",
-        "Thermo Fusion Lumos" = "fusion_lumos",
-        "Bruker TimsTOF" = "timstof"
+        "Thermo Astral Zoom (270 Hz)" = "astral_zoom",
+        "Thermo Astral (200 Hz)" = "astral",
+        "Thermo Q Exactive (12 Hz)" = "qexactive",
+        "Thermo Q Exactive HF-X (40 Hz)" = "qexactive_hfx",
+        "Thermo Exploris 480 (40 Hz)" = "exploris",
+        "Thermo Eclipse Tribrid (40 Hz)" = "eclipse",
+        "Thermo Fusion Lumos (20 Hz)" = "fusion_lumos",
+        "Bruker timsTOF (100 Hz)" = "timstof",
+        "Bruker timsTOF Pro 2 (120 Hz)" = "timstof_pro",
+        "Bruker timsTOF Ultra (300 Hz)" = "timstof_ultra",
+        "SCIEX ZenoTOF 7600 (133 Hz)" = "sciex_7600",
+        "Waters SYNAPT XS (20 Hz)" = "waters_synapt"
       ),
-      selected = "astral"
+      selected = "astral_zoom"
     ),
 
     # DPPP Target
