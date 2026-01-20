@@ -29,6 +29,40 @@ if (!requireNamespace("diaoptimizer", quietly = TRUE)) {
   library(diaoptimizer)
 }
 
+# --- Ensure all required modules are loaded ---
+# When running from shiny_app/, the relative paths in package files don't work
+# Source all required modules explicitly to ensure availability
+
+# Helper to source from parent directory
+source_from_parent <- function(rel_path) {
+  full_path <- file.path("..", rel_path)
+  if (file.exists(full_path)) {
+    source(full_path)
+    return(TRUE)
+  }
+  return(FALSE)
+}
+
+# Source utils_common.R first (contains count_precursors_in_windows)
+if (source_from_parent("R/utils_common.R")) {
+  cat("[Shiny] Loaded utils_common.R\n")
+}
+
+# Source all Stage 3 modules
+stage3_modules <- c(
+  "R/stage3/stage3_rt_binning.R",
+  "R/stage3/stage3_mz_optimization.R",
+  "R/stage3/stage3_window_generation.R",
+  "R/stage3/stage3_statistics.R",
+  "R/stage3/stage3_export.R"
+)
+
+for (module in stage3_modules) {
+  if (source_from_parent(module)) {
+    cat("[Shiny] Loaded", basename(module), "\n")
+  }
+}
+
 # =============================================================================
 # UI Definition
 # =============================================================================
@@ -89,10 +123,14 @@ ui <- dashboardPage(
     ),
 
     # Quick DPPP Presets
-    fluidRow(
-      column(4, actionButton("preset_id", "ID", class = "btn-sm btn-info")),
-      column(4, actionButton("preset_balanced", "Bal", class = "btn-sm btn-warning")),
-      column(4, actionButton("preset_quant", "Quant", class = "btn-sm btn-success"))
+    div(
+      style = "display: flex; gap: 4px; padding: 0 15px; margin-top: -5px;",
+      actionButton("preset_id", "ID", class = "btn-sm btn-info",
+                   style = "flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600;"),
+      actionButton("preset_balanced", "Bal", class = "btn-sm btn-warning",
+                   style = "flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600;"),
+      actionButton("preset_quant", "Quant", class = "btn-sm btn-success",
+                   style = "flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600;")
     ),
 
     br(),
@@ -110,18 +148,47 @@ ui <- dashboardPage(
 
     br(),
 
-    # RT Bin Width (for smoothing strategy)
-    sliderInput(
-      inputId = "rt_bin_width",
-      label = "RT Bin Width (min)",
-      min = 1,
-      max = 15,
-      value = 5,
-      step = 0.5,
-      post = " min"
+    # m/z Optimization Strategy (NEW)
+    selectInput(
+      inputId = "mz_strategy",
+      label = "m/z Strategy",
+      choices = c(
+        "Quantile (Recommended)" = "quantile",
+        "Smoothing (GLOBAL)" = "smoothing",
+        "Coverage (Conservative)" = "coverage",
+        "Outlier (Robust)" = "outlier"
+      ),
+      selected = "quantile"
     ),
-    helpText("Controls window grouping. Smaller = more RT segments.",
+    helpText("Quantile: Fast & robust. Smoothing: Best for long gradients.",
              style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
+
+    br(),
+
+    # Auto RT Bin Width Checkbox (NEW)
+    checkboxInput(
+      inputId = "auto_rt_bin",
+      label = "Auto RT Bin Width",
+      value = TRUE
+    ),
+    helpText("Auto-adjusts bin width for selected strategy.",
+             style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
+
+    # RT Bin Width (conditionally shown)
+    conditionalPanel(
+      condition = "!input.auto_rt_bin",
+      sliderInput(
+        inputId = "rt_bin_width",
+        label = "Manual RT Bin Width (min)",
+        min = 1,
+        max = 15,
+        value = 5,
+        step = 0.5,
+        post = " min"
+      ),
+      helpText("Controls window grouping. Smaller = more RT segments.",
+               style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;")
+    ),
 
     hr(),
 
@@ -137,20 +204,23 @@ ui <- dashboardPage(
   # --- Main Body ---
   dashboardBody(
 
-    # Custom CSS
+    # Custom CSS - External stylesheet for professional styling
     tags$head(
+      tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
+      # Google Fonts for better typography
+      tags$link(
+        rel = "stylesheet",
+        href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      ),
       tags$style(HTML("
-        .content-wrapper { background-color: #f4f6f9; }
-        .info-box { min-height: 90px; }
-        .box-header { background-color: #3c8dbc; color: white; }
-        .progress-bar { background-color: #00a65a; }
+        body { font-family: 'Inter', 'Segoe UI', sans-serif; }
       "))
     ),
 
-    # Progress Indicator (hidden by default)
+    # Progress Indicator with accent color
     shinybusy::add_busy_spinner(
       spin = "fading-circle",
-      color = "#3c8dbc",
+      color = "#1abc9c",
       position = "full-page"
     ),
 
@@ -164,7 +234,7 @@ ui <- dashboardPage(
       infoBoxOutput("download_status", width = 4)
     ),
 
-    # Row 2: Main Results
+    # Row 2: Data Summary + DPPP Preview
     fluidRow(
       # Left: Data Summary
       box(
@@ -184,22 +254,54 @@ ui <- dashboardPage(
         )
       ),
 
-      # Right: Optimization Results
+      # Right: DPPP Quick Preview (NEW)
       box(
-        title = "🎯 Optimization Results",
-        status = "success",
+        title = "⚡ DPPP Quick Preview",
+        status = "warning",
         solidHeader = TRUE,
         width = 6,
 
         conditionalPanel(
+          condition = "output.data_loaded",
+          # FWHM Summary
+          h5("Peak Width (FWHM)", style = "margin-top: 0;"),
+          tableOutput("fwhm_summary"),
+          hr(style = "margin: 10px 0;"),
+          # DPPP at Different Cycle Times
+          h5("DPPP at Different Cycle Times"),
+          tableOutput("dppp_preview_table"),
+          hr(style = "margin: 10px 0;"),
+          # Recommendation
+          uiOutput("dppp_recommendation")
+        ),
+        conditionalPanel(
+          condition = "!output.data_loaded",
+          p("Upload data to see DPPP preview.", style = "color: #999;")
+        )
+      )
+    ),
+
+    # Row 3: Optimization Results
+    fluidRow(
+      box(
+        title = "🎯 Optimization Results",
+        status = "success",
+        solidHeader = TRUE,
+        width = 12,
+
+        conditionalPanel(
           condition = "output.optimization_complete",
-          tableOutput("optimization_summary"),
-          hr(),
           fluidRow(
-            column(6, downloadButton("download_csv", "⬇️ CSV Method",
-                                     class = "btn-success btn-block")),
-            column(6, downloadButton("download_pdf", "📄 PDF Report",
-                                     class = "btn-info btn-block"))
+            column(6, tableOutput("optimization_summary")),
+            column(6,
+              h5("Downloads", style = "margin-top: 0;"),
+              fluidRow(
+                column(6, downloadButton("download_csv", "⬇️ CSV Method",
+                                         class = "btn-success btn-block")),
+                column(6, downloadButton("download_pdf", "📄 PDF Report",
+                                         class = "btn-info btn-block"))
+              )
+            )
           )
         ),
         conditionalPanel(
@@ -236,6 +338,7 @@ server <- function(input, output, session) {
     validated_data = NULL,
     optimization_plan = NULL,
     optimized_windows = NULL,
+    dppp_preview = NULL,
     data_loaded = FALSE,
     optimization_complete = FALSE
   )
@@ -280,6 +383,15 @@ server <- function(input, output, session) {
       rv$optimization_complete <- FALSE
       rv$optimized_windows <- NULL
 
+      # Calculate DPPP Quick Preview
+      cat("[Shiny] Calculating DPPP Quick Preview...\n")
+      rv$dppp_preview <- quick_dppp_preview(
+        rv$validated_data,
+        cycle_times = c(1.5, 2.5, 3.5),
+        target_dppp = input$target_dppp
+      )
+      cat("[Shiny] DPPP Preview calculated!\n")
+
       removeNotification("upload_progress")
       showNotification(
         paste("✅ Data loaded:", format(nrow(rv$validated_data$data), big.mark = ","), "precursors"),
@@ -310,6 +422,7 @@ server <- function(input, output, session) {
       cat("[Shiny] Instrument:", input$instrument, "\n")
       cat("[Shiny] Target DPPP:", input$target_dppp, "\n")
       cat("[Shiny] Target Satisfaction:", input$target_satisfaction, "%\n")
+      cat("[Shiny] m/z Strategy:", input$mz_strategy, "\n")
 
       # Stage 2: Optimization Planning
       cat("[Shiny] Running plan_optimization()...\n")
@@ -321,15 +434,38 @@ server <- function(input, output, session) {
       )
       cat("[Shiny] plan_optimization() completed!\n")
 
-      # Stage 3: Window Optimization (Smoothing strategy - GLOBAL optimization)
+      # Determine RT bin width (auto or manual)
+      if (input$auto_rt_bin) {
+        # Calculate adaptive RT bin width based on strategy and gradient length
+        rt_range <- range(rv$validated_data$data$RT.Start, na.rm = TRUE)
+        adaptive_result <- calculate_adaptive_rt_bin_width(
+          rt_range = rt_range,
+          mz_strategy = input$mz_strategy,
+          target_min_bins = 5
+        )
+        rt_bin_width_final <- adaptive_result$bin_width
+        cat("[Shiny] AUTO RT Bin Width:", rt_bin_width_final, "min")
+        cat(" (", adaptive_result$n_bins, " bins for ", input$mz_strategy, " strategy)\n", sep = "")
+
+        # Show notification about auto-adjustment
+        showNotification(
+          sprintf("Auto RT bin: %.1f min (%d bins)", rt_bin_width_final, adaptive_result$n_bins),
+          type = "message", duration = 3
+        )
+      } else {
+        rt_bin_width_final <- input$rt_bin_width
+        cat("[Shiny] Manual RT Bin Width:", rt_bin_width_final, "min\n")
+      }
+
+      # Stage 3: Window Optimization with selected m/z strategy
       cat("[Shiny] Running optimize_windows()...\n")
-      cat("[Shiny] RT Bin Width:", input$rt_bin_width, "min\n")
+      cat("[Shiny] m/z Strategy:", input$mz_strategy, "\n")
       rv$optimized_windows <- optimize_windows(
         validated_data = rv$validated_data,
         optimization_plan = rv$optimization_plan,
-        mz_strategy = "smoothing",
+        mz_strategy = input$mz_strategy,
         window_mode = "variable",
-        rt_bin_width_min = input$rt_bin_width
+        rt_bin_width_min = rt_bin_width_final
       )
       cat("[Shiny] optimize_windows() completed!\n")
 
@@ -353,18 +489,25 @@ server <- function(input, output, session) {
   output$data_status <- renderInfoBox({
     if (rv$data_loaded && !is.null(rv$validated_data)) {
       n_precursors <- nrow(rv$validated_data$data)
+      gradient_len <- if (!is.null(rv$dppp_preview)) {
+        sprintf("%.0f min gradient", rv$dppp_preview$gradient_length)
+      } else { "Ready" }
       infoBox(
-        title = "Precursors",
+        title = "Precursors Loaded",
         value = format(n_precursors, big.mark = ","),
-        icon = icon("database"),
-        color = "green"
+        subtitle = gradient_len,
+        icon = icon("check-circle"),
+        color = "green",
+        fill = TRUE
       )
     } else {
       infoBox(
         title = "Data Status",
-        value = "No data",
-        icon = icon("upload"),
-        color = "yellow"
+        value = "Waiting",
+        subtitle = "Upload parquet file",
+        icon = icon("cloud-upload-alt"),
+        color = "yellow",
+        fill = TRUE
       )
     }
   })
@@ -373,18 +516,25 @@ server <- function(input, output, session) {
   output$optimization_status <- renderInfoBox({
     if (rv$optimization_complete && !is.null(rv$optimized_windows)) {
       n_windows <- nrow(rv$optimized_windows$windows)
+      coverage <- if (!is.null(rv$optimized_windows$statistics$coverage_percentage)) {
+        sprintf("%.1f%% coverage", rv$optimized_windows$statistics$coverage_percentage)
+      } else { "Optimized" }
       infoBox(
-        title = "Windows",
+        title = "Windows Generated",
         value = n_windows,
-        icon = icon("th"),
-        color = "blue"
+        subtitle = coverage,
+        icon = icon("layer-group"),
+        color = "blue",
+        fill = TRUE
       )
     } else {
       infoBox(
         title = "Optimization",
         value = "Pending",
+        subtitle = "Configure and run",
         icon = icon("cogs"),
-        color = "yellow"
+        color = "yellow",
+        fill = TRUE
       )
     }
   })
@@ -393,17 +543,21 @@ server <- function(input, output, session) {
   output$download_status <- renderInfoBox({
     if (rv$optimization_complete) {
       infoBox(
-        title = "Download",
-        value = "Ready",
-        icon = icon("download"),
-        color = "green"
+        title = "Export Ready",
+        value = "Download",
+        subtitle = "CSV & PDF available",
+        icon = icon("file-download"),
+        color = "green",
+        fill = TRUE
       )
     } else {
       infoBox(
-        title = "Download",
+        title = "Export",
         value = "Waiting",
-        icon = icon("clock"),
-        color = "yellow"
+        subtitle = "Run optimization first",
+        icon = icon("hourglass-half"),
+        color = "yellow",
+        fill = TRUE
       )
     }
   })
@@ -414,6 +568,51 @@ server <- function(input, output, session) {
 
   output$optimization_complete <- reactive({ rv$optimization_complete })
   outputOptions(output, "optimization_complete", suspendWhenHidden = FALSE)
+
+  # --- Output: DPPP Quick Preview (NEW) ---
+  output$fwhm_summary <- renderTable({
+    req(rv$dppp_preview)
+    fwhm <- rv$dppp_preview$fwhm_stats
+    data.frame(
+      Metric = c("Median", "IQR (Q25-Q75)", "Range (Min-Max)"),
+      Value = c(
+        sprintf("%.2f sec", fwhm$median),
+        sprintf("%.2f - %.2f sec", fwhm$q25, fwhm$q75),
+        sprintf("%.2f - %.2f sec", fwhm$min, fwhm$max)
+      )
+    )
+  }, striped = TRUE, hover = TRUE, spacing = "s")
+
+  output$dppp_preview_table <- renderTable({
+    req(rv$dppp_preview)
+    preview <- rv$dppp_preview$dppp_preview
+    data.frame(
+      `Cycle Time` = sprintf("%.1f sec", preview$cycle_time_sec),
+      `DPPP (median)` = sprintf("%.1f", preview$dppp_median),
+      `Satisfaction` = sprintf("%.0f%%", preview$satisfaction_pct),
+      check.names = FALSE
+    )
+  }, striped = TRUE, hover = TRUE, spacing = "s")
+
+  output$dppp_recommendation <- renderUI({
+    req(rv$dppp_preview)
+    rec_ct <- rv$dppp_preview$recommended_cycle_time
+    target <- rv$dppp_preview$target_dppp
+
+    tags$div(
+      class = "recommendation-box",
+      tags$div(
+        style = "display: flex; align-items: center; gap: 8px;",
+        icon("lightbulb", style = "color: #1abc9c; font-size: 18px;"),
+        tags$strong("Recommendation", style = "color: #2c3e50;")
+      ),
+      tags$p(
+        style = "margin: 8px 0 0 0; color: #34495e;",
+        sprintf("For DPPP ≥ %.1f with 85%% satisfaction, use cycle time ≤ ", target),
+        tags$strong(sprintf("%.2f sec", rec_ct), style = "color: #16a085;")
+      )
+    )
+  })
 
   # --- Output: Data Summary Table ---
   output$data_summary <- renderTable({
