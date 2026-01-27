@@ -487,79 +487,90 @@ server <- function(input, output, session) {
 
   # --- Output: Data Status Info Box ---
   output$data_status <- renderInfoBox({
-    if (rv$data_loaded && !is.null(rv$validated_data)) {
-      n_precursors <- nrow(rv$validated_data$data)
-      gradient_len <- if (!is.null(rv$dppp_preview)) {
-        sprintf("%.0f min gradient", rv$dppp_preview$gradient_length)
-      } else { "Ready" }
-      infoBox(
-        title = "Precursors Loaded",
-        value = format(n_precursors, big.mark = ","),
-        subtitle = gradient_len,
-        icon = icon("check-circle"),
-        color = "green",
-        fill = TRUE
-      )
-    } else {
-      infoBox(
+    # Guard clause: return "waiting" state early if no data loaded
+    if (!rv$data_loaded || is.null(rv$validated_data)) {
+      return(infoBox(
         title = "Data Status",
         value = "Waiting",
         subtitle = "Upload parquet file",
         icon = icon("cloud-upload-alt"),
         color = "yellow",
         fill = TRUE
-      )
+      ))
     }
+
+    n_precursors <- nrow(rv$validated_data$data)
+    has_dppp_preview <- !is.null(rv$dppp_preview)
+    gradient_len <- if (has_dppp_preview) {
+      sprintf("%.0f min gradient", rv$dppp_preview$gradient_length)
+    } else {
+      "Ready"
+    }
+
+    infoBox(
+      title = "Precursors Loaded",
+      value = format(n_precursors, big.mark = ","),
+      subtitle = gradient_len,
+      icon = icon("check-circle"),
+      color = "green",
+      fill = TRUE
+    )
   })
 
   # --- Output: Optimization Status Info Box ---
   output$optimization_status <- renderInfoBox({
-    if (rv$optimization_complete && !is.null(rv$optimized_windows)) {
-      n_windows <- nrow(rv$optimized_windows$windows)
-      coverage <- if (!is.null(rv$optimized_windows$statistics$coverage_percentage)) {
-        sprintf("%.1f%% coverage", rv$optimized_windows$statistics$coverage_percentage)
-      } else { "Optimized" }
-      infoBox(
-        title = "Windows Generated",
-        value = n_windows,
-        subtitle = coverage,
-        icon = icon("layer-group"),
-        color = "blue",
-        fill = TRUE
-      )
-    } else {
-      infoBox(
+    # Guard clause: return "pending" state early if not optimized
+    if (!rv$optimization_complete || is.null(rv$optimized_windows)) {
+      return(infoBox(
         title = "Optimization",
         value = "Pending",
         subtitle = "Configure and run",
         icon = icon("cogs"),
         color = "yellow",
         fill = TRUE
-      )
+      ))
     }
+
+    n_windows <- nrow(rv$optimized_windows$windows)
+    has_coverage <- !is.null(rv$optimized_windows$statistics$coverage_percentage)
+    coverage <- if (has_coverage) {
+      sprintf("%.1f%% coverage", rv$optimized_windows$statistics$coverage_percentage)
+    } else {
+      "Optimized"
+    }
+
+    infoBox(
+      title = "Windows Generated",
+      value = n_windows,
+      subtitle = coverage,
+      icon = icon("layer-group"),
+      color = "blue",
+      fill = TRUE
+    )
   })
 
   # --- Output: Download Status Info Box ---
   output$download_status <- renderInfoBox({
-    if (rv$optimization_complete) {
-      infoBox(
-        title = "Export Ready",
-        value = "Download",
-        subtitle = "CSV & PDF available",
-        icon = icon("file-download"),
-        color = "green",
-        fill = TRUE
-      )
-    } else {
-      infoBox(
+    # Guard clause: return "waiting" state early if not ready
+    if (!rv$optimization_complete) {
+      return(infoBox(
         title = "Export",
         value = "Waiting",
         subtitle = "Run optimization first",
         icon = icon("hourglass-half"),
         color = "yellow",
         fill = TRUE
-      )
+      ))
     }
+
+    infoBox(
+      title = "Export Ready",
+      value = "Download",
+      subtitle = "CSV & PDF available",
+      icon = icon("file-download"),
+      color = "green",
+      fill = TRUE
+    )
   })
 
   # --- Output: Conditional flags for UI ---

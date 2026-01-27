@@ -103,19 +103,24 @@ compare_dia_results <- function(before_file,
 #' Load DIA-NN report (parquet or TSV)
 #' @keywords internal
 load_diann_report <- function(file_path) {
-
+  # Guard: file must exist
   if (!file.exists(file_path)) {
     stop(sprintf("File not found: %s", file_path))
   }
 
   ext <- tolower(tools::file_ext(file_path))
+  supported_formats <- c("parquet", "tsv", "txt")
 
-  if (ext == "parquet") {
-    data <- arrow::read_parquet(file_path)
-  } else if (ext %in% c("tsv", "txt")) {
-    data <- readr::read_tsv(file_path, show_col_types = FALSE)
-  } else {
+  # Guard: unsupported format
+  if (!ext %in% supported_formats) {
     stop(sprintf("Unsupported file format: %s (use .parquet or .tsv)", ext))
+  }
+
+  # Load based on format
+  data <- if (ext == "parquet") {
+    arrow::read_parquet(file_path)
+  } else {
+    readr::read_tsv(file_path, show_col_types = FALSE)
   }
 
   as_tibble(data)
@@ -327,17 +332,21 @@ create_comparison_summary <- function(id_metrics, quant_metrics) {
     )
   }
 
+  # Metrics where lower values indicate improvement
+  lower_is_better_metrics <- c("Missing Rate (%)", "Replicate CV (median %)")
+
   bind_rows(rows) %>%
     mutate(
       Change_Pct = round(Change_Pct, 1),
+      is_lower_better = Metric %in% lower_is_better_metrics,
       Interpretation = case_when(
-        Metric == "Missing Rate (%)" & Change_Pct < 0 ~ "Improved",
-        Metric == "Replicate CV (median %)" & Change_Pct < 0 ~ "Improved",
-        Metric != "Missing Rate (%)" & Metric != "Replicate CV (median %)" & Change_Pct > 0 ~ "Improved",
+        is_lower_better & Change_Pct < 0 ~ "Improved",
+        !is_lower_better & Change_Pct > 0 ~ "Improved",
         Change_Pct == 0 ~ "No change",
         TRUE ~ "Decreased"
       )
-    )
+    ) %>%
+    select(-is_lower_better)  # Remove helper column from output
 }
 
 

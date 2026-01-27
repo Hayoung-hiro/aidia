@@ -25,6 +25,32 @@ if (!exists("get_instrument_config")) {
 }
 
 # =============================================================================
+# Helper Functions
+# =============================================================================
+
+#' Estimate cycle time from RT gradient length
+#'
+#' Auto-estimates cycle time when not provided by user.
+#' Uses heuristic: cycle_time ≈ gradient_length / 15 (capped at 3.5 sec)
+#' This assumes ~15 data points per chromatographic peak as initial estimate.
+#'
+#' @param rt_values Numeric vector of RT.Start values (in minutes)
+#' @param verbose Logical, whether to print estimation message (default: TRUE)
+#' @return Estimated cycle time in seconds
+#' @keywords internal
+estimate_cycle_time_from_gradient <- function(rt_values, verbose = TRUE) {
+  gradient_length <- max(rt_values) - min(rt_values)
+  cycle_time <- min(gradient_length / 15, 3.5)  # Cap at 3.5 sec
+
+  if (verbose) {
+    cat(sprintf("  ℹ️  Auto-estimated cycle time: %.3f sec (from %.1f min gradient)\n",
+                cycle_time, gradient_length))
+  }
+
+  cycle_time
+}
+
+# =============================================================================
 # Main Planning Function
 # =============================================================================
 
@@ -104,12 +130,7 @@ plan_optimization <- function(
 
   # Auto-estimate cycle_time if not provided
   if (is.null(current_cycle_time)) {
-    # Estimate from gradient length: cycle_time ≈ gradient_length / 15
-    # This assumes ~15 data points per chromatographic peak as initial estimate
-    gradient_length <- max(validated_data$data$RT.Start) - min(validated_data$data$RT.Start)
-    current_cycle_time <- min(gradient_length / 15, 3.5)  # Cap at 3.5 sec
-    cat(sprintf("  ℹ️  Auto-estimated cycle time: %.3f sec (from %.1f min gradient)\n",
-                current_cycle_time, gradient_length))
+    current_cycle_time <- estimate_cycle_time_from_gradient(validated_data$data$RT.Start)
   }
 
   validate_numeric_range(current_cycle_time, min = 0, param_name = "current_cycle_time")

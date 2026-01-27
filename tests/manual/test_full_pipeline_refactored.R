@@ -323,9 +323,10 @@ cat(sprintf("\nTotal execution time: %.2f sec\n\n", total_time))
 
 # Test results detail
 cat("Detailed Results:\n")
+status_icons <- c(PASS = "✅", PARTIAL = "⚠️", FAIL = "❌")
 for (test_name in names(test_results)) {
   result <- test_results[[test_name]]
-  icon <- if (result == "PASS") "✅" else if (result == "PARTIAL") "⚠️" else "❌"
+  icon <- status_icons[[result]] %||% "❌"  # Default to fail icon
   cat(sprintf("  %s %s: %s\n", icon, test_name, result))
 }
 
