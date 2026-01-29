@@ -1,10 +1,585 @@
 # instrument_utils.R - Instrument configuration utilities
 #
 # Purpose: Load and manage instrument hardware specifications from JSON
-# Version: 2.0 (JSON-based, replaces config/instruments.R)
-# Last Updated: 2025-10-27
+# Version: 2.1 (Updated with Astral MR-TOF support)
+# Last Updated: 2026-01-29
 
 library(jsonlite)
+
+# =============================================================================
+# Constants: Resolution-Transient Time Mapping (Orbitrap)
+# =============================================================================
+# Theoretical relationship: Transient Time ∝ Resolution
+# These values are for Orbitrap analyzers (Thermo Fisher)
+# Reference: Orbitrap physics - higher resolution requires longer transient
+#
+# Source: https://proteomicsresource.washington.edu/instruments/orbitrapexploris480.php
+
+#' Orbitrap Resolution to Transient Time Mapping
+#'
+#' Standard mapping for Thermo Orbitrap analyzers.
+#' Transient time is the ion detection time in the Orbitrap.
+#'
+#' @format Named numeric vector (resolution -> transient_time_ms)
+#' @export
+ORBITRAP_TRANSIENT_TIME_MS <- c(
+  "7500"   = 16,
+  "15000"  = 32,
+  "30000"  = 64,
+  "45000"  = 96,
+  "60000"  = 128,
+  "120000" = 256,
+  "240000" = 512,
+  "480000" = 1024
+)
+
+# =============================================================================
+# Constants: Astral Analyzer (Multi-Reflection TOF)
+# =============================================================================
+# The Astral analyzer is NOT an Orbitrap - it's a Multi-Reflection TOF
+# Key characteristics:
+#   - Fixed resolution: 80,000 @ m/z 524 (cannot be changed)
+#   - Scan rate depends on injection time (NOT resolution)
+#   - Parallel architecture: ion accumulation overlaps with detection
+#   - Max rate: 200 Hz (5ms/scan) with up to 3ms IT
+#
+# Source: https://proteomicsresource.washington.edu/instruments/astral.php
+# Reference: Anal. Chem. 2023 (PMC10603608)
+#
+# Timing breakdown at 200 Hz:
+#   - Total cycle: 5 ms (1000/200)
+#   - Non-parallelizable stages: ~4.5 ms
+#   - Max IT at 200 Hz: ~3 ms (60% duty cycle)
+#   - Parallelization allows IT to overlap with detection/processing
+
+#' Astral Analyzer Fixed Parameters
+#'
+#' The Astral uses a Multi-Reflection TOF design with fixed resolution.
+#' Scan rate is determined by injection time, not resolution.
+#'
+#' @export
+ASTRAL_FIXED_RESOLUTION <- 80000  # Fixed at m/z 524
+
+#' Astral Detection Time (ms)
+#'
+#' Fixed detection time for the Astral MR-TOF analyzer.
+#' Unlike Orbitrap, this doesn't change with resolution (fixed at 80K).
+#' The MR-TOF has ~2.5ms detection time in standard operation.
+#'
+#' @export
+ASTRAL_DETECTION_TIME_MS <- 2.5
+
+#' Astral Minimum Cycle Time (ms)
+#'
+#' The minimum time per scan at maximum speed (200 Hz).
+#' This includes all parallelized operations.
+#'
+#' @export
+ASTRAL_MIN_CYCLE_TIME_MS <- 5.0  # 1000 / 200 Hz
+
+#' Astral Injection Time to Scan Rate Mapping
+#'
+#' Empirical relationship between max IT and achievable scan rate.
+#' Due to parallel architecture, IT up to 3ms doesn't slow down 200 Hz operation.
+#' Beyond 3ms, IT starts to dominate the cycle time.
+#'
+#' Source: https://proteomicsresource.washington.edu/instruments/astral.php
+#'
+#' @format Named numeric vector (injection_time_ms -> scan_rate_hz)
+#' @export
+ASTRAL_IT_TO_SCANRATE <- c(
+  "2.5" = 200,   # Maximum speed
+  "3.0" = 200,   # Still at max (parallelized)
+  "3.5" = 187,   # IT starts to dominate
+  "5.0" = 133,   # Moderate IT
+  "10.0" = 67,   # Longer IT for sensitivity
+  "20.0" = 25,   # High sensitivity mode
+  "40.0" = 12.5  # Maximum sensitivity
+)
+
+# =============================================================================
+# Constants: Overhead Modeling
+# =============================================================================
+# δ (overhead) includes:
+#   - Ion transfer time between mass analyzers
+#   - C-trap fill/empty time
+#   - Orbitrap stabilization time
+#   - HCD cell operation time
+#   - Data transfer overhead
+#
+# Typical values:
+#   - δ ≈ 0.15-0.25 × Transient Time (15-25% overhead)
+#   - Minimum δ ≈ 3-5 ms for modern instruments
+
+#' Default Overhead Factor
+#'
+#' Overhead as fraction of transient time.
+#' Conservative estimate for stable operation.
+#' @export
+DEFAULT_OVERHEAD_FACTOR <- 0.20  # 20% of transient time
+
+#' Minimum Overhead (ms)
+#'
+#' Hardware minimum overhead regardless of transient time.
+#' Accounts for ion transfer and settling times.
+#' @export
+MINIMUM_OVERHEAD_MS <- 5.0
+
+#' Calculate Scan Overhead
+#'
+#' Estimates the overhead time (δ) for each MS2 scan.
+#' δ includes ion transfer, C-trap operation, and data handling.
+#'
+#' @param transient_time_ms Numeric, transient time in milliseconds
+#' @param overhead_factor Numeric, overhead as fraction of transient (default: 0.20)
+#' @param min_overhead_ms Numeric, minimum overhead in ms (default: 5.0)
+#'
+#' @return Numeric, overhead time in milliseconds
+#' @export
+#'
+#' @examples
+#' calculate_scan_overhead(64)   # For 30K resolution: returns ~12.8 ms
+#' calculate_scan_overhead(32)   # For 15K resolution: returns ~6.4 ms
+#' calculate_scan_overhead(16)   # For 7.5K resolution: returns 5 ms (minimum)
+calculate_scan_overhead <- function(transient_time_ms,
+                                     overhead_factor = DEFAULT_OVERHEAD_FACTOR,
+                                     min_overhead_ms = MINIMUM_OVERHEAD_MS) {
+
+  calculated_overhead <- transient_time_ms * overhead_factor
+  overhead <- max(calculated_overhead, min_overhead_ms)
+
+  return(round(overhead, 2))
+}
+
+#' Calculate Maximum Injection Time
+#'
+#' Determines the maximum IT that maintains efficiency.
+#' Formula: IT_max ≤ Transient_Time - δ
+#'
+#' @param transient_time_ms Numeric, transient time in ms
+#' @param overhead_ms Numeric, overhead time in ms (or NULL for auto-calculate)
+#' @param safety_margin Numeric, additional margin factor (default: 0.95)
+#'
+#' @return Numeric, maximum injection time in milliseconds
+#' @export
+#'
+#' @examples
+#' calculate_max_injection_time(64)  # 30K: ~64 - 12.8 = ~51 ms
+#' calculate_max_injection_time(32)  # 15K: ~32 - 6.4 = ~25.6 ms
+calculate_max_injection_time <- function(transient_time_ms,
+                                          overhead_ms = NULL,
+                                          safety_margin = 0.95) {
+
+  if (is.null(overhead_ms)) {
+    overhead_ms <- calculate_scan_overhead(transient_time_ms)
+  }
+
+  # IT_max = Transient - δ, with safety margin
+  it_max <- (transient_time_ms - overhead_ms) * safety_margin
+
+  # Ensure positive IT
+  it_max <- max(it_max, 1.0)
+
+  return(round(it_max, 2))
+}
+
+#' Calculate MS2 Scan Time
+#'
+#' Calculates the total time for a single MS2 scan based on the fundamental
+#' scan time equation: t_scan = max(T_transient, IT) + δ
+#'
+#' This is the core formula for accurate window count calculation:
+#' - Resolution determines T_transient (detection time floor)
+#' - IT can be shorter (Resolution-Limited) or longer (Sensitivity-Limited)
+#' - Overhead (δ) is always added
+#'
+#' ## Efficiency Modes (Orbitrap)
+#'
+#' **Auto Mode (IT = T_transient)**: 100% efficiency (Resolution Limited)
+#' - Optimal balance between speed and sensitivity
+#' - No wasted scan time
+#'
+#' **Custom Mode (IT > T_transient)**: Reduced efficiency (Injection Limited)
+#' - Longer cycle time, fewer windows per cycle
+#' - DPPP may decrease
+#' - Use for low-abundance samples requiring more sensitivity
+#'
+#' @param resolution Numeric, Orbitrap resolution (e.g., 30000)
+#' @param injection_time_ms Numeric, injection time in milliseconds
+#' @param overhead_ms Numeric, overhead in ms (NULL for auto-calculate from transient)
+#' @param analyzer Character, analyzer type (default: "orbitrap")
+#' @param verbose Logical, print efficiency warnings (default: TRUE)
+#'
+#' @return List with scan time breakdown:
+#'   - t_scan_ms: Total scan time in milliseconds
+#'   - transient_ms: Transient time from resolution
+#'   - injection_time_ms: Input IT
+#'   - overhead_ms: Calculated or provided overhead
+#'   - limiting_factor: "resolution", "sensitivity", "balanced", or "parallel"
+#'   - sweet_spot_it_ms: Recommended IT for optimal efficiency
+#'   - efficiency_pct: Efficiency percentage (100% = optimal)
+#'   - efficiency_mode: "auto" (optimal) or "custom" (user-defined)
+#'   - efficiency_message: Human-readable efficiency status
+#' @export
+#'
+#' @examples
+#' # 30K resolution with 50ms IT (Resolution-Limited)
+#' calculate_ms2_scan_time(30000, 50)
+#' # t_scan = max(64, 50) + 12.8 = 76.8 ms
+#'
+#' # 30K resolution with 80ms IT (Sensitivity-Limited)
+#' calculate_ms2_scan_time(30000, 80)
+#' # t_scan = max(64, 80) + 12.8 = 92.8 ms
+#'
+#' # 15K resolution with 30ms IT
+#' calculate_ms2_scan_time(15000, 30)
+#' # t_scan = max(32, 30) + 6.4 = 38.4 ms
+#'
+#' # Astral analyzer (fixed detection time)
+#' calculate_ms2_scan_time(80000, 3.0, analyzer = "astral")
+#' # t_scan = max(2.5, 3.0) + 2.0 = 5.0 ms → 200 Hz
+calculate_ms2_scan_time <- function(resolution = 30000,
+                                     injection_time_ms,
+                                     overhead_ms = NULL,
+                                     analyzer = "orbitrap",
+                                     verbose = TRUE) {
+
+  # =========================================================================
+  # Astral Analyzer (Multi-Reflection TOF with Parallel Architecture)
+  # =========================================================================
+  # Astral uses parallel ion accumulation - IT overlaps with detection/processing
+  # Key timing:
+  #   - Minimum cycle: 5 ms (200 Hz max)
+  #   - IT up to 3 ms: parallelized, doesn't slow down 200 Hz
+  #   - IT > 3 ms: starts to dominate cycle time
+  #
+  # Formula: t_scan = max(5.0 ms, IT + buffer)
+  # where buffer accounts for non-overlapping operations (~2 ms)
+  if (analyzer == "astral") {
+    min_cycle_ms <- ASTRAL_MIN_CYCLE_TIME_MS  # 5.0 ms
+    parallel_threshold_ms <- 3.0  # IT threshold for parallel operation
+
+    # Astral parallel architecture:
+    # - IT <= 3ms: cycle time stays at minimum (5ms)
+    # - IT > 3ms: cycle time = IT + ~2ms buffer
+    if (injection_time_ms <= parallel_threshold_ms) {
+      t_scan_ms <- min_cycle_ms
+      limiting_factor <- "parallel"  # Operating within parallel capacity
+      effective_time_ms <- min_cycle_ms
+      efficiency_pct <- 100.0
+      efficiency_mode <- "auto"
+      efficiency_message <- "장비 효율 100% (Parallel Mode - 200 Hz)"
+      efficiency_message_en <- "Instrument efficiency 100% (Parallel Mode - 200 Hz)"
+    } else {
+      # IT exceeds parallel capacity, becomes IT-limited
+      buffer_ms <- 2.0
+      t_scan_ms <- injection_time_ms + buffer_ms
+      limiting_factor <- "sensitivity"
+      effective_time_ms <- injection_time_ms
+
+      # Calculate efficiency relative to max speed (200 Hz = 5ms)
+      efficiency_pct <- round((min_cycle_ms / t_scan_ms) * 100, 1)
+      efficiency_mode <- "custom"
+      efficiency_message <- sprintf(
+        "장비 효율 %.1f%% (Sensitivity Mode) - 더 긴 IT로 감도 향상",
+        efficiency_pct
+      )
+      efficiency_message_en <- sprintf(
+        "Instrument efficiency %.1f%% (Sensitivity Mode) - Increased IT for better sensitivity",
+        efficiency_pct
+      )
+
+      if (verbose) {
+        message(sprintf(
+          "Astral Sensitivity Mode: IT=%.1f ms → %.0f Hz (Max: 200 Hz at IT≤3ms)",
+          injection_time_ms, 1000 / t_scan_ms
+        ))
+      }
+    }
+
+    # Calculate theoretical scan rate
+    scan_rate_hz <- 1000 / t_scan_ms
+
+    # Sweet spot for Astral: 3ms (maximum IT without slowing down)
+    sweet_spot_it_ms <- parallel_threshold_ms
+
+    return(list(
+      t_scan_ms = round(t_scan_ms, 2),
+      transient_ms = ASTRAL_DETECTION_TIME_MS,  # Detection time for reference
+      injection_time_ms = injection_time_ms,
+      overhead_ms = 0,   # No separate overhead (parallel architecture)
+      effective_time_ms = round(effective_time_ms, 2),
+      limiting_factor = limiting_factor,
+      sweet_spot_it_ms = sweet_spot_it_ms,
+      scan_rate_hz = round(scan_rate_hz, 1),
+      analyzer = "astral",
+      efficiency_pct = efficiency_pct,
+      efficiency_mode = efficiency_mode,
+      efficiency_message = efficiency_message,
+      efficiency_message_en = efficiency_message_en
+    ))
+  }
+
+  # =========================================================================
+  # TOF Analyzers (timsTOF, SCIEX, Waters)
+  # =========================================================================
+  # TOF has no transient time concept; scan time ≈ IT + fixed overhead
+  if (analyzer == "tof") {
+    if (is.null(overhead_ms)) {
+      overhead_ms <- MINIMUM_OVERHEAD_MS
+    }
+
+    # Simple formula: t_scan = IT + overhead
+    t_scan_ms <- injection_time_ms + overhead_ms
+    scan_rate_hz <- 1000 / t_scan_ms
+
+    return(list(
+      t_scan_ms = round(t_scan_ms, 2),
+      transient_ms = 0,
+      injection_time_ms = injection_time_ms,
+      overhead_ms = round(overhead_ms, 2),
+      effective_time_ms = injection_time_ms,
+      limiting_factor = "sensitivity",  # TOF is always IT-limited
+      sweet_spot_it_ms = injection_time_ms,
+      scan_rate_hz = round(scan_rate_hz, 1),
+      analyzer = "tof",
+      efficiency_pct = 100.0,  # TOF efficiency is relative to IT chosen
+      efficiency_mode = "auto",
+      efficiency_message = "TOF 효율 100% (IT-dependent)",
+      efficiency_message_en = "TOF efficiency 100% (IT-dependent)"
+    ))
+  }
+
+  # =========================================================================
+  # Orbitrap Analyzers (Q Exactive, Exploris, Eclipse, Fusion)
+  # =========================================================================
+  transient_ms <- get_transient_time(resolution, analyzer)
+
+  # Handle unknown analyzer types (fallback to Orbitrap-like)
+  if (is.na(transient_ms)) {
+    transient_ms <- 0
+    if (is.null(overhead_ms)) {
+      overhead_ms <- MINIMUM_OVERHEAD_MS
+    }
+  } else {
+    # Calculate overhead if not provided
+    if (is.null(overhead_ms)) {
+      overhead_ms <- calculate_scan_overhead(transient_ms)
+    }
+  }
+
+  # Core formula: t_scan = max(T_transient, IT) + δ
+  effective_time_ms <- max(transient_ms, injection_time_ms)
+  t_scan_ms <- effective_time_ms + overhead_ms
+
+  # Determine limiting factor and efficiency
+  if (transient_ms > injection_time_ms) {
+    limiting_factor <- "resolution"
+    efficiency_mode <- "auto"  # Resolution-limited = optimal for speed
+    efficiency_pct <- 100.0    # Full efficiency
+    efficiency_message <- "장비 효율 100% (Resolution Limited)"
+    efficiency_message_en <- "Instrument efficiency 100% (Resolution Limited)"
+  } else if (injection_time_ms > transient_ms) {
+    limiting_factor <- "sensitivity"
+    efficiency_mode <- "custom"  # User chose longer IT for sensitivity
+
+    # Calculate efficiency loss: ratio of optimal vs actual scan time
+    optimal_scan_ms <- transient_ms + overhead_ms
+    efficiency_pct <- round((optimal_scan_ms / t_scan_ms) * 100, 1)
+    efficiency_message <- sprintf(
+      "장비 효율 감소 %.1f%% (Injection Limited) - IT가 T_transient보다 %.1f ms 깁니다",
+      efficiency_pct, injection_time_ms - transient_ms
+    )
+    efficiency_message_en <- sprintf(
+      "Reduced efficiency %.1f%% (Injection Limited) - IT exceeds T_transient by %.1f ms",
+      efficiency_pct, injection_time_ms - transient_ms
+    )
+
+    # Print warning if verbose
+    if (verbose && transient_ms > 0) {
+      message(sprintf(
+        paste0(
+          "\n",
+          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+          "⚠️  효율성 경고 (Efficiency Warning)\n",
+          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+          "  현재 IT (%.1f ms) > T_transient (%.1f ms)\n",
+          "  이온 주입 시간으로 인해 전체 사이클이 느려지며 DPPP가 하락할 수 있습니다.\n",
+          "\n",
+          "  Current IT (%.1f ms) > T_transient (%.1f ms)\n",
+          "  Longer injection time may slow cycle time and reduce DPPP.\n",
+          "\n",
+          "  권장 (Recommended): IT = %.1f ms (Auto/Sweet Spot 모드)\n",
+          "  효율성 (Efficiency): %.1f%%\n",
+          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        ),
+        injection_time_ms, transient_ms,
+        injection_time_ms, transient_ms,
+        transient_ms, efficiency_pct
+      ))
+    }
+  } else {
+    limiting_factor <- "balanced"  # IT ≈ T_transient (Sweet Spot)
+    efficiency_mode <- "auto"
+    efficiency_pct <- 100.0
+    efficiency_message <- "장비 효율 100% (Balanced - Sweet Spot)"
+    efficiency_message_en <- "Instrument efficiency 100% (Balanced - Sweet Spot)"
+  }
+
+  # Sweet spot IT (≈ T_transient for Orbitrap)
+  sweet_spot_it_ms <- ifelse(transient_ms > 0, transient_ms, injection_time_ms)
+
+  # Calculate scan rate
+  scan_rate_hz <- 1000 / t_scan_ms
+
+  return(list(
+    t_scan_ms = round(t_scan_ms, 2),
+    transient_ms = round(transient_ms, 2),
+    injection_time_ms = injection_time_ms,
+    overhead_ms = round(overhead_ms, 2),
+    effective_time_ms = round(effective_time_ms, 2),
+    limiting_factor = limiting_factor,
+    sweet_spot_it_ms = round(sweet_spot_it_ms, 2),
+    scan_rate_hz = round(scan_rate_hz, 1),
+    analyzer = "orbitrap",
+    efficiency_pct = efficiency_pct,
+    efficiency_mode = efficiency_mode,
+    efficiency_message = efficiency_message,
+    efficiency_message_en = efficiency_message_en
+  ))
+}
+
+#' Calculate Parallel Filling Efficiency
+#'
+#' For parallel instruments (Astral, TimsTOF), calculates the efficiency
+#' of ion accumulation during the transient/detection period.
+#'
+#' Formula: Efficiency = IT / (Transient + δ)
+#' - Efficiency = 1.0: Perfect utilization (IT fills entire available time)
+#' - Efficiency < 1.0: Underutilization (could use longer IT)
+#' - Efficiency > 1.0: Not possible (IT exceeds available time)
+#'
+#' @param injection_time_ms Numeric, injection/fill time in ms
+#' @param transient_time_ms Numeric, transient/detection time in ms
+#' @param overhead_ms Numeric, overhead time in ms (or NULL for auto-calculate)
+#'
+#' @return List with efficiency metrics
+#' @export
+#'
+#' @examples
+#' # Astral at 30K resolution
+#' calculate_parallel_filling_efficiency(
+#'   injection_time_ms = 50,
+#'   transient_time_ms = 64,
+#'   overhead_ms = NULL  # auto-calculate
+#' )
+calculate_parallel_filling_efficiency <- function(injection_time_ms,
+                                                   transient_time_ms,
+                                                   overhead_ms = NULL) {
+
+  if (is.null(overhead_ms)) {
+    overhead_ms <- calculate_scan_overhead(transient_time_ms)
+  }
+
+  available_time_ms <- transient_time_ms + overhead_ms
+  efficiency <- injection_time_ms / available_time_ms
+
+  # Calculate optimal IT (maximum without wasting time)
+  optimal_it_ms <- transient_time_ms - overhead_ms * 0.5  # Leave some margin
+
+  # Calculate potential IT gain
+  if (injection_time_ms < optimal_it_ms) {
+    potential_gain_ms <- optimal_it_ms - injection_time_ms
+    potential_gain_pct <- (potential_gain_ms / injection_time_ms) * 100
+  } else {
+    potential_gain_ms <- 0
+    potential_gain_pct <- 0
+  }
+
+  return(list(
+    efficiency = round(efficiency, 3),
+    injection_time_ms = injection_time_ms,
+    transient_time_ms = transient_time_ms,
+    overhead_ms = round(overhead_ms, 2),
+    available_time_ms = round(available_time_ms, 2),
+    optimal_it_ms = round(optimal_it_ms, 2),
+    potential_gain_ms = round(potential_gain_ms, 2),
+    potential_gain_pct = round(potential_gain_pct, 1),
+    is_optimal = efficiency >= 0.85 && efficiency <= 1.0
+  ))
+}
+
+#' Get Transient Time (or Detection Time) for Resolution
+#'
+#' Returns the transient/detection time (ms) for a given resolution and analyzer.
+#' - Orbitrap: Uses linear interpolation for non-standard resolutions
+#' - Astral: Returns fixed detection time (resolution is fixed at 80K)
+#' - TOF: Returns NA (no transient time concept)
+#'
+#' @param resolution Numeric, target resolution (e.g., 30000)
+#' @param analyzer Character, analyzer type: "orbitrap", "astral", or "tof"
+#'
+#' @return Numeric, transient/detection time in milliseconds (NA for TOF)
+#' @export
+#'
+#' @examples
+#' get_transient_time(30000, "orbitrap")  # Returns 64 ms
+#' get_transient_time(15000, "orbitrap")  # Returns 32 ms
+#' get_transient_time(80000, "astral")    # Returns 2.5 ms (fixed)
+#' get_transient_time(30000, "tof")       # Returns NA
+get_transient_time <- function(resolution, analyzer = "orbitrap") {
+
+ # Astral analyzer (Multi-Reflection TOF)
+  # Fixed resolution, fixed detection time
+  if (analyzer == "astral") {
+    # Astral has fixed detection time regardless of resolution setting
+    return(ASTRAL_DETECTION_TIME_MS)
+  }
+
+  # TOF analyzers don't have transient time concept
+  if (analyzer == "tof") {
+    return(NA)
+  }
+
+  # Orbitrap analyzers
+  if (analyzer != "orbitrap") {
+    warning(sprintf(
+      "Unknown analyzer type '%s'. Assuming Orbitrap-like behavior.",
+      analyzer
+    ))
+  }
+
+  resolution <- as.numeric(resolution)
+
+  # Check for exact match
+  res_str <- as.character(resolution)
+  if (res_str %in% names(ORBITRAP_TRANSIENT_TIME_MS)) {
+    return(as.numeric(ORBITRAP_TRANSIENT_TIME_MS[res_str]))
+  }
+
+  # Interpolate for non-standard resolution
+  known_res <- as.numeric(names(ORBITRAP_TRANSIENT_TIME_MS))
+  known_times <- as.numeric(ORBITRAP_TRANSIENT_TIME_MS)
+
+  if (resolution < min(known_res)) {
+    warning(sprintf("Resolution %d below minimum (%d). Using minimum transient time.",
+                    resolution, min(known_res)))
+    return(min(known_times))
+  }
+
+  if (resolution > max(known_res)) {
+    warning(sprintf("Resolution %d above maximum (%d). Using maximum transient time.",
+                    resolution, max(known_res)))
+    return(max(known_times))
+  }
+
+  # Linear interpolation (in log-log space for accuracy)
+  log_res <- log10(known_res)
+  log_times <- log10(known_times)
+  interpolated <- 10^approx(log_res, log_times, xout = log10(resolution))$y
+
+  return(round(interpolated, 1))
+}
 
 # =============================================================================
 # Configuration Loading
@@ -170,12 +745,40 @@ validate_instrument_config <- function(config, preset_name = "unknown") {
     }
   }
 
-  # Validate ms2_time
+  # Validate ms2_time (numeric or "auto")
   if (!is.null(config$ms2_time)) {
-    if (!is.numeric(config$ms2_time) ||
-        config$ms2_time <= 0 ||
-        config$ms2_time > 500) {
-      errors <- c(errors, "ms2_time must be numeric between 0 and 500 ms")
+    is_auto <- is.character(config$ms2_time) && tolower(config$ms2_time) == "auto"
+    is_valid_numeric <- is.numeric(config$ms2_time) &&
+                        config$ms2_time > 0 &&
+                        config$ms2_time <= 500
+
+    if (!is_auto && !is_valid_numeric) {
+      errors <- c(errors, "ms2_time must be numeric (0-500 ms) or 'auto'")
+    }
+
+    # "auto" requires Orbitrap analyzer
+    if (is_auto && !is.null(config$analyzer_type) &&
+        config$analyzer_type != "orbitrap") {
+      errors <- c(errors,
+        "ms2_time='auto' is only supported for Orbitrap analyzers")
+    }
+
+    # "auto" requires ms2_resolution
+    if (is_auto && is.null(config$ms2_resolution)) {
+      errors <- c(errors,
+        "ms2_time='auto' requires ms2_resolution to be specified")
+    }
+  }
+
+  # Validate analyzer_type
+  valid_analyzers <- c("orbitrap", "astral", "tof")
+  if (!is.null(config$analyzer_type)) {
+    if (!config$analyzer_type %in% valid_analyzers) {
+      errors <- c(errors, sprintf(
+        "analyzer_type must be one of: %s (got: '%s')",
+        paste(valid_analyzers, collapse = ", "),
+        config$analyzer_type
+      ))
     }
   }
 
@@ -271,6 +874,282 @@ calculate_effective_scan_rate <- function(max_scan_rate_hz, load_factor = 0.8) {
   effective_rate <- max_scan_rate_hz * load_factor
 
   return(effective_rate)
+}
+
+#' Resolve Injection Time (Handle 'auto' Mode)
+#'
+#' Resolves the injection time value, handling the special 'auto' mode
+#' used by Thermo Orbitrap instruments. When IT is set to 'auto', the
+#' instrument synchronizes IT to T_transient (Sweet Spot mode).
+#'
+#' @param ms2_time Injection time in ms, or "auto" string
+#' @param resolution Numeric, Orbitrap resolution (required when ms2_time is "auto")
+#' @param analyzer_type Character, analyzer type (default: "orbitrap")
+#'
+#' @return Numeric, resolved injection time in milliseconds
+#' @export
+#'
+#' @details
+#' When ms2_time = "auto":
+#'   - For Orbitrap analyzers: IT = T_transient (balanced/sweet spot mode)
+#'   - This maximizes efficiency: no wasted time, no sensitivity loss
+#'   - Example: 30K resolution → IT = 64 ms (= T_transient)
+#'
+#' When ms2_time is numeric:
+#'   - Returns the value unchanged
+#'
+#' @examples
+#' # Auto mode at 30K resolution → 64 ms (T_transient)
+#' resolve_injection_time("auto", 30000, "orbitrap")
+#'
+#' # Auto mode at 7.5K resolution → 16 ms
+#' resolve_injection_time("auto", 7500, "orbitrap")
+#'
+#' # Explicit IT value → returned unchanged
+#' resolve_injection_time(50, 30000, "orbitrap")  # Returns 50
+resolve_injection_time <- function(ms2_time, resolution = NULL, analyzer_type = "orbitrap") {
+
+  # Case 1: Numeric value - return as-is
+
+if (is.numeric(ms2_time)) {
+    return(ms2_time)
+  }
+
+  # Case 2: "auto" mode
+  if (is.character(ms2_time) && tolower(ms2_time) == "auto") {
+
+    # Require resolution for auto mode
+    if (is.null(resolution)) {
+      stop("resolution is required when ms2_time = 'auto'")
+    }
+
+    # Non-Orbitrap analyzers don't support auto mode
+    if (analyzer_type != "orbitrap") {
+      stop(sprintf(
+        "Auto IT mode is only supported for Orbitrap analyzers, not '%s'",
+        analyzer_type
+      ))
+    }
+
+    # Get T_transient for this resolution
+    transient_ms <- get_transient_time(resolution, analyzer_type)
+
+    if (is.na(transient_ms)) {
+      stop(sprintf(
+        "Could not determine transient time for resolution %d",
+        resolution
+      ))
+    }
+
+    message(sprintf(
+      "Auto IT mode: Setting IT = T_transient = %.1f ms (Resolution: %gK, Sweet Spot)",
+      transient_ms, resolution / 1000
+    ))
+
+    return(transient_ms)
+  }
+
+  # Invalid input
+  stop(sprintf(
+    "Invalid ms2_time value: '%s'. Must be numeric or 'auto'.",
+    as.character(ms2_time)
+  ))
+}
+
+#' Generate Efficiency Report
+#'
+#' Creates a comprehensive efficiency report comparing current IT settings
+#' against optimal (Auto) settings. Useful for understanding the trade-offs
+#' between sensitivity and scan speed.
+#'
+#' @param resolution Numeric, Orbitrap resolution (e.g., 30000)
+#' @param current_it_ms Numeric, current injection time in milliseconds
+#' @param analyzer Character, analyzer type (default: "orbitrap")
+#' @param language Character, output language: "ko" (Korean) or "en" (English)
+#'
+#' @return List with efficiency analysis and recommendations
+#' @export
+#'
+#' @examples
+#' # Check efficiency for Exploris at 7.5K with 30ms IT
+#' report <- generate_efficiency_report(7500, 30, "orbitrap")
+#' cat(report$summary)
+#'
+#' # Check Astral with longer IT
+#' report <- generate_efficiency_report(80000, 10, "astral")
+generate_efficiency_report <- function(resolution,
+                                        current_it_ms,
+                                        analyzer = "orbitrap",
+                                        language = "ko") {
+
+  # Calculate current scan time
+  current <- calculate_ms2_scan_time(
+    resolution = resolution,
+    injection_time_ms = current_it_ms,
+    analyzer = analyzer,
+    verbose = FALSE
+  )
+
+  # Calculate optimal (Auto) scan time
+  sweet_spot_it_ms <- current$sweet_spot_it_ms
+  optimal <- calculate_ms2_scan_time(
+    resolution = resolution,
+    injection_time_ms = sweet_spot_it_ms,
+    analyzer = analyzer,
+    verbose = FALSE
+  )
+
+  # Calculate differences
+  time_diff_ms <- current$t_scan_ms - optimal$t_scan_ms
+  it_diff_ms <- current_it_ms - sweet_spot_it_ms
+  speed_ratio <- optimal$scan_rate_hz / current$scan_rate_hz
+
+  # Determine status
+  if (current$efficiency_mode == "auto") {
+    status <- if (language == "ko") "최적" else "Optimal"
+    status_symbol <- "✅"
+  } else {
+    status <- if (language == "ko") "효율 감소" else "Reduced Efficiency"
+    status_symbol <- "⚠️"
+  }
+
+  # Generate summary message (split into parts to avoid sprintf format issues)
+  if (language == "ko") {
+    # Header and basic info
+    header <- sprintf(
+      paste0(
+        "\n",
+        "╔════════════════════════════════════════════════════════════════════╗\n",
+        "║                    효율성 리포트 (Efficiency Report)               ║\n",
+        "╚════════════════════════════════════════════════════════════════════╝\n",
+        "\n",
+        "장비 정보:\n",
+        "  Analyzer: %s\n",
+        "  Resolution: %gK\n",
+        "  T_transient: %.1f ms\n",
+        "\n",
+        "현재 설정 vs 최적 설정:\n",
+        "  ┌───────────────────┬─────────────┬─────────────┐\n",
+        "  │     항목          │   현재      │   최적(Auto)│\n",
+        "  ├───────────────────┼─────────────┼─────────────┤\n",
+        "  │ IT (Injection)    │ %6.1f ms   │ %6.1f ms   │\n",
+        "  │ t_scan (총 시간)  │ %6.1f ms   │ %6.1f ms   │\n",
+        "  │ Scan Rate         │ %6.1f Hz   │ %6.1f Hz   │\n",
+        "  │ Limiting Factor   │ %-11s │ %-11s │\n",
+        "  └───────────────────┴─────────────┴─────────────┘\n",
+        "\n",
+        "효율성 분석:\n",
+        "  %s 상태: %s\n",
+        "  효율: %.1f%%\n",
+        "  %s\n\n"
+      ),
+      toupper(analyzer),
+      resolution / 1000,
+      current$transient_ms,
+      current_it_ms, sweet_spot_it_ms,
+      current$t_scan_ms, optimal$t_scan_ms,
+      current$scan_rate_hz, optimal$scan_rate_hz,
+      current$limiting_factor, optimal$limiting_factor,
+      status_symbol, status,
+      current$efficiency_pct,
+      current$efficiency_message
+    )
+
+    # Recommendations section (conditional)
+    if (current$efficiency_mode == "custom") {
+      recommendation <- sprintf(
+        paste0(
+          "권장 사항:\n",
+          "  - Auto 모드 (IT = T_transient = %.1f ms) 사용 시:\n",
+          "    → %.1f Hz 달성 가능 (현재 대비 %.1fx 빠름)\n",
+          "    → IT를 %.1f ms 줄이면 사이클 시간 %.1f ms 단축\n",
+          "  - 감도가 중요한 경우 현재 설정 유지 가능\n"
+        ),
+        sweet_spot_it_ms,
+        optimal$scan_rate_hz, speed_ratio,
+        it_diff_ms, time_diff_ms
+      )
+    } else {
+      recommendation <- "  현재 설정이 최적입니다. Auto 모드로 운영 중입니다.\n"
+    }
+
+    summary <- paste0(header, recommendation,
+                      "════════════════════════════════════════════════════════════════════\n")
+
+  } else {
+    # English version
+    header <- sprintf(
+      paste0(
+        "\n",
+        "╔════════════════════════════════════════════════════════════════════╗\n",
+        "║                    EFFICIENCY REPORT                               ║\n",
+        "╚════════════════════════════════════════════════════════════════════╝\n",
+        "\n",
+        "Instrument Info:\n",
+        "  Analyzer: %s\n",
+        "  Resolution: %gK\n",
+        "  T_transient: %.1f ms\n",
+        "\n",
+        "Current vs Optimal Settings:\n",
+        "  ┌───────────────────┬─────────────┬─────────────┐\n",
+        "  │     Parameter     │   Current   │   Optimal   │\n",
+        "  ├───────────────────┼─────────────┼─────────────┤\n",
+        "  │ IT (Injection)    │ %6.1f ms   │ %6.1f ms   │\n",
+        "  │ t_scan (total)    │ %6.1f ms   │ %6.1f ms   │\n",
+        "  │ Scan Rate         │ %6.1f Hz   │ %6.1f Hz   │\n",
+        "  │ Limiting Factor   │ %-11s │ %-11s │\n",
+        "  └───────────────────┴─────────────┴─────────────┘\n",
+        "\n",
+        "Efficiency Analysis:\n",
+        "  %s Status: %s\n",
+        "  Efficiency: %.1f%%\n",
+        "  %s\n\n"
+      ),
+      toupper(analyzer),
+      resolution / 1000,
+      current$transient_ms,
+      current_it_ms, sweet_spot_it_ms,
+      current$t_scan_ms, optimal$t_scan_ms,
+      current$scan_rate_hz, optimal$scan_rate_hz,
+      current$limiting_factor, optimal$limiting_factor,
+      status_symbol, status,
+      current$efficiency_pct,
+      current$efficiency_message_en
+    )
+
+    if (current$efficiency_mode == "custom") {
+      recommendation <- sprintf(
+        paste0(
+          "Recommendations:\n",
+          "  - Using Auto mode (IT = T_transient = %.1f ms):\n",
+          "    → Can achieve %.1f Hz (%.1fx faster than current)\n",
+          "    → Reducing IT by %.1f ms saves %.1f ms per scan\n",
+          "  - Keep current settings if sensitivity is critical\n"
+        ),
+        sweet_spot_it_ms,
+        optimal$scan_rate_hz, speed_ratio,
+        it_diff_ms, time_diff_ms
+      )
+    } else {
+      recommendation <- "  Current settings are optimal. Operating in Auto mode.\n"
+    }
+
+    summary <- paste0(header, recommendation,
+                      "════════════════════════════════════════════════════════════════════\n")
+  }
+
+  return(list(
+    summary = summary,
+    current = current,
+    optimal = optimal,
+    status = status,
+    efficiency_pct = current$efficiency_pct,
+    efficiency_mode = current$efficiency_mode,
+    time_diff_ms = time_diff_ms,
+    it_diff_ms = it_diff_ms,
+    speed_ratio = speed_ratio,
+    is_optimal = current$efficiency_mode == "auto"
+  ))
 }
 
 #' Get ms1_scans_per_cycle with automatic detection

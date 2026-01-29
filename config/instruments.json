@@ -2,84 +2,113 @@
   "astral_zoom": {
     "name": "Thermo Orbitrap Astral Zoom",
     "ms1_time": 5.0,
-    "ms2_time": 3.5,
-    "max_scan_rate": 270,
+    "ms2_time": 3.0,
+    "ms2_resolution": 80000,
+    "analyzer_type": "astral",
+    "max_scan_rate": 200,
     "cycle_calculation": "parallel",
     "ms1_scans_per_cycle": 0,
     "max_windows": 350,
-    "description": "Orbitrap Astral Zoom with pre-accumulation (270 Hz, 3.5ms injection, 300 SPD capable)"
+    "description": "Orbitrap Astral Zoom with multi-pass MR-TOF (200 Hz at 80K, Zoom mode doubles resolution)"
   },
 
   "astral": {
     "name": "Thermo Orbitrap Astral",
     "ms1_time": 5.0,
     "ms2_time": 3.0,
+    "ms2_resolution": 80000,
+    "analyzer_type": "astral",
     "max_scan_rate": 200,
     "cycle_calculation": "parallel",
     "ms1_scans_per_cycle": 0,
     "max_windows": 300,
-    "description": "Orbitrap Astral with 200 Hz Astral analyzer"
+    "description": "Orbitrap Astral with MR-TOF analyzer (200 Hz at 80K @ m/z 524, 3ms max IT)"
+  },
+
+  "astral_sensitive": {
+    "name": "Thermo Orbitrap Astral (Sensitivity Mode)",
+    "ms1_time": 5.0,
+    "ms2_time": 20.0,
+    "ms2_resolution": 80000,
+    "analyzer_type": "astral",
+    "max_scan_rate": 25,
+    "cycle_calculation": "parallel",
+    "ms1_scans_per_cycle": 0,
+    "max_windows": 100,
+    "description": "Orbitrap Astral in sensitivity mode (25 Hz at 80K, 20ms IT for low-abundance samples)"
   },
 
   "qexactive": {
     "name": "Thermo Q Exactive",
     "ms1_time": 100.0,
-    "ms2_time": 50.0,
+    "ms2_time": "auto",
+    "ms2_resolution": 17500,
+    "analyzer_type": "orbitrap",
     "max_scan_rate": 12,
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 150,
-    "description": "Q Exactive high-resolution Orbitrap (12 Hz at 17,500 resolution)"
+    "description": "Q Exactive high-resolution Orbitrap (12 Hz at 17,500 resolution, Auto IT mode)"
   },
 
   "qexactive_hfx": {
     "name": "Thermo Q Exactive HF-X",
     "ms1_time": 50.0,
-    "ms2_time": 25.0,
+    "ms2_time": "auto",
+    "ms2_resolution": 7500,
+    "analyzer_type": "orbitrap",
     "max_scan_rate": 40,
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 300,
-    "description": "Q Exactive HF-X with aHCD (40 Hz at 7,500 resolution)"
+    "description": "Q Exactive HF-X with aHCD (40 Hz at 7,500 resolution, Auto IT mode)"
   },
 
   "exploris": {
     "name": "Thermo Orbitrap Exploris 480",
     "ms1_time": 50.0,
-    "ms2_time": 22.0,
+    "ms2_time": "auto",
+    "ms2_resolution": 7500,
+    "analyzer_type": "orbitrap",
     "max_scan_rate": 40,
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 400,
-    "description": "Orbitrap Exploris 480 (40 Hz at 7,500 resolution, up to 480K resolution)"
+    "description": "Orbitrap Exploris 480 (40 Hz at 7,500 resolution, Auto IT mode)"
   },
 
   "eclipse": {
     "name": "Thermo Orbitrap Eclipse Tribrid",
     "ms1_time": 50.0,
-    "ms2_time": 25.0,
+    "ms2_time": "auto",
+    "ms2_resolution": 15000,
+    "analyzer_type": "orbitrap",
     "max_scan_rate": 40,
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 400,
-    "description": "Orbitrap Eclipse Tribrid (40 Hz Orbitrap, 45 Hz LIT, ETD/HCD capable)"
+    "description": "Orbitrap Eclipse Tribrid (40 Hz Orbitrap, 45 Hz LIT, Auto IT mode)"
   },
 
   "fusion_lumos": {
     "name": "Thermo Fusion Lumos Tribrid",
     "ms1_time": 50.0,
-    "ms2_time": 54.0,
+    "ms2_time": "auto",
+    "ms2_resolution": 30000,
+    "analyzer_type": "orbitrap",
     "max_scan_rate": 20,
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 300,
-    "description": "Fusion Lumos Tribrid (20 Hz Orbitrap, 54ms optimal injection at 30K)"
+    "description": "Fusion Lumos Tribrid (20 Hz Orbitrap, Auto IT mode at 30K resolution)"
   },
 
   "timstof": {
     "name": "Bruker timsTOF",
     "ms1_time": 10.0,
     "ms2_time": 2.0,
+    "ms2_resolution": null,
+    "analyzer_type": "tof",
     "max_scan_rate": 100,
     "cycle_calculation": "parallel",
     "ms1_scans_per_cycle": 0,
@@ -91,6 +120,8 @@
     "name": "Bruker timsTOF Pro 2",
     "ms1_time": 10.0,
     "ms2_time": 1.5,
+    "ms2_resolution": null,
+    "analyzer_type": "tof",
     "max_scan_rate": 120,
     "cycle_calculation": "parallel",
     "ms1_scans_per_cycle": 0,
@@ -102,6 +133,8 @@
     "name": "Bruker timsTOF Ultra",
     "ms1_time": 10.0,
     "ms2_time": 1.0,
+    "ms2_resolution": null,
+    "analyzer_type": "tof",
     "max_scan_rate": 300,
     "cycle_calculation": "parallel",
     "ms1_scans_per_cycle": 0,
@@ -113,6 +146,8 @@
     "name": "SCIEX ZenoTOF 7600",
     "ms1_time": 40.0,
     "ms2_time": 7.5,
+    "ms2_resolution": null,
+    "analyzer_type": "tof",
     "max_scan_rate": 133,
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
@@ -124,6 +159,8 @@
     "name": "Waters SYNAPT XS",
     "ms1_time": 50.0,
     "ms2_time": 20.0,
+    "ms2_resolution": null,
+    "analyzer_type": "tof",
     "max_scan_rate": 20,
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
@@ -134,11 +171,13 @@
   "custom": {
     "name": "Custom Instrument",
     "ms1_time": 50.0,
-    "ms2_time": 25.0,
+    "ms2_time": "auto",
+    "ms2_resolution": 30000,
+    "analyzer_type": "orbitrap",
     "max_scan_rate": 20,
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 500,
-    "description": "User-defined instrument settings"
+    "description": "User-defined instrument settings (Auto IT mode, edit JSON for custom IT)"
   }
 }

@@ -88,7 +88,7 @@ test1_result <- tryCatch({
 
 cat("\n")
 cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-cat("TEST 2: 60min Gradient (Orbitrap Exploris, DPPP 4.0 Balanced)\n")
+cat("TEST 2: 60min Gradient (Exploris 480, DPPP 4.0 Balanced)\n")
 cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 
 test2_result <- tryCatch({
@@ -104,7 +104,7 @@ test2_result <- tryCatch({
   plan <- plan_optimization(
     validated_data = validated_data,
     current_cycle_time = 2.5,
-    instrument_preset = "orbitrap_exploris",
+    instrument_preset = "exploris",
     target_dppp = 4.0,  # Balanced mode
     target_satisfaction = 0.85,
     load_factor = 0.8
@@ -136,7 +136,7 @@ test2_result <- tryCatch({
 
 cat("\n")
 cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-cat("TEST 3: 90min Gradient (Traditional Orbitrap, DPPP 1.5 ID mode)\n")
+cat("TEST 3: 90min Gradient (Q Exactive, DPPP 1.5 ID mode)\n")
 cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 
 test3_result <- tryCatch({
@@ -152,7 +152,7 @@ test3_result <- tryCatch({
   plan <- plan_optimization(
     validated_data = validated_data,
     current_cycle_time = 4.0,
-    instrument_preset = "orbitrap",
+    instrument_preset = "qexactive",
     target_dppp = 1.5,  # ID mode
     target_satisfaction = 0.85,
     load_factor = 0.8

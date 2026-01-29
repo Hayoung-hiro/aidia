@@ -50,6 +50,62 @@ estimate_cycle_time_from_gradient <- function(rt_values, verbose = TRUE) {
   cycle_time
 }
 
+#' Estimate Cycle Time from Gradient (V2 - FWHM-Aware)
+#'
+#' Improved auto-estimation that uses FWHM distribution when available.
+#' Falls back to heuristic method if FWHM not provided.
+#'
+#' @param rt_values Numeric vector of RT.Start values (in minutes)
+#' @param fwhm_seconds Numeric vector of FWHM values in seconds (optional)
+#' @param target_dppp Numeric, target DPPP for FWHM-based calculation (default: 7.0)
+#' @param satisfaction_target Numeric, target satisfaction ratio (default: 0.85)
+#' @param verbose Logical, whether to print estimation message (default: TRUE)
+#' @return Estimated cycle time in seconds
+#' @keywords internal
+estimate_cycle_time_from_gradient_v2 <- function(rt_values,
+                                                   fwhm_seconds = NULL,
+                                                   target_dppp = 7.0,
+                                                   satisfaction_target = 0.85,
+                                                   verbose = TRUE) {
+  gradient_length <- max(rt_values) - min(rt_values)
+
+  # Method 1: Original heuristic (fallback)
+  heuristic_estimate <- min(gradient_length / 15, 3.5)
+
+  # Method 2: FWHM-based (preferred if available)
+  if (!is.null(fwhm_seconds) && length(fwhm_seconds) >= 10) {
+    # Use critical percentile based on satisfaction target
+    critical_percentile <- 1 - satisfaction_target
+    fwhm_critical <- quantile(fwhm_seconds, critical_percentile, names = FALSE)
+
+    # DPPP formula: cycle_time = (1.7 * FWHM) / target_dppp
+    fwhm_estimate <- (PEAK_WIDTH_FACTOR * fwhm_critical) / target_dppp
+
+    # Use more conservative (smaller) estimate
+    cycle_time <- min(heuristic_estimate, fwhm_estimate)
+
+    if (verbose) {
+      cat(sprintf("  ℹ️  Auto-estimated cycle time: %.3f sec\n", cycle_time))
+      cat(sprintf("       - Heuristic (gradient/15): %.3f sec\n", heuristic_estimate))
+      cat(sprintf("       - FWHM-based (DPPP %.1f): %.3f sec\n", target_dppp, fwhm_estimate))
+    }
+  } else {
+    cycle_time <- heuristic_estimate
+    if (verbose) {
+      cat(sprintf("  ℹ️  Auto-estimated cycle time: %.3f sec (from %.1f min gradient)\n",
+                  cycle_time, gradient_length))
+      if (is.null(fwhm_seconds)) {
+        cat("       (FWHM not available, using heuristic)\n")
+      } else if (length(fwhm_seconds) < 10) {
+        cat(sprintf("       (Only %d FWHM values, need ≥10 for FWHM-based estimate)\n",
+                    length(fwhm_seconds)))
+      }
+    }
+  }
+
+  cycle_time
+}
+
 # =============================================================================
 # Main Planning Function
 # =============================================================================
@@ -113,7 +169,9 @@ plan_optimization <- function(
   dppp_tolerance = 0.0,
   load_factor = 0.8,
   ms1_scans_per_cycle = NULL,
-  warning_threshold_windows = 5
+  warning_threshold_windows = 5,
+  ms2_resolution = NULL,  # Optional MS2 resolution override (e.g., 30000)
+  ms2_time_override = NULL  # Optional MS2 IT override in seconds (e.g., 0.050 = 50ms)
 ) {
 
   # Start timing
@@ -130,7 +188,17 @@ plan_optimization <- function(
 
   # Auto-estimate cycle_time if not provided
   if (is.null(current_cycle_time)) {
-    current_cycle_time <- estimate_cycle_time_from_gradient(validated_data$data$RT.Start)
+    # Use FWHM-aware estimation if FWHM available
+    fwhm_seconds <- tryCatch(
+      get_fwhm_values(validated_data, unit = "seconds"),
+      error = function(e) NULL
+    )
+    current_cycle_time <- estimate_cycle_time_from_gradient_v2(
+      validated_data$data$RT.Start,
+      fwhm_seconds = fwhm_seconds,
+      target_dppp = target_dppp,
+      satisfaction_target = target_satisfaction
+    )
   }
 
   validate_numeric_range(current_cycle_time, min = 0, param_name = "current_cycle_time")
@@ -155,12 +223,29 @@ plan_optimization <- function(
   # Get max_windows from instrument config (hardware constraint)
   max_windows <- instrument_config$max_windows
 
+  # Get resolution and analyzer type (use config default if not overridden)
+  resolution <- if (!is.null(ms2_resolution)) {
+    ms2_resolution
+  } else if (!is.null(instrument_config$ms2_resolution)) {
+    instrument_config$ms2_resolution
+  } else {
+    30000  # Default 30K for backwards compatibility
+  }
+
+  analyzer_type <- if (!is.null(instrument_config$analyzer_type)) {
+    instrument_config$analyzer_type
+  } else {
+    "orbitrap"  # Default to Orbitrap
+  }
+
   print_info(sprintf("Instrument: %s", instrument_config$name))
   print_info(sprintf("Max scan rate: %.0f Hz (%s acquisition)",
                      instrument_config$max_scan_rate,
                      instrument_config$cycle_calculation))
   print_info(sprintf("MS1 scans per cycle: %d", ms1_scans_per_cycle))
   print_info(sprintf("Max windows: %d (hardware limit)", max_windows))
+  print_info(sprintf("MS2 Resolution: %gK (%s analyzer)",
+                     resolution / 1000, analyzer_type))
   print_info(sprintf("Load factor: %.0f%% (effective: %.1f Hz)",
                      load_factor * 100,
                      instrument_config$max_scan_rate * load_factor))
@@ -223,43 +308,91 @@ plan_optimization <- function(
   }
 
   # ===================================================================
-  # Step 5: Determine Window Count
+  # Step 5: Determine Window Count (using t_scan formula)
   # ===================================================================
   print_step(5, "Determine Window Count")
 
-  # Calculate effective scan rate
-  effective_scan_rate <- instrument_config$max_scan_rate * load_factor
+  # Get MS1 time in seconds
+  ms1_time <- instrument_config$ms1_time / 1000  # ms to sec
 
-  # Calculate window count from required cycle time
-  window_count <- calculate_window_count_internal(
+  # Resolve MS2 time (handle "auto" mode and override)
+  if (!is.null(ms2_time_override)) {
+    # User provided custom IT override
+    ms2_time_resolved <- ms2_time_override * 1000  # sec to ms
+    ms2_time <- ms2_time_override
+    print_info(sprintf("IT Mode: CUSTOM (IT = %.1f ms, user override)",
+                       ms2_time_resolved))
+  } else {
+    # Use config value (may be "auto" or numeric)
+    ms2_time_raw <- instrument_config$ms2_time
+    ms2_time_resolved <- resolve_injection_time(
+      ms2_time = ms2_time_raw,
+      resolution = resolution,
+      analyzer_type = analyzer_type
+    )
+    ms2_time <- ms2_time_resolved / 1000  # ms to sec
+
+    # Display IT mode info
+    if (is.character(ms2_time_raw) && tolower(ms2_time_raw) == "auto") {
+      print_info(sprintf("IT Mode: AUTO (IT = T_transient = %.1f ms, Sweet Spot)",
+                         ms2_time_resolved))
+    }
+  }
+
+  # Calculate window count using the correct t_scan formula
+  # t_scan = max(T_transient, IT) + δ
+  window_result <- calculate_window_count_internal(
     target_cycle_time_sec = required_cycle_time,
-    scan_rate_hz = effective_scan_rate,
-    ms1_scans_per_cycle = ms1_scans_per_cycle,
+    ms1_time_sec = ms1_time,
+    ms2_time_sec = ms2_time,
+    resolution = resolution,
+    analyzer_type = analyzer_type,
+    cycle_mode = instrument_config$cycle_calculation,
     warning_threshold_windows = warning_threshold_windows,
     max_windows = max_windows
   )
 
+  window_count <- window_result$n_windows
+
+  # Display scan time breakdown
+  print_info(sprintf("Scan Time Breakdown:"))
+  print_info(sprintf("   T_transient: %.1f ms (from %gK resolution)",
+                     window_result$transient_ms, resolution / 1000))
+  print_info(sprintf("   IT (config): %.1f ms", ms2_time * 1000))
+  print_info(sprintf("   Overhead δ: %.1f ms", window_result$overhead_ms))
+  print_info(sprintf("   t_scan: %.1f ms (max(%.1f, %.1f) + %.1f)",
+                     window_result$t_scan_ms,
+                     window_result$transient_ms,
+                     ms2_time * 1000,
+                     window_result$overhead_ms))
+  print_info(sprintf("   Limiting factor: %s", window_result$limiting_factor))
+
   print_info(sprintf("Window count: %d per RT bin", window_count))
-  print_info(sprintf("Calculation: floor(%.3f sec × %.1f Hz) - %d MS1 = %d",
-                     required_cycle_time,
-                     effective_scan_rate,
-                     ms1_scans_per_cycle,
-                     window_count))
+
+  # Show calculation method based on cycle mode
+  if (instrument_config$cycle_calculation == "sequential") {
+    print_info(sprintf("Calculation: floor((%.3f - %.3f) sec / %.3f sec) = %d",
+                       required_cycle_time, ms1_time,
+                       window_result$t_scan_ms / 1000, window_count))
+  } else {
+    print_info(sprintf("Calculation (parallel): floor(%.3f sec / %.3f sec) = %d",
+                       required_cycle_time,
+                       window_result$t_scan_ms / 1000, window_count))
+  }
 
   # ===================================================================
   # Step 6: Feasibility Checks
   # ===================================================================
   print_step(6, "Feasibility Checks")
 
-  # Calculate actual cycle time with determined window count
-  ms1_time <- instrument_config$ms1_time / 1000  # ms to sec
-  ms2_time <- instrument_config$ms2_time / 1000  # ms to sec
-
+  # Calculate actual cycle time with determined window count (using t_scan)
   actual_cycle_time <- calculate_cycle_time_internal(
     n_windows = window_count,
     cycle_mode = instrument_config$cycle_calculation,
     ms1_time = ms1_time,
-    ms2_time = ms2_time
+    ms2_time = ms2_time,
+    resolution = resolution,
+    analyzer_type = analyzer_type
   )
 
   print_info(sprintf("Actual cycle time: %.3f sec", actual_cycle_time))
@@ -304,9 +437,39 @@ plan_optimization <- function(
   is_feasible <- all(unlist(feasibility))
 
   # ===================================================================
-  # Step 7: Package Results
+  # Step 7: Injection Time Optimization
   # ===================================================================
-  print_step(7, "Package Results")
+  print_step(7, "Injection Time Optimization")
+
+  # Calculate IT optimization based on cycle time budget
+  it_optimization <- optimize_injection_time_internal(
+    n_windows = window_count,
+    cycle_mode = instrument_config$cycle_calculation,
+    required_cycle_time_sec = required_cycle_time,
+    ms1_time_sec = ms1_time,
+    base_ms2_time_sec = ms2_time,
+    max_windows = max_windows
+  )
+
+  print_info(sprintf("Base IT: %.1f ms (from instrument config)",
+                     ms2_time * 1000))
+  print_info(sprintf("Optimized IT: %.1f ms", it_optimization$optimized_it_ms))
+  print_info(sprintf("IT gain: +%.1f ms (%.1f%% increase)",
+                     it_optimization$it_gain_ms,
+                     it_optimization$it_gain_pct))
+
+  if (it_optimization$is_spec_limited) {
+    print_warning(sprintf(
+      "Window count reduced from %d to %d (instrument spec limit)",
+      it_optimization$requested_windows,
+      it_optimization$actual_windows
+    ))
+  }
+
+  # ===================================================================
+  # Step 8: Package Results
+  # ===================================================================
+  print_step(8, "Package Results")
 
   result <- create_s3_object(
     list(
@@ -349,12 +512,34 @@ plan_optimization <- function(
         preset = instrument_preset,
         name = instrument_config$name,
         max_scan_rate_hz = instrument_config$max_scan_rate,
-        effective_scan_rate_hz = effective_scan_rate,
         load_factor = load_factor,
         ms1_scans_per_cycle = ms1_scans_per_cycle,
         cycle_mode = instrument_config$cycle_calculation,
         ms1_time_sec = ms1_time,
-        ms2_time_sec = ms2_time
+        ms2_time_sec = ms2_time,
+        ms2_resolution = resolution,
+        analyzer_type = analyzer_type
+      ),
+
+      # Scan Time Analysis (NEW - t_scan = max(T_transient, IT) + δ)
+      scan_time = list(
+        t_scan_ms = window_result$t_scan_ms,
+        transient_ms = window_result$transient_ms,
+        injection_time_ms = ms2_time * 1000,
+        overhead_ms = window_result$overhead_ms,
+        limiting_factor = window_result$limiting_factor,
+        sweet_spot_it_ms = window_result$sweet_spot_it_ms
+      ),
+
+      # IT Optimization (NEW)
+      it_optimization = list(
+        base_it_ms = ms2_time * 1000,
+        optimized_it_ms = it_optimization$optimized_it_ms,
+        it_gain_ms = it_optimization$it_gain_ms,
+        it_gain_pct = it_optimization$it_gain_pct,
+        is_spec_limited = it_optimization$is_spec_limited,
+        parallel_filling_efficiency = it_optimization$parallel_filling_efficiency,
+        slack_time_ms = it_optimization$slack_time_ms
       ),
 
       # Parameters
@@ -439,13 +624,28 @@ diagnose_dppp_internal <- function(validated_data, current_cycle_time,
 }
 
 #' Calculate Required Cycle Time (Internal)
+#'
+#' Uses windowed percentile for robustness against FWHM outliers.
+#' Instead of single percentile, averages over a small window (±2%).
+#'
 #' @keywords internal
 calculate_required_cycle_time_internal <- function(fwhm_seconds, target_dppp,
-                                                   target_satisfaction) {
+                                                   target_satisfaction,
+                                                   robustness_window = 0.02) {
 
-  # Find critical FWHM (shortest among top X% precursors)
+  # Find critical FWHM using windowed percentile for robustness
   critical_percentile <- 1 - target_satisfaction
-  fwhm_critical <- quantile(fwhm_seconds, critical_percentile, names = FALSE)
+
+  # Use percentile window for robustness against outliers
+  percentile_lower <- max(0, critical_percentile - robustness_window)
+  percentile_upper <- min(1, critical_percentile + robustness_window)
+
+  # Get FWHM values at both ends of window
+  fwhm_range <- quantile(fwhm_seconds, c(percentile_lower, percentile_upper),
+                         names = FALSE, na.rm = TRUE)
+
+  # Use mean of the window for stability
+  fwhm_critical <- mean(fwhm_range)
 
   # Calculate maximum cycle time for this critical FWHM
   required_max_cycle_time <- (PEAK_WIDTH_FACTOR * fwhm_critical) / target_dppp
@@ -454,21 +654,79 @@ calculate_required_cycle_time_internal <- function(fwhm_seconds, target_dppp,
 }
 
 #' Calculate Window Count from Cycle Time (Internal)
+#'
+#' Uses the correct scan time formula: t_scan = max(T_transient, IT) + δ
+#' Resolution determines T_transient, which sets the minimum scan time floor.
+#'
+#' @param target_cycle_time_sec Target cycle time in seconds
+#' @param ms1_time_sec MS1 scan time in seconds
+#' @param ms2_time_sec MS2 injection time in seconds (IT)
+#' @param resolution MS2 resolution (e.g., 30000 for 30K)
+#' @param analyzer_type Analyzer type ("orbitrap" or "tof")
+#' @param cycle_mode "parallel" or "sequential"
+#' @param warning_threshold_windows Low window count warning threshold
+#' @param max_windows Instrument maximum windows
+#'
+#' @return List with window count and scan time details
 #' @keywords internal
-calculate_window_count_internal <- function(target_cycle_time_sec, scan_rate_hz,
-                                            ms1_scans_per_cycle, warning_threshold_windows,
-                                            max_windows) {
+calculate_window_count_internal <- function(target_cycle_time_sec,
+                                            ms1_time_sec,
+                                            ms2_time_sec,
+                                            resolution = 30000,
+                                            analyzer_type = "orbitrap",
+                                            cycle_mode = "sequential",
+                                            warning_threshold_windows = 5,
+                                            max_windows = 300) {
 
-  # Total possible scans
-  total_scans <- floor(target_cycle_time_sec * scan_rate_hz)
+  # Calculate actual MS2 scan time using the correct formula
+  # t_scan = max(T_transient, IT) + δ
+  scan_time_info <- calculate_ms2_scan_time(
+    resolution = resolution,
+    injection_time_ms = ms2_time_sec * 1000,  # sec to ms
+    analyzer = analyzer_type
+  )
 
-  # Reserve MS1 scans
-  n_windows <- total_scans - ms1_scans_per_cycle
+  t_scan_sec <- scan_time_info$t_scan_ms / 1000  # ms to sec
+
+  # Calculate window count based on cycle mode
+  if (cycle_mode == "parallel") {
+    # Parallel: MS2 total must fit within cycle time
+    # cycle_time = max(ms1_time, n_windows * t_scan)
+    # If ms1_time is limiting, MS2 can run alongside
+    # Effective available time for MS2 = cycle_time
+    n_windows <- floor(target_cycle_time_sec / t_scan_sec)
+  } else {
+    # Sequential: ms1_time + n_windows * t_scan <= cycle_time
+    available_time <- target_cycle_time_sec - ms1_time_sec
+
+    if (available_time <= 0) {
+      stop(sprintf(
+        "Insufficient cycle time (%.3f sec) for MS1 (%.3f sec). Cannot create valid windows.",
+        target_cycle_time_sec, ms1_time_sec
+      ))
+    }
+
+    n_windows <- floor(available_time / t_scan_sec)
+  }
+
+  # Validate non-negative window count
+  if (n_windows < 0) {
+    stop(sprintf(
+      "Insufficient cycle time (%.3f sec) for scan time (%.1f ms). Cannot create valid windows.",
+      target_cycle_time_sec, scan_time_info$t_scan_ms
+    ))
+  }
+
+  # Ensure at least 1 window
+  if (n_windows == 0) {
+    warning("Only 1 window possible at current cycle time. Forcing n_windows = 1.")
+    n_windows <- 1
+  }
 
   # Warning if too low (no enforcement)
   if (n_windows <= warning_threshold_windows) {
     warning(sprintf(
-      "Window count is low (%d ≤ %d). Consider adjusting target_cycle_time or load_factor.",
+      "Window count is low (%d ≤ %d). Consider adjusting target_cycle_time or resolution.",
       n_windows, warning_threshold_windows
     ))
   }
@@ -476,15 +734,42 @@ calculate_window_count_internal <- function(target_cycle_time_sec, scan_rate_hz,
   # Apply max constraint only
   n_windows <- min(n_windows, max_windows)
 
-  return(as.integer(n_windows))
+  return(list(
+    n_windows = as.integer(n_windows),
+    t_scan_ms = scan_time_info$t_scan_ms,
+    transient_ms = scan_time_info$transient_ms,
+    overhead_ms = scan_time_info$overhead_ms,
+    limiting_factor = scan_time_info$limiting_factor,
+    sweet_spot_it_ms = scan_time_info$sweet_spot_it_ms
+  ))
 }
 
 #' Calculate Cycle Time (Internal)
+#'
+#' Uses the correct scan time formula: t_scan = max(T_transient, IT) + δ
+#'
+#' @param n_windows Number of MS2 windows
+#' @param cycle_mode "parallel" or "sequential"
+#' @param ms1_time MS1 scan time in seconds
+#' @param ms2_time MS2 injection time in seconds (IT)
+#' @param resolution MS2 resolution (e.g., 30000)
+#' @param analyzer_type Analyzer type ("orbitrap" or "tof")
+#'
+#' @return Cycle time in seconds
 #' @keywords internal
 calculate_cycle_time_internal <- function(n_windows, cycle_mode, ms1_time,
-                                          ms2_time) {
+                                          ms2_time, resolution = 30000,
+                                          analyzer_type = "orbitrap") {
 
-  total_ms2_time <- n_windows * ms2_time
+  # Calculate actual MS2 scan time
+  scan_time_info <- calculate_ms2_scan_time(
+    resolution = resolution,
+    injection_time_ms = ms2_time * 1000,  # sec to ms
+    analyzer = analyzer_type
+  )
+
+  t_scan_sec <- scan_time_info$t_scan_ms / 1000  # ms to sec
+  total_ms2_time <- n_windows * t_scan_sec
 
   if (cycle_mode == "parallel") {
     # MS2 during MS1
@@ -495,6 +780,108 @@ calculate_cycle_time_internal <- function(n_windows, cycle_mode, ms1_time,
   }
 
   return(cycle_time)
+}
+
+#' Optimize Injection Time (Internal)
+#'
+#' Core IT optimization logic:
+#' 1. Calculate N windows from required cycle time
+#' 2. Verify N against instrument spec (max_windows)
+#' 3. If N exceeds spec, cap at max and use slack time for IT
+#' 4. Calculate optimized IT and efficiency metrics
+#'
+#' @param n_windows Calculated window count
+#' @param cycle_mode "parallel" or "sequential"
+#' @param required_cycle_time_sec Required cycle time in seconds
+#' @param ms1_time_sec MS1 scan time in seconds
+#' @param base_ms2_time_sec Base MS2/IT time in seconds (from instrument config)
+#' @param max_windows Instrument spec maximum windows
+#'
+#' @return List with IT optimization results
+#' @keywords internal
+optimize_injection_time_internal <- function(n_windows,
+                                              cycle_mode,
+                                              required_cycle_time_sec,
+                                              ms1_time_sec,
+                                              base_ms2_time_sec,
+                                              max_windows) {
+
+  # Initialize results
+  requested_windows <- n_windows
+  actual_windows <- n_windows
+  is_spec_limited <- FALSE
+
+  # Step 1: Check if N exceeds instrument spec
+  if (n_windows > max_windows) {
+    actual_windows <- max_windows
+    is_spec_limited <- TRUE
+  }
+
+  # Step 2: Calculate actual cycle time with current settings
+  base_cycle_time <- calculate_cycle_time_internal(
+    n_windows = actual_windows,
+    cycle_mode = cycle_mode,
+    ms1_time = ms1_time_sec,
+    ms2_time = base_ms2_time_sec
+  )
+
+  # Step 3: Calculate slack time (available for IT boost)
+  # slack_time = required_cycle_time - actual_cycle_time
+  slack_time_sec <- required_cycle_time_sec - base_cycle_time
+
+  # Step 4: Distribute slack time to IT
+  # For sequential: slack can be distributed to each MS2 scan
+  # For parallel: more complex - depends on whether MS1 or MS2 dominates
+  if (cycle_mode == "sequential") {
+    # Sequential: each window can get extra IT
+    it_gain_per_window_sec <- slack_time_sec / actual_windows
+    optimized_it_sec <- base_ms2_time_sec + max(0, it_gain_per_window_sec)
+  } else {
+    # Parallel: only if MS2 total is limiting (not MS1)
+    total_ms2_time <- actual_windows * base_ms2_time_sec
+
+    if (total_ms2_time >= ms1_time_sec) {
+      # MS2 is limiting - can use slack for IT
+      it_gain_per_window_sec <- slack_time_sec / actual_windows
+      optimized_it_sec <- base_ms2_time_sec + max(0, it_gain_per_window_sec)
+    } else {
+      # MS1 is limiting - MS2 has inherent slack
+      inherent_slack_sec <- (ms1_time_sec - total_ms2_time) / actual_windows
+      # Plus any additional slack from required > actual
+      additional_slack_sec <- max(0, slack_time_sec) / actual_windows
+      optimized_it_sec <- base_ms2_time_sec + inherent_slack_sec + additional_slack_sec
+    }
+  }
+
+  # Convert to ms for output
+  base_it_ms <- base_ms2_time_sec * 1000
+  optimized_it_ms <- optimized_it_sec * 1000
+  it_gain_ms <- optimized_it_ms - base_it_ms
+  it_gain_pct <- (it_gain_ms / base_it_ms) * 100
+
+  # Step 5: Calculate Parallel Filling Efficiency (for parallel instruments)
+  # Efficiency = IT / (Transient + δ)
+  # Approximation: using ms2_time as proxy for transient
+  if (cycle_mode == "parallel") {
+    # Estimate overhead (20% of base IT as approximation)
+    overhead_ms <- base_it_ms * 0.20
+    parallel_filling_efficiency <- optimized_it_ms / (base_it_ms + overhead_ms)
+  } else {
+    parallel_filling_efficiency <- NA
+  }
+
+  return(list(
+    requested_windows = requested_windows,
+    actual_windows = actual_windows,
+    is_spec_limited = is_spec_limited,
+    base_it_ms = base_it_ms,
+    optimized_it_ms = round(optimized_it_ms, 2),
+    it_gain_ms = round(it_gain_ms, 2),
+    it_gain_pct = round(it_gain_pct, 1),
+    slack_time_ms = round(slack_time_sec * 1000, 2),
+    parallel_filling_efficiency = if (!is.na(parallel_filling_efficiency))
+      round(parallel_filling_efficiency, 3) else NA
+  ))
 }
 
 
