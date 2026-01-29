@@ -190,6 +190,37 @@ ui <- dashboardPage(
                style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;")
     ),
 
+    br(),
+
+    # Custom IT Override (Orbitrap only) - NEW
+    conditionalPanel(
+      condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
+      checkboxInput(
+        inputId = "use_custom_it",
+        label = "Custom Injection Time",
+        value = FALSE
+      ),
+      conditionalPanel(
+        condition = "input.use_custom_it",
+        sliderInput(
+          inputId = "custom_it_ms",
+          label = "Injection Time (ms)",
+          min = 5,
+          max = 200,
+          value = 50,
+          step = 5,
+          post = " ms"
+        ),
+        helpText("Override Auto IT (Sweet Spot). Higher IT = better sensitivity, fewer windows.",
+                 style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;")
+      ),
+      conditionalPanel(
+        condition = "!input.use_custom_it",
+        helpText("Auto IT: IT = T_transient (100% efficiency, max windows)",
+                 style = "font-size: 11px; color: #1abc9c; padding: 0 15px;")
+      )
+    ),
+
     hr(),
 
     # Run Button
@@ -424,13 +455,34 @@ server <- function(input, output, session) {
       cat("[Shiny] Target Satisfaction:", input$target_satisfaction, "%\n")
       cat("[Shiny] m/z Strategy:", input$mz_strategy, "\n")
 
+      # Log IT mode for Orbitrap instruments
+      is_orbitrap <- input$instrument %in% c("qexactive", "qexactive_hfx", "exploris", "eclipse", "fusion_lumos")
+      if (is_orbitrap) {
+        if (!is.null(input$use_custom_it) && input$use_custom_it) {
+          cat("[Shiny] IT Mode: CUSTOM (", input$custom_it_ms, " ms)\n", sep = "")
+        } else {
+          cat("[Shiny] IT Mode: AUTO (Sweet Spot, IT = T_transient)\n")
+        }
+      }
+
       # Stage 2: Optimization Planning
       cat("[Shiny] Running plan_optimization()...\n")
+
+      # Determine Custom IT override (Orbitrap only)
+      ms2_time_override_sec <- NULL
+      if (!is.null(input$use_custom_it) && input$use_custom_it) {
+        ms2_time_override_sec <- input$custom_it_ms / 1000  # ms to sec
+        cat("[Shiny] Custom IT Override:", input$custom_it_ms, "ms\n")
+      } else {
+        cat("[Shiny] Using Auto IT (Sweet Spot mode)\n")
+      }
+
       rv$optimization_plan <- plan_optimization(
         validated_data = rv$validated_data,
         instrument_preset = input$instrument,
         target_dppp = input$target_dppp,
-        target_satisfaction = input$target_satisfaction / 100
+        target_satisfaction = input$target_satisfaction / 100,
+        ms2_time_override = ms2_time_override_sec
       )
       cat("[Shiny] plan_optimization() completed!\n")
 
@@ -655,11 +707,24 @@ server <- function(input, output, session) {
     plan <- rv$optimization_plan
     params <- rv$optimized_windows$parameters
 
+    # Determine IT mode display
+    is_orbitrap <- input$instrument %in% c("qexactive", "qexactive_hfx", "exploris", "eclipse", "fusion_lumos")
+    it_mode_display <- if (is_orbitrap) {
+      if (!is.null(input$use_custom_it) && input$use_custom_it) {
+        sprintf("Custom (%d ms)", input$custom_it_ms)
+      } else {
+        "Auto (Sweet Spot)"
+      }
+    } else {
+      "N/A (non-Orbitrap)"
+    }
+
     data.frame(
       Metric = c(
         "Total Windows",
         "RT Bins",
         "RT Bin Width (min)",
+        "IT Mode",
         "Mean Width (Da)",
         "Coverage (%)",
         "Recommended Cycle Time (sec)"
@@ -668,6 +733,7 @@ server <- function(input, output, session) {
         nrow(windows),
         length(unique(windows$rt_segment_id)),
         sprintf("%.1f", params$rt_bin_width_min),
+        it_mode_display,
         sprintf("%.1f", mean(windows$window_width)),
         sprintf("%.1f%%", rv$optimized_windows$statistics$coverage_percentage),
         sprintf("%.2f", plan$required_cycle_time_sec)
