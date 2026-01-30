@@ -186,11 +186,18 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
                                            min_width_da, max_width_da))
   }
 
+  # Pre-adjust n_windows based on width constraints
+  # This prevents windows from being too narrow (< min_width)
+  mz_range <- mz_max - mz_min
+  max_possible_windows <- floor(mz_range / min_width_da)
+  actual_n_windows <- min(n_windows, max_possible_windows)
+  actual_n_windows <- max(actual_n_windows, 1)  # At least 1 window
+
   # Sort precursors
   precursor_mz <- sort(precursor_mz)
 
   # Calculate quantile breakpoints for equal-precursor windows
-  quantile_probs <- seq(0, 1, length.out = n_windows + 1)
+  quantile_probs <- seq(0, 1, length.out = actual_n_windows + 1)
   quantile_boundaries <- quantile(precursor_mz, probs = quantile_probs,
                                   na.rm = TRUE, names = FALSE)
 
@@ -206,9 +213,9 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
     mz_center = (mz_start + mz_end) / 2
   )
 
-  # Apply width constraints (simplified - just flag violations)
+  # Apply max_width constraint only (min_width already handled by pre-adjustment)
+  # Windows exceeding max_width are kept but flagged
   windows <- windows %>%
-    filter(window_width >= min_width_da) %>%
     filter(window_width <= max_width_da)
 
   return(windows)

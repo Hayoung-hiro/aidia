@@ -187,17 +187,14 @@ plan_optimization <- function(
   validate_input_type(validated_data, "ValidatedData", "validated_data")
 
   # Auto-estimate cycle_time if not provided
+  # IMPORTANT: Use simple heuristic WITHOUT target_dppp to avoid current ≈ recommended
+  # The "current" cycle time should reflect a reasonable starting point, not the optimal value
   if (is.null(current_cycle_time)) {
-    # Use FWHM-aware estimation if FWHM available
-    fwhm_seconds <- tryCatch(
-      get_fwhm_values(validated_data, unit = "seconds"),
-      error = function(e) NULL
-    )
-    current_cycle_time <- estimate_cycle_time_from_gradient_v2(
+    # Use simple heuristic: gradient_length / 15, capped at 3.5 sec
+    # This represents a typical DIA cycle time, NOT the optimal for target_dppp
+    current_cycle_time <- estimate_cycle_time_from_gradient(
       validated_data$data$RT.Start,
-      fwhm_seconds = fwhm_seconds,
-      target_dppp = target_dppp,
-      satisfaction_target = target_satisfaction
+      verbose = TRUE
     )
   }
 
@@ -891,6 +888,113 @@ optimize_injection_time_internal <- function(n_windows,
 # Note: S3 methods (print, summary) are now centralized in R/s3_classes.R
 # This ensures consistency and reduces code duplication.
 # See: print.OptimizationPlan(), summary.OptimizationPlan()
+
+
+# =============================================================================
+# Quick DPPP Preview (for Shiny UI)
+# =============================================================================
+
+#' Quick DPPP Preview for Multiple Cycle Times
+#'
+#' Calculates DPPP satisfaction across multiple cycle times for quick preview.
+#' Used in Shiny app to show user how different cycle times affect DPPP.
+#'
+#' @param validated_data ValidatedData object from Stage 1
+#' @param cycle_times Numeric vector of cycle times to evaluate (in seconds)
+#' @param target_dppp Numeric, target DPPP value (default: 7.0)
+#' @param target_satisfaction Numeric, target satisfaction ratio 0-1 (default: 0.85)
+#' @return List with fwhm_stats, dppp_preview, recommended_cycle_time, target_dppp, gradient_length
+#' @export
+quick_dppp_preview <- function(validated_data,
+                               cycle_times = c(1.5, 2.0, 2.5, 3.0, 3.5),
+                               target_dppp = 7.0,
+                               target_satisfaction = 0.85) {
+
+  # Get FWHM values
+  data <- validated_data$data
+  fwhm_col <- if ("FWHM" %in% names(data)) "FWHM" else NULL
+
+  # Calculate gradient length
+  rt_range <- range(data$RT.Start, na.rm = TRUE)
+  gradient_length <- rt_range[2] - rt_range[1]
+
+  if (is.null(fwhm_col) || all(is.na(data[[fwhm_col]]))) {
+    return(list(
+      fwhm_stats = list(median = NA, q25 = NA, q75 = NA, min = NA, max = NA),
+      dppp_preview = data.frame(
+        cycle_time_sec = cycle_times,
+        dppp_median = NA,
+        satisfaction_pct = NA
+      ),
+      recommendation = "FWHM data not available",
+      recommended_cycle_time = NA,
+      target_dppp = target_dppp,
+      gradient_length = gradient_length
+    ))
+  }
+
+  # Convert FWHM to seconds if in minutes
+  fwhm_values <- data[[fwhm_col]]
+  if (median(fwhm_values, na.rm = TRUE) < 1) {
+    fwhm_seconds <- fwhm_values * 60
+  } else {
+    fwhm_seconds <- fwhm_values
+  }
+  fwhm_seconds <- fwhm_seconds[!is.na(fwhm_seconds)]
+
+  # Calculate FWHM statistics
+  fwhm_stats <- list(
+    median = median(fwhm_seconds, na.rm = TRUE),
+    q25 = quantile(fwhm_seconds, 0.25, na.rm = TRUE, names = FALSE),
+    q75 = quantile(fwhm_seconds, 0.75, na.rm = TRUE, names = FALSE),
+    min = min(fwhm_seconds, na.rm = TRUE),
+    max = max(fwhm_seconds, na.rm = TRUE)
+  )
+
+  # Calculate DPPP for each cycle time
+  dppp_results <- lapply(cycle_times, function(ct) {
+    dppp_values <- calculate_dppp(fwhm_seconds, ct)
+    list(
+      cycle_time_sec = ct,
+      dppp_median = median(dppp_values, na.rm = TRUE),
+      satisfaction_pct = mean(dppp_values >= target_dppp, na.rm = TRUE) * 100
+    )
+  })
+
+  dppp_preview <- do.call(rbind, lapply(dppp_results, as.data.frame))
+
+  # Calculate recommended cycle time based on FWHM distribution
+  # Formula: cycle_time = (1.7 * fwhm_critical) / target_dppp
+  # fwhm_critical = quantile at (1 - target_satisfaction)
+  critical_percentile <- 1 - target_satisfaction
+  fwhm_critical <- quantile(fwhm_seconds, critical_percentile, na.rm = TRUE, names = FALSE)
+  recommended_cycle_time <- round((PEAK_WIDTH_FACTOR * fwhm_critical) / target_dppp, 2)
+
+  # Find recommendation message
+  good_idx <- which(dppp_preview$satisfaction_pct >= target_satisfaction * 100)
+  if (length(good_idx) > 0) {
+    best_tested_ct <- dppp_preview$cycle_time_sec[max(good_idx)]
+    recommendation <- sprintf("%.2f sec cycle time recommended (%.0f%% satisfaction at DPPP %.1f)",
+                              recommended_cycle_time,
+                              dppp_preview$satisfaction_pct[max(good_idx)],
+                              target_dppp)
+  } else {
+    best_idx <- which.max(dppp_preview$satisfaction_pct)
+    recommendation <- sprintf("Recommended: %.2f sec (tested best: %.1f sec with %.0f%% satisfaction)",
+                              recommended_cycle_time,
+                              dppp_preview$cycle_time_sec[best_idx],
+                              dppp_preview$satisfaction_pct[best_idx])
+  }
+
+  return(list(
+    fwhm_stats = fwhm_stats,
+    dppp_preview = dppp_preview,
+    recommendation = recommendation,
+    recommended_cycle_time = recommended_cycle_time,
+    target_dppp = target_dppp,
+    gradient_length = gradient_length
+  ))
+}
 
 
 # =============================================================================

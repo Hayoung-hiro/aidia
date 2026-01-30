@@ -1152,6 +1152,351 @@ generate_efficiency_report <- function(resolution,
   ))
 }
 
+# =============================================================================
+# User Experiment Configuration Functions
+# =============================================================================
+
+#' Calculate Actual Cycle Time from User Experiment Config
+#'
+#' Calculates the precise cycle time based on actual experimental parameters
+#' rather than using heuristic estimates. This provides accurate DPPP calculations.
+#'
+#' @param experiment_config List containing experiment parameters (from YAML or Shiny input)
+#' @param verbose Logical, print detailed breakdown (default: TRUE)
+#' @param language Character, output language: "ko" (Korean) or "en" (English)
+#'
+#' @return List with calculated cycle time and detailed breakdown
+#' @export
+#'
+#' @details
+#' The cycle time calculation uses the fundamental scan time equations:
+#'
+#' **For Orbitrap:**
+#' - t_scan = max(T_transient, IT) + overhead
+#' - T_transient is determined by resolution
+#'
+#' **For Astral:**
+#' - t_scan = max(5.0 ms, IT + 2.0 ms) for parallel architecture
+#'
+#' **Cycle Time:**
+#' - Sequential: cycle_time = MS1_time + (n_windows × MS2_time)
+#' - Parallel: cycle_time = max(MS1_time, n_windows × MS2_time)
+#'
+#' @examples
+#' # From YAML config
+#' config <- yaml::read_yaml("config/user_experiment_config.yaml")
+#' result <- calculate_cycle_time_from_experiment(config)
+#'
+#' # From direct parameters
+#' config <- list(
+#'   instrument = list(preset = "exploris"),
+#'   ms1 = list(resolution = 60000, max_injection_time_ms = 50),
+#'   ms2 = list(resolution = 15000, max_injection_time_ms = "auto"),
+#'   dia_windows = list(window_count = 40)
+#' )
+#' result <- calculate_cycle_time_from_experiment(config)
+#' cat(sprintf("Cycle time: %.3f sec\n", result$cycle_time_sec))
+calculate_cycle_time_from_experiment <- function(experiment_config,
+                                                  verbose = TRUE,
+                                                  language = "ko") {
+
+  # =========================================================================
+  # 1. Load Instrument Base Configuration
+  # =========================================================================
+  instrument_preset <- experiment_config$instrument$preset %||% "exploris"
+  base_config <- get_instrument_config(instrument_preset)
+
+  analyzer_type <- experiment_config$instrument$analyzer_type %||%
+                   base_config$analyzer_type %||% "orbitrap"
+
+  cycle_calculation <- base_config$cycle_calculation %||% "sequential"
+
+  # =========================================================================
+  # 2. Extract MS1 Parameters
+  # =========================================================================
+  ms1_resolution <- experiment_config$ms1$resolution %||% 60000
+  ms1_max_it <- experiment_config$ms1$max_injection_time_ms %||% 50
+
+  # Resolve MS1 IT (handle "auto" mode)
+  if (is.character(ms1_max_it) && tolower(ms1_max_it) == "auto") {
+    if (analyzer_type == "orbitrap") {
+      ms1_it_resolved <- get_transient_time(ms1_resolution, "orbitrap")
+    } else if (analyzer_type == "astral") {
+      ms1_it_resolved <- base_config$ms1_time %||% 5.0
+    } else {
+      ms1_it_resolved <- base_config$ms1_time %||% 50.0
+    }
+  } else {
+    ms1_it_resolved <- as.numeric(ms1_max_it)
+  }
+
+  # Calculate MS1 scan time
+  if (analyzer_type == "orbitrap") {
+    ms1_transient <- get_transient_time(ms1_resolution, "orbitrap")
+    ms1_overhead <- calculate_scan_overhead(ms1_transient)
+    ms1_scan_time_ms <- max(ms1_transient, ms1_it_resolved) + ms1_overhead
+  } else if (analyzer_type == "astral") {
+    ms1_scan_time_ms <- base_config$ms1_time %||% 5.0
+    ms1_transient <- ASTRAL_DETECTION_TIME_MS
+    ms1_overhead <- 0
+  } else {
+    # TOF
+    ms1_scan_time_ms <- (base_config$ms1_time %||% 50.0) + MINIMUM_OVERHEAD_MS
+    ms1_transient <- 0
+    ms1_overhead <- MINIMUM_OVERHEAD_MS
+  }
+
+  # =========================================================================
+  # 3. Extract MS2 Parameters
+  # =========================================================================
+  ms2_resolution <- experiment_config$ms2$resolution %||%
+                    base_config$ms2_resolution %||% 30000
+  ms2_max_it <- experiment_config$ms2$max_injection_time_ms %||%
+                base_config$ms2_time %||% "auto"
+
+  # Resolve MS2 IT (handle "auto" mode)
+  if (is.character(ms2_max_it) && tolower(ms2_max_it) == "auto") {
+    ms2_it_resolved <- resolve_injection_time("auto", ms2_resolution, analyzer_type)
+  } else {
+    ms2_it_resolved <- as.numeric(ms2_max_it)
+  }
+
+  # Calculate MS2 scan time using the core function
+  ms2_scan_info <- calculate_ms2_scan_time(
+    resolution = ms2_resolution,
+    injection_time_ms = ms2_it_resolved,
+    analyzer = analyzer_type,
+    verbose = FALSE
+  )
+
+  ms2_scan_time_ms <- ms2_scan_info$t_scan_ms
+
+  # =========================================================================
+  # 4. Get Window Count and MS1 Scans per Cycle
+  # =========================================================================
+  window_count <- experiment_config$dia_windows$window_count %||% 40
+
+  # MS1 scans per cycle: 0 = parallel, 1 = standard sequential, 3-4 = Boxcar
+
+  ms1_scans_per_cycle <- experiment_config$ms1$scans_per_cycle %||%
+                          base_config$ms1_scans_per_cycle %||%
+                          ifelse(cycle_calculation == "parallel", 0, 1)
+
+  # =========================================================================
+  # 5. Calculate Cycle Time
+  # =========================================================================
+  ms2_total_time_ms <- window_count * ms2_scan_time_ms
+
+  if (ms1_scans_per_cycle == 0 || cycle_calculation == "parallel") {
+    # Parallel: MS1 acquired during MS2 scans (Astral, timsTOF, etc.)
+    ms1_total_time_ms <- ms1_scan_time_ms  # Single MS1 overlapped
+    cycle_time_ms <- max(ms1_scan_time_ms, ms2_total_time_ms)
+    ms1_contribution <- ifelse(ms1_scan_time_ms >= ms2_total_time_ms, "dominant", "parallel")
+  } else {
+    # Sequential: MS1(s) then MS2s
+    # Boxcar DIA: multiple MS1 scans (e.g., 3-4 segments)
+    ms1_total_time_ms <- ms1_scans_per_cycle * ms1_scan_time_ms
+    cycle_time_ms <- ms1_total_time_ms + ms2_total_time_ms
+    ms1_contribution <- ifelse(ms1_scans_per_cycle > 1, "boxcar", "sequential")
+  }
+
+  cycle_time_sec <- cycle_time_ms / 1000
+
+  # =========================================================================
+  # 6. Calculate Theoretical Scan Rate
+  # =========================================================================
+  theoretical_scan_rate_hz <- 1000 / ms2_scan_time_ms
+  effective_scan_rate_hz <- window_count / cycle_time_sec
+
+  # =========================================================================
+  # 7. Generate Summary Report
+  # =========================================================================
+  if (verbose) {
+    if (language == "ko") {
+      cat("\n")
+      cat("╔════════════════════════════════════════════════════════════════════════╗\n")
+      cat("║            실제 실험 조건 기반 Cycle Time 계산                         ║\n")
+      cat("║            Actual Experiment-Based Cycle Time Calculation              ║\n")
+      cat("╚════════════════════════════════════════════════════════════════════════╝\n")
+      cat("\n")
+      cat(sprintf("장비 설정 (Instrument): %s (%s)\n",
+                  base_config$name, toupper(analyzer_type)))
+      cat(sprintf("Cycle 계산 모드: %s\n\n", cycle_calculation))
+
+      cat("┌─────────────────────────────────────────────────────────────────────────┐\n")
+      cat("│ MS1 스캔 파라미터                                                       │\n")
+      cat("├─────────────────────────────────────────────────────────────────────────┤\n")
+      cat(sprintf("│  Resolution:     %s\n", format(ms1_resolution, big.mark = ",")))
+      cat(sprintf("│  T_transient:    %.1f ms\n", ms1_transient))
+      cat(sprintf("│  Max IT:         %.1f ms (입력: %s)\n",
+                  ms1_it_resolved,
+                  ifelse(is.character(experiment_config$ms1$max_injection_time_ms),
+                         experiment_config$ms1$max_injection_time_ms,
+                         sprintf("%.1f ms", experiment_config$ms1$max_injection_time_ms %||% ms1_it_resolved))))
+      cat(sprintf("│  Overhead:       %.1f ms\n", ms1_overhead))
+      cat(sprintf("│  ► MS1 Scan Time: %.1f ms\n", ms1_scan_time_ms))
+      cat("└─────────────────────────────────────────────────────────────────────────┘\n\n")
+
+      cat("┌─────────────────────────────────────────────────────────────────────────┐\n")
+      cat("│ MS2 스캔 파라미터                                                       │\n")
+      cat("├─────────────────────────────────────────────────────────────────────────┤\n")
+      cat(sprintf("│  Resolution:     %s\n", format(ms2_resolution, big.mark = ",")))
+      cat(sprintf("│  T_transient:    %.1f ms\n", ms2_scan_info$transient_ms))
+      cat(sprintf("│  Max IT:         %.1f ms (입력: %s)\n",
+                  ms2_it_resolved,
+                  ifelse(is.character(experiment_config$ms2$max_injection_time_ms),
+                         experiment_config$ms2$max_injection_time_ms,
+                         sprintf("%.1f ms", experiment_config$ms2$max_injection_time_ms %||% ms2_it_resolved))))
+      cat(sprintf("│  Overhead:       %.1f ms\n", ms2_scan_info$overhead_ms))
+      cat(sprintf("│  ► MS2 Scan Time: %.1f ms (%.1f Hz)\n",
+                  ms2_scan_time_ms, theoretical_scan_rate_hz))
+      cat(sprintf("│  효율 상태:      %s\n", ms2_scan_info$efficiency_message))
+      cat("└─────────────────────────────────────────────────────────────────────────┘\n\n")
+
+      cat("┌─────────────────────────────────────────────────────────────────────────┐\n")
+      cat("│ DIA 윈도우 설정                                                         │\n")
+      cat("├─────────────────────────────────────────────────────────────────────────┤\n")
+      cat(sprintf("│  MS1 Scans/Cycle: %d %s\n", ms1_scans_per_cycle,
+                  ifelse(ms1_scans_per_cycle > 1, "(Boxcar)", ifelse(ms1_scans_per_cycle == 0, "(Parallel)", ""))))
+      cat(sprintf("│  MS2 Window 수:   %d 개\n", window_count))
+      cat(sprintf("│  MS1 총 시간:     %.1f ms (= %d × %.1f ms)\n",
+                  ms1_total_time_ms, ms1_scans_per_cycle, ms1_scan_time_ms))
+      cat(sprintf("│  MS2 총 시간:     %.1f ms (= %d × %.1f ms)\n",
+                  ms2_total_time_ms, window_count, ms2_scan_time_ms))
+      cat("└─────────────────────────────────────────────────────────────────────────┘\n\n")
+
+      cat("╔═════════════════════════════════════════════════════════════════════════╗\n")
+      cat("║                    최종 Cycle Time 계산 결과                            ║\n")
+      cat("╠═════════════════════════════════════════════════════════════════════════╣\n")
+
+      if (ms1_scans_per_cycle == 0 || cycle_calculation == "parallel") {
+        cat(sprintf("║  Cycle Time = max(MS1, MS2 총합) = max(%.1f, %.1f) ms\n",
+                    ms1_scan_time_ms, ms2_total_time_ms))
+      } else if (ms1_scans_per_cycle > 1) {
+        cat(sprintf("║  Cycle Time = %d×MS1 + MS2 총합 = %.1f + %.1f ms (Boxcar)\n",
+                    ms1_scans_per_cycle, ms1_total_time_ms, ms2_total_time_ms))
+      } else {
+        cat(sprintf("║  Cycle Time = MS1 + MS2 총합 = %.1f + %.1f ms\n",
+                    ms1_scan_time_ms, ms2_total_time_ms))
+      }
+
+      cat("║                                                                         ║\n")
+      cat(sprintf("║  ►►► Cycle Time = %.1f ms = %.3f 초 ◄◄◄\n",
+                  cycle_time_ms, cycle_time_sec))
+      cat("║                                                                         ║\n")
+      cat(sprintf("║  유효 스캔 속도: %.1f windows/sec\n", effective_scan_rate_hz))
+      cat("╚═════════════════════════════════════════════════════════════════════════╝\n\n")
+    } else {
+      # English version (abbreviated)
+      cat("\n")
+      cat("╔════════════════════════════════════════════════════════════════════════╗\n")
+      cat("║            Experiment-Based Cycle Time Calculation                      ║\n")
+      cat("╚════════════════════════════════════════════════════════════════════════╝\n")
+      cat(sprintf("\nInstrument: %s (%s), Mode: %s\n\n",
+                  base_config$name, toupper(analyzer_type), cycle_calculation))
+
+      cat(sprintf("MS1: %dK res, IT=%.1f ms → Scan=%.1f ms\n",
+                  ms1_resolution/1000, ms1_it_resolved, ms1_scan_time_ms))
+      cat(sprintf("MS2: %dK res, IT=%.1f ms → Scan=%.1f ms (%.1f Hz)\n",
+                  ms2_resolution/1000, ms2_it_resolved, ms2_scan_time_ms, theoretical_scan_rate_hz))
+      cat(sprintf("Windows: %d × %.1f ms = %.1f ms\n\n",
+                  window_count, ms2_scan_time_ms, ms2_total_time_ms))
+
+      cat(sprintf("►►► CYCLE TIME = %.1f ms = %.3f sec ◄◄◄\n\n",
+                  cycle_time_ms, cycle_time_sec))
+    }
+  }
+
+  # =========================================================================
+  # 8. Return Results
+  # =========================================================================
+  return(list(
+    # Primary result
+    cycle_time_sec = cycle_time_sec,
+    cycle_time_ms = cycle_time_ms,
+
+    # MS1 breakdown
+    ms1 = list(
+      resolution = ms1_resolution,
+      transient_ms = ms1_transient,
+      injection_time_ms = ms1_it_resolved,
+      overhead_ms = ms1_overhead,
+      scan_time_ms = ms1_scan_time_ms,
+      scans_per_cycle = ms1_scans_per_cycle,
+      total_time_ms = ms1_total_time_ms
+    ),
+
+    # MS2 breakdown
+    ms2 = list(
+      resolution = ms2_resolution,
+      transient_ms = ms2_scan_info$transient_ms,
+      injection_time_ms = ms2_it_resolved,
+      overhead_ms = ms2_scan_info$overhead_ms,
+      scan_time_ms = ms2_scan_time_ms,
+      sweet_spot_it_ms = ms2_scan_info$sweet_spot_it_ms,
+      limiting_factor = ms2_scan_info$limiting_factor,
+      efficiency_pct = ms2_scan_info$efficiency_pct,
+      efficiency_mode = ms2_scan_info$efficiency_mode
+    ),
+
+    # DIA windows
+    window_count = window_count,
+    ms2_total_time_ms = ms2_total_time_ms,
+
+    # Instrument info
+    instrument = list(
+      preset = instrument_preset,
+      name = base_config$name,
+      analyzer_type = analyzer_type,
+      cycle_calculation = cycle_calculation
+    ),
+
+    # Scan rates
+    theoretical_ms2_rate_hz = theoretical_scan_rate_hz,
+    effective_windows_per_sec = effective_scan_rate_hz,
+
+    # For compatibility with existing code
+    current_cycle_time = cycle_time_sec
+  ))
+}
+
+#' Load User Experiment Configuration from YAML
+#'
+#' Loads experiment configuration from a YAML file.
+#'
+#' @param config_path Path to the YAML configuration file
+#' @return List containing experiment parameters
+#' @export
+#'
+#' @examples
+#' config <- load_experiment_config("config/user_experiment_config.yaml")
+load_experiment_config <- function(config_path = "config/user_experiment_config.yaml") {
+
+  if (!file.exists(config_path)) {
+    # Try parent directory (for shiny_app/)
+    alt_path <- file.path("..", config_path)
+    if (file.exists(alt_path)) {
+      config_path <- alt_path
+    } else {
+      stop(sprintf(
+        "Experiment configuration file not found: %s\n",
+        "Please create config/user_experiment_config.yaml or use calculate_cycle_time_from_experiment() with direct parameters."
+      ))
+    }
+  }
+
+  if (!requireNamespace("yaml", quietly = TRUE)) {
+    stop("Package 'yaml' is required. Install with: install.packages('yaml')")
+  }
+
+  config <- yaml::read_yaml(config_path)
+  return(config)
+}
+
+#' Null-coalescing operator (like %||% in base R 4.0+)
+#' @keywords internal
+`%||%` <- function(x, y) if (is.null(x)) y else x
+
 #' Get ms1_scans_per_cycle with automatic detection
 #'
 #' @param ms1_scans_per_cycle User-specified value (NULL for auto-detect)
