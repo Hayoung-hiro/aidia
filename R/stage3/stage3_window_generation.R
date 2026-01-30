@@ -250,13 +250,13 @@ apply_overlap_internal <- function(windows, overlap_percentage, mz_min, mz_max) 
     # Extend start (overlap with previous)
     if (i > 1) {
       windows$mz_start[i] <- max(windows$mz_start[i] - overlap_amount, mz_min)
-      windows$overlap_prev[i] <- windows$mz_start[i] - windows$mz_start[i]
+      # overlap_prev remains 0 (initialized above)
     }
 
     # Extend end (overlap with next)
     if (i < nrow(windows)) {
       windows$mz_end[i] <- min(windows$mz_end[i] + overlap_amount, mz_max)
-      windows$overlap_next[i] <- windows$mz_end[i] - windows$mz_end[i]
+      # overlap_next remains 0 (initialized above)
     }
   }
 

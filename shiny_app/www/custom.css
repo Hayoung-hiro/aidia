@@ -11,7 +11,7 @@
   --success-color: #27ae60;
   --warning-color: #f39c12;
   --danger-color: #e74c3c;
-  --info-color: #3498db;
+  --info-color: var(--secondary-color);  /* Same as secondary */
   --light-bg: #f8f9fa;
   --dark-text: #2c3e50;
   --muted-text: #7f8c8d;
@@ -200,9 +200,7 @@ body {
   border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-.box-header.with-border {
-  border-bottom: 1px solid var(--border-color);
-}
+/* .box-header.with-border inherits border from .box-header */
 
 .box-title {
   font-size: 16px;

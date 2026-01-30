@@ -29,17 +29,6 @@ if (!requireNamespace("diaoptimizer", quietly = TRUE)) {
   library(diaoptimizer)
 }
 
-# --- Load instrument_utils for cycle time calculation ---
-source_from_parent_early <- function(rel_path) {
-  full_path <- file.path("..", rel_path)
-  if (file.exists(full_path)) {
-    source(full_path)
-    return(TRUE)
-  }
-  return(FALSE)
-}
-source_from_parent_early("R/instrument_utils.R")
-
 # --- Ensure all required modules are loaded ---
 # When running from shiny_app/, the relative paths in package files don't work
 # Source all required modules explicitly to ensure availability
@@ -53,6 +42,9 @@ source_from_parent <- function(rel_path) {
   }
   return(FALSE)
 }
+
+# Load instrument_utils for cycle time calculation
+source_from_parent("R/instrument_utils.R")
 
 # Source utils_common.R first (contains count_precursors_in_windows)
 if (source_from_parent("R/utils_common.R")) {
