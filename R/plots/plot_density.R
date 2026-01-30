@@ -116,7 +116,7 @@ plot_mz_normalized_density <- function(optimized_windows, validated_data) {
     segment_data <- precursor_data %>%
       filter(RT.Start >= rt_start_val & RT.Start < rt_end_val)
 
-    if (nrow(segment_data) == 0) next
+    if (nrow(segment_data) < 2) next  # Need at least 2 points for density estimation
 
     # Calculate density
     mz_values <- segment_data$Precursor.Mz

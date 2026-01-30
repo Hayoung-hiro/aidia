@@ -61,7 +61,7 @@ plot_mz_distribution_with_exclusions <- function(optimized_windows,
     bin_precursors <- precursor_data %>%
       filter(RT.Start >= bin_info$rt_start & RT.Start < bin_info$rt_end)
 
-    if (nrow(bin_precursors) == 0) next
+    if (nrow(bin_precursors) < 2) next  # Need at least 2 points for density estimation
 
     mz_values <- bin_precursors$Precursor.Mz
 

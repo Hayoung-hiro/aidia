@@ -40,6 +40,17 @@ plot_dppp_comparison <- function(optimization_plan, validated_data) {
     select(FWHM) %>%
     mutate(FWHM_sec = FWHM * 60)  # Convert to seconds
 
+  # Check for minimum data points (density estimation requires >= 2 points)
+  if (nrow(fwhm_data) < 2) {
+    return(ggplot() +
+             annotate("text", x = 0.5, y = 0.5,
+                      label = "Insufficient data for density plot\n(need at least 2 precursors)",
+                      size = 5, hjust = 0.5) +
+             labs(title = "DPPP Distribution Comparison",
+                  subtitle = "Not enough data points") +
+             theme_void())
+  }
+
   # Calculate current and expected DPPP
   dppp_data <- fwhm_data %>%
     mutate(
@@ -176,6 +187,17 @@ plot_dppp_comparison_enhanced <- function(optimization_plan, validated_data) {
   fwhm_data <- validated_data$data %>%
     select(FWHM) %>%
     mutate(FWHM_sec = FWHM * 60)  # Convert to seconds
+
+  # Check for minimum data points (density estimation requires >= 2 points)
+  if (nrow(fwhm_data) < 2) {
+    return(ggplot() +
+             annotate("text", x = 0.5, y = 0.5,
+                      label = "Insufficient data for density plot\n(need at least 2 precursors)",
+                      size = 5, hjust = 0.5) +
+             labs(title = "DPPP Distribution Comparison (Enhanced)",
+                  subtitle = "Not enough data points") +
+             theme_void())
+  }
 
   # Calculate current and expected DPPP
   dppp_data <- fwhm_data %>%

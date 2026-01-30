@@ -89,7 +89,7 @@ plot_window_width_distribution <- function(optimized_windows,
       filter(rt_segment_id == seg_id) %>%
       arrange(mz_start)
 
-    if (nrow(seg_windows) == 0 || nrow(seg_precursors) == 0) next
+    if (nrow(seg_windows) == 0 || nrow(seg_precursors) < 2) next  # Need at least 2 points for density
 
     # Calculate normalized density using density()
     mz_range <- range(seg_precursors$Precursor.Mz)

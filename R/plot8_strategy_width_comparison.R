@@ -39,6 +39,17 @@ plot_strategy_width_ridge <- function(windows_list, validated_data) {
   }) %>%
     bind_rows()
 
+  # Check for minimum data points (density estimation requires >= 2 points per group)
+  if (nrow(strategy_data) < 2) {
+    return(ggplot() +
+             annotate("text", x = 0.5, y = 0.5,
+                      label = "Insufficient data for ridge plot\n(need at least 2 windows)",
+                      size = 5, hjust = 0.5) +
+             labs(title = "Window Width Distribution by Strategy (Ridge)",
+                  subtitle = "Not enough data points") +
+             theme_void())
+  }
+
   # Calculate statistics for subtitle
   stats_summary <- strategy_data %>%
     group_by(strategy) %>%
