@@ -55,7 +55,7 @@ stage3_modules <- c(
   "R/stage3/stage3_window_generation.R",
   "R/stage3/stage3_statistics.R",
   "R/stage3/stage3_export.R",
-  "R/stage3/stage3_quality_score.R"
+  "R/stage3/stage3_strategy_characteristics.R"
 )
 
 for (module in stage3_modules) {
@@ -332,9 +332,9 @@ ui <- dashboardPage(
                                          class = "btn-success btn-block")),
                 column(6, downloadButton("download_pdf", "📄 PDF Report",
                                          class = "btn-info btn-block"))
-              ),
-              # Quality Score Display
-              uiOutput("quality_score_display")
+              )
+              # Note: Quality Score display removed in v2.3
+              # Quality Score measured method configuration, not actual DIA analysis quality
             )
           )
         ),
@@ -744,49 +744,9 @@ server <- function(input, output, session) {
     )
   })
 
-  # --- Output: Quality Score Display ---
-  output$quality_score_display <- renderUI({
-    req(rv$optimized_windows)
-
-    qs <- rv$optimized_windows$quality_score
-
-    # If quality score not available
-    if (is.null(qs) || is.na(qs$quality_score)) {
-      return(tags$div(
-        style = "margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px;",
-        tags$span(icon("info-circle"), " Quality Score: N/A", style = "color: #999;")
-      ))
-    }
-
-    # Determine color based on score
-    score <- qs$quality_score
-    score_color <- if (score >= 85) "#27ae60" else if (score >= 70) "#3498db" else if (score >= 55) "#f39c12" else "#e74c3c"
-
-    # Interpret score
-    interpretation <- if (score >= 85) "Excellent" else if (score >= 70) "Good" else if (score >= 55) "Moderate" else if (score >= 40) "Fair" else "Poor"
-
-    tags$div(
-      style = "margin-top: 15px; padding: 12px; background: linear-gradient(135deg, #1a2a3a 0%, #2c3e50 100%); border-radius: 8px;",
-      tags$div(
-        style = "display: flex; align-items: center; justify-content: space-between;",
-        tags$div(
-          tags$span("Quality Score", style = "color: #bdc3c7; font-size: 12px;"),
-          tags$div(
-            style = paste0("font-size: 28px; font-weight: bold; color: ", score_color, ";"),
-            sprintf("%.1f%%", score)
-          ),
-          tags$span(interpretation, style = paste0("color: ", score_color, "; font-size: 11px;"))
-        ),
-        tags$div(
-          style = "text-align: right; font-size: 11px; color: #7f8c8d;",
-          tags$div(sprintf("Coverage: %.0f%%", qs$metrics["coverage"] * 100)),
-          tags$div(sprintf("Uniformity: %.0f%%", qs$metrics["uniformity"] * 100)),
-          tags$div(sprintf("Efficiency: %.0f%%", qs$metrics["efficiency"] * 100)),
-          tags$div(sprintf("Specificity: %.0f%%", qs$metrics["specificity"] * 100))
-        )
-      )
-    )
-  })
+  # Note: Quality Score display removed in v2.3
+  # Quality Score measured method configuration, not actual DIA analysis quality
+  # Use strategy_characteristics for descriptive metrics instead
 
   # --- Output: Window Preview Table ---
   output$window_preview <- DT::renderDataTable({

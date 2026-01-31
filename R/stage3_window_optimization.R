@@ -37,7 +37,7 @@ stage3_modules <- c(
   "R/stage3/stage3_window_generation.R",
   "R/stage3/stage3_statistics.R",
   "R/stage3/stage3_export.R",
-  "R/stage3/stage3_quality_score.R"
+  "R/stage3/stage3_strategy_characteristics.R"
 )
 
 for (module in stage3_modules) {
@@ -262,20 +262,13 @@ optimize_windows <- function(
                      format(statistics$covered_precursors, big.mark = ","),
                      format(statistics$total_precursors, big.mark = ",")))
 
-  # Calculate Quality Score
-  quality_score <- tryCatch({
-    calculate_window_quality_score(windows, precursor_data)
+  # Calculate Strategy Characteristics (descriptive, not evaluative)
+  strategy_characteristics <- tryCatch({
+    calculate_strategy_characteristics(windows, precursor_data, mz_strategy)
   }, error = function(e) {
-    warning(sprintf("Quality Score calculation failed: %s", e$message))
-    list(quality_score = NA, metrics = c(coverage = NA, uniformity = NA,
-                                          efficiency = NA, specificity = NA))
+    warning(sprintf("Strategy characteristics calculation failed: %s", e$message))
+    NULL
   })
-
-  if (!is.na(quality_score$quality_score)) {
-    print_info(sprintf("Quality Score: %.1f%% (%s)",
-                       quality_score$quality_score,
-                       interpret_quality_score(quality_score$quality_score)))
-  }
 
   # ===================================================================
   # Step 6: Package Results
@@ -290,8 +283,8 @@ optimize_windows <- function(
       # Statistics
       statistics = statistics,
 
-      # Quality Score
-      quality_score = quality_score,
+      # Strategy Characteristics (descriptive metrics, not quality judgment)
+      strategy_characteristics = strategy_characteristics,
 
       # RT binning info
       rt_binning = list(
@@ -364,7 +357,7 @@ cat("     - R/stage3/stage3_mz_optimization.R\n")
 cat("     - R/stage3/stage3_window_generation.R\n")
 cat("     - R/stage3/stage3_statistics.R\n")
 cat("     - R/stage3/stage3_export.R\n")
-cat("     - R/stage3/stage3_quality_score.R\n")
+cat("     - R/stage3/stage3_strategy_characteristics.R\n")
 cat("   Export:\n")
 cat("     - export_windows_to_csv(optimized_windows, output_file)  # Single strategy\n")
 cat("     - export_method_files(windows_list, output_dir, ...)     # All strategies\n")
