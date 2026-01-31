@@ -36,7 +36,8 @@ stage3_modules <- c(
   "R/stage3/stage3_mz_optimization.R",
   "R/stage3/stage3_window_generation.R",
   "R/stage3/stage3_statistics.R",
-  "R/stage3/stage3_export.R"
+  "R/stage3/stage3_export.R",
+  "R/stage3/stage3_quality_score.R"
 )
 
 for (module in stage3_modules) {
@@ -261,6 +262,21 @@ optimize_windows <- function(
                      format(statistics$covered_precursors, big.mark = ","),
                      format(statistics$total_precursors, big.mark = ",")))
 
+  # Calculate Quality Score
+  quality_score <- tryCatch({
+    calculate_window_quality_score(windows, precursor_data)
+  }, error = function(e) {
+    warning(sprintf("Quality Score calculation failed: %s", e$message))
+    list(quality_score = NA, metrics = c(coverage = NA, uniformity = NA,
+                                          efficiency = NA, specificity = NA))
+  })
+
+  if (!is.na(quality_score$quality_score)) {
+    print_info(sprintf("Quality Score: %.1f%% (%s)",
+                       quality_score$quality_score,
+                       interpret_quality_score(quality_score$quality_score)))
+  }
+
   # ===================================================================
   # Step 6: Package Results
   # ===================================================================
@@ -273,6 +289,9 @@ optimize_windows <- function(
 
       # Statistics
       statistics = statistics,
+
+      # Quality Score
+      quality_score = quality_score,
 
       # RT binning info
       rt_binning = list(
@@ -336,15 +355,16 @@ optimize_windows <- function(
 # =============================================================================
 
 cat("OK Stage 3 (Window Optimization) loaded successfully\n")
-cat("   Version: 2.1 (Modularized architecture)\n")
+cat("   Version: 2.2 (Quality Score system added)\n")
 cat("   Main function: optimize_windows(validated_data, optimization_plan, ...)\n")
-cat("   Output: OptimizedWindows object\n")
+cat("   Output: OptimizedWindows object with Quality Score\n")
 cat("   Sourced modules:\n")
 cat("     - R/stage3/stage3_rt_binning.R\n")
 cat("     - R/stage3/stage3_mz_optimization.R\n")
 cat("     - R/stage3/stage3_window_generation.R\n")
 cat("     - R/stage3/stage3_statistics.R\n")
 cat("     - R/stage3/stage3_export.R\n")
+cat("     - R/stage3/stage3_quality_score.R\n")
 cat("   Export:\n")
 cat("     - export_windows_to_csv(optimized_windows, output_file)  # Single strategy\n")
 cat("     - export_method_files(windows_list, output_dir, ...)     # All strategies\n")

@@ -66,7 +66,8 @@ plot_modules <- c(
   "R/plots/plot_histogram.R",
   "R/plots/plot_coverage.R",
   "R/plots/plot_window.R",
-  "R/plots/plot_satisfaction.R"
+  "R/plots/plot_satisfaction.R",
+  "R/plots/plot_quality_score.R"
 )
 
 for (module in plot_modules) {
@@ -308,6 +309,68 @@ generate_visualizations <- function(
     # Plot 8C: CDF plot
     cat("  Generating Plot 8C: CDF Plot...\n")
     plots$`plot8c_strategy_width_cdf` <- plot_strategy_width_cdf(windows_list, validated_data)
+  }
+
+  # ===================================================================
+  # Plot 9: Quality Score Comparison (NEW in v2.2)
+  # ===================================================================
+
+  cat("\n  Preparing Plot 9: Quality Score Analysis...\n")
+
+  if (exists("plot_quality_comparison") && exists("calculate_window_quality_score")) {
+    # Collect quality scores from all strategies
+    quality_scores <- list()
+    for (strategy in names(windows_list)) {
+      if (!is.null(windows_list[[strategy]]) &&
+          !is.null(windows_list[[strategy]]$windows)) {
+        # Use pre-computed quality score if available
+        if (!is.null(windows_list[[strategy]]$quality_score) &&
+            !is.na(windows_list[[strategy]]$quality_score$quality_score)) {
+          quality_scores[[strategy]] <- windows_list[[strategy]]$quality_score
+        } else {
+          # Calculate if not available
+          quality_scores[[strategy]] <- tryCatch({
+            calculate_window_quality_score(
+              windows_list[[strategy]]$windows,
+              validated_data$data
+            )
+          }, error = function(e) {
+            warning(sprintf("Quality Score calculation failed for %s: %s", strategy, e$message))
+            NULL
+          })
+        }
+      }
+    }
+
+    # Filter out NULLs
+    quality_scores <- quality_scores[!sapply(quality_scores, is.null)]
+
+    if (length(quality_scores) > 0) {
+      # Plot 9A: Quality Score Comparison
+      cat("  Generating Plot 9A: Quality Score Comparison...\n")
+      plots$`plot9a_quality_score_comparison` <- plot_quality_comparison(quality_scores)
+
+      # Plot 9B: Quality Score Breakdown
+      cat("  Generating Plot 9B: Quality Score Breakdown...\n")
+      plots$`plot9b_quality_score_breakdown` <- plot_quality_breakdown(quality_scores)
+
+      # Plot 9C: Quality Score Heatmap
+      cat("  Generating Plot 9C: Quality Metrics Heatmap...\n")
+      plots$`plot9c_quality_metrics_heatmap` <- plot_quality_heatmap(quality_scores)
+
+      # Generate Quality Report (console output)
+      cat("\n")
+      generate_quality_report(quality_scores, verbose = TRUE)
+    } else {
+      cat("  WARNING: No quality scores available for plotting\n")
+    }
+  } else if (exists("plot_quality_single") && !is.null(optimized_windows$quality_score)) {
+    # Single strategy case
+    cat("  Generating Plot 9: Quality Score (Single Strategy)...\n")
+    plots$`plot9_quality_score_single` <- plot_quality_single(
+      optimized_windows$quality_score,
+      strategy_name = optimized_windows$parameters$mz_strategy
+    )
   }
 
   cat(sprintf("\nOK All %d plots generated successfully\n\n", length(plots)))
