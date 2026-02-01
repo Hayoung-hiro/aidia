@@ -68,9 +68,9 @@ for (module in stage3_modules) {
 #'   - "coverage": Minimum range for target coverage, conservative
 #'   - "outlier": Mean +/- 3*SD, removes outliers
 #'   - "smoothing": GLOBAL Savitzky-Golay smoothing across RT
-#' @param window_mode Character, window generation mode (default: "variable")
+#' @param window_mode Character, window generation mode (default: "density")
 #'   - "fixed": Equal-width windows
-#'   - "variable": Density-based adaptive windows (recommended)
+#'   - "density": Density-based adaptive windows (recommended)
 #' @param target_coverage Numeric, target m/z coverage 0-1 (default: 0.95)
 #' @param quantile_lower Numeric, lower quantile for quantile strategy (default: 0.05)
 #' @param quantile_upper Numeric, upper quantile for quantile strategy (default: 0.95)
@@ -91,7 +91,7 @@ for (module in stage3_modules) {
 #'   optimization_plan,
 #'   rt_bin_width_min = 5,
 #'   mz_strategy = "quantile",
-#'   window_mode = "variable"
+#'   window_mode = "density"
 #' )
 #'
 #' # Conservative settings
@@ -101,7 +101,7 @@ for (module in stage3_modules) {
 #'   rt_bin_width_min = 3,
 #'   mz_strategy = "coverage",
 #'   target_coverage = 0.98,
-#'   window_mode = "variable"
+#'   window_mode = "density"
 #' )
 #' @export
 optimize_windows <- function(
@@ -109,7 +109,7 @@ optimize_windows <- function(
   optimization_plan,
   rt_bin_width_min = 5,
   mz_strategy = "quantile",
-  window_mode = "variable",
+  window_mode = "density",
   target_coverage = 0.95,
   quantile_lower = 0.05,
   quantile_upper = 0.95,
@@ -118,7 +118,12 @@ optimize_windows <- function(
   polynomial_order = 3,
   min_width_da = 2,
   max_width_da = 80,
-  overlap_percentage = 0
+  overlap_percentage = 0,
+  mz_step = 0.5,
+  n_windows_override = NULL,  # Optional: Override window count (for Greedy strategy)
+  greedy_apply_smoothing = TRUE,  # Greedy: Apply SG smoothing to boundaries (dynamicDIA method)
+  kde_density_threshold = 0.1,  # KDE: Density threshold (0-1, relative to peak)
+  kde_min_coverage = 0.80  # KDE: Minimum coverage target
 ) {
 
   # Start timing
@@ -145,13 +150,13 @@ optimize_windows <- function(
   validate_numeric_range(max_width_da, min = min_width_da, param_name = "max_width_da")
   validate_numeric_range(overlap_percentage, min = 0, max = 50, param_name = "overlap_percentage")
 
-  valid_strategies <- c("quantile", "coverage", "outlier", "smoothing")
+  valid_strategies <- c("quantile", "coverage", "outlier", "smoothing", "greedy", "kde")
   if (!mz_strategy %in% valid_strategies) {
     stop(sprintf("mz_strategy must be one of: %s",
                  paste(valid_strategies, collapse = ", ")))
   }
 
-  valid_modes <- c("fixed", "variable")
+  valid_modes <- c("fixed", "density")
   if (!window_mode %in% valid_modes) {
     stop(sprintf("window_mode must be one of: %s",
                  paste(valid_modes, collapse = ", ")))
@@ -160,7 +165,13 @@ optimize_windows <- function(
   print_success("Input validation passed")
 
   # Extract key parameters
-  n_windows_per_bin <- optimization_plan$window_count_per_bin
+  # Use override if provided (for Greedy strategy with manual window count)
+  if (!is.null(n_windows_override) && n_windows_override > 0) {
+    n_windows_per_bin <- as.integer(n_windows_override)
+    print_info(sprintf("Window count override: %d (user-specified)", n_windows_per_bin))
+  } else {
+    n_windows_per_bin <- optimization_plan$window_count_per_bin
+  }
   precursor_data <- get_precursor_data(validated_data)
   n_total_precursors <- nrow(precursor_data)
 
@@ -206,7 +217,13 @@ optimize_windows <- function(
     quantile_upper = quantile_upper,
     outlier_threshold = outlier_threshold,
     smoothing_window = smoothing_window,
-    polynomial_order = polynomial_order
+    polynomial_order = polynomial_order,
+    n_windows_per_bin = n_windows_per_bin,
+    min_width_da = min_width_da,
+    mz_step = mz_step,
+    greedy_apply_smoothing = greedy_apply_smoothing,
+    kde_density_threshold = kde_density_threshold,
+    kde_min_coverage = kde_min_coverage
   )
 
   print_info(sprintf("Optimized m/z ranges for %d RT bins", nrow(mz_ranges)))

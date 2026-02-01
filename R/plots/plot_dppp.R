@@ -42,13 +42,10 @@ plot_dppp_comparison <- function(optimization_plan, validated_data) {
 
   # Check for minimum data points (density estimation requires >= 2 points)
   if (nrow(fwhm_data) < 2) {
-    return(ggplot() +
-             annotate("text", x = 0.5, y = 0.5,
-                      label = "Insufficient data for density plot\n(need at least 2 precursors)",
-                      size = 5, hjust = 0.5) +
-             labs(title = "DPPP Distribution Comparison",
-                  subtitle = "Not enough data points") +
-             theme_void())
+    return(create_insufficient_data_plot(
+      title = "DPPP Distribution Comparison",
+      message = "Insufficient data for density plot\n(need at least 2 precursors)"
+    ))
   }
 
   # Calculate current and expected DPPP
@@ -190,13 +187,10 @@ plot_dppp_comparison_enhanced <- function(optimization_plan, validated_data) {
 
   # Check for minimum data points (density estimation requires >= 2 points)
   if (nrow(fwhm_data) < 2) {
-    return(ggplot() +
-             annotate("text", x = 0.5, y = 0.5,
-                      label = "Insufficient data for density plot\n(need at least 2 precursors)",
-                      size = 5, hjust = 0.5) +
-             labs(title = "DPPP Distribution Comparison (Enhanced)",
-                  subtitle = "Not enough data points") +
-             theme_void())
+    return(create_insufficient_data_plot(
+      title = "DPPP Distribution Comparison (Enhanced)",
+      message = "Insufficient data for density plot\n(need at least 2 precursors)"
+    ))
   }
 
   # Calculate current and expected DPPP

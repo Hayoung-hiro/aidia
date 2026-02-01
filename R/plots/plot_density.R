@@ -144,7 +144,8 @@ plot_mz_normalized_density <- function(optimized_windows, validated_data) {
              theme_dia_optimizer())
   }
 
-  density_data <- bind_rows(density_profiles)
+  # Combine density profiles (using safe_bind_rows for vctrs compatibility)
+  density_data <- safe_bind_rows(density_profiles)
 
   # Plot
   p <- ggplot(density_data, aes(x = mz_center, y = normalized_density,

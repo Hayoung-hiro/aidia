@@ -229,7 +229,7 @@ plot_mz_width_comparison_all_strategies <- function(windows_list, validated_data
   }
 
   # Combine all data
-  plot_data <- bind_rows(all_widths) %>%
+  plot_data <- safe_bind_rows(all_widths) %>%
     mutate(
       strategy = factor(
         strategy,

@@ -31,7 +31,7 @@ source("R/stage4_visualization.R")
 #' @param target_dppp Target DPPP value (7.0 for Quant, 1.5 for ID)
 #' @param target_satisfaction Target satisfaction ratio (0.70-0.90)
 #' @param mz_strategies Vector of m/z strategies (default: all 4)
-#' @param window_mode Window generation mode (default: "variable")
+#' @param window_mode Window generation mode (default: "density")
 #' @param rt_bin_width_min RT bin width in minutes (default: 5)
 #' @param create_plots Generate visualizations (default: TRUE)
 #' @param create_pdf Generate PDF report (default: TRUE)
@@ -47,7 +47,7 @@ run_complete_pipeline <- function(
   target_dppp = 7.0,
   target_satisfaction = 0.70,
   mz_strategies = c("quantile", "smoothing", "outlier", "coverage"),
-  window_mode = "variable",
+  window_mode = "density",
   rt_bin_width_min = 5,
   create_plots = TRUE,
   create_pdf = TRUE,
@@ -589,7 +589,7 @@ export_windows_thermo_format <- function(
 #   target_dppp = 7.0,
 #   target_satisfaction = 0.70,
 #   mz_strategies = c("quantile", "smoothing", "outlier", "coverage"),
-#   window_mode = "variable",
+#   window_mode = "density",
 #   rt_bin_width_min = 5,
 #   create_plots = TRUE,
 #   create_pdf = TRUE

@@ -67,7 +67,7 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
       bin_windows <- generate_fixed_windows_internal(
         mz_min, mz_max, n_windows_per_bin, min_width_da, max_width_da
       )
-    } else {  # variable
+    } else {  # density
       bin_windows <- generate_variable_windows_internal(
         bin_data$Precursor.Mz, mz_min, mz_max, n_windows_per_bin,
         min_width_da, max_width_da
@@ -97,7 +97,7 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
   }
 
   # Combine all windows
-  windows <- bind_rows(all_windows)
+  windows <- safe_bind_rows(all_windows)
 
   # Reorder columns
   windows <- windows %>%
@@ -250,13 +250,11 @@ apply_overlap_internal <- function(windows, overlap_percentage, mz_min, mz_max) 
     # Extend start (overlap with previous)
     if (i > 1) {
       windows$mz_start[i] <- max(windows$mz_start[i] - overlap_amount, mz_min)
-      # overlap_prev remains 0 (initialized above)
     }
 
     # Extend end (overlap with next)
     if (i < nrow(windows)) {
       windows$mz_end[i] <- min(windows$mz_end[i] + overlap_amount, mz_max)
-      # overlap_next remains 0 (initialized above)
     }
   }
 

@@ -67,6 +67,24 @@ for (module in stage3_modules) {
 }
 
 # =============================================================================
+# Helper Functions: Instrument Type Detection
+# =============================================================================
+
+#' Check if instrument is an Orbitrap type
+#' @param instrument Character, instrument preset name
+#' @return Logical TRUE if Orbitrap
+is_orbitrap_instrument <- function(instrument) {
+  instrument %in% c("qexactive", "qexactive_hfx", "exploris", "eclipse", "fusion_lumos")
+}
+
+#' Check if instrument is an Astral type
+#' @param instrument Character, instrument preset name
+#' @return Logical TRUE if Astral
+is_astral_instrument <- function(instrument) {
+  instrument %in% c("astral", "astral_zoom", "astral_sensitive")
+}
+
+# =============================================================================
 # UI Definition
 # =============================================================================
 
@@ -90,6 +108,22 @@ ui <- dashboardPage(
       accept = c(".parquet"),
       placeholder = "DIA-NN report..."
     ),
+
+    # Sample/Project Identification for output file naming
+    textInput(
+      inputId = "sample_name",
+      label = "Sample/Project Name",
+      value = "",
+      placeholder = "e.g., HeLa_digest"
+    ),
+    textInput(
+      inputId = "condition",
+      label = "Condition/Note",
+      value = "",
+      placeholder = "e.g., 60min_gradient"
+    ),
+    helpText("Used in output file names. Leave blank to use defaults.",
+             style = "font-size: 10px; color: #7f8c8d; padding: 0 15px;"),
 
     hr(),
 
@@ -315,20 +349,212 @@ ui <- dashboardPage(
     # Optimization Settings Header
     h4("🎯 Optimization Settings", style = "padding-left: 15px; color: #ecf0f1; margin-top: 10px;"),
 
-    # m/z Optimization Strategy (NEW)
+    # m/z Optimization Strategy
     selectInput(
       inputId = "mz_strategy",
-      label = "m/z Strategy",
+      label = "m/z Range Strategy",
       choices = c(
         "Quantile (Recommended)" = "quantile",
+        "KDE (Density Peak)" = "kde",
+        "Greedy (MacCoss)" = "greedy",
         "Smoothing (GLOBAL)" = "smoothing",
         "Coverage (Conservative)" = "coverage",
         "Outlier (Robust)" = "outlier"
       ),
       selected = "quantile"
     ),
-    helpText("Quantile: Fast & robust. Smoothing: Best for long gradients.",
+    helpText("Quantile: Fast & robust. KDE: Density-informed range. Greedy: MacCoss method.",
              style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
+
+    # Window Mode Selection
+    selectInput(
+      inputId = "window_mode",
+      label = "Window Width Mode",
+      choices = c(
+        "Density (Dense=Narrow)" = "density",
+        "Fixed (Equal Width)" = "fixed"
+      ),
+      selected = "density"
+    ),
+    helpText("Density: 밀집 구간은 좁게, 희소 구간은 넓게. Fixed: 동일한 폭.",
+             style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
+
+    # ========================================
+    # Strategy-Specific Parameters
+    # ========================================
+
+    # Quantile Strategy Parameters
+    conditionalPanel(
+      condition = "input.mz_strategy == 'quantile'",
+      div(style = "background: rgba(52, 152, 219, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+        h5("Quantile Parameters", style = "margin: 0 0 8px 0; color: #3498db;"),
+        sliderInput(
+          inputId = "quantile_lower",
+          label = "Lower Percentile",
+          min = 0.01, max = 0.20, value = 0.05, step = 0.01
+        ),
+        sliderInput(
+          inputId = "quantile_upper",
+          label = "Upper Percentile",
+          min = 0.80, max = 0.99, value = 0.95, step = 0.01
+        ),
+        helpText("P5-P95 covers 90% of precursors (default)",
+                 style = "font-size: 10px; color: #7f8c8d;")
+      )
+    ),
+
+    # Coverage Strategy Parameters
+    conditionalPanel(
+      condition = "input.mz_strategy == 'coverage'",
+      div(style = "background: rgba(46, 204, 113, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+        h5("Coverage Parameters", style = "margin: 0 0 8px 0; color: #27ae60;"),
+        sliderInput(
+          inputId = "target_coverage",
+          label = "Target Coverage (%)",
+          min = 70, max = 99, value = 90, step = 1, post = "%"
+        ),
+        helpText("Find minimum m/z range achieving this coverage",
+                 style = "font-size: 10px; color: #7f8c8d;")
+      )
+    ),
+
+    # Greedy Strategy Parameters
+    conditionalPanel(
+      condition = "input.mz_strategy == 'greedy'",
+      div(style = "background: rgba(241, 196, 15, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+        h5("Greedy Parameters (MacCoss Lab)", style = "margin: 0 0 8px 0; color: #f39c12;"),
+
+        # Info box explaining the algorithm
+        div(style = "background: rgba(255,255,255,0.5); padding: 8px; border-radius: 4px; margin-bottom: 10px; border-left: 3px solid #f39c12;",
+          tags$small(
+            tags$strong("How Greedy works:"), tags$br(),
+            "1. Fixed m/z range = Windows × Min Width", tags$br(),
+            "2. Slides along m/z axis to find optimal position", tags$br(),
+            "3. Maximizes precursor count within fixed range",
+            style = "color: #7f8c8d; line-height: 1.4;"
+          )
+        ),
+
+        checkboxInput(
+          inputId = "greedy_auto_windows",
+          label = "Auto Window Count (from DPPP)",
+          value = TRUE
+        ),
+        # Show recommended windows when Auto is checked
+        conditionalPanel(
+          condition = "input.greedy_auto_windows",
+          uiOutput("greedy_auto_windows_info")
+        ),
+        conditionalPanel(
+          condition = "!input.greedy_auto_windows",
+          sliderInput(
+            inputId = "greedy_n_windows",
+            label = "Windows per RT Bin",
+            min = 10, max = 100, value = 40, step = 5
+          )
+        ),
+
+        # m/z Range Preview (most important info)
+        uiOutput("greedy_mz_range_display"),
+
+        hr(style = "margin: 10px 0; border-color: rgba(243, 156, 18, 0.3);"),
+
+        # Sliding Step - clarify it's for search precision
+        tags$label("Search Precision", class = "control-label",
+                   style = "font-size: 12px; color: #7f8c8d;"),
+        sliderInput(
+          inputId = "greedy_mz_step",
+          label = NULL,
+          min = 0.5, max = 10.0, value = 2.0, step = 0.5,
+          post = " Da step"
+        ),
+        helpText("Smaller step = more precise search but slower. Does NOT affect m/z range width.",
+                 style = "font-size: 10px; color: #95a5a6; font-style: italic;"),
+
+        hr(style = "margin: 10px 0; border-color: rgba(243, 156, 18, 0.3);"),
+
+        # Post-Smoothing (following dynamicDIA.py)
+        checkboxInput(
+          inputId = "greedy_apply_smoothing",
+          label = "Apply Savitzky-Golay Smoothing",
+          value = TRUE
+        ),
+        helpText("Smooths m/z boundaries across RT bins to prevent abrupt jumps (dynamicDIA method).",
+                 style = "font-size: 10px; color: #7f8c8d;")
+      )
+    ),
+
+    # Outlier Strategy Parameters
+    conditionalPanel(
+      condition = "input.mz_strategy == 'outlier'",
+      div(style = "background: rgba(155, 89, 182, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+        h5("Outlier Parameters", style = "margin: 0 0 8px 0; color: #9b59b6;"),
+        sliderInput(
+          inputId = "outlier_threshold",
+          label = "Threshold (× SD)",
+          min = 2.0, max = 4.0, value = 3.0, step = 0.5
+        ),
+        helpText("Mean ± N×SD range. Higher = include more outliers.",
+                 style = "font-size: 10px; color: #7f8c8d;")
+      )
+    ),
+
+    # KDE Strategy Parameters
+    conditionalPanel(
+      condition = "input.mz_strategy == 'kde'",
+      div(style = "background: rgba(231, 76, 60, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+        h5("KDE Parameters (Density Peak)", style = "margin: 0 0 8px 0; color: #e74c3c;"),
+        sliderInput(
+          inputId = "kde_density_threshold",
+          label = "Density Threshold (%)",
+          min = 5, max = 30, value = 10, step = 5
+        ),
+        helpText("Boundary at N% of peak density. Lower = wider range.",
+                 style = "font-size: 10px; color: #7f8c8d;"),
+        sliderInput(
+          inputId = "kde_min_coverage",
+          label = "Minimum Coverage (%)",
+          min = 60, max = 95, value = 80, step = 5
+        ),
+        helpText("Expand range to ensure at least N% precursor coverage.",
+                 style = "font-size: 10px; color: #7f8c8d;")
+      )
+    ),
+
+    # Smoothing Strategy Parameters
+    conditionalPanel(
+      condition = "input.mz_strategy == 'smoothing'",
+      div(style = "background: rgba(52, 73, 94, 0.2); padding: 10px; margin: 5px 0; border-radius: 5px;",
+        h5("Smoothing Parameters", style = "margin: 0 0 8px 0; color: #34495e;"),
+        sliderInput(
+          inputId = "smoothing_quantile_lower",
+          label = "Lower Percentile",
+          min = 0.05, max = 0.30, value = 0.05, step = 0.05
+        ),
+        sliderInput(
+          inputId = "smoothing_quantile_upper",
+          label = "Upper Percentile",
+          min = 0.70, max = 0.95, value = 0.95, step = 0.05
+        ),
+        helpText("Tighter range (e.g., P15-P85) = closer fit to density peak.",
+                 style = "font-size: 10px; color: #7f8c8d;"),
+        hr(style = "margin: 8px 0; border-color: rgba(255,255,255,0.1);"),
+        sliderInput(
+          inputId = "smoothing_window",
+          label = "Savitzky-Golay Window",
+          min = 5, max = 15, value = 7, step = 2
+        ),
+        sliderInput(
+          inputId = "smoothing_poly_order",
+          label = "Polynomial Order",
+          min = 2, max = 5, value = 3, step = 1
+        ),
+        helpText("Larger window = smoother boundaries. Order < Window required.",
+                 style = "font-size: 10px; color: #7f8c8d;")
+      )
+    ),
+
+    br(),
 
     # Minimum Isolation Width (Moved from Experiment Parameters)
     numericInput(
@@ -628,8 +854,8 @@ server <- function(input, output, session) {
     window_count_input <- input$current_window_count  # Explicit dependency
 
     # Determine analyzer type
-    is_orbitrap <- instrument %in% c("qexactive", "qexactive_hfx", "exploris", "eclipse", "fusion_lumos")
-    is_astral <- instrument %in% c("astral", "astral_zoom", "astral_sensitive")
+    is_orbitrap <- is_orbitrap_instrument(instrument)
+    is_astral <- is_astral_instrument(instrument)
 
     # Build experiment config based on instrument type
     if (is_orbitrap) {
@@ -765,6 +991,149 @@ server <- function(input, output, session) {
               result$window_count,
               result$ms2$scan_time_ms)
     }
+  })
+
+  # --- Output: Greedy Auto Windows Info ---
+  # Shows the recommended window count when Auto mode is selected
+  output$greedy_auto_windows_info <- renderUI({
+    # Calculate recommended windows from DPPP target and cycle time
+    calc_result <- cycle_time_result()
+
+    # Try to get windows from optimization plan first
+    plan_windows <- rv$optimization_plan$n_windows_per_bin
+
+    # Calculate based on target DPPP if we have FWHM data
+    dppp_windows <- NULL
+    if (!is.null(rv$validated_data)) {
+      fwhm_median <- median(rv$validated_data$data$FWHM, na.rm = TRUE)
+      # Convert to seconds if in minutes
+      if (!is.na(fwhm_median) && fwhm_median < 1) {
+        fwhm_median <- fwhm_median * 60
+      }
+
+      if (!is.null(calc_result) && !is.na(fwhm_median)) {
+        # DPPP = 1.7 × FWHM / cycle_time
+        # cycle_time ≈ n_windows × ms2_time (simplified for Astral parallel)
+        # target_dppp = 1.7 × fwhm / (n_windows × ms2_time)
+        # n_windows = 1.7 × fwhm / (target_dppp × ms2_time)
+        target_dppp <- input$target_dppp %||% 7.0
+        ms2_time_sec <- calc_result$ms2$scan_time_ms / 1000
+        dppp_windows <- floor((1.7 * fwhm_median) / (target_dppp * ms2_time_sec))
+        dppp_windows <- max(10, min(200, dppp_windows))  # Clamp to reasonable range
+      }
+    }
+
+    # Determine which value to show
+    if (!is.null(plan_windows)) {
+      # Optimization plan available
+      tags$div(
+        style = "background: rgba(39, 174, 96, 0.15); padding: 6px 8px; border-radius: 4px; margin: 4px 0;",
+        tags$span(
+          style = "color: #27ae60; font-weight: 600;",
+          sprintf("✓ Auto: %d windows", plan_windows)
+        ),
+        tags$br(),
+        tags$small("(from optimization plan)", style = "color: #7f8c8d;")
+      )
+    } else if (!is.null(dppp_windows)) {
+      # Estimated from DPPP calculation
+      tags$div(
+        style = "background: rgba(52, 152, 219, 0.15); padding: 6px 8px; border-radius: 4px; margin: 4px 0;",
+        tags$span(
+          style = "color: #3498db; font-weight: 600;",
+          sprintf("≈ Estimated: %d windows", dppp_windows)
+        ),
+        tags$br(),
+        tags$small(sprintf("(for DPPP %.1f with current settings)", input$target_dppp),
+                   style = "color: #7f8c8d;")
+      )
+    } else {
+      # No data available yet
+      tags$div(
+        style = "background: rgba(149, 165, 166, 0.15); padding: 6px 8px; border-radius: 4px; margin: 4px 0;",
+        tags$span(
+          style = "color: #7f8c8d;",
+          "Upload data to see recommended windows"
+        )
+      )
+    }
+  })
+
+  # --- Output: Greedy m/z Range Display ---
+  output$greedy_mz_range_display <- renderUI({
+    # Get window count (from auto or manual)
+    if (isTRUE(input$greedy_auto_windows)) {
+      # Priority: optimization plan > estimated > default
+      n_windows <- rv$optimization_plan$n_windows_per_bin
+
+      # Estimate if no plan yet
+      if (is.null(n_windows) && !is.null(rv$validated_data)) {
+        calc_result <- cycle_time_result()
+        fwhm_median <- median(rv$validated_data$data$FWHM, na.rm = TRUE)
+        if (!is.na(fwhm_median) && fwhm_median < 1) fwhm_median <- fwhm_median * 60
+        if (!is.null(calc_result) && !is.na(fwhm_median)) {
+          target_dppp <- input$target_dppp %||% 7.0
+          ms2_time_sec <- calc_result$ms2$scan_time_ms / 1000
+          n_windows <- floor((1.7 * fwhm_median) / (target_dppp * ms2_time_sec))
+          n_windows <- max(10, min(200, n_windows))
+        }
+      }
+
+      n_windows <- n_windows %||% 40
+    } else {
+      n_windows <- input$greedy_n_windows %||% 40
+    }
+
+    min_width <- input$min_isolation_width %||% 2
+    mz_range <- n_windows * min_width
+
+    # Determine if this is a reasonable range (typical precursor spread is 400-1200 m/z)
+    range_status <- if (mz_range < 100) {
+      list(color = "#e74c3c", icon = "⚠", msg = "Very narrow - may miss many precursors")
+    } else if (mz_range < 200) {
+      list(color = "#f39c12", icon = "△", msg = "Narrow range - check coverage")
+    } else if (mz_range > 600) {
+      list(color = "#3498db", icon = "○", msg = "Wide range - good coverage expected")
+    } else {
+      list(color = "#27ae60", icon = "✓", msg = "Typical range for DIA")
+    }
+
+    tags$div(
+      style = "background: rgba(241, 196, 15, 0.25); padding: 10px; border-radius: 6px; margin: 8px 0; border: 1px solid rgba(241, 196, 15, 0.4);",
+
+      # Main value
+      tags$div(
+        style = "display: flex; justify-content: space-between; align-items: baseline;",
+        tags$span(
+          style = "font-size: 18px; font-weight: 700; color: #d35400;",
+          sprintf("%.0f Da", mz_range)
+        ),
+        tags$span(
+          style = "font-size: 12px; color: #7f8c8d;",
+          "Fixed m/z Range"
+        )
+      ),
+
+      # Formula breakdown
+      tags$div(
+        style = "margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(211, 84, 0, 0.3);",
+        tags$span(
+          style = "font-size: 12px; color: #8e44ad;",
+          sprintf("%d windows", n_windows)
+        ),
+        tags$span(style = "color: #7f8c8d; margin: 0 4px;", "×"),
+        tags$span(
+          style = "font-size: 12px; color: #16a085;",
+          sprintf("%.1f Da (min width)", min_width)
+        )
+      ),
+
+      # Status indicator
+      tags$div(
+        style = sprintf("margin-top: 6px; font-size: 11px; color: %s;", range_status$color),
+        sprintf("%s %s", range_status$icon, range_status$msg)
+      )
+    )
   })
 
   output$efficiency_badge <- renderUI({
@@ -1034,8 +1403,8 @@ server <- function(input, output, session) {
       cat("[Shiny] m/z Strategy:", input$mz_strategy, "\n")
 
       # Log IT mode for Orbitrap instruments
-      is_orbitrap <- input$instrument %in% c("qexactive", "qexactive_hfx", "exploris", "eclipse", "fusion_lumos")
-      is_astral <- input$instrument %in% c("astral", "astral_zoom", "astral_sensitive")
+      is_orbitrap <- is_orbitrap_instrument(input$instrument)
+      is_astral <- is_astral_instrument(input$instrument)
 
       if (is_orbitrap) {
         ms1_it_mode <- if (isTRUE(input$ms1_it_auto)) "AUTO" else sprintf("CUSTOM (%d ms)", input$ms1_it_custom)
@@ -1120,15 +1489,87 @@ server <- function(input, output, session) {
 
       # Stage 3: Window Optimization with selected m/z strategy
       cat("[Shiny] Running optimize_windows()...\n")
-      cat("[Shiny] m/z Strategy:", input$mz_strategy, "\n")
+      cat("[Shiny] m/z Range Strategy:", input$mz_strategy, "\n")
+      cat("[Shiny] Window Width Mode:", input$window_mode, "\n")
       cat("[Shiny] Min Isolation Width:", input$min_isolation_width, "Da\n")
+
+      # Get strategy-specific parameters with defaults
+      # Note: Smoothing uses its own quantile range, separate from Quantile strategy
+      strategy_params <- list(
+        # Quantile parameters (for Quantile strategy)
+        quantile_lower = input$quantile_lower %||% 0.05,
+        quantile_upper = input$quantile_upper %||% 0.95,
+        # Coverage parameters
+        target_coverage = (input$target_coverage %||% 90) / 100,  # Convert % to ratio
+        # Greedy parameters
+        mz_step = input$greedy_mz_step %||% 2.0,
+        greedy_n_windows = NULL,  # Will be set below if manual
+        greedy_apply_smoothing = isTRUE(input$greedy_apply_smoothing %||% TRUE),
+        # Outlier parameters
+        outlier_threshold = input$outlier_threshold %||% 3.0,
+        # Smoothing parameters (separate quantile range for smoothing)
+        smoothing_quantile_lower = input$smoothing_quantile_lower %||% 0.05,
+        smoothing_quantile_upper = input$smoothing_quantile_upper %||% 0.95,
+        smoothing_window = input$smoothing_window %||% 7,
+        polynomial_order = input$smoothing_poly_order %||% 3,
+        # KDE parameters
+        kde_density_threshold = (input$kde_density_threshold %||% 10) / 100,  # Convert % to ratio
+        kde_min_coverage = (input$kde_min_coverage %||% 80) / 100  # Convert % to ratio
+      )
+
+      # Handle Greedy window count (auto vs manual)
+      if (input$mz_strategy == "greedy" && !isTRUE(input$greedy_auto_windows)) {
+        strategy_params$greedy_n_windows <- input$greedy_n_windows %||% 40
+        cat(sprintf("[Shiny] Greedy: Manual window count = %d\n", strategy_params$greedy_n_windows))
+      }
+
+      # For Smoothing, use smoothing-specific quantiles
+      if (input$mz_strategy == "smoothing") {
+        strategy_params$quantile_lower <- strategy_params$smoothing_quantile_lower
+        strategy_params$quantile_upper <- strategy_params$smoothing_quantile_upper
+      }
+
+      cat("[Shiny] Strategy parameters:\n")
+      cat(sprintf("  - Quantile: P%.0f-P%.0f\n",
+                  strategy_params$quantile_lower * 100,
+                  strategy_params$quantile_upper * 100))
+      cat(sprintf("  - Coverage target: %.0f%%\n", strategy_params$target_coverage * 100))
+      cat(sprintf("  - Greedy mz_step: %.1f Da\n", strategy_params$mz_step))
+      if (!is.null(strategy_params$greedy_n_windows)) {
+        cat(sprintf("  - Greedy n_windows: %d (manual)\n", strategy_params$greedy_n_windows))
+      }
+      cat(sprintf("  - Greedy SG smoothing: %s\n",
+                  ifelse(strategy_params$greedy_apply_smoothing, "YES", "NO")))
+      cat(sprintf("  - Outlier threshold: %.1f SD\n", strategy_params$outlier_threshold))
+      cat(sprintf("  - Smoothing: quantile P%.0f-P%.0f, window=%d, order=%d\n",
+                  strategy_params$smoothing_quantile_lower * 100,
+                  strategy_params$smoothing_quantile_upper * 100,
+                  strategy_params$smoothing_window,
+                  strategy_params$smoothing_poly_order))
+      cat(sprintf("  - KDE: threshold=%.0f%%, min_coverage=%.0f%%\n",
+                  strategy_params$kde_density_threshold * 100,
+                  strategy_params$kde_min_coverage * 100))
+
       rv$optimized_windows <- optimize_windows(
         validated_data = rv$validated_data,
         optimization_plan = rv$optimization_plan,
         mz_strategy = input$mz_strategy,
-        window_mode = "variable",
+        window_mode = input$window_mode %||% "density",
         rt_bin_width_min = rt_bin_width_final,
-        min_width_da = input$min_isolation_width %||% 2
+        min_width_da = input$min_isolation_width %||% 2,
+        # Pass strategy-specific parameters
+        quantile_lower = strategy_params$quantile_lower,
+        quantile_upper = strategy_params$quantile_upper,
+        target_coverage = strategy_params$target_coverage,
+        mz_step = strategy_params$mz_step,
+        n_windows_override = strategy_params$greedy_n_windows,  # For Greedy manual override
+        greedy_apply_smoothing = strategy_params$greedy_apply_smoothing,
+        outlier_threshold = strategy_params$outlier_threshold,
+        smoothing_window = strategy_params$smoothing_window,
+        polynomial_order = strategy_params$polynomial_order,
+        # KDE parameters
+        kde_density_threshold = strategy_params$kde_density_threshold,
+        kde_min_coverage = strategy_params$kde_min_coverage
       )
       cat("[Shiny] optimize_windows() completed!\n")
 
@@ -1441,8 +1882,8 @@ server <- function(input, output, session) {
     params <- rv$optimized_windows$parameters
 
     # Determine IT mode display
-    is_orbitrap <- input$instrument %in% c("qexactive", "qexactive_hfx", "exploris", "eclipse", "fusion_lumos")
-    is_astral <- input$instrument %in% c("astral", "astral_zoom", "astral_sensitive")
+    is_orbitrap <- is_orbitrap_instrument(input$instrument)
+    is_astral <- is_astral_instrument(input$instrument)
 
     it_mode_display <- if (is_orbitrap) {
       if (isTRUE(input$ms2_it_auto)) {
@@ -1502,13 +1943,55 @@ server <- function(input, output, session) {
       DT::formatRound(columns = c("mz_start", "mz_end", "window_width"), digits = 2)
   })
 
+  # --- Helper: Generate descriptive filename ---
+  generate_output_filename <- function(prefix, extension) {
+    # Build filename components
+    parts <- c(prefix)
+
+    # Add sample name if provided
+    sample_name <- trimws(input$sample_name %||% "")
+    if (nchar(sample_name) > 0) {
+      # Sanitize: replace spaces and special chars with underscores
+      sample_name <- gsub("[^a-zA-Z0-9_-]", "_", sample_name)
+      parts <- c(parts, sample_name)
+    }
+
+    # Add condition if provided
+    condition <- trimws(input$condition %||% "")
+    if (nchar(condition) > 0) {
+      condition <- gsub("[^a-zA-Z0-9_-]", "_", condition)
+      parts <- c(parts, condition)
+    }
+
+    # Add instrument and strategy
+    parts <- c(parts, input$instrument)
+    parts <- c(parts, input$mz_strategy)
+
+    # Add date
+    parts <- c(parts, format(Sys.Date(), "%Y%m%d"))
+
+    # Combine with underscores
+    paste0(paste(parts, collapse = "_"), ".", extension)
+  }
+
   # --- Download Handler: CSV Method File ---
   output$download_csv <- downloadHandler(
     filename = function() {
-      paste0("dia_method_", input$instrument, "_", Sys.Date(), ".csv")
+      generate_output_filename("method", "csv")
     },
     content = function(file) {
       req(rv$optimized_windows, rv$validated_data)
+
+      # Build project name from inputs
+      project_name <- paste(
+        c(
+          trimws(input$sample_name %||% ""),
+          trimws(input$condition %||% "")
+        )[nchar(c(trimws(input$sample_name %||% ""),
+                  trimws(input$condition %||% ""))) > 0],
+        collapse = "_"
+      )
+      if (nchar(project_name) == 0) project_name <- "shiny_export"
 
       # Use existing export function from Stage 3
       export_windows_to_csv(
@@ -1517,7 +2000,7 @@ server <- function(input, output, session) {
         validated_data = rv$validated_data,
         optimization_plan = rv$optimization_plan,
         instrument_type = input$instrument,
-        project_name = "shiny_export"
+        project_name = project_name
       )
     }
   )
@@ -1525,7 +2008,7 @@ server <- function(input, output, session) {
   # --- Download Handler: PDF Report ---
   output$download_pdf <- downloadHandler(
     filename = function() {
-      paste0("dia_report_", input$instrument, "_", Sys.Date(), ".pdf")
+      generate_output_filename("report", "pdf")
     },
     content = function(file) {
       req(rv$optimized_windows, rv$validated_data, rv$optimization_plan)
@@ -1559,19 +2042,42 @@ server <- function(input, output, session) {
         cat("[Shiny] Creating PDF file...\n")
         pdf(file, width = 12, height = 8)
 
+        # Build title info
+        sample_name <- trimws(input$sample_name %||% "")
+        condition <- trimws(input$condition %||% "")
+        title_line2 <- ""
+        if (nchar(sample_name) > 0 || nchar(condition) > 0) {
+          title_parts <- c()
+          if (nchar(sample_name) > 0) title_parts <- c(title_parts, paste("Sample:", sample_name))
+          if (nchar(condition) > 0) title_parts <- c(title_parts, paste("Condition:", condition))
+          title_line2 <- paste(title_parts, collapse = " | ")
+        }
+
         # Title page
         grid::grid.newpage()
         grid::grid.text("DIA Window Optimization Report",
-                        x = 0.5, y = 0.7,
+                        x = 0.5, y = 0.75,
                         gp = grid::gpar(fontsize = 24, fontface = "bold"))
+
+        # Sample/Condition info (if provided)
+        if (nchar(title_line2) > 0) {
+          grid::grid.text(title_line2,
+                          x = 0.5, y = 0.65,
+                          gp = grid::gpar(fontsize = 16, col = "#3498db"))
+        }
+
         grid::grid.text(sprintf("Generated: %s", Sys.time()),
-                        x = 0.5, y = 0.5,
+                        x = 0.5, y = 0.55,
                         gp = grid::gpar(fontsize = 14))
-        grid::grid.text(sprintf("Instrument: %s | Windows: %d | Coverage: %.1f%%",
+        grid::grid.text(sprintf("Instrument: %s | Strategy: %s",
                                 rv$optimization_plan$instrument$preset,
+                                input$mz_strategy),
+                        x = 0.5, y = 0.45,
+                        gp = grid::gpar(fontsize = 12))
+        grid::grid.text(sprintf("Windows: %d | Coverage: %.1f%%",
                                 nrow(rv$optimized_windows$windows),
                                 rv$optimized_windows$statistics$coverage_percentage),
-                        x = 0.5, y = 0.4,
+                        x = 0.5, y = 0.38,
                         gp = grid::gpar(fontsize = 12))
 
         # Print each plot on its own page (no empty pages)

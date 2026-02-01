@@ -590,6 +590,59 @@ if (!exists("new_ValidatedData")) {
 
 
 # =============================================================================
+# Plot Utilities
+# =============================================================================
+
+#' Create Insufficient Data Placeholder Plot
+#'
+#' Returns a standardized ggplot placeholder when there isn't enough data
+#' to render a meaningful visualization (e.g., density plots need >= 2 points).
+#'
+#' @param title Character, plot title
+#' @param subtitle Character, plot subtitle (default: "Not enough data points")
+#' @param message Character, message to display (default: "Insufficient data")
+#'
+#' @return A ggplot object with centered text message
+#' @export
+create_insufficient_data_plot <- function(title,
+                                          subtitle = "Not enough data points",
+                                          message = "Insufficient data\n(need at least 2 data points)") {
+  ggplot2::ggplot() +
+    ggplot2::annotate("text", x = 0.5, y = 0.5,
+                      label = message, size = 5, hjust = 0.5) +
+    ggplot2::labs(title = title, subtitle = subtitle) +
+    ggplot2::theme_void()
+}
+
+
+# =============================================================================
+# Data Manipulation Utilities
+# =============================================================================
+
+#' Safe bind_rows with fallback for vctrs compatibility issues
+#'
+#' Wrapper around dplyr::bind_rows that falls back to base R rbind
+#' when vctrs package has compatibility issues (e.g., ffi_list2 error).
+#'
+#' @param ... Data frames or list of data frames to bind
+#'
+#' @return Combined data frame
+#' @export
+safe_bind_rows <- function(...) {
+  tryCatch({
+    dplyr::bind_rows(...)
+  }, error = function(e) {
+    # Fallback for vctrs/rlang package compatibility issues
+    args <- list(...)
+    if (length(args) == 1 && is.list(args[[1]])) {
+      args <- args[[1]]
+    }
+    do.call(rbind, lapply(args, as.data.frame))
+  })
+}
+
+
+# =============================================================================
 # Module Loading
 # =============================================================================
 
