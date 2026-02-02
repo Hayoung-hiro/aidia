@@ -6,7 +6,7 @@
 
 cat("
 ╔══════════════════════════════════════════════════════════════╗
-║  DIA Window Optimizer - Shiny App Setup                       ║
+║  AIDIA - Adaptive Isolation for DIA (Shiny App Setup)         ║
 ╚══════════════════════════════════════════════════════════════╝
 ")
 
@@ -71,7 +71,7 @@ if (!dir.exists("www")) {
 # Create placeholder CSS
 css_file <- "www/custom.css"
 if (!file.exists(css_file)) {
-  writeLines("/* Custom CSS for DIA Window Optimizer Shiny App */
+  writeLines("/* Custom CSS for AIDIA Shiny App */
 
 /* Info boxes */
 .info-box {

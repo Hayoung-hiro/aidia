@@ -1,12 +1,17 @@
 #' @keywords internal
 "_PACKAGE"
 
-#' diaoptimizer: DIA Isolation Window Optimizer
+#' AIDIA: Adaptive Isolation for DIA
 #'
 #' @description
-#' Production-ready R package for optimizing Data-Independent Acquisition (DIA)
-#' isolation windows for mass spectrometry. Specifically designed for Thermo Fisher
-#' Orbitrap instruments.
+#' AIDIA (Adaptive Isolation for DIA) aids researchers in optimizing
+#' Data-Independent Acquisition isolation windows for mass spectrometry.
+#' Specifically designed for Thermo Fisher Orbitrap instruments.
+#'
+#' @section Package Name:
+#' \strong{AIDIA} = \strong{A}daptive \strong{I}solation for \strong{DIA}
+#'
+#' Also represents: "Your \strong{Aid} for DIA optimization"
 #'
 #' @section Main Pipeline Functions:
 #' \describe{
@@ -40,15 +45,24 @@
 #'
 #' @section m/z Optimization Strategies:
 #' \itemize{
+#'   \item \strong{greedy}: MacCoss Lab algorithm with Savitzky-Golay smoothing
+#'   \item \strong{kde}: Kernel Density Estimation for peak detection
 #'   \item \strong{quantile}: P5-P95 percentiles (fast, robust)
 #'   \item \strong{coverage}: Minimum range for target coverage
-#'   \item \strong{outlier}: Mean ± 3σ (inclusive)
+#'   \item \strong{outlier}: Mean +/- 3 sigma (inclusive)
 #'   \item \strong{smoothing}: Savitzky-Golay gradient-wide smoothing
+#' }
+#'
+#' @section Window Modes:
+#' \itemize{
+#'   \item \strong{variable}: Density-based adaptive width (Dense=Narrow)
+#'   \item \strong{fixed}: Equal width windows
+#'   \item \strong{staggered}: Offset windows in alternating RT bins
 #' }
 #'
 #' @section Quick Start:
 #' \preformatted{
-#' library(diaoptimizer)
+#' library(aidia)
 #'
 #' # Load and validate data
 #' data <- create_validated_dataset("path/to/report.parquet")
@@ -58,7 +72,7 @@
 #' plan <- plan_optimization(data, config, target_dppp = 7.0)
 #'
 #' # Generate optimized windows
-#' windows <- optimize_windows(data, plan, mz_strategy = "quantile")
+#' windows <- optimize_windows(data, plan, mz_strategy = "greedy")
 #'
 #' # Export method file
 #' export_windows_to_csv(windows, "method.csv", data, plan)

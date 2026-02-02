@@ -67,7 +67,12 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
       bin_windows <- generate_fixed_windows_internal(
         mz_min, mz_max, n_windows_per_bin, min_width_da, max_width_da
       )
-    } else {  # density
+    } else if (window_mode == "staggered") {
+      bin_windows <- generate_staggered_windows_internal(
+        mz_min, mz_max, n_windows_per_bin, min_width_da, max_width_da,
+        rt_bin_index = i
+      )
+    } else {  # density (variable)
       bin_windows <- generate_variable_windows_internal(
         bin_data$Precursor.Mz, mz_min, mz_max, n_windows_per_bin,
         min_width_da, max_width_da
@@ -217,6 +222,95 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   # Windows exceeding max_width are kept but flagged
   windows <- windows %>%
     filter(window_width <= max_width_da)
+
+  return(windows)
+}
+
+# =============================================================================
+# Staggered Window Mode
+# =============================================================================
+
+#' Generate Staggered Windows (Internal)
+#'
+#' Creates fixed-width windows with staggered (offset) placement across RT bins.
+#' Odd RT bins use normal placement, even RT bins are shifted by half window width.
+#' This reduces edge effects by ensuring precursors near boundaries are fully
+#' covered in adjacent RT bins.
+#'
+#' @param mz_min Minimum m/z
+#' @param mz_max Maximum m/z
+#' @param n_windows Target number of windows
+#' @param min_width_da Minimum window width
+#' @param max_width_da Maximum window width
+#' @param rt_bin_index Current RT bin index (1-based)
+#' @param stagger_fraction Fraction of window width to offset (default: 0.5 = half)
+#'
+#' @return Data frame with window specifications
+#' @keywords internal
+generate_staggered_windows_internal <- function(mz_min, mz_max, n_windows,
+                                                 min_width_da, max_width_da,
+                                                 rt_bin_index,
+                                                 stagger_fraction = 0.5) {
+
+  mz_range <- mz_max - mz_min
+  ideal_width <- mz_range / n_windows
+
+  # Apply width constraints (same as fixed mode)
+  if (ideal_width < min_width_da) {
+    actual_width <- min_width_da
+    actual_count <- floor(mz_range / actual_width)
+  } else if (ideal_width > max_width_da) {
+    actual_width <- max_width_da
+    actual_count <- ceiling(mz_range / actual_width)
+  } else {
+    actual_width <- ideal_width
+    actual_count <- n_windows
+  }
+
+  actual_count <- max(1, actual_count)
+
+  # Calculate stagger offset for even RT bins
+  # Odd bins (1, 3, 5...): no offset
+  # Even bins (2, 4, 6...): offset by stagger_fraction * window_width
+  is_even_bin <- (rt_bin_index %% 2 == 0)
+  stagger_offset <- if (is_even_bin) actual_width * stagger_fraction else 0
+
+  # Generate window boundaries with stagger
+  # For staggered bins, we need to handle edge cases
+  if (is_even_bin) {
+    # Even bins: start earlier, may need extra window at the end
+    start_mz <- mz_min - stagger_offset
+
+    # Generate windows
+    mz_starts <- start_mz + (0:(actual_count)) * actual_width
+    mz_ends <- mz_starts + actual_width
+
+    # Filter to only include windows that overlap with [mz_min, mz_max]
+    valid_mask <- (mz_ends > mz_min) & (mz_starts < mz_max)
+    mz_starts <- mz_starts[valid_mask]
+    mz_ends <- mz_ends[valid_mask]
+
+    # Clip to mz_min/mz_max boundaries
+    mz_starts <- pmax(mz_starts, mz_min)
+    mz_ends <- pmin(mz_ends, mz_max)
+  } else {
+    # Odd bins: normal placement (same as fixed)
+    mz_starts <- mz_min + (0:(actual_count - 1)) * actual_width
+    mz_ends <- pmin(mz_min + (1:actual_count) * actual_width, mz_max)
+  }
+
+  # Create windows tibble
+  windows <- tibble(
+    mz_start = mz_starts,
+    mz_end = mz_ends,
+    mz_center = (mz_start + mz_end) / 2,
+    window_width = mz_end - mz_start,
+    is_staggered = is_even_bin
+  )
+
+  # Remove windows that are too narrow (edge artifacts from clipping)
+  windows <- windows %>%
+    filter(window_width >= min_width_da * 0.5)  # Allow slightly narrower at edges
 
   return(windows)
 }

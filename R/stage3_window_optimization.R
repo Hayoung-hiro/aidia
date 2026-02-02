@@ -156,7 +156,7 @@ optimize_windows <- function(
                  paste(valid_strategies, collapse = ", ")))
   }
 
-  valid_modes <- c("fixed", "density")
+  valid_modes <- c("fixed", "density", "staggered")
   if (!window_mode %in% valid_modes) {
     stop(sprintf("window_mode must be one of: %s",
                  paste(valid_modes, collapse = ", ")))

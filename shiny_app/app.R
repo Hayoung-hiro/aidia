@@ -1,8 +1,9 @@
 # =============================================================================
-# DIA Window Optimizer - Shiny Web Application (MVP)
+# AIDIA - Adaptive Isolation for DIA (Shiny Web Application)
 # =============================================================================
-# Version: 0.3.0 (MVP with PDF Report)
+# Version: 1.0.0
 # Purpose: Web-based interface for DIA isolation window optimization
+# "Your Adaptive Aid for DIA Optimization"
 # =============================================================================
 
 # --- Dependencies ---
@@ -16,17 +17,17 @@ library(DT)             # Interactive tables
 # DIA-NN parquet files can be 50-500MB depending on experiment size
 options(shiny.maxRequestSize = 500 * 1024^2)
 
-# --- Load diaoptimizer package ---
+# --- Load aidia package ---
 # Option 1: Use installed package (production)
-# library(diaoptimizer)
+# library(aidia)
 
 # Option 2: Use devtools::load_all() for development
 # This loads the package from source without installing
-if (!requireNamespace("diaoptimizer", quietly = TRUE)) {
+if (!requireNamespace("aidia", quietly = TRUE)) {
   # Package not installed, use load_all for development
   devtools::load_all("..")
 } else {
-  library(diaoptimizer)
+  library(aidia)
 }
 
 # --- Ensure all required modules are loaded ---
@@ -92,7 +93,7 @@ ui <- dashboardPage(
 
   # --- Header ---
   dashboardHeader(
-    title = "DIA Window Optimizer",
+    title = "AIDIA",
     titleWidth = 250
   ),
 
@@ -372,11 +373,12 @@ ui <- dashboardPage(
       label = "Window Width Mode",
       choices = c(
         "Density (Dense=Narrow)" = "density",
-        "Fixed (Equal Width)" = "fixed"
+        "Fixed (Equal Width)" = "fixed",
+        "Staggered (Offset Bins)" = "staggered"
       ),
       selected = "density"
     ),
-    helpText("Density: 밀집 구간은 좁게, 희소 구간은 넓게. Fixed: 동일한 폭.",
+    helpText("Density: 밀집=좁게. Fixed: 동일 폭. Staggered: 인접 bin offset (edge effect 감소).",
              style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
 
     # ========================================
