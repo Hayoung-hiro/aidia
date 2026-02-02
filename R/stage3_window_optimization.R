@@ -64,10 +64,11 @@ for (module in stage3_modules) {
 #'   - Shorter bins: Better RT specificity, more bins to manage
 #'   - Longer bins: Simpler, fewer total windows
 #' @param mz_strategy Character, m/z optimization strategy (default: "quantile")
+#'   - "greedy": MacCoss Lab algorithm, maximize precursor count (recommended)
+#'   - "kde": Kernel Density Estimation, find density peak and expand
 #'   - "quantile": Use percentiles (P5-P95), fast and robust
 #'   - "coverage": Minimum range for target coverage, conservative
 #'   - "outlier": Mean +/- 3*SD, removes outliers
-#'   - "smoothing": GLOBAL Savitzky-Golay smoothing across RT
 #' @param window_mode Character, window generation mode (default: "density")
 #'   - "fixed": Equal-width windows
 #'   - "density": Density-based adaptive windows (recommended)
@@ -123,7 +124,9 @@ optimize_windows <- function(
   n_windows_override = NULL,  # Optional: Override window count (for Greedy strategy)
   greedy_apply_smoothing = TRUE,  # Greedy: Apply SG smoothing to boundaries (dynamicDIA method)
   kde_density_threshold = 0.1,  # KDE: Density threshold (0-1, relative to peak)
-  kde_min_coverage = 0.80  # KDE: Minimum coverage target
+  kde_min_coverage = 0.80,  # KDE: Minimum coverage target
+  quantile_apply_smoothing = FALSE,  # Quantile: Apply SG smoothing (default: FALSE)
+  outlier_apply_smoothing = FALSE  # Outlier: Apply SG smoothing (default: FALSE)
 ) {
 
   # Start timing
@@ -150,7 +153,7 @@ optimize_windows <- function(
   validate_numeric_range(max_width_da, min = min_width_da, param_name = "max_width_da")
   validate_numeric_range(overlap_percentage, min = 0, max = 50, param_name = "overlap_percentage")
 
-  valid_strategies <- c("quantile", "coverage", "outlier", "smoothing", "greedy", "kde")
+  valid_strategies <- c("quantile", "coverage", "outlier", "greedy", "kde")
   if (!mz_strategy %in% valid_strategies) {
     stop(sprintf("mz_strategy must be one of: %s",
                  paste(valid_strategies, collapse = ", ")))
@@ -223,7 +226,9 @@ optimize_windows <- function(
     mz_step = mz_step,
     greedy_apply_smoothing = greedy_apply_smoothing,
     kde_density_threshold = kde_density_threshold,
-    kde_min_coverage = kde_min_coverage
+    kde_min_coverage = kde_min_coverage,
+    quantile_apply_smoothing = quantile_apply_smoothing,
+    outlier_apply_smoothing = outlier_apply_smoothing
   )
 
   print_info(sprintf("Optimized m/z ranges for %d RT bins", nrow(mz_ranges)))

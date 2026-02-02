@@ -51,13 +51,16 @@
 #'
 #' @section m/z Optimization Strategies:
 #' \itemize{
-#'   \item \strong{greedy}: MacCoss Lab algorithm with Savitzky-Golay smoothing
+#'   \item \strong{greedy}: MacCoss Lab algorithm (recommended, with optional SG smoothing)
 #'   \item \strong{kde}: Kernel Density Estimation for peak detection
-#'   \item \strong{quantile}: P5-P95 percentiles (fast, robust)
+#'   \item \strong{quantile}: P5-P95 percentiles (fast, robust, with optional SG smoothing)
 #'   \item \strong{coverage}: Minimum range for target coverage
-#'   \item \strong{outlier}: Mean +/- 3 sigma (inclusive)
-#'   \item \strong{smoothing}: Savitzky-Golay gradient-wide smoothing
+#'   \item \strong{outlier}: Mean +/- 3 sigma (inclusive, with optional SG smoothing)
 #' }
+#'
+#' @section SG Smoothing Option:
+#' Greedy, Quantile, and Outlier strategies support optional Savitzky-Golay
+#' smoothing to prevent abrupt m/z boundary jumps across RT bins.
 #'
 #' @section Window Modes:
 #' \itemize{

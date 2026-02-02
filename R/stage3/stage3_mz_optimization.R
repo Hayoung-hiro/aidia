@@ -2,10 +2,18 @@
 #
 # Purpose: Optimize m/z ranges for each RT bin using various strategies
 #
+# Strategies:
+#   - greedy: MacCoss Lab algorithm (with optional SG smoothing)
+#   - kde: Kernel Density Estimation based range
+#   - quantile: P5-P95 percentiles (with optional SG smoothing)
+#   - coverage: Minimum range for target coverage
+#   - outlier: Mean ± 3σ (with optional SG smoothing)
+#
 # Functions:
-#   - optimize_mz_ranges_internal(): LOCAL optimization (quantile, coverage, outlier)
-#   - optimize_mz_ranges_smoothing_internal(): GLOBAL smoothing strategy
-#   - interpolate_at_rt(): RT interpolation helper
+#   - optimize_mz_ranges_internal(): Main dispatcher
+#   - optimize_mz_ranges_greedy_internal(): Greedy algorithm
+#   - optimize_mz_ranges_kde_internal(): KDE-based optimization
+#   - apply_sg_smoothing_to_mz_ranges(): Post-processing SG smoothing
 #
 # Dependencies: dplyr, R/smoothing_utils.R
 
@@ -42,7 +50,9 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
                                        mz_step = 0.5,
                                        greedy_apply_smoothing = TRUE,
                                        kde_density_threshold = 0.1,
-                                       kde_min_coverage = 0.80) {
+                                       kde_min_coverage = 0.80,
+                                       quantile_apply_smoothing = FALSE,
+                                       outlier_apply_smoothing = FALSE) {
 
   n_bins <- nrow(rt_stats)
 
@@ -92,55 +102,24 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
     ))
   }
 
-  if (strategy == "smoothing") {
-    cat("  Strategy: SMOOTHING (GLOBAL optimization)\n")
-    cat("  -> Fine RT sampling -> Sliding window -> Smooth -> Assign to bins\n\n")
-
-    # Wrap smoothing in tryCatch with automatic fallback to quantile
-    smoothing_result <- tryCatch({
-      result <- optimize_mz_ranges_smoothing_internal(
-        precursor_data, rt_stats, quantile_lower, quantile_upper,
-        smoothing_window, polynomial_order
-      )
-
-      # Validate result - check for empty or invalid data
-      if (is.null(result) || nrow(result) == 0) {
-        stop("Smoothing returned empty result")
-      }
-
-      # Check for NA/NaN in critical columns
-      if (any(is.na(result$mz_min)) || any(is.na(result$mz_max))) {
-        stop("Smoothing produced NA values in m/z ranges")
-      }
-
-      # Check for invalid m/z ranges (min > max)
-      if (any(result$mz_min > result$mz_max)) {
-        stop("Smoothing produced invalid m/z ranges (min > max)")
-      }
-
-      result
-    }, error = function(e) {
-      cat(sprintf("\n  !! WARNING: Smoothing strategy failed: %s\n", e$message))
-      cat("  !! Falling back to QUANTILE strategy (robust alternative)\n\n")
-      NULL
-    })
-
-    # If smoothing succeeded, return result
-    if (!is.null(smoothing_result)) {
-      return(smoothing_result)
-    }
-
-    # Fallback: Use quantile strategy instead
-    cat("  Strategy: QUANTILE (FALLBACK from smoothing)\n")
-    cat("  -> Calculate m/z using P5-P95 percentiles per RT bin\n\n")
-    strategy <- "quantile"  # Continue with quantile below
-  }
-
   # =================================================================
   # LOCAL OPTIMIZATION for quantile, coverage, outlier strategies
   # =================================================================
+
+  # Determine if SG smoothing will be applied
+  apply_smoothing <- FALSE
+  if (strategy == "quantile" && quantile_apply_smoothing) {
+    apply_smoothing <- TRUE
+  } else if (strategy == "outlier" && outlier_apply_smoothing) {
+    apply_smoothing <- TRUE
+  }
+
   cat(sprintf("  Strategy: %s (LOCAL optimization)\n", toupper(strategy)))
-  cat("  -> Calculate m/z independently per RT bin\n\n")
+  if (apply_smoothing) {
+    cat("  -> Calculate m/z per RT bin, then apply SG smoothing\n\n")
+  } else {
+    cat("  -> Calculate m/z independently per RT bin\n\n")
+  }
 
   mz_ranges <- vector("list", n_bins)
 
@@ -234,14 +213,98 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
     )
   }
 
-  safe_bind_rows(mz_ranges)
+  # Combine results
+  result <- safe_bind_rows(mz_ranges)
+
+  # =================================================================
+  # Apply SG Smoothing (post-processing for quantile/outlier)
+  # =================================================================
+  if (apply_smoothing && nrow(result) >= 3) {
+    cat("  Applying Savitzky-Golay smoothing to m/z boundaries...\n")
+
+    result <- apply_sg_smoothing_to_mz_ranges(
+      result,
+      smoothing_window = smoothing_window,
+      polynomial_order = polynomial_order,
+      precursor_data = precursor_data
+    )
+
+    cat("  -> Smoothing applied successfully\n\n")
+  }
+
+  result
 }
 
 # =============================================================================
-# GLOBAL Optimization: Smoothing Strategy
+# Post-processing: SG Smoothing for LOCAL strategies
+# =============================================================================
+
+#' Apply Savitzky-Golay Smoothing to m/z Ranges
+#'
+#' Post-processing function to smooth m/z boundaries across RT bins.
+#' Recalculates coverage after smoothing.
+#'
+#' @param mz_ranges Data frame with mz_min, mz_max columns
+#' @param smoothing_window Integer, SG window size
+#' @param polynomial_order Integer, SG polynomial order
+#' @param precursor_data Original precursor data for coverage recalculation
+#'
+#' @return Data frame with smoothed m/z ranges
+#' @keywords internal
+apply_sg_smoothing_to_mz_ranges <- function(mz_ranges, smoothing_window,
+                                             polynomial_order, precursor_data) {
+  # Load smoothing utilities if not already loaded
+  if (!exists("smooth_savgol")) {
+    source("R/smoothing_utils.R")
+  }
+
+  n_bins <- nrow(mz_ranges)
+
+  # Adaptive smoothing window
+  adaptive_window <- min(smoothing_window, floor(n_bins * 0.7))
+  if (adaptive_window %% 2 == 0) adaptive_window <- adaptive_window + 1
+  adaptive_window <- max(3, adaptive_window)
+
+  adaptive_poly <- min(polynomial_order, adaptive_window - 2)
+
+  cat(sprintf("     SG params: window=%d, poly_order=%d\n",
+              adaptive_window, adaptive_poly))
+
+  # Apply smoothing to mz_min and mz_max
+  mz_min_smooth <- smooth_savgol(mz_ranges$mz_min,
+                                  window_size = adaptive_window,
+                                  poly_order = adaptive_poly)
+  mz_max_smooth <- smooth_savgol(mz_ranges$mz_max,
+                                  window_size = adaptive_window,
+                                  poly_order = adaptive_poly)
+
+  # Update values
+  mz_ranges$mz_min <- mz_min_smooth
+  mz_ranges$mz_max <- mz_max_smooth
+  mz_ranges$mz_width <- mz_max_smooth - mz_min_smooth
+
+  # Recalculate coverage
+  for (i in 1:n_bins) {
+    bin_data <- precursor_data %>%
+      filter(RT.Start >= mz_ranges$rt_start[i] & RT.Start <= mz_ranges$rt_end[i])
+
+    if (nrow(bin_data) > 0) {
+      mz_values <- bin_data$Precursor.Mz
+      covered <- sum(mz_values >= mz_ranges$mz_min[i] & mz_values <= mz_ranges$mz_max[i])
+      mz_ranges$n_precursors_covered[i] <- covered
+      mz_ranges$coverage_ratio[i] <- covered / length(mz_values)
+    }
+  }
+
+  mz_ranges
+}
+
+# =============================================================================
+# LEGACY: Smoothing Strategy Function (kept for reference, not used)
 # =============================================================================
 
 #' Optimize m/z Ranges with GLOBAL Smoothing Strategy (Internal)
+#' @note DEPRECATED: Use quantile with quantile_apply_smoothing=TRUE instead
 #'
 #' GLOBAL optimization for smoothing strategy:
 #' 1. Fine RT sampling across entire gradient (high-resolution)

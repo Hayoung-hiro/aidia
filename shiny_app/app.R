@@ -357,16 +357,15 @@ ui <- dashboardPage(
       inputId = "mz_strategy",
       label = "m/z Range Strategy",
       choices = c(
-        "Quantile (Recommended)" = "quantile",
+        "Greedy (MacCoss, Recommended)" = "greedy",
         "KDE (Density Peak)" = "kde",
-        "Greedy (MacCoss)" = "greedy",
-        "Smoothing (GLOBAL)" = "smoothing",
+        "Quantile (P5-P95)" = "quantile",
         "Coverage (Conservative)" = "coverage",
-        "Outlier (Robust)" = "outlier"
+        "Outlier (Mean ± 3σ)" = "outlier"
       ),
-      selected = "quantile"
+      selected = "greedy"
     ),
-    helpText("Quantile: Fast & robust. KDE: Density-informed range. Greedy: MacCoss method.",
+    helpText("Greedy: MacCoss method (recommended). KDE: Density-informed. Quantile: Fast & robust.",
              style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
 
     # Window Mode Selection
@@ -402,7 +401,12 @@ ui <- dashboardPage(
           label = "Upper Percentile",
           min = 0.80, max = 0.99, value = 0.95, step = 0.01
         ),
-        helpText("P5-P95 covers 90% of precursors (default)",
+        checkboxInput(
+          inputId = "quantile_apply_smoothing",
+          label = "Apply SG Smoothing (smooth m/z boundaries across RT)",
+          value = FALSE
+        ),
+        helpText("P5-P95 covers 90% of precursors. SG smoothing prevents abrupt m/z jumps.",
                  style = "font-size: 10px; color: #7f8c8d;")
       )
     ),
@@ -498,7 +502,12 @@ ui <- dashboardPage(
           label = "Threshold (× SD)",
           min = 2.0, max = 4.0, value = 3.0, step = 0.5
         ),
-        helpText("Mean ± N×SD range. Higher = include more outliers.",
+        checkboxInput(
+          inputId = "outlier_apply_smoothing",
+          label = "Apply SG Smoothing (smooth m/z boundaries across RT)",
+          value = FALSE
+        ),
+        helpText("Mean ± N×SD range. SG smoothing prevents abrupt m/z jumps.",
                  style = "font-size: 10px; color: #7f8c8d;")
       )
     ),
@@ -525,38 +534,7 @@ ui <- dashboardPage(
       )
     ),
 
-    # Smoothing Strategy Parameters
-    conditionalPanel(
-      condition = "input.mz_strategy == 'smoothing'",
-      div(style = "background: rgba(52, 73, 94, 0.2); padding: 10px; margin: 5px 0; border-radius: 5px;",
-        h5("Smoothing Parameters", style = "margin: 0 0 8px 0; color: #34495e;"),
-        sliderInput(
-          inputId = "smoothing_quantile_lower",
-          label = "Lower Percentile",
-          min = 0.05, max = 0.30, value = 0.05, step = 0.05
-        ),
-        sliderInput(
-          inputId = "smoothing_quantile_upper",
-          label = "Upper Percentile",
-          min = 0.70, max = 0.95, value = 0.95, step = 0.05
-        ),
-        helpText("Tighter range (e.g., P15-P85) = closer fit to density peak.",
-                 style = "font-size: 10px; color: #7f8c8d;"),
-        hr(style = "margin: 8px 0; border-color: rgba(255,255,255,0.1);"),
-        sliderInput(
-          inputId = "smoothing_window",
-          label = "Savitzky-Golay Window",
-          min = 5, max = 15, value = 7, step = 2
-        ),
-        sliderInput(
-          inputId = "smoothing_poly_order",
-          label = "Polynomial Order",
-          min = 2, max = 5, value = 3, step = 1
-        ),
-        helpText("Larger window = smoother boundaries. Order < Window required.",
-                 style = "font-size: 10px; color: #7f8c8d;")
-      )
-    ),
+    # NOTE: Smoothing strategy removed - use Quantile/Outlier with "Apply SG Smoothing" option instead
 
     br(),
 
@@ -1498,11 +1476,11 @@ server <- function(input, output, session) {
       cat("[Shiny] Min Isolation Width:", input$min_isolation_width, "Da\n")
 
       # Get strategy-specific parameters with defaults
-      # Note: Smoothing uses its own quantile range, separate from Quantile strategy
       strategy_params <- list(
-        # Quantile parameters (for Quantile strategy)
+        # Quantile parameters
         quantile_lower = input$quantile_lower %||% 0.05,
         quantile_upper = input$quantile_upper %||% 0.95,
+        quantile_apply_smoothing = isTRUE(input$quantile_apply_smoothing %||% FALSE),
         # Coverage parameters
         target_coverage = (input$target_coverage %||% 90) / 100,  # Convert % to ratio
         # Greedy parameters
@@ -1511,11 +1489,10 @@ server <- function(input, output, session) {
         greedy_apply_smoothing = isTRUE(input$greedy_apply_smoothing %||% TRUE),
         # Outlier parameters
         outlier_threshold = input$outlier_threshold %||% 3.0,
-        # Smoothing parameters (separate quantile range for smoothing)
-        smoothing_quantile_lower = input$smoothing_quantile_lower %||% 0.05,
-        smoothing_quantile_upper = input$smoothing_quantile_upper %||% 0.95,
-        smoothing_window = input$smoothing_window %||% 7,
-        polynomial_order = input$smoothing_poly_order %||% 3,
+        outlier_apply_smoothing = isTRUE(input$outlier_apply_smoothing %||% FALSE),
+        # SG Smoothing parameters (shared)
+        smoothing_window = 7,
+        polynomial_order = 3,
         # KDE parameters
         kde_density_threshold = (input$kde_density_threshold %||% 10) / 100,  # Convert % to ratio
         kde_min_coverage = (input$kde_min_coverage %||% 80) / 100  # Convert % to ratio
@@ -1527,29 +1504,21 @@ server <- function(input, output, session) {
         cat(sprintf("[Shiny] Greedy: Manual window count = %d\n", strategy_params$greedy_n_windows))
       }
 
-      # For Smoothing, use smoothing-specific quantiles
-      if (input$mz_strategy == "smoothing") {
-        strategy_params$quantile_lower <- strategy_params$smoothing_quantile_lower
-        strategy_params$quantile_upper <- strategy_params$smoothing_quantile_upper
-      }
-
       cat("[Shiny] Strategy parameters:\n")
-      cat(sprintf("  - Quantile: P%.0f-P%.0f\n",
+      cat(sprintf("  - Quantile: P%.0f-P%.0f, SG=%s\n",
                   strategy_params$quantile_lower * 100,
-                  strategy_params$quantile_upper * 100))
+                  strategy_params$quantile_upper * 100,
+                  ifelse(strategy_params$quantile_apply_smoothing, "YES", "NO")))
       cat(sprintf("  - Coverage target: %.0f%%\n", strategy_params$target_coverage * 100))
-      cat(sprintf("  - Greedy mz_step: %.1f Da\n", strategy_params$mz_step))
+      cat(sprintf("  - Greedy mz_step: %.1f Da, SG=%s\n",
+                  strategy_params$mz_step,
+                  ifelse(strategy_params$greedy_apply_smoothing, "YES", "NO")))
       if (!is.null(strategy_params$greedy_n_windows)) {
         cat(sprintf("  - Greedy n_windows: %d (manual)\n", strategy_params$greedy_n_windows))
       }
-      cat(sprintf("  - Greedy SG smoothing: %s\n",
-                  ifelse(strategy_params$greedy_apply_smoothing, "YES", "NO")))
-      cat(sprintf("  - Outlier threshold: %.1f SD\n", strategy_params$outlier_threshold))
-      cat(sprintf("  - Smoothing: quantile P%.0f-P%.0f, window=%d, order=%d\n",
-                  strategy_params$smoothing_quantile_lower * 100,
-                  strategy_params$smoothing_quantile_upper * 100,
-                  strategy_params$smoothing_window,
-                  strategy_params$smoothing_poly_order))
+      cat(sprintf("  - Outlier threshold: %.1f SD, SG=%s\n",
+                  strategy_params$outlier_threshold,
+                  ifelse(strategy_params$outlier_apply_smoothing, "YES", "NO")))
       cat(sprintf("  - KDE: threshold=%.0f%%, min_coverage=%.0f%%\n",
                   strategy_params$kde_density_threshold * 100,
                   strategy_params$kde_min_coverage * 100))
@@ -1564,11 +1533,13 @@ server <- function(input, output, session) {
         # Pass strategy-specific parameters
         quantile_lower = strategy_params$quantile_lower,
         quantile_upper = strategy_params$quantile_upper,
+        quantile_apply_smoothing = strategy_params$quantile_apply_smoothing,
         target_coverage = strategy_params$target_coverage,
         mz_step = strategy_params$mz_step,
         n_windows_override = strategy_params$greedy_n_windows,  # For Greedy manual override
         greedy_apply_smoothing = strategy_params$greedy_apply_smoothing,
         outlier_threshold = strategy_params$outlier_threshold,
+        outlier_apply_smoothing = strategy_params$outlier_apply_smoothing,
         smoothing_window = strategy_params$smoothing_window,
         polynomial_order = strategy_params$polynomial_order,
         # KDE parameters

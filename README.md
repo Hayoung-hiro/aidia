@@ -26,7 +26,7 @@ AIDIA aids researchers in optimizing DIA isolation windows through intelligent, 
 
 ## ✨ Key Features
 
-- 🎯 **6 Optimization Strategies**: Greedy, KDE, Quantile, Coverage, Outlier, Smoothing
+- 🎯 **5 Optimization Strategies**: Greedy, KDE, Quantile, Coverage, Outlier (with optional SG smoothing)
 - 📊 **3 Window Modes**: Variable (Density), Fixed, Staggered
 - 🔧 **Multi-Instrument Support**: Astral, Exploris, Orbitrap, TimsTOF
 - 📁 **22-Column Thermo Format**: Direct import to Xcalibur
@@ -86,14 +86,15 @@ shiny::runApp("shiny_app")
 
 ## 🎯 Optimization Strategies
 
-| Strategy | Algorithm | Use Case | Speed |
-|----------|-----------|----------|-------|
-| **Greedy** | MacCoss Lab + SG smoothing | Recommended, smooth transitions | ⚡⚡ |
-| **KDE** | Kernel Density Estimation | Peak-based optimization | ⚡⚡ |
-| **Quantile** | P5-P95 percentiles | Routine, robust | ⚡⚡⚡ |
-| **Coverage** | Min range for target % | Discovery, comprehensive | ⚡⚡ |
-| **Outlier** | Mean ± 3σ | High-throughput, inclusive | ⚡⚡ |
-| **Smoothing** | Savitzky-Golay global | Publication quality | ⚡ |
+| Strategy | Algorithm | SG Smoothing | Use Case |
+|----------|-----------|--------------|----------|
+| **Greedy** | MacCoss Lab sliding | ✅ Optional | Recommended, maximize coverage |
+| **KDE** | Kernel Density Estimation | ❌ N/A | Peak-based optimization |
+| **Quantile** | P5-P95 percentiles | ✅ Optional | Fast, robust |
+| **Coverage** | Min range for target % | ❌ N/A | Discovery, comprehensive |
+| **Outlier** | Mean ± 3σ | ✅ Optional | High-throughput, inclusive |
+
+> **SG Smoothing**: Savitzky-Golay smoothing prevents abrupt m/z boundary jumps across RT bins.
 
 ### Window Modes
 
