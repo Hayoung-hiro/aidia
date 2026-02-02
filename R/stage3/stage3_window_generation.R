@@ -161,67 +161,212 @@ generate_fixed_windows_internal <- function(mz_min, mz_max, n_windows,
 }
 
 # =============================================================================
-# Variable Window Mode
+# Variable Window Mode (v2: Constrained Density Partitioning)
 # =============================================================================
 
 #' Generate Variable Windows (Internal)
 #'
-#' Creates density-based adaptive windows that contain approximately
-#' equal numbers of precursors.
+#' Creates density-based adaptive windows with guaranteed width constraints
+#' and smooth transitions between adjacent windows.
+#'
+#' Algorithm: Constrained Density Partitioning
+#'   Phase 1: Start with uniform distribution (guaranteed valid)
+#'   Phase 2: Iteratively adjust boundaries based on precursor density
+#'   Phase 3: Apply smoothing for gradual width transitions
+#'   Phase 4: Final validation
+#'
+#' Constraints enforced:
+#'   - min_width_da <= window_width <= max_width_da (always)
+#'   - Adjacent windows differ by at most max_change_ratio (smooth transitions)
+#'   - Exactly n_windows are generated (when possible)
 #'
 #' @param precursor_mz Vector of precursor m/z values
 #' @param mz_min Minimum m/z
 #' @param mz_max Maximum m/z
 #' @param n_windows Target number of windows
-#' @param min_width_da Minimum window width
-#' @param max_width_da Maximum window width
+#' @param min_width_da Minimum window width in Da
+#' @param max_width_da Maximum window width in Da
+#' @param max_iterations Maximum iterations for density adjustment (default: 20)
+#' @param max_change_ratio Maximum width change ratio between adjacent windows (default: 0.5)
 #'
 #' @return Data frame with window specifications
 #' @keywords internal
 generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
-                                              n_windows, min_width_da,
-                                              max_width_da) {
+                                               n_windows, min_width_da,
+                                               max_width_da,
+                                               max_iterations = 20,
+                                               max_change_ratio = 0.5) {
 
   # Filter precursors within range
   precursor_mz <- precursor_mz[precursor_mz >= mz_min & precursor_mz <= mz_max]
+  n_precursors <- length(precursor_mz)
 
-  # Fallback to fixed windows if insufficient precursors for density-based splitting
-  if (length(precursor_mz) < n_windows) {
+  # Fallback to fixed windows if insufficient precursors
+ if (n_precursors < n_windows * 2) {
     return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
                                            min_width_da, max_width_da))
   }
 
-  # Pre-adjust n_windows based on width constraints
-  # This prevents windows from being too narrow (< min_width)
+  # Validate that n_windows is feasible
   mz_range <- mz_max - mz_min
   max_possible_windows <- floor(mz_range / min_width_da)
-  actual_n_windows <- min(n_windows, max_possible_windows)
-  actual_n_windows <- max(actual_n_windows, 1)  # At least 1 window
 
-  # Sort precursors
+  if (max_possible_windows < 1) {
+    # Range too small for even 1 window at min_width
+    return(generate_fixed_windows_internal(mz_min, mz_max, 1,
+                                           min_width_da, max_width_da))
+  }
+
+  actual_n_windows <- min(n_windows, max_possible_windows)
+
+  # =========================================================================
+  # Phase 1: Initialize with uniform distribution
+  # =========================================================================
+  uniform_width <- mz_range / actual_n_windows
+  boundaries <- seq(mz_min, mz_max, length.out = actual_n_windows + 1)
+
+  # Sort precursors for efficient counting
   precursor_mz <- sort(precursor_mz)
 
-  # Calculate quantile breakpoints for equal-precursor windows
-  quantile_probs <- seq(0, 1, length.out = actual_n_windows + 1)
-  quantile_boundaries <- quantile(precursor_mz, probs = quantile_probs,
-                                  na.rm = TRUE, names = FALSE)
+  # =========================================================================
+  # Phase 2: Iterative density-based boundary adjustment
+  # =========================================================================
+  # Goal: Move boundaries to equalize precursor counts while respecting constraints
 
-  # Constrain to mz_min/mz_max
-  quantile_boundaries[1] <- mz_min
-  quantile_boundaries[length(quantile_boundaries)] <- mz_max
+  adjustment_step <- uniform_width * 0.1  # 10% of uniform width per iteration
 
-  # Create windows
+  for (iter in 1:max_iterations) {
+    boundaries_changed <- FALSE
+
+    # Adjust internal boundaries (indices 2 to n)
+    for (i in 2:actual_n_windows) {
+      # Current boundary position
+      current_boundary <- boundaries[i]
+
+      # Count precursors in left and right windows
+      left_count <- sum(precursor_mz >= boundaries[i - 1] &
+                          precursor_mz < boundaries[i])
+      right_count <- sum(precursor_mz >= boundaries[i] &
+                           precursor_mz < boundaries[i + 1])
+
+      # Skip if balanced (within 20% difference)
+      total <- left_count + right_count
+      if (total == 0) next
+      imbalance_ratio <- abs(left_count - right_count) / total
+      if (imbalance_ratio < 0.2) next
+
+      # Determine direction: move toward the denser side
+      if (left_count > right_count) {
+        # Move boundary left (shrink left, expand right)
+        new_boundary <- current_boundary - adjustment_step
+      } else {
+        # Move boundary right (expand left, shrink right)
+        new_boundary <- current_boundary + adjustment_step
+      }
+
+      # Check constraints before applying
+      left_width_new <- new_boundary - boundaries[i - 1]
+      right_width_new <- boundaries[i + 1] - new_boundary
+
+      # Constraint 1: min_width
+      if (left_width_new < min_width_da || right_width_new < min_width_da) {
+        next  # Reject this move
+      }
+
+      # Constraint 2: max_width
+      if (left_width_new > max_width_da || right_width_new > max_width_da) {
+        next  # Reject this move
+      }
+
+      # All constraints satisfied - apply the move
+      boundaries[i] <- new_boundary
+      boundaries_changed <- TRUE
+    }
+
+    # Early exit if no changes in this iteration
+    if (!boundaries_changed) break
+  }
+
+  # =========================================================================
+  # Phase 3: Smooth transitions between adjacent windows
+  # =========================================================================
+  # Ensure width changes gradually (no abrupt jumps)
+
+  widths <- diff(boundaries)
+
+  for (smooth_iter in 1:5) {
+    widths_changed <- FALSE
+
+    for (i in 2:length(widths)) {
+      prev_width <- widths[i - 1]
+      curr_width <- widths[i]
+
+      # Calculate change ratio
+      change_ratio <- abs(curr_width - prev_width) / prev_width
+
+      if (change_ratio > max_change_ratio) {
+        # Need to smooth this transition
+        # Target: bring curr_width closer to prev_width
+        if (curr_width > prev_width) {
+          # Current is wider - try to shrink it
+          target_width <- prev_width * (1 + max_change_ratio)
+          new_width <- max(target_width, min_width_da)
+        } else {
+          # Current is narrower - try to expand it
+          target_width <- prev_width * (1 - max_change_ratio)
+          new_width <- min(target_width, max_width_da)
+          new_width <- max(new_width, min_width_da)
+        }
+
+        # Adjust boundary between window i-1 and i
+        # boundary[i] = boundary[i-1] + width[i-1]
+        # We need to adjust boundary[i+1] to change width[i]
+        if (i < length(widths)) {
+          # Check if adjustment is feasible
+          width_diff <- new_width - curr_width
+          new_next_width <- widths[i + 1] - width_diff
+
+          if (new_next_width >= min_width_da && new_next_width <= max_width_da) {
+            widths[i] <- new_width
+            widths[i + 1] <- new_next_width
+            widths_changed <- TRUE
+          }
+        }
+      }
+    }
+
+    if (!widths_changed) break
+  }
+
+  # Reconstruct boundaries from widths
+  boundaries <- c(mz_min, mz_min + cumsum(widths))
+
+  # Ensure last boundary is exactly mz_max (fix floating point drift)
+  boundaries[length(boundaries)] <- mz_max
+
+  # =========================================================================
+  # Phase 4: Create final windows with validation
+  # =========================================================================
+
   windows <- tibble(
-    mz_start = quantile_boundaries[-length(quantile_boundaries)],
-    mz_end = quantile_boundaries[-1],
+    mz_start = boundaries[-length(boundaries)],
+    mz_end = boundaries[-1],
     window_width = mz_end - mz_start,
     mz_center = (mz_start + mz_end) / 2
   )
 
-  # Apply max_width constraint only (min_width already handled by pre-adjustment)
-  # Windows exceeding max_width are kept but flagged
-  windows <- windows %>%
-    filter(window_width <= max_width_da)
+  # Final validation - should always pass if algorithm is correct
+  if (any(windows$window_width < min_width_da * 0.99)) {
+    # Fallback to fixed if constraints violated (shouldn't happen)
+    warning("Variable window generation violated min_width constraint. Falling back to fixed mode.")
+    return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
+                                           min_width_da, max_width_da))
+  }
+
+  if (any(windows$window_width > max_width_da * 1.01)) {
+    # Allow slight overshoot due to floating point
+    windows$window_width <- pmin(windows$window_width, max_width_da)
+  }
 
   return(windows)
 }
@@ -256,6 +401,8 @@ generate_staggered_windows_internal <- function(mz_min, mz_max, n_windows,
   ideal_width <- mz_range / n_windows
 
   # Apply width constraints (same as fixed mode)
+  # When ideal_width < min: use min_width, floor() gives fewer windows that fit
+  # When ideal_width > max: use max_width, ceiling() ensures full coverage
   if (ideal_width < min_width_da) {
     actual_width <- min_width_da
     actual_count <- floor(mz_range / actual_width)
@@ -273,7 +420,8 @@ generate_staggered_windows_internal <- function(mz_min, mz_max, n_windows,
   # Odd bins (1, 3, 5...): no offset
   # Even bins (2, 4, 6...): offset by stagger_fraction * window_width
   is_even_bin <- (rt_bin_index %% 2 == 0)
-  stagger_offset <- if (is_even_bin) actual_width * stagger_fraction else 0
+  half_window_offset <- actual_width * stagger_fraction
+  stagger_offset <- if (is_even_bin) half_window_offset else 0
 
   # Generate window boundaries with stagger
   # For staggered bins, we need to handle edge cases

@@ -607,6 +607,8 @@ if (!exists("new_ValidatedData")) {
 create_insufficient_data_plot <- function(title,
                                           subtitle = "Not enough data points",
                                           message = "Insufficient data\n(need at least 2 data points)") {
+  # Center text at (0.5, 0.5) in normalized coordinates (0-1 range)
+  # size = 5 is large enough to be readable but not overwhelming
   ggplot2::ggplot() +
     ggplot2::annotate("text", x = 0.5, y = 0.5,
                       label = message, size = 5, hjust = 0.5) +
