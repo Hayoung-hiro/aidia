@@ -33,14 +33,20 @@
 #'   \item{\code{\link{export_method_files}}}{Batch export multiple strategies}
 #' }
 #'
-#' @section Supported Instruments:
+#' @section Supported Instruments (Verified):
 #' \itemize{
-#'   \item Thermo Astral (parallel acquisition)
-#'   \item Thermo Orbitrap Exploris (sequential)
-#'   \item Thermo Orbitrap Fusion Lumos
-#'   \item Bruker TimsTOF
-#'   \item SCIEX 7600
-#'   \item Waters Synapt
+#'   \item Thermo Astral / Astral Zoom (parallel acquisition)
+#'   \item Thermo Q Exactive / HF-X (sequential)
+#'   \item Thermo Exploris 480 (sequential)
+#'   \item Thermo Eclipse Tribrid (sequential)
+#'   \item Thermo Fusion Lumos (sequential)
+#' }
+#'
+#' @section Planned Instruments (Not Yet Verified):
+#' \itemize{
+#'   \item Bruker TimsTOF series
+#'   \item SCIEX ZenoTOF 7600
+#'   \item Waters SYNAPT
 #' }
 #'
 #' @section m/z Optimization Strategies:

@@ -107,14 +107,23 @@ shiny::runApp("shiny_app")
 
 ## 🔧 Supported Instruments
 
+### ✅ Verified (Thermo Orbitrap)
+
 | Instrument | Type | Acquisition | Scan Rate |
 |------------|------|-------------|-----------|
-| **Astral** | Orbitrap | Parallel | 50-100 Hz |
-| **Exploris** | Orbitrap | Sequential | 25-40 Hz |
-| **Orbitrap** | Traditional | Sequential | 8-12 Hz |
-| **TimsTOF** | PASEF | Parallel | 100 Hz |
-| **SCIEX** | ZenoTOF | Sequential | 50 Hz |
-| **Waters** | SYNAPT | Sequential | 20 Hz |
+| **Astral / Astral Zoom** | Orbitrap | Parallel | 200-270 Hz |
+| **Q Exactive / HF-X** | Orbitrap | Sequential | 12-40 Hz |
+| **Exploris 480** | Orbitrap | Sequential | 40 Hz |
+| **Eclipse Tribrid** | Orbitrap | Sequential | 40 Hz |
+| **Fusion Lumos** | Orbitrap | Sequential | 20 Hz |
+
+### 🔜 Planned (Not Yet Verified)
+
+| Instrument | Type | Status |
+|------------|------|--------|
+| Bruker TimsTOF | PASEF | Coming soon |
+| SCIEX ZenoTOF 7600 | TOF | Coming soon |
+| Waters SYNAPT | IMS-TOF | Coming soon |
 
 ---
 
