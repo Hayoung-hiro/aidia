@@ -27,11 +27,10 @@ library(dplyr)
 #'
 #' LOCAL optimization - calculates m/z range independently per RT bin.
 #' Supports quantile, coverage, and outlier strategies.
-#' For smoothing strategy, delegates to GLOBAL optimizer.
 #'
 #' @param precursor_data Data frame with rt_group and Precursor.Mz columns
 #' @param rt_stats RT statistics data frame
-#' @param strategy Character: "quantile", "coverage", "outlier", or "smoothing"
+#' @param strategy Character: "quantile", "coverage", "outlier", "greedy", or "kde"
 #' @param target_coverage Numeric, target coverage for coverage strategy
 #' @param quantile_lower Numeric, lower quantile
 #' @param quantile_upper Numeric, upper quantile
@@ -59,7 +58,7 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
   # =================================================================
   # Strategy-Specific Processing
   # GREEDY: m/z axis sliding optimization
-  # SMOOTHING: GLOBAL optimization (continuous RT function)
+  # KDE: Kernel Density Estimation based optimization
   # OTHERS: LOCAL optimization (per RT bin)
   # =================================================================
 

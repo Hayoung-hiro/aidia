@@ -13,6 +13,23 @@ library(dplyr)
 library(tidyr)
 
 # =============================================================================
+# Shared Helper
+# =============================================================================
+
+#' Extract FWHM data and cycle times from plan/validated inputs
+#' @keywords internal
+extract_dppp_inputs <- function(optimization_plan, validated_data) {
+  list(
+    current_cycle_time = optimization_plan$diagnosis$current_cycle_time_sec,
+    required_cycle_time = optimization_plan$required_cycle_time_sec,
+    target_dppp = optimization_plan$parameters$target_dppp,
+    fwhm_data = validated_data$data %>%
+      select(FWHM) %>%
+      mutate(FWHM_sec = FWHM * 60)
+  )
+}
+
+# =============================================================================
 # Plot 1A: DPPP Distribution Comparison (Simple Version)
 # =============================================================================
 
@@ -30,17 +47,12 @@ plot_dppp_comparison <- function(optimization_plan, validated_data) {
 
   cat("  Generating Plot 1: DPPP Distribution Comparison...\n")
 
-  # Extract cycle times
-  current_cycle_time <- optimization_plan$diagnosis$current_cycle_time_sec
-  required_cycle_time <- optimization_plan$required_cycle_time_sec
-  target_dppp <- optimization_plan$parameters$target_dppp
+  inputs <- extract_dppp_inputs(optimization_plan, validated_data)
+  current_cycle_time <- inputs$current_cycle_time
+  required_cycle_time <- inputs$required_cycle_time
+  target_dppp <- inputs$target_dppp
+  fwhm_data <- inputs$fwhm_data
 
-  # Extract FWHM data
-  fwhm_data <- validated_data$data %>%
-    select(FWHM) %>%
-    mutate(FWHM_sec = FWHM * 60)  # Convert to seconds
-
-  # Check for minimum data points (density estimation requires >= 2 points)
   if (nrow(fwhm_data) < 2) {
     return(create_insufficient_data_plot(
       title = "DPPP Distribution Comparison",
@@ -175,17 +187,12 @@ plot_dppp_comparison_enhanced <- function(optimization_plan, validated_data) {
 
   cat("  Generating Plot 1 Enhanced: DPPP Distribution with Visual Annotations...\n")
 
-  # Extract cycle times
-  current_cycle_time <- optimization_plan$diagnosis$current_cycle_time_sec
-  required_cycle_time <- optimization_plan$required_cycle_time_sec
-  target_dppp <- optimization_plan$parameters$target_dppp
+  inputs <- extract_dppp_inputs(optimization_plan, validated_data)
+  current_cycle_time <- inputs$current_cycle_time
+  required_cycle_time <- inputs$required_cycle_time
+  target_dppp <- inputs$target_dppp
+  fwhm_data <- inputs$fwhm_data
 
-  # Extract FWHM data
-  fwhm_data <- validated_data$data %>%
-    select(FWHM) %>%
-    mutate(FWHM_sec = FWHM * 60)  # Convert to seconds
-
-  # Check for minimum data points (density estimation requires >= 2 points)
   if (nrow(fwhm_data) < 2) {
     return(create_insufficient_data_plot(
       title = "DPPP Distribution Comparison (Enhanced)",

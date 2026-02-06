@@ -94,17 +94,19 @@ rt_binning:
 
 # m/z Optimization Strategies
 mz_optimization:
-  # Strategies to generate (array of 1-4 strategies)
-  # Available: quantile, smoothing, outlier, coverage
+  # Strategies to generate (array of 1-5 strategies)
+  # Available: greedy, kde, quantile, coverage, outlier
   #
   # Strategy comparison:
+  # - greedy: MacCoss Lab sliding window (GLOBAL, recommended) → adaptive width
+  # - kde: Kernel Density Estimation peak-based (GLOBAL) → focused on dense regions
   # - quantile: Fast, robust (P5-P95 range) → 14-16 Da, 90-92% coverage
-  # - smoothing: Smooth RT-dependent boundaries (GLOBAL mode) → 15-17 Da, 92-94% coverage
   # - outlier: Maximum coverage with outlier removal → 18-20 Da, 96-97% coverage
   # - coverage: Balanced coverage optimization → 17 Da, 95% coverage
   strategies:
+    - "greedy"
+    - "kde"
     - "quantile"
-    - "smoothing"
     - "outlier"
     - "coverage"
 
@@ -170,7 +172,7 @@ output:
 # results/
 # ├── 30min/
 # │   ├── quantile_variable_method.csv  (Thermo-compatible method file)
-# │   ├── smoothing_variable_method.csv
+# │   ├── greedy_density_method.csv
 # │   ├── outlier_variable_method.csv
 # │   ├── coverage_variable_method.csv
 # │   ├── plot01_dppp_density_distribution.png

@@ -6,7 +6,7 @@
 
 cat("
 ╔══════════════════════════════════════════════════════════════╗
-║  AIDIA - Adaptive Isolation for DIA (Shiny App Setup)         ║
+║  AIDIA - Adaptive Isolation for DIA (Shiny App Setup)       ║
 ╚══════════════════════════════════════════════════════════════╝
 ")
 

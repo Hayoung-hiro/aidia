@@ -3,7 +3,7 @@
 # =============================================================================
 # Purpose: Full-scale test with all gradients, strategies, and plots
 # Dataset: 30min, 60min, 90min gradients (3 files)
-# Strategies: All 4 strategies (quantile, smoothing, outlier, coverage)
+# Strategies: All 5 strategies (greedy, kde, quantile, outlier, coverage)
 # Output: Method files + 24 plots per gradient + PDF reports
 # Expected runtime: 10-15 minutes
 # =============================================================================
@@ -52,10 +52,11 @@ rt_binning:
   rt_bin_width_min: 5.0
 
 mz_optimization:
-  # Test ALL 4 strategies for comprehensive comparison
+  # Test ALL 5 strategies for comprehensive comparison
   strategies:
+    - "greedy"
+    - "kde"
     - "quantile"
-    - "smoothing"
     - "outlier"
     - "coverage"
 
@@ -89,7 +90,7 @@ output:
 # results_production_test/
 # ├── 30min/
 # │   ├── quantile_variable_method.csv
-# │   ├── smoothing_variable_method.csv
+# │   ├── greedy_density_method.csv
 # │   ├── outlier_variable_method.csv
 # │   ├── coverage_variable_method.csv
 # │   ├── plot01_dppp_density_distribution.png

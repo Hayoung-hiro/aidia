@@ -84,8 +84,9 @@ plot_mz_range_optimization <- function(optimized_windows, validated_data) {
   strategy_name <- optimized_windows$mz_optimization$strategy
   strategy_label <- switch(
     strategy_name,
+    "greedy" = "Greedy (MacCoss)",
+    "kde" = "KDE (Density Peak)",
     "quantile" = "Quantile (P5-P95)",
-    "smoothing" = "Savitzky-Golay Smoothing",
     "outlier" = "Outlier Removal",
     "coverage" = "Coverage-based",
     strategy_name

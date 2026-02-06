@@ -155,8 +155,9 @@ plot_mz_distribution_with_exclusions <- function(optimized_windows,
   # Get strategy label
   strategy_label <- switch(
     strategy_name,
+    "greedy" = "Greedy (MacCoss)",
+    "kde" = "KDE (Density Peak)",
     "quantile" = "Quantile (P5-P95)",
-    "smoothing" = "Savitzky-Golay Smoothing",
     "outlier" = "Outlier Removal",
     "coverage" = "Coverage-based",
     strategy_name

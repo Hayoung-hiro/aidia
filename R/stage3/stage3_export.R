@@ -114,7 +114,7 @@ export_windows_to_csv <- function(optimized_windows, output_file,
 #' Export Method Files for Multiple Strategies
 #'
 #' Batch export method CSV files for multiple optimization strategies.
-#' Default behavior exports all 4 strategies (quantile, coverage, outlier, smoothing).
+#' Default behavior exports all 5 strategies (greedy, kde, quantile, coverage, outlier).
 #'
 #' @param windows_list Named list of OptimizedWindows objects from different strategies
 #' @param output_dir Character, output directory path
@@ -133,7 +133,7 @@ export_windows_to_csv <- function(optimized_windows, output_file,
 #' # Export specific strategies only
 #' method_files <- export_method_files(
 #'   windows_list, "output/", validated_data, plan,
-#'   strategies = c("smoothing", "quantile")
+#'   strategies = c("greedy", "quantile")
 #' )
 #'
 #' @export
@@ -141,7 +141,7 @@ export_method_files <- function(windows_list,
                                 output_dir,
                                 validated_data,
                                 optimization_plan = NULL,
-                                strategies = c("quantile", "coverage", "outlier", "smoothing"),
+                                strategies = c("greedy", "kde", "quantile", "coverage", "outlier"),
                                 instrument_type = "orbitrap",
                                 normalized_agc_target = 100) {
 

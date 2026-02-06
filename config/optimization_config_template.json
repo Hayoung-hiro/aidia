@@ -82,9 +82,9 @@
   "_comment_mz": "=== m/z OPTIMIZATION ===",
   "_comment_mz_1": "m/z range optimization strategies",
   "mz_optimization": {
-    "strategies": ["quantile", "smoothing", "outlier", "coverage"],
+    "strategies": ["greedy", "kde", "quantile", "coverage", "outlier"],
     "_comment_strategies": "🟡 IMPORTANT: m/z optimization strategies to apply",
-    "_comment_options": "Options: quantile (percentile-based), smoothing (DynamicDIA), outlier (robust), coverage (conservative)",
+    "_comment_options": "Options: greedy (MacCoss sliding), kde (density peak), quantile (percentile-based), outlier (robust), coverage (conservative)",
     "_comment_recommendation": "Use all 4 for comprehensive comparison, or select specific strategies for targeted optimization",
 
     "quantile_lower": 0.05,

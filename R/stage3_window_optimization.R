@@ -10,7 +10,7 @@
 #
 # Sourced Modules:
 #   - R/stage3/stage3_rt_binning.R: RT segmentation
-#   - R/stage3/stage3_mz_optimization.R: m/z range optimization (LOCAL & GLOBAL)
+#   - R/stage3/stage3_mz_optimization.R: m/z range optimization (5 strategies)
 #   - R/stage3/stage3_window_generation.R: Window generation (fixed/variable)
 #   - R/stage3/stage3_statistics.R: Statistics calculation
 #   - R/stage3/stage3_export.R: CSV export and S3 methods

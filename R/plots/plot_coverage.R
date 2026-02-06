@@ -47,8 +47,9 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
   # Strategy label
   strategy_label <- switch(
     strategy_name,
+    "greedy" = "Greedy (MacCoss)",
+    "kde" = "KDE (Density Peak)",
     "quantile" = "Quantile (P5-P95)",
-    "smoothing" = "Smoothing (SG)",
     "outlier" = "Outlier (+/-3SD)",
     "coverage" = "Coverage (95%)",
     strategy_name

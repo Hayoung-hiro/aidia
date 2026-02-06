@@ -82,19 +82,19 @@ perform_rt_binning_internal <- function(precursor_data, rt_bin_width_min) {
 #' and m/z optimization strategy.
 #'
 #' @param rt_range Numeric vector of length 2, c(min_rt, max_rt) in minutes
-#' @param mz_strategy Character, m/z optimization strategy ("smoothing", "quantile", etc.)
+#' @param mz_strategy Character, m/z optimization strategy ("greedy", "quantile", etc.)
 #' @param target_min_bins Integer, minimum number of bins to create (default: 5)
 #' @return List with bin_width and n_bins
 #' @export
 calculate_adaptive_rt_bin_width <- function(rt_range,
-                                            mz_strategy = "smoothing",
+                                            mz_strategy = "greedy",
                                             target_min_bins = 5) {
 
   gradient_length <- rt_range[2] - rt_range[1]
 
   # Strategy-specific adjustments
-  if (mz_strategy == "smoothing") {
-    # Smoothing is GLOBAL - can use wider bins
+  if (mz_strategy %in% c("greedy", "kde")) {
+    # GLOBAL strategies - can use wider bins
     # Aim for 5-10 bins typically
     target_bins <- max(target_min_bins, ceiling(gradient_length / 10))
     target_bins <- min(target_bins, 15)  # Cap at 15 bins

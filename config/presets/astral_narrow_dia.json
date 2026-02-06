@@ -36,7 +36,7 @@
   },
 
   "mz_optimization": {
-    "strategies": ["quantile", "smoothing"],
+    "strategies": ["greedy", "quantile"],
     "quantile_lower": 0.02,
     "quantile_upper": 0.98,
     "target_coverage": 0.98,

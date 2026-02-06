@@ -142,12 +142,7 @@ ui <- dashboardPage(
         "Thermo Exploris 480 (40 Hz)" = "exploris",
         "Thermo Eclipse Tribrid (40 Hz)" = "eclipse",
         "Thermo Fusion Lumos (20 Hz)" = "fusion_lumos"
-        # Other instruments (not yet verified - uncomment when ready)
-        # "Bruker timsTOF (100 Hz)" = "timstof",
-        # "Bruker timsTOF Pro 2 (120 Hz)" = "timstof_pro",
-        # "Bruker timsTOF Ultra (300 Hz)" = "timstof_ultra",
-        # "SCIEX ZenoTOF 7600 (133 Hz)" = "sciex_7600",
-        # "Waters SYNAPT XS (20 Hz)" = "waters_synapt"
+        # TODO: Add Bruker TimsTOF, SCIEX, Waters when verified
       ),
       selected = "astral_zoom"
     ),

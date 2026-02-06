@@ -42,10 +42,10 @@ rt_binning:
   rt_bin_width_min: 5.0
 
 mz_optimization:
-  # Test with 2 strategies only (faster)
+  # Test with 2 strategies only
   strategies:
+    - "greedy"
     - "quantile"
-    - "smoothing"
   quantile_lower: 0.05
   quantile_upper: 0.95
   target_coverage: 0.95
@@ -73,6 +73,6 @@ output:
 #   results_yaml_test/
 #   ├── 30min/
 #   │   ├── quantile_variable_method.csv  (2 method files)
-#   │   └── smoothing_variable_method.csv
+#   │   └── greedy_density_method.csv
 #   └── batch_processing_summary.csv
 # =============================================================================

@@ -197,11 +197,11 @@ generate_visualizations <- function(
 
   cat("\n  Preparing Plot 4: Multi-Strategy Comparison...\n")
 
-  strategies <- c("quantile", "smoothing", "outlier", "coverage")
+  strategies <- c("greedy", "kde", "quantile", "coverage", "outlier")
 
   # Use pre-computed windows_list if provided, otherwise compute
   if (is.null(windows_list)) {
-    cat("  Running optimization with all 4 m/z strategies...\n")
+    cat("  Running optimization with all 5 m/z strategies...\n")
     windows_list <- list()
 
     # Load Stage 3 module for optimization
@@ -229,7 +229,7 @@ generate_visualizations <- function(
       )
     }
   } else {
-    cat("  Using pre-computed windows for all 4 strategies (skipping re-optimization)...\n")
+    cat("  Using pre-computed windows for all 5 strategies (skipping re-optimization)...\n")
   }
 
   # Plot 4A-4D: Individual strategy m/z excluded regions

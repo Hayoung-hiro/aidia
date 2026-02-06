@@ -78,8 +78,9 @@ plot_mz_width_comparison <- function(optimized_windows, validated_data) {
   strategy_name <- optimized_windows$mz_optimization$strategy
   strategy_label <- switch(
     strategy_name,
+    "greedy" = "Greedy (MacCoss)",
+    "kde" = "KDE (Density Peak)",
     "quantile" = "Quantile (P5-P95)",
-    "smoothing" = "Savitzky-Golay Smoothing",
     "outlier" = "Outlier Removal (±3SD)",
     "coverage" = "Coverage-based (95%)",
     strategy_name
@@ -146,10 +147,10 @@ plot_mz_width_comparison <- function(optimized_windows, validated_data) {
 #' Plot m/z Width Comparison - All Strategies Overlay
 #'
 #' Creates a single grouped bar chart comparing Original m/z width
-#' vs all 4 optimized strategies in one plot.
+#' vs all strategies in one plot.
 #'
-#' @param windows_list Named list of 4 OptimizedWindows objects
-#'   Names: "quantile", "smoothing", "outlier", "coverage"
+#' @param windows_list Named list of OptimizedWindows objects
+#'   Names: strategy name keys (e.g., "greedy", "kde", "quantile", "coverage", "outlier")
 #' @param validated_data ValidatedData object from Stage 1
 #'
 #' @return ggplot object
@@ -177,8 +178,9 @@ plot_mz_width_comparison_all_strategies <- function(windows_list, validated_data
   )
 
   strategy_labels <- c(
+    "greedy" = "Greedy (MacCoss)",
+    "kde" = "KDE (Density Peak)",
     "quantile" = "Quantile (P5-P95)",
-    "smoothing" = "Smoothing (SG)",
     "outlier" = "Outlier (±3SD)",
     "coverage" = "Coverage (95%)"
   )

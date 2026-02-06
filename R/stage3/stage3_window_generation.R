@@ -423,8 +423,7 @@ generate_staggered_windows_internal <- function(mz_min, mz_max, n_windows,
   half_window_offset <- actual_width * stagger_fraction
   stagger_offset <- if (is_even_bin) half_window_offset else 0
 
-  # Generate window boundaries with stagger
-  # For staggered bins, we need to handle edge cases
+  # Generate window boundaries with stagger offset
   if (is_even_bin) {
     # Even bins: start earlier, may need extra window at the end
     start_mz <- mz_min - stagger_offset
@@ -457,8 +456,9 @@ generate_staggered_windows_internal <- function(mz_min, mz_max, n_windows,
   )
 
   # Remove windows that are too narrow (edge artifacts from clipping)
+  edge_min_width <- min_width_da * 0.5
   windows <- windows %>%
-    filter(window_width >= min_width_da * 0.5)  # Allow slightly narrower at edges
+    filter(window_width >= edge_min_width)
 
   return(windows)
 }

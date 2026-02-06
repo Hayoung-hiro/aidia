@@ -28,7 +28,7 @@ library(viridis)
 #' @export
 plot_rt_mz_density_heatmap <- function(validated_data, bins = 50) {
 
-  cat("  Generating Plot 3: RT x m/z Density Heatmap...\n")
+  cat("  Generating RT x m/z Density Heatmap...\n")
 
   # Extract precursor data
   precursor_data <- validated_data$data %>%
@@ -73,7 +73,7 @@ plot_rt_mz_density_heatmap <- function(validated_data, bins = 50) {
 #' @export
 plot_mz_normalized_density <- function(optimized_windows, validated_data) {
 
-  cat("  Generating Plot 4: m/z Normalized Density Profiles...\n")
+  cat("  Generating m/z Normalized Density Profiles...\n")
 
   # Extract RT binning and m/z optimization info from optimized_windows
   n_segments <- optimized_windows$rt_binning$n_bins

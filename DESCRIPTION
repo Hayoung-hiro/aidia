@@ -5,8 +5,8 @@ Authors@R:
     person("KBSI", "Proteomics", , "proteomics@kbsi.re.kr", role = c("aut", "cre"))
 Description: AIDIA (Adaptive Isolation for DIA) aids researchers in optimizing
     Data-Independent Acquisition isolation windows for mass spectrometry.
-    Features RT-dependent adaptive m/z range optimization with 6 strategies
-    (Greedy, KDE, Quantile, Coverage, Outlier, Smoothing), 3 window modes
+    Features RT-dependent adaptive m/z range optimization with 5 strategies
+    (Greedy, KDE, Quantile, Coverage, Outlier), 3 window modes
     (Variable, Fixed, Staggered), DPPP-based intelligent planning, technical
     replicate consensus handling, and 22-column Thermo Xcalibur-compatible
     method file export. Specifically optimized for Thermo Orbitrap instruments

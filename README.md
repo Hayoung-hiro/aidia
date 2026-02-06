@@ -151,7 +151,7 @@ shiny::runApp("shiny_app")
 │    DPPP diagnosis → OptimizationPlan                   │
 ├─────────────────────────────────────────────────────────┤
 │  Stage 3: Window Optimization + Export                 │
-│    6 strategies × 3 modes → Method CSV files           │
+│    5 strategies × 3 modes → Method CSV files           │
 ├─────────────────────────────────────────────────────────┤
 │  Stage 4: Visualization                                │
 │    24 plots + PDF report                               │

@@ -18,6 +18,13 @@ cat("======================================================================\n")
 cat("         KDE STRATEGY FUNCTIONAL TEST (Density-Peak Based)            \n")
 cat("======================================================================\n\n")
 
+# Find test data file (shared across all tests)
+data_files <- list.files("data", pattern = "report\\.parquet$", full.names = TRUE)
+if (length(data_files) == 0) {
+  data_files <- list.files("data", pattern = "report\\.tsv$", full.names = TRUE)
+}
+test_data_file <- if (length(data_files) > 0) data_files[1] else NULL
+
 tests_passed <- 0
 tests_failed <- 0
 
@@ -25,20 +32,13 @@ tests_failed <- 0
 cat("TEST 1: KDE Strategy Basic Execution\n")
 cat("----------------------------------------------------------------------\n")
 test1_result <- tryCatch({
-  # Find available data file
-  data_files <- list.files("data", pattern = "report\\.parquet$", full.names = TRUE)
-  if (length(data_files) == 0) {
-    data_files <- list.files("data", pattern = "report\\.tsv$", full.names = TRUE)
-  }
-
-  if (length(data_files) == 0) {
+  if (is.null(test_data_file)) {
     cat("  [SKIP] No test data available\n\n")
     NULL
   } else {
-    data_file <- data_files[1]
-    cat(sprintf("  Using data: %s\n", basename(data_file)))
+    cat(sprintf("  Using data: %s\n", basename(test_data_file)))
 
-    validated_data <- create_validated_dataset(data_file)
+    validated_data <- create_validated_dataset(test_data_file)
     plan <- plan_optimization(validated_data, instrument_preset = "astral")
 
     windows <- optimize_windows(
@@ -77,13 +77,7 @@ test2_result <- tryCatch({
     cat("  [SKIP] (no test data)\n\n")
     NULL
   } else {
-    data_files <- list.files("data", pattern = "report\\.parquet$", full.names = TRUE)
-    if (length(data_files) == 0) {
-      data_files <- list.files("data", pattern = "report\\.tsv$", full.names = TRUE)
-    }
-    data_file <- data_files[1]
-
-    validated_data <- create_validated_dataset(data_file)
+    validated_data <- create_validated_dataset(test_data_file)
     plan <- plan_optimization(validated_data, instrument_preset = "astral")
 
     # Run both strategies
@@ -134,13 +128,7 @@ test3_result <- tryCatch({
     cat("  [SKIP] (no test data)\n\n")
     NULL
   } else {
-    data_files <- list.files("data", pattern = "report\\.parquet$", full.names = TRUE)
-    if (length(data_files) == 0) {
-      data_files <- list.files("data", pattern = "report\\.tsv$", full.names = TRUE)
-    }
-    data_file <- data_files[1]
-
-    validated_data <- create_validated_dataset(data_file)
+    validated_data <- create_validated_dataset(test_data_file)
     plan <- plan_optimization(validated_data, instrument_preset = "astral")
 
     # Test different density thresholds

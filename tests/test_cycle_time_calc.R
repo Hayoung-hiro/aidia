@@ -1,10 +1,9 @@
 # Test: Cycle Time Calculation from Experiment Config
 # =============================================================================
 
-cat("\n")
-cat("=============================================================================\n")
-cat("  Test: Cycle Time Calculation from Experiment Config\n")
-cat("=============================================================================\n\n")
+cat("\n=============================================================================
+  Test: Cycle Time Calculation from Experiment Config
+=============================================================================\n\n")
 
 # Load dependencies
 source("R/instrument_utils.R")
@@ -22,9 +21,6 @@ print_test_result <- function(result) {
   cat(sprintf("\u2713 MS2 Efficiency: %.1f%% (%s)\n\n", result$ms2$efficiency_pct, result$ms2$efficiency_mode))
 }
 
-# =============================================================================
-# Test 1: Exploris with Auto IT
-# =============================================================================
 print_test_header(1, "Exploris 480 (MS2 15K, Auto IT, 40 windows)")
 
 config1 <- list(
@@ -37,9 +33,6 @@ config1 <- list(
 result1 <- calculate_cycle_time_from_experiment(config1, verbose = TRUE, language = "ko")
 print_test_result(result1)
 
-# =============================================================================
-# Test 2: Exploris with Custom IT (longer for sensitivity)
-# =============================================================================
 print_test_header(2, "Exploris 480 (MS2 15K, Custom IT=50ms, 40 windows)")
 
 config2 <- list(
@@ -52,9 +45,6 @@ config2 <- list(
 result2 <- calculate_cycle_time_from_experiment(config2, verbose = TRUE, language = "ko")
 print_test_result(result2)
 
-# =============================================================================
-# Test 3: Astral (Parallel Architecture)
-# =============================================================================
 print_test_header(3, "Astral (Parallel Mode, 3ms IT, 100 windows)")
 
 config3 <- list(

@@ -335,13 +335,14 @@ build_config_interactive <- function() {
   print_section("7. m/z Optimization Strategies")
 
   cat("\nAvailable strategies:\n")
-  cat("  [1] quantile - Fast, robust (P5-P95 range)\n")
-  cat("  [2] smoothing - Smooth RT-dependent boundaries (GLOBAL mode)\n")
-  cat("  [3] outlier - Maximum coverage with outlier removal\n")
+  cat("  [1] greedy - MacCoss Lab sliding window (GLOBAL, recommended)\n")
+  cat("  [2] kde - Kernel Density Estimation peak-based (GLOBAL)\n")
+  cat("  [3] quantile - Fast, robust (P5-P95 range)\n")
   cat("  [4] coverage - Balanced coverage optimization\n")
+  cat("  [5] outlier - Maximum coverage with outlier removal\n")
   cat("\n")
 
-  all_strategies <- c("quantile", "smoothing", "outlier", "coverage")
+  all_strategies <- c("greedy", "kde", "quantile", "coverage", "outlier")
 
   strategies <- get_multiple_choices("Select strategies", all_strategies, "all")
 

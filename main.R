@@ -30,7 +30,7 @@ source("R/stage4_visualization.R")
 #' @param current_cycle_time Current cycle time in seconds (NULL = auto-estimate from gradient)
 #' @param target_dppp Target DPPP value (7.0 for Quant, 1.5 for ID)
 #' @param target_satisfaction Target satisfaction ratio (0.70-0.90)
-#' @param mz_strategies Vector of m/z strategies (default: all 4)
+#' @param mz_strategies Vector of m/z strategies (default: all 5)
 #' @param window_mode Window generation mode (default: "density")
 #' @param rt_bin_width_min RT bin width in minutes (default: 5)
 #' @param create_plots Generate visualizations (default: TRUE)
@@ -46,7 +46,7 @@ run_complete_pipeline <- function(
   current_cycle_time = NULL,
   target_dppp = 7.0,
   target_satisfaction = 0.70,
-  mz_strategies = c("quantile", "smoothing", "outlier", "coverage"),
+  mz_strategies = c("greedy", "kde", "quantile", "coverage", "outlier"),
   window_mode = "density",
   rt_bin_width_min = 5,
   create_plots = TRUE,
@@ -588,7 +588,7 @@ export_windows_thermo_format <- function(
 #   instrument_preset = "fusion_lumos",
 #   target_dppp = 7.0,
 #   target_satisfaction = 0.70,
-#   mz_strategies = c("quantile", "smoothing", "outlier", "coverage"),
+#   mz_strategies = c("greedy", "kde", "quantile", "coverage", "outlier"),
 #   window_mode = "density",
 #   rt_bin_width_min = 5,
 #   create_plots = TRUE,
