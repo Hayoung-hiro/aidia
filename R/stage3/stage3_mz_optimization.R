@@ -10,12 +10,12 @@
 #   - outlier: Mean ± 3σ (with optional SG smoothing)
 #
 # Functions:
-#   - optimize_mz_ranges_internal(): Main dispatcher
+#   - optimize_mz_ranges_internal(): Main dispatcher (quantile/coverage/outlier/greedy/kde)
 #   - optimize_mz_ranges_greedy_internal(): Greedy algorithm
 #   - optimize_mz_ranges_kde_internal(): KDE-based optimization
 #   - apply_sg_smoothing_to_mz_ranges(): Post-processing SG smoothing
 #
-# Dependencies: dplyr, R/smoothing_utils.R
+# Dependencies: dplyr, R/smoothing_utils.R, R/stage3/stage3_rt_binning.R
 
 library(dplyr)
 
@@ -281,7 +281,7 @@ apply_sg_smoothing_to_mz_ranges <- function(mz_ranges, smoothing_window,
   # Recalculate coverage
   for (i in 1:n_bins) {
     bin_data <- precursor_data %>%
-      filter(RT.Start >= mz_ranges$rt_start[i] & RT.Start <= mz_ranges$rt_end[i])
+      filter(RT.Apex >= mz_ranges$rt_start[i] & RT.Apex <= mz_ranges$rt_end[i])
 
     if (nrow(bin_data) > 0) {
       mz_values <- bin_data$Precursor.Mz
@@ -753,5 +753,6 @@ optimize_mz_ranges_kde_internal <- function(precursor_data, rt_stats,
 
   safe_bind_rows(mz_ranges)
 }
+
 
 cat("  [stage3_mz_optimization.R] m/z optimization functions loaded\n")

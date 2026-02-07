@@ -81,8 +81,8 @@ plot_window_width_distribution <- function(optimized_windows,
 
     # Get precursors for this segment
     seg_precursors <- precursor_data %>%
-      filter(RT.Start >= seg_info$rt_start,
-             RT.Start < seg_info$rt_end)
+      filter(RT.Apex >= seg_info$rt_start,
+             RT.Apex < seg_info$rt_end)
 
     # Get windows for this segment
     seg_windows <- windows_filtered %>%
@@ -245,8 +245,8 @@ plot_window_width_distribution_faceted <- function(optimized_windows,
       by = character()
     ) %>%
     filter(
-      RT.Start >= rt_start,
-      RT.Start < rt_end,
+      RT.Apex >= rt_start,
+      RT.Apex < rt_end,
       rt_segment_id %in% selected_segments
     )
 

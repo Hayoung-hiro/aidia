@@ -56,13 +56,30 @@ plot_rt_bin_quality_heatmap <- function(optimized_windows, validated_data, optim
   # Metric 1: Precursor Count per RT bin
   # =========================================================================
 
-  metric1_precursor_count <- mz_ranges_data %>%
-    group_by(rt_segment_id, rt_start, rt_end) %>%
-    summarise(
-      value = sum(n_precursors, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    mutate(metric = "Precursor Count")
+  # Column name varies: n_precursors_covered (most strategies) or n_precursors
+  precursor_col <- if ("n_precursors_covered" %in% names(mz_ranges_data)) {
+    "n_precursors_covered"
+  } else if ("n_precursors" %in% names(mz_ranges_data)) {
+    "n_precursors"
+  } else {
+    NULL
+  }
+
+  if (!is.null(precursor_col)) {
+    metric1_precursor_count <- mz_ranges_data %>%
+      group_by(rt_segment_id, rt_start, rt_end) %>%
+      summarise(
+        value = sum(.data[[precursor_col]], na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      mutate(metric = "Precursor Count")
+  } else {
+    # Fallback: count from rt_stats
+    metric1_precursor_count <- mz_ranges_data %>%
+      group_by(rt_segment_id, rt_start, rt_end) %>%
+      summarise(value = n(), .groups = "drop") %>%
+      mutate(metric = "Precursor Count")
+  }
 
   # =========================================================================
   # Metric 2: Coverage Ratio per RT bin
@@ -80,13 +97,33 @@ plot_rt_bin_quality_heatmap <- function(optimized_windows, validated_data, optim
   # Metric 3: Mean Window Width per RT bin
   # =========================================================================
 
-  metric3_window_width <- windows_data %>%
-    group_by(rt_segment_id, rt_start, rt_end) %>%
-    summarise(
-      value = mean(mz_width, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    mutate(metric = "Mean Window Width (Da)")
+  # Column name: window_width (standard) or mz_width (legacy)
+  width_col <- if ("window_width" %in% names(windows_data)) {
+    "window_width"
+  } else if ("mz_width" %in% names(windows_data)) {
+    "mz_width"
+  } else {
+    NULL
+  }
+
+  if (!is.null(width_col)) {
+    metric3_window_width <- windows_data %>%
+      group_by(rt_segment_id, rt_start, rt_end) %>%
+      summarise(
+        value = mean(.data[[width_col]], na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      mutate(metric = "Mean Window Width (Da)")
+  } else {
+    # Fallback: compute from mz_start/mz_end
+    metric3_window_width <- windows_data %>%
+      group_by(rt_segment_id, rt_start, rt_end) %>%
+      summarise(
+        value = mean(mz_end - mz_start, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      mutate(metric = "Mean Window Width (Da)")
+  }
 
   # =========================================================================
   # Metric 4: Window Count per RT bin
@@ -120,7 +157,7 @@ plot_rt_bin_quality_heatmap <- function(optimized_windows, validated_data, optim
       value = {
         # Filter precursors in this RT range
         bin_precursors <- precursor_data %>%
-          filter(RT.Start >= rt_start & RT.Start < rt_end)
+          filter(RT.Apex >= rt_start & RT.Apex < rt_end)
 
         if (nrow(bin_precursors) == 0) {
           NA_real_

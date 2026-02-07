@@ -193,7 +193,7 @@ plan_optimization <- function(
     # Use simple heuristic: gradient_length / 15, capped at 3.5 sec
     # This represents a typical DIA cycle time, NOT the optimal for target_dppp
     current_cycle_time <- estimate_cycle_time_from_gradient(
-      validated_data$data$RT.Start,
+      validated_data$data$RT.Apex,
       verbose = TRUE
     )
   }
@@ -915,7 +915,7 @@ quick_dppp_preview <- function(validated_data,
   fwhm_col <- if ("FWHM" %in% names(data)) "FWHM" else NULL
 
   # Calculate gradient length
-  rt_range <- range(data$RT.Start, na.rm = TRUE)
+  rt_range <- range(data$RT.Apex, na.rm = TRUE)
   gradient_length <- rt_range[2] - rt_range[1]
 
   if (is.null(fwhm_col) || all(is.na(data[[fwhm_col]]))) {

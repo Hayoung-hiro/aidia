@@ -360,7 +360,7 @@ ui <- dashboardPage(
       ),
       selected = "greedy"
     ),
-    helpText("Greedy: MacCoss method (recommended). KDE: Density-informed. Quantile: Fast & robust.",
+    helpText("Greedy: MacCoss method (recommended). KDE: Density-informed.",
              style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
 
     # Window Mode Selection
@@ -545,29 +545,71 @@ ui <- dashboardPage(
     helpText("Minimum window width (2 Da typical for narrow-DIA)",
              style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
 
-    # Auto RT Bin Width Checkbox (NEW)
-    checkboxInput(
-      inputId = "auto_rt_bin",
-      label = "Auto RT Bin Width",
-      value = TRUE
+    # RT Binning Mode (unified control)
+    selectInput(
+      inputId = "rt_binning_mode",
+      label = "RT Binning Mode",
+      choices = c(
+        "Fixed (auto width)" = "fixed",
+        "Adaptive (KS change-point)" = "adaptive",
+        "Custom (manual width)" = "custom"
+      ),
+      selected = "fixed"
     ),
-    helpText("Auto-adjusts bin width for selected strategy.",
+    helpText("Fixed: auto-calculated bin width. Adaptive: KS-test detects m/z distribution shifts. Custom: manual bin width.",
              style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
 
-    # RT Bin Width (conditionally shown)
+    # Manual bin width slider (Custom mode only)
     conditionalPanel(
-      condition = "!input.auto_rt_bin",
+      condition = "input.rt_binning_mode == 'custom'",
       sliderInput(
         inputId = "rt_bin_width",
-        label = "Manual RT Bin Width (min)",
+        label = "RT Bin Width (min)",
         min = 1,
         max = 15,
         value = 5,
         step = 0.5,
         post = " min"
       ),
-      helpText("Controls window grouping. Smaller = more RT segments.",
+      helpText("Controls RT segment grouping. Smaller = more segments.",
                style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;")
+    ),
+
+    # Adaptive KS parameters (Adaptive mode only)
+    conditionalPanel(
+      condition = "input.rt_binning_mode == 'adaptive'",
+      div(style = "background: rgba(26, 188, 156, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+        h5("Adaptive Parameters", style = "margin: 0 0 8px 0; color: #1abc9c;"),
+        sliderInput(
+          inputId = "cpd_significance",
+          label = "Change Point Significance",
+          min = 0.001, max = 0.10, value = 0.05, step = 0.005
+        ),
+        sliderInput(
+          inputId = "cpd_min_bin_width",
+          label = "Min Bin Width (min)",
+          min = 0.5, max = 5.0, value = 1.0, step = 0.5
+        ),
+        helpText("Lower significance = fewer, more confident change points.",
+                 style = "font-size: 10px; color: #7f8c8d;")
+      )
+    ),
+
+    # Edge handling parameters (all modes)
+    div(style = "background: rgba(149, 165, 166, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+      h5("Edge Handling", style = "margin: 0 0 8px 0; color: #95a5a6;"),
+      numericInput(
+        inputId = "edge_void_buffer",
+        label = "Void Volume Buffer (min)",
+        value = 0.5, min = 0, max = 2, step = 0.1
+      ),
+      numericInput(
+        inputId = "edge_wash_threshold",
+        label = "Wash Merge Threshold (precursors)",
+        value = 30, min = 0, max = 200, step = 10
+      ),
+      helpText("Void buffer extends first bin start. Wash merge combines sparse last bin.",
+               style = "font-size: 10px; color: #7f8c8d;")
     ),
 
     hr(),
@@ -1441,33 +1483,45 @@ server <- function(input, output, session) {
       cat("[Shiny] t_scan:", rv$optimization_plan$timing$t_scan_ms, "ms\n")
       cat("[Shiny] ================================\n")
 
-      # Determine RT bin width (auto or manual)
-      if (input$auto_rt_bin) {
-        # Calculate adaptive RT bin width based on strategy and gradient length
-        rt_range <- range(rv$validated_data$data$RT.Start, na.rm = TRUE)
-        adaptive_result <- calculate_adaptive_rt_bin_width(
+      # Determine RT bin width and binning mode
+      rt_binning_mode_input <- input$rt_binning_mode %||% "fixed"
+
+      if (rt_binning_mode_input == "custom") {
+        # Custom: user-specified bin width, fixed binning
+        rt_bin_width_final <- input$rt_bin_width
+        rt_binning_mode_final <- "fixed"
+        cat("[Shiny] Custom RT Bin Width:", rt_bin_width_final, "min (fixed binning)\n")
+      } else {
+        # Fixed and Adaptive: auto-calculate bin width
+        rt_range <- range(rv$validated_data$data$RT.Apex, na.rm = TRUE)
+        auto_result <- calculate_auto_rt_bin_width(
           rt_range = rt_range,
           mz_strategy = input$mz_strategy,
           target_min_bins = 5
         )
-        rt_bin_width_final <- adaptive_result$bin_width
-        cat("[Shiny] AUTO RT Bin Width:", rt_bin_width_final, "min")
-        cat(" (", adaptive_result$n_bins, " bins for ", input$mz_strategy, " strategy)\n", sep = "")
+        rt_bin_width_final <- auto_result$bin_width
 
-        # Show notification about auto-adjustment
+        if (rt_binning_mode_input == "adaptive") {
+          rt_binning_mode_final <- "adaptive"
+          cat("[Shiny] Adaptive RT Binning: auto width =", rt_bin_width_final, "min (used as min constraint)")
+          cat(" (", auto_result$n_bins, " target bins for ", input$mz_strategy, " strategy)\n", sep = "")
+        } else {
+          rt_binning_mode_final <- "fixed"
+          cat("[Shiny] Fixed RT Binning: auto width =", rt_bin_width_final, "min")
+          cat(" (", auto_result$n_bins, " bins for ", input$mz_strategy, " strategy)\n", sep = "")
+        }
+
         showNotification(
-          sprintf("Auto RT bin: %.1f min (%d bins)", rt_bin_width_final, adaptive_result$n_bins),
+          sprintf("RT bin: %.1f min (%s, %d bins)", rt_bin_width_final, rt_binning_mode_final, auto_result$n_bins),
           type = "message", duration = 3
         )
-      } else {
-        rt_bin_width_final <- input$rt_bin_width
-        cat("[Shiny] Manual RT Bin Width:", rt_bin_width_final, "min\n")
       }
 
       # Stage 3: Window Optimization with selected m/z strategy
       cat("[Shiny] Running optimize_windows()...\n")
       cat("[Shiny] m/z Range Strategy:", input$mz_strategy, "\n")
       cat("[Shiny] Window Width Mode:", input$window_mode, "\n")
+      cat("[Shiny] RT Binning Mode:", input$rt_binning_mode %||% "fixed", "\n")
       cat("[Shiny] Min Isolation Width:", input$min_isolation_width, "Da\n")
 
       # Get strategy-specific parameters with defaults
@@ -1524,6 +1578,11 @@ server <- function(input, output, session) {
         mz_strategy = input$mz_strategy,
         window_mode = input$window_mode %||% "density",
         rt_bin_width_min = rt_bin_width_final,
+        rt_binning_mode = rt_binning_mode_final,
+        cpd_significance_level = input$cpd_significance %||% 0.05,
+        cpd_min_bin_width = input$cpd_min_bin_width %||% 1.0,
+        edge_void_buffer_min = input$edge_void_buffer %||% 0.5,
+        edge_wash_min_precursors = input$edge_wash_threshold %||% 30,
         min_width_da = input$min_isolation_width %||% 2,
         # Pass strategy-specific parameters
         quantile_lower = strategy_params$quantile_lower,
@@ -1836,7 +1895,7 @@ server <- function(input, output, session) {
       ),
       Value = c(
         format(nrow(data), big.mark = ","),
-        sprintf("%.1f - %.1f", min(data$RT.Start), max(data$RT.Start)),
+        sprintf("%.1f - %.1f", min(data$RT.Apex), max(data$RT.Apex)),
         sprintf("%.1f - %.1f", min(data$Precursor.Mz), max(data$Precursor.Mz)),
         sprintf("%.2f", median_fwhm_sec)
       )

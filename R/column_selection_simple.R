@@ -15,13 +15,16 @@ library(dplyr)
 #' These columns are ALWAYS required for the complete optimization workflow.
 #' Based on actual usage analysis across all stages:
 #'   - Stage 2 (DPPP diagnosis): FWHM
-#'   - Stage 3 (Window optimization): RT.Start, Precursor.Mz
-#'   - Stage 4 (Visualization): RT.Start, Precursor.Mz, FWHM
+#'   - Stage 3 (Window optimization): RT.Apex, Precursor.Mz
+#'   - Stage 4 (Visualization): RT.Apex, Precursor.Mz, FWHM
+#'
+#' RT.Apex is computed in Stage 1 as midpoint of RT.Start and RT.Stop.
+#' All downstream stages use RT.Apex as the single RT reference.
 #'
 #' @export
 ESSENTIAL_COLUMNS <- c(
   "Precursor.Id",   # Unique identifier (required for tracking)
-  "RT.Start",       # Retention time in minutes (Stage 3, 4)
+  "RT.Apex",        # Midpoint of RT.Start and RT.Stop (computed in Stage 1)
   "Precursor.Mz",   # m/z value in Da (Stage 3, 4)
   "FWHM",           # Full-width at half maximum in minutes (Stage 2, 4)
   "Protein.Group"   # Protein group for identification (user-requested)

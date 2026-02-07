@@ -43,7 +43,15 @@
   },
 
   "rt_binning": {
-    "rt_bin_width_min": 5.0
+    "rt_bin_width_min": 5.0,
+    "rt_binning_mode": "fixed",
+    "_comment_rt_binning_mode": "RT binning mode: 'fixed' (equal-width) or 'adaptive' (KS change-point detection)",
+    "cpd_significance_level": 0.05,
+    "cpd_min_bin_width": 1.0,
+    "cpd_max_bin_width": 15.0,
+    "cpd_min_precursors_per_bin": 50,
+    "edge_void_buffer_min": 0.5,
+    "edge_wash_min_precursors": 30
   },
 
   "mz_optimization": {

@@ -59,7 +59,7 @@ plot_mz_distribution_with_exclusions <- function(optimized_windows,
 
     # Filter precursors in this RT bin
     bin_precursors <- precursor_data %>%
-      filter(RT.Start >= bin_info$rt_start & RT.Start < bin_info$rt_end)
+      filter(RT.Apex >= bin_info$rt_start & RT.Apex < bin_info$rt_end)
 
     if (nrow(bin_precursors) < 2) next  # Need at least 2 points for density estimation
 
@@ -152,16 +152,8 @@ plot_mz_distribution_with_exclusions <- function(optimized_windows,
   n_cols <- ifelse(n_plots <= 3, n_plots, 3)
   n_rows <- ceiling(n_plots / n_cols)
 
-  # Get strategy label
-  strategy_label <- switch(
-    strategy_name,
-    "greedy" = "Greedy (MacCoss)",
-    "kde" = "KDE (Density Peak)",
-    "quantile" = "Quantile (P5-P95)",
-    "outlier" = "Outlier Removal",
-    "coverage" = "Coverage-based",
-    strategy_name
-  )
+  # Strategy label (canonical labels from theme_aidia.R)
+  strategy_label <- format_strategy_label(strategy_name)
 
   # Create title grob
   title_text <- sprintf(

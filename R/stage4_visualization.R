@@ -70,7 +70,8 @@ plot_modules <- c(
   "R/plots/plot_satisfaction.R",
   "R/plots/plot_impact_summary.R",
   "R/plots/plot_rt_quality.R",
-  "R/plots/plot_window_gantt.R"
+  "R/plots/plot_window_gantt.R",
+  "R/plots/plot_rt_changepoint.R"
 )
 
 for (module in plot_modules) {
@@ -201,12 +202,14 @@ generate_visualizations <- function(
 
   cat("\n  Preparing Plot 4: Multi-Strategy Comparison...\n")
 
-  strategies <- c("greedy", "kde", "quantile", "coverage", "outlier")
+  # Default strategies for re-computation when no windows_list provided
+  default_strategies <- c("greedy", "kde", "quantile", "coverage", "outlier")
 
   # Use pre-computed windows_list if provided, otherwise compute
   if (is.null(windows_list)) {
     cat("  Running optimization with all 5 m/z strategies...\n")
     windows_list <- list()
+    strategies <- default_strategies
 
     # Load Stage 3 module for optimization
     if (!exists("optimize_windows")) {
@@ -224,6 +227,7 @@ generate_visualizations <- function(
         rt_bin_width_min = optimized_windows$parameters$rt_bin_width_min,
         mz_strategy = strategy,
         window_mode = optimized_windows$parameters$window_mode,
+        rt_binning_mode = optimized_windows$parameters$rt_binning_mode %||% "fixed",
         quantile_lower = 0.05,
         quantile_upper = 0.95,
         outlier_threshold = 3.0,
@@ -233,7 +237,10 @@ generate_visualizations <- function(
       )
     }
   } else {
-    cat("  Using pre-computed windows for all 5 strategies (skipping re-optimization)...\n")
+    # Use the actual strategies from the provided windows_list
+    strategies <- names(windows_list)
+    cat(sprintf("  Using pre-computed windows for %d strategies (skipping re-optimization)...\n",
+                length(strategies)))
   }
 
   # Plot 4A-4D: Individual strategy m/z excluded regions
@@ -288,6 +295,20 @@ generate_visualizations <- function(
     plots$`plot10_isolation_window_gantt` <- plot_isolation_window_gantt(
       optimized_windows, validated_data, show_precursors = TRUE
     )
+  }
+
+  # Plot 11: RT Change Point Validation (only when adaptive RT binning used)
+  if (exists("plot_rt_changepoint_validation")) {
+    rt_binning_mode <- optimized_windows$rt_binning$rt_binning_mode %||% "fixed"
+    if (rt_binning_mode == "adaptive") {
+      cat("  Generating Plot 11: RT Change Point Validation...\n")
+      plots$`plot11_rt_changepoint_validation` <- plot_rt_changepoint_validation(
+        validated_data, optimized_windows
+      )
+
+      cat("  Generating Plot 11B: KS Statistic Trace...\n")
+      plots$`plot11b_ks_statistic_trace` <- plot_ks_statistic_trace(optimized_windows)
+    }
   }
 
   # ===================================================================

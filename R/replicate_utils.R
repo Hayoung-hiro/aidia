@@ -150,11 +150,15 @@ calculate_consensus_dataset <- function(data, min_replicates = 1,
   # Step 2: Calculate median values (preserve Protein.Group if present)
   has_protein_group <- "Protein.Group" %in% colnames(data)
 
+  # Check if RT.Apex is available (computed in Stage 1 before consensus)
+  has_rt_apex <- "RT.Apex" %in% colnames(data)
+
   if (has_intensity && has_protein_group) {
     consensus_values <- data %>%
       group_by(Precursor.Id) %>%
       summarise(
         RT.Start = median(RT.Start, na.rm = TRUE),
+        RT.Apex = if (has_rt_apex) median(RT.Apex, na.rm = TRUE) else median(RT.Start, na.rm = TRUE),
         Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
         FWHM = median(FWHM, na.rm = TRUE),
         Precursor.Quantity = median(Precursor.Quantity, na.rm = TRUE),
@@ -166,6 +170,7 @@ calculate_consensus_dataset <- function(data, min_replicates = 1,
       group_by(Precursor.Id) %>%
       summarise(
         RT.Start = median(RT.Start, na.rm = TRUE),
+        RT.Apex = if (has_rt_apex) median(RT.Apex, na.rm = TRUE) else median(RT.Start, na.rm = TRUE),
         Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
         FWHM = median(FWHM, na.rm = TRUE),
         Precursor.Quantity = median(Precursor.Quantity, na.rm = TRUE),
@@ -176,6 +181,7 @@ calculate_consensus_dataset <- function(data, min_replicates = 1,
       group_by(Precursor.Id) %>%
       summarise(
         RT.Start = median(RT.Start, na.rm = TRUE),
+        RT.Apex = if (has_rt_apex) median(RT.Apex, na.rm = TRUE) else median(RT.Start, na.rm = TRUE),
         Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
         FWHM = median(FWHM, na.rm = TRUE),
         Protein.Group = first(Protein.Group),  # Keep first value
@@ -186,6 +192,7 @@ calculate_consensus_dataset <- function(data, min_replicates = 1,
       group_by(Precursor.Id) %>%
       summarise(
         RT.Start = median(RT.Start, na.rm = TRUE),
+        RT.Apex = if (has_rt_apex) median(RT.Apex, na.rm = TRUE) else median(RT.Start, na.rm = TRUE),
         Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
         FWHM = median(FWHM, na.rm = TRUE),
         .groups = "drop"

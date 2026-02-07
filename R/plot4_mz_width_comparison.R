@@ -35,7 +35,7 @@ plot_mz_width_comparison <- function(optimized_windows, validated_data) {
   original_widths <- precursor_data %>%
     mutate(
       rt_group = cut(
-        RT.Start,
+        RT.Apex,
         breaks = c(mz_ranges$rt_start[1], mz_ranges$rt_end),
         labels = FALSE,
         include.lowest = TRUE
@@ -74,17 +74,9 @@ plot_mz_width_comparison <- function(optimized_windows, validated_data) {
       width_type = factor(width_type, levels = c("Original", "Optimized"))
     )
 
-  # Get strategy info
+  # Get strategy info (canonical labels from theme_aidia.R)
   strategy_name <- optimized_windows$mz_optimization$strategy
-  strategy_label <- switch(
-    strategy_name,
-    "greedy" = "Greedy (MacCoss)",
-    "kde" = "KDE (Density Peak)",
-    "quantile" = "Quantile (P5-P95)",
-    "outlier" = "Outlier Removal (±3SD)",
-    "coverage" = "Coverage-based (95%)",
-    strategy_name
-  )
+  strategy_label <- format_strategy_label(strategy_name)
 
   # Calculate statistics
   mean_original <- mean(comparison_data$original_width, na.rm = TRUE)
@@ -193,7 +185,7 @@ plot_mz_width_comparison_all_strategies <- function(windows_list, validated_data
   original_widths <- precursor_data %>%
     mutate(
       rt_group = cut(
-        RT.Start,
+        RT.Apex,
         breaks = c(ref_mz_ranges$rt_start[1], ref_mz_ranges$rt_end),
         labels = FALSE,
         include.lowest = TRUE

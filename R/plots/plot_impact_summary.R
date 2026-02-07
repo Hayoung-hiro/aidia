@@ -88,8 +88,14 @@ create_metrics_table <- function(optimized_windows, validated_data) {
   n_precursors <- validated_data$summary$n_precursors
   n_rt_bins <- length(unique(optimized_windows$windows$rt_segment_id))
 
-  # Calculate mean window width
-  mean_width <- mean(optimized_windows$windows$mz_width, na.rm = TRUE)
+  # Calculate mean window width (column is window_width, not mz_width)
+  if ("window_width" %in% colnames(optimized_windows$windows)) {
+    mean_width <- mean(optimized_windows$windows$window_width, na.rm = TRUE)
+  } else if ("mz_width" %in% colnames(optimized_windows$windows)) {
+    mean_width <- mean(optimized_windows$windows$mz_width, na.rm = TRUE)
+  } else {
+    mean_width <- NA
+  }
 
   # Extract coverage from statistics (handle both list and tibble formats)
   if (is.list(optimized_windows$statistics)) {
@@ -100,9 +106,24 @@ create_metrics_table <- function(optimized_windows, validated_data) {
     coverage <- NA
   }
 
+  # If coverage is NULL, NA, or length 0, try alternative sources
+  if (is.null(coverage) || length(coverage) == 0 || is.na(coverage)) {
+    coverage <- optimized_windows$statistics$coverage_percentage
+    if (!is.null(coverage) && length(coverage) > 0 && !is.na(coverage)) {
+      coverage <- coverage / 100  # Convert from percentage to ratio
+    }
+  }
+
   # If coverage not available, calculate from mz_ranges
-  if (is.na(coverage) && !is.null(optimized_windows$mz_optimization$mz_ranges)) {
-    coverage <- mean(optimized_windows$mz_optimization$mz_ranges$coverage_ratio, na.rm = TRUE)
+  if (is.null(coverage) || length(coverage) == 0 || is.na(coverage)) {
+    if (!is.null(optimized_windows$mz_optimization$mz_ranges)) {
+      coverage <- mean(optimized_windows$mz_optimization$mz_ranges$coverage_ratio, na.rm = TRUE)
+    }
+  }
+
+  # Default coverage to 0 if still NA
+  if (is.null(coverage) || length(coverage) == 0 || is.na(coverage)) {
+    coverage <- 0
   }
 
   # Format text

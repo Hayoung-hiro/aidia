@@ -71,6 +71,13 @@ run_optimization <- function(config_path) {
 
   # RT binning
   rt_bin_width_min <- config$rt_binning$rt_bin_width_min
+  rt_binning_mode <- get_config_value(config, "rt_binning.rt_binning_mode", "fixed")
+  cpd_significance_level <- get_config_value(config, "rt_binning.cpd_significance_level", 0.05)
+  cpd_min_bin_width <- get_config_value(config, "rt_binning.cpd_min_bin_width", 1.0)
+  cpd_max_bin_width <- get_config_value(config, "rt_binning.cpd_max_bin_width", 15.0)
+  cpd_min_precursors_per_bin <- get_config_value(config, "rt_binning.cpd_min_precursors_per_bin", 50)
+  edge_void_buffer_min <- get_config_value(config, "rt_binning.edge_void_buffer_min", 0.5)
+  edge_wash_min_precursors <- get_config_value(config, "rt_binning.edge_wash_min_precursors", 30)
 
   # m/z optimization
   mz_strategies <- config$mz_optimization$strategies
@@ -185,6 +192,13 @@ run_optimization <- function(config_path) {
           rt_bin_width_min = rt_bin_width_min,
           mz_strategy = strategy,
           window_mode = mode,
+          rt_binning_mode = rt_binning_mode,
+          cpd_significance_level = cpd_significance_level,
+          cpd_min_bin_width = cpd_min_bin_width,
+          cpd_max_bin_width = cpd_max_bin_width,
+          cpd_min_precursors_per_bin = cpd_min_precursors_per_bin,
+          edge_void_buffer_min = edge_void_buffer_min,
+          edge_wash_min_precursors = edge_wash_min_precursors,
           target_coverage = target_coverage,
           quantile_lower = quantile_lower,
           quantile_upper = quantile_upper,

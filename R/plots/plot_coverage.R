@@ -30,7 +30,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
 
   # Extract precursor data
   precursor_data <- validated_data$data %>%
-    select(RT.Start, Precursor.Mz)
+    select(RT.Apex, Precursor.Mz)
 
   # Extract m/z optimization info
   mz_ranges <- optimized_windows$mz_optimization$mz_ranges
@@ -44,22 +44,14 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
   upper_boundary <- boundary_data %>% select(rt = rt_midpoint, mz = mz_max)
   lower_boundary <- boundary_data %>% select(rt = rt_midpoint, mz = mz_min)
 
-  # Strategy label
-  strategy_label <- switch(
-    strategy_name,
-    "greedy" = "Greedy (MacCoss)",
-    "kde" = "KDE (Density Peak)",
-    "quantile" = "Quantile (P5-P95)",
-    "outlier" = "Outlier (+/-3SD)",
-    "coverage" = "Coverage (95%)",
-    strategy_name
-  )
+  # Strategy label (canonical labels from theme_aidia.R)
+  strategy_label <- format_strategy_label(strategy_name)
 
   mean_width <- mean(mz_ranges$mz_width, na.rm = TRUE)
   mean_coverage <- mean(mz_ranges$coverage_ratio, na.rm = TRUE) * 100
 
   # Create plot
-  p <- ggplot(precursor_data, aes(x = RT.Start, y = Precursor.Mz)) +
+  p <- ggplot(precursor_data, aes(x = RT.Apex, y = Precursor.Mz)) +
     stat_density_2d(aes(fill = after_stat(density)), geom = "raster",
                     contour = FALSE, n = bins, alpha = 0.8) +
     geom_line(data = upper_boundary, aes(x = rt, y = mz),

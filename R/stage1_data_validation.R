@@ -89,6 +89,15 @@ create_validated_dataset <- function(
   validate_required_columns(loaded_data$data, c("RT.Start", "Precursor.Mz", "FWHM"))
   cat("✓ All required columns present\n")
 
+  # Compute RT.Apex from midpoint of RT.Start and RT.Stop
+  if ("RT.Stop" %in% names(loaded_data$data)) {
+    loaded_data$data$RT.Apex <- (loaded_data$data$RT.Start + loaded_data$data$RT.Stop) / 2
+    cat("✓ Computed RT.Apex from midpoint of RT.Start and RT.Stop\n")
+  } else {
+    loaded_data$data$RT.Apex <- loaded_data$data$RT.Start
+    cat("i RT.Stop not available, using RT.Start as RT.Apex\n")
+  }
+
   # Pipeline Step 3: Raw metadata (optional)
   raw_metadata <- load_optional_raw_metadata(
     enable = enable_raw_metadata,
@@ -462,7 +471,7 @@ package_validated_data <- function(
 
   # Calculate metadata statistics
   fwhm_stats <- calculate_fwhm_stats(data$FWHM)
-  rt_range_actual <- range(data$RT.Start, na.rm = TRUE)
+  rt_range_actual <- range(data$RT.Apex, na.rm = TRUE)
   mz_range_actual <- range(data$Precursor.Mz, na.rm = TRUE)
 
   metadata <- list(

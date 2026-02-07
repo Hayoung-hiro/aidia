@@ -32,10 +32,10 @@ plot_rt_mz_density_heatmap <- function(validated_data, bins = 50) {
 
   # Extract precursor data
   precursor_data <- validated_data$data %>%
-    select(RT.Start, Precursor.Mz)
+    select(RT.Apex, Precursor.Mz)
 
   # Create 2D density heatmap
-  p <- ggplot(precursor_data, aes(x = RT.Start, y = Precursor.Mz)) +
+  p <- ggplot(precursor_data, aes(x = RT.Apex, y = Precursor.Mz)) +
     stat_density_2d(
       aes(fill = after_stat(density)),
       geom = "raster",
@@ -114,7 +114,7 @@ plot_mz_normalized_density <- function(optimized_windows, validated_data) {
 
     # Filter precursors in this RT segment
     segment_data <- precursor_data %>%
-      filter(RT.Start >= rt_start_val & RT.Start < rt_end_val)
+      filter(RT.Apex >= rt_start_val & RT.Apex < rt_end_val)
 
     if (nrow(segment_data) < 2) next  # Need at least 2 points for density estimation
 

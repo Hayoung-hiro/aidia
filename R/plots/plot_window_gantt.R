@@ -50,7 +50,14 @@ plot_isolation_window_gantt <- function(optimized_windows,
 
   # Calculate summary statistics for subtitle
   n_windows <- nrow(windows)
-  mean_width <- mean(windows$mz_width, na.rm = TRUE)
+  # Use window_width (standard) or mz_width (legacy) or compute from mz_start/mz_end
+  if ("window_width" %in% names(windows)) {
+    mean_width <- mean(windows$window_width, na.rm = TRUE)
+  } else if ("mz_width" %in% names(windows)) {
+    mean_width <- mean(windows$mz_width, na.rm = TRUE)
+  } else {
+    mean_width <- mean(windows$mz_end - windows$mz_start, na.rm = TRUE)
+  }
   n_rt_bins <- length(unique(windows$rt_segment_id))
 
   # Get RT bin boundaries for vertical lines
@@ -111,7 +118,7 @@ plot_isolation_window_gantt <- function(optimized_windows,
     # Add precursor scatter layer
     p <- p +
       geom_point(data = precursor_data,
-                aes(x = RT.Start, y = Precursor.Mz),
+                aes(x = RT.Apex, y = Precursor.Mz),
                 size = 0.3,
                 alpha = 0.1,
                 color = "black",

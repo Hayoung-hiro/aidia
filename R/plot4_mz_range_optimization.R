@@ -35,7 +35,7 @@ plot_mz_range_optimization <- function(optimized_windows, validated_data) {
     mutate(
       # Assign to RT bins using same logic as Stage 3
       rt_group = cut(
-        RT.Start,
+        RT.Apex,
         breaks = c(mz_ranges$rt_start[1], mz_ranges$rt_end),
         labels = FALSE,
         include.lowest = TRUE
@@ -80,17 +80,9 @@ plot_mz_range_optimization <- function(optimized_windows, validated_data) {
       range_type = factor(range_type, levels = c("Original", "Optimized"))
     )
 
-  # Get strategy name
+  # Get strategy name (canonical labels from theme_aidia.R)
   strategy_name <- optimized_windows$mz_optimization$strategy
-  strategy_label <- switch(
-    strategy_name,
-    "greedy" = "Greedy (MacCoss)",
-    "kde" = "KDE (Density Peak)",
-    "quantile" = "Quantile (P5-P95)",
-    "outlier" = "Outlier Removal",
-    "coverage" = "Coverage-based",
-    strategy_name
-  )
+  strategy_label <- format_strategy_label(strategy_name)
 
   # Calculate mean reduction
   mean_reduction <- mean(comparison_data$reduction_pct, na.rm = TRUE)

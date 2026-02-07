@@ -31,30 +31,30 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
 
   # Extract precursor data
   precursor_data <- validated_data$data %>%
-    select(RT.Start)
+    select(RT.Apex)
 
   # Calculate statistics
   n_total <- nrow(precursor_data)
-  rt_min <- min(precursor_data$RT.Start, na.rm = TRUE)
-  rt_max <- max(precursor_data$RT.Start, na.rm = TRUE)
-  rt_mean <- mean(precursor_data$RT.Start, na.rm = TRUE)
-  rt_median <- median(precursor_data$RT.Start, na.rm = TRUE)
+  rt_min <- min(precursor_data$RT.Apex, na.rm = TRUE)
+  rt_max <- max(precursor_data$RT.Apex, na.rm = TRUE)
+  rt_mean <- mean(precursor_data$RT.Apex, na.rm = TRUE)
+  rt_median <- median(precursor_data$RT.Apex, na.rm = TRUE)
 
   # Find peak RT region
-  hist_data <- hist(precursor_data$RT.Start, breaks = bins, plot = FALSE)
+  hist_data <- hist(precursor_data$RT.Apex, breaks = bins, plot = FALSE)
   peak_idx <- which.max(hist_data$counts)
   peak_rt_start <- hist_data$breaks[peak_idx]
   peak_rt_end <- hist_data$breaks[peak_idx + 1]
   peak_count <- hist_data$counts[peak_idx]
 
   # Calculate early vs late RT proportions
-  early_rt <- sum(precursor_data$RT.Start < rt_mean)
-  late_rt <- sum(precursor_data$RT.Start >= rt_mean)
+  early_rt <- sum(precursor_data$RT.Apex < rt_mean)
+  late_rt <- sum(precursor_data$RT.Apex >= rt_mean)
   early_pct <- (early_rt / n_total) * 100
   late_pct <- (late_rt / n_total) * 100
 
   # Create histogram
-  p <- ggplot(precursor_data, aes(x = RT.Start)) +
+  p <- ggplot(precursor_data, aes(x = RT.Apex)) +
     geom_histogram(bins = bins, fill = "steelblue", alpha = 0.7,
                    color = "white", linewidth = 0.1) +
     geom_vline(xintercept = rt_median, linetype = "dashed",

@@ -33,6 +33,8 @@ source("R/stage4_visualization.R")
 #' @param mz_strategies Vector of m/z strategies (default: all 5)
 #' @param window_mode Window generation mode (default: "density")
 #' @param rt_bin_width_min RT bin width in minutes (default: 5)
+#' @param edge_void_buffer_min Void volume buffer in minutes (default: 0.5). Extends first RT bin start.
+#' @param edge_wash_min_precursors Wash region merge threshold (default: 30). Merges last bin if sparse.
 #' @param create_plots Generate visualizations (default: TRUE)
 #' @param create_pdf Generate PDF report (default: TRUE)
 #' @param verbose Print detailed progress (default: TRUE)
@@ -49,6 +51,9 @@ run_complete_pipeline <- function(
   mz_strategies = c("greedy", "kde", "quantile", "coverage", "outlier"),
   window_mode = "density",
   rt_bin_width_min = 5,
+  rt_binning_mode = "fixed",
+  edge_void_buffer_min = 0.5,
+  edge_wash_min_precursors = 30,
   create_plots = TRUE,
   create_pdf = TRUE,
   verbose = TRUE
@@ -77,6 +82,9 @@ run_complete_pipeline <- function(
     cat(sprintf("  m/z strategies    : %s\n", paste(mz_strategies, collapse = ", ")))
     cat(sprintf("  Window mode       : %s\n", window_mode))
     cat(sprintf("  RT bin width      : %.0f min\n", rt_bin_width_min))
+    cat(sprintf("  RT binning mode   : %s\n", rt_binning_mode))
+    cat(sprintf("  Edge void buffer  : %.1f min\n", edge_void_buffer_min))
+    cat(sprintf("  Edge wash threshold: %d precursors\n", edge_wash_min_precursors))
     cat(sprintf("  Create plots      : %s\n", ifelse(create_plots, "Yes (24 plots)", "No")))
     cat(sprintf("  Create PDF        : %s\n", ifelse(create_pdf, "Yes", "No")))
     cat("\n")
@@ -213,6 +221,9 @@ run_complete_pipeline <- function(
         rt_bin_width_min = rt_bin_width_min,
         mz_strategy = strategy,
         window_mode = window_mode,
+        rt_binning_mode = rt_binning_mode,
+        edge_void_buffer_min = edge_void_buffer_min,
+        edge_wash_min_precursors = edge_wash_min_precursors,
         quantile_lower = 0.05,
         quantile_upper = 0.95,
         target_coverage = 0.95,

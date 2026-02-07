@@ -26,7 +26,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
 
   # Extract precursor data
   precursor_data <- validated_data$data %>%
-    select(RT.Start, Precursor.Mz)
+    select(RT.Apex, Precursor.Mz)
 
   # Extract m/z optimization info
   mz_ranges <- optimized_windows$mz_optimization$mz_ranges
@@ -47,23 +47,15 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
   lower_boundary <- boundary_data %>%
     select(rt = rt_midpoint, mz = mz_min)
 
-  # Get strategy label
-  strategy_label <- switch(
-    strategy_name,
-    "greedy" = "Greedy (MacCoss)",
-    "kde" = "KDE (Density Peak)",
-    "quantile" = "Quantile (P5-P95)",
-    "outlier" = "Outlier (±3SD)",
-    "coverage" = "Coverage (95%)",
-    strategy_name
-  )
+  # Strategy label (canonical labels from theme_aidia.R)
+  strategy_label <- format_strategy_label(strategy_name)
 
   # Calculate mean m/z width
   mean_width <- mean(mz_ranges$mz_width, na.rm = TRUE)
   mean_coverage <- mean(mz_ranges$coverage_ratio, na.rm = TRUE) * 100
 
   # Create density heatmap with overlay
-  p <- ggplot(precursor_data, aes(x = RT.Start, y = Precursor.Mz)) +
+  p <- ggplot(precursor_data, aes(x = RT.Apex, y = Precursor.Mz)) +
     # Density heatmap
     stat_density_2d(
       aes(fill = after_stat(density)),
@@ -157,17 +149,16 @@ plot_density_with_mz_ranges_grid <- function(windows_list, validated_data, bins 
 
   cat("  Generating Plot 5: RT × m/z Density with m/z Range Overlay (2×2 Grid)...\n")
 
-  # Ensure correct order
-  strategy_order <- intersect(c("greedy", "kde", "quantile", "coverage", "outlier"), names(windows_list))
+  # Use all available strategies (preserve preferred order where applicable)
+  preferred_order <- c("greedy", "kde", "quantile", "coverage", "outlier")
+  strategy_order <- intersect(preferred_order, names(windows_list))
+  # Add any strategies not in preferred order
+  strategy_order <- unique(c(strategy_order, names(windows_list)))
 
   # Create individual plots for each strategy
   plot_list <- list()
 
   for (strategy_name in strategy_order) {
-    if (!strategy_name %in% names(windows_list)) {
-      stop(sprintf("Strategy '%s' not found in windows_list", strategy_name))
-    }
-
     cat(sprintf("    Creating density plot for %s...\n", strategy_name))
 
     plot_list[[strategy_name]] <- plot_density_with_mz_range(
@@ -177,16 +168,23 @@ plot_density_with_mz_ranges_grid <- function(windows_list, validated_data, bins 
     )
   }
 
-  # Create 2×2 grid
+  # Determine grid layout based on number of strategies
+  n_plots <- length(plot_list)
+  if (n_plots == 0) {
+    cat("    No strategies to plot\n")
+    return(grid::textGrob("No strategies available"))
+  }
+
+  ncol <- min(2, n_plots)
+  nrow <- ceiling(n_plots / ncol)
+
+  # Create grid using grobs list (dynamic, not hardcoded)
   combined_plot <- gridExtra::arrangeGrob(
-    plot_list$quantile,
-    plot_list$smoothing,
-    plot_list$outlier,
-    plot_list$coverage,
-    ncol = 2,
-    nrow = 2,
+    grobs = plot_list,
+    ncol = ncol,
+    nrow = nrow,
     top = grid::textGrob(
-      "RT × m/z Density with Optimized m/z Range Overlay",
+      "RT x m/z Density with Optimized m/z Range Overlay",
       gp = grid::gpar(fontsize = 16, fontface = "bold")
     ),
     bottom = grid::textGrob(

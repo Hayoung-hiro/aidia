@@ -78,7 +78,7 @@ if (!inherits(x, "ValidatedData")) {
   }
 
   # Check required columns in data
-  required_cols <- c("Precursor.Mz", "RT.Start", "FWHM")
+  required_cols <- c("Precursor.Mz", "RT.Apex", "FWHM")
   missing_cols <- setdiff(required_cols, names(x$data))
   if (length(missing_cols) > 0) {
     stop(sprintf("ValidatedData$data missing required columns: %s",
@@ -123,7 +123,7 @@ as_ValidatedData.data.frame <- function(x, ...) {
   # Calculate metadata from data frame
   metadata <- list(
     n_precursors = nrow(x),
-    rt_range = range(x$RT.Start, na.rm = TRUE),
+    rt_range = range(x$RT.Apex, na.rm = TRUE),
     mz_range = range(x$Precursor.Mz, na.rm = TRUE),
     fwhm_stats = list(
       mean = mean(x$FWHM, na.rm = TRUE),

@@ -14,7 +14,7 @@ library(dplyr)
 #' Pipeline-based quality validation with outlier detection, RT/m/z validation,
 #' and quality score calculation
 #'
-#' @param data Data frame with RT.Start, Precursor.Mz, FWHM columns
+#' @param data Data frame with RT.Apex, Precursor.Mz, FWHM columns
 #' @return List with quality_score, warnings, errors, details
 #' @export
 validate_data_quality <- function(data) {
@@ -22,7 +22,7 @@ validate_data_quality <- function(data) {
   # Pipeline: Detection → Validation → Scoring
   results <- list(
     fwhm_outliers = detect_fwhm_outliers(data$FWHM),
-    rt_issues = validate_rt_values(data$RT.Start),
+    rt_issues = validate_rt_values(data$RT.Apex),
     mz_issues = validate_mz_values(data$Precursor.Mz)
   )
 

@@ -90,7 +90,7 @@ Stage 3: Window Optimization + Export  [MODULARIZED]
   Output: OptimizedWindows + 22-column CSV files
   Main:   optimize_windows()
   File:   R/stage3_window_optimization.R (372 lines, orchestrator)
-          R/stage3/stage3_mz_optimization.R (751 lines, 5 strategies)
+          R/stage3/stage3_mz_optimization.R (5 strategies)
           R/stage3/stage3_window_generation.R (510 lines, 3 modes)
           R/stage3/stage3_export.R (214 lines, Thermo CSV)
           R/stage3/stage3_rt_binning.R (125 lines)

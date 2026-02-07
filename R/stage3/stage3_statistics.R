@@ -45,17 +45,16 @@ calculate_window_statistics_internal <- function(windows, precursor_data) {
     } else {
       rt_s <- seg_windows$rt_start[1]
       rt_e <- seg_windows$rt_end[1]
-      seg_mask <- precursor_data$RT.Start >= rt_s & precursor_data$RT.Start <= rt_e
+      seg_mask <- precursor_data$RT.Apex >= rt_s & precursor_data$RT.Apex <= rt_e
     }
 
     seg_mz <- precursor_data$Precursor.Mz[seg_mask]
     if (length(seg_mz) == 0) next
 
     # Mark precursors covered by any window in this segment
+    seg_indices <- which(seg_mask)  # Invariant across inner loop — hoist out
     for (j in seq_len(nrow(seg_windows))) {
       in_win <- seg_mz >= seg_windows$mz_start[j] & seg_mz < seg_windows$mz_end[j]
-      # Update the original mask; use which() for indexed assignment
-      seg_indices <- which(seg_mask)
       precursor_data$covered[seg_indices[in_win]] <- TRUE
     }
   }
@@ -101,7 +100,7 @@ calculate_precursors_per_window <- function(windows, precursor_data) {
   # Count precursors in each window using vectorized 2D matching
   # 50-100x faster than loop-based approach for large datasets
   windows$n_precursors <- count_precursors_in_2d_windows(
-    precursor_rt = precursor_data$RT.Start,
+    precursor_rt = precursor_data$RT.Apex,
     precursor_mz = precursor_data$Precursor.Mz,
     window_rt_start = windows$rt_start,
     window_rt_end = windows$rt_end,

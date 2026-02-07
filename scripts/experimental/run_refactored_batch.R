@@ -199,6 +199,7 @@ process_file_all_combinations <- function(
         rt_bin_width_min = RT_BIN_WIDTH_MIN,
         mz_strategy = strategy,
         window_mode = mode,
+        rt_binning_mode = "fixed",
         smoothing_window = smoothing_window,
         polynomial_order = polynomial_order,
         min_width_da = MIN_WIDTH_DA,

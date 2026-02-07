@@ -10,7 +10,7 @@
 #
 # Sourced Modules:
 #   - R/stage3/stage3_rt_binning.R: RT segmentation
-#   - R/stage3/stage3_mz_optimization.R: m/z range optimization (5 strategies)
+#   - R/stage3/stage3_mz_optimization.R: m/z range optimization (6 strategies)
 #   - R/stage3/stage3_window_generation.R: Window generation (fixed/variable)
 #   - R/stage3/stage3_statistics.R: Statistics calculation
 #   - R/stage3/stage3_export.R: CSV export and S3 methods
@@ -126,7 +126,15 @@ optimize_windows <- function(
   kde_density_threshold = 0.1,  # KDE: Density threshold (0-1, relative to peak)
   kde_min_coverage = 0.80,  # KDE: Minimum coverage target
   quantile_apply_smoothing = FALSE,  # Quantile: Apply SG smoothing (default: FALSE)
-  outlier_apply_smoothing = FALSE  # Outlier: Apply SG smoothing (default: FALSE)
+  outlier_apply_smoothing = FALSE,  # Outlier: Apply SG smoothing (default: FALSE)
+  # RT binning parameters
+  rt_binning_mode = "fixed",                 # "fixed" or "adaptive"
+  cpd_min_bin_width = 1.0,                   # Adaptive: minimum bin width in minutes
+  cpd_max_bin_width = 15.0,                  # Adaptive: maximum bin width in minutes
+  cpd_min_precursors_per_bin = 50,           # Adaptive: minimum precursors per bin
+  cpd_significance_level = 0.05,             # Adaptive: KS test significance threshold
+  edge_void_buffer_min = 0.5,               # Edge: void volume buffer in minutes
+  edge_wash_min_precursors = 30              # Edge: minimum precursors in last bin before merge
 ) {
 
   # Start timing
@@ -165,6 +173,12 @@ optimize_windows <- function(
                  paste(valid_modes, collapse = ", ")))
   }
 
+  valid_rt_binning_modes <- c("fixed", "adaptive")
+  if (!rt_binning_mode %in% valid_rt_binning_modes) {
+    stop(sprintf("rt_binning_mode must be one of: %s",
+                 paste(valid_rt_binning_modes, collapse = ", ")))
+  }
+
   print_success("Input validation passed")
 
   # Extract key parameters
@@ -184,60 +198,66 @@ optimize_windows <- function(
   print_info(sprintf("RT bin width: %.1f min", rt_bin_width_min))
   print_info(sprintf("m/z strategy: %s", mz_strategy))
   print_info(sprintf("Window mode: %s", window_mode))
+  print_info(sprintf("RT binning mode: %s", rt_binning_mode))
 
   # ===================================================================
   # Step 2: RT Binning
   # ===================================================================
   print_step(2, "RT Binning")
 
-  rt_result <- perform_rt_binning_internal(
-    precursor_data = precursor_data,
-    rt_bin_width_min = rt_bin_width_min
-  )
+    rt_result <- perform_rt_binning_internal(
+      precursor_data = precursor_data,
+      rt_bin_width_min = rt_bin_width_min,
+      rt_binning_mode = rt_binning_mode,
+      cpd_min_bin_width = cpd_min_bin_width,
+      cpd_max_bin_width = cpd_max_bin_width,
+      cpd_min_precursors_per_bin = cpd_min_precursors_per_bin,
+      cpd_significance_level = cpd_significance_level,
+      edge_void_buffer_min = edge_void_buffer_min,
+      edge_wash_min_precursors = edge_wash_min_precursors
+    )
 
-  precursor_data <- rt_result$data
-  rt_stats <- rt_result$stats
-  n_bins <- rt_result$n_bins
+    precursor_data <- rt_result$data
+    rt_stats <- rt_result$stats
+    n_bins <- rt_result$n_bins
 
-  print_info(sprintf("Created %d RT bins", n_bins))
-  print_info(sprintf("Precursors per bin: %.0f +/- %.0f (range: %d - %d)",
-                     mean(rt_stats$n_precursors),
-                     sd(rt_stats$n_precursors),
-                     min(rt_stats$n_precursors),
-                     max(rt_stats$n_precursors)))
+    print_info(sprintf("Created %d RT bins", n_bins))
+    print_info(sprintf("Precursors per bin: %.0f +/- %.0f (range: %d - %d)",
+                       mean(rt_stats$n_precursors),
+                       sd(rt_stats$n_precursors),
+                       min(rt_stats$n_precursors),
+                       max(rt_stats$n_precursors)))
 
-  # ===================================================================
-  # Step 3: m/z Range Optimization
-  # ===================================================================
-  print_step(3, "m/z Range Optimization")
+    # Step 3: m/z Range Optimization
+    print_step(3, "m/z Range Optimization")
 
-  mz_ranges <- optimize_mz_ranges_internal(
-    precursor_data = precursor_data,
-    rt_stats = rt_stats,
-    strategy = mz_strategy,
-    target_coverage = target_coverage,
-    quantile_lower = quantile_lower,
-    quantile_upper = quantile_upper,
-    outlier_threshold = outlier_threshold,
-    smoothing_window = smoothing_window,
-    polynomial_order = polynomial_order,
-    n_windows_per_bin = n_windows_per_bin,
-    min_width_da = min_width_da,
-    mz_step = mz_step,
-    greedy_apply_smoothing = greedy_apply_smoothing,
-    kde_density_threshold = kde_density_threshold,
-    kde_min_coverage = kde_min_coverage,
-    quantile_apply_smoothing = quantile_apply_smoothing,
-    outlier_apply_smoothing = outlier_apply_smoothing
-  )
+    mz_ranges <- optimize_mz_ranges_internal(
+      precursor_data = precursor_data,
+      rt_stats = rt_stats,
+      strategy = mz_strategy,
+      target_coverage = target_coverage,
+      quantile_lower = quantile_lower,
+      quantile_upper = quantile_upper,
+      outlier_threshold = outlier_threshold,
+      smoothing_window = smoothing_window,
+      polynomial_order = polynomial_order,
+      n_windows_per_bin = n_windows_per_bin,
+      min_width_da = min_width_da,
+      mz_step = mz_step,
+      greedy_apply_smoothing = greedy_apply_smoothing,
+      kde_density_threshold = kde_density_threshold,
+      kde_min_coverage = kde_min_coverage,
+      quantile_apply_smoothing = quantile_apply_smoothing,
+      outlier_apply_smoothing = outlier_apply_smoothing
+    )
 
-  print_info(sprintf("Optimized m/z ranges for %d RT bins", nrow(mz_ranges)))
-  print_info(sprintf("Mean m/z width: %.1f Da (range: %.1f - %.1f)",
-                     mean(mz_ranges$mz_width),
-                     min(mz_ranges$mz_width),
-                     max(mz_ranges$mz_width)))
-  print_info(sprintf("Mean coverage: %.1f%%",
-                     mean(mz_ranges$coverage_ratio, na.rm = TRUE) * 100))
+    print_info(sprintf("Optimized m/z ranges for %d RT bins", nrow(mz_ranges)))
+    print_info(sprintf("Mean m/z width: %.1f Da (range: %.1f - %.1f)",
+                       mean(mz_ranges$mz_width),
+                       min(mz_ranges$mz_width),
+                       max(mz_ranges$mz_width)))
+    print_info(sprintf("Mean coverage: %.1f%%",
+                       mean(mz_ranges$coverage_ratio, na.rm = TRUE) * 100))
 
   # ===================================================================
   # Step 4: Window Generation
@@ -300,7 +320,9 @@ optimize_windows <- function(
       rt_binning = list(
         n_bins = n_bins,
         rt_bin_width_min = rt_bin_width_min,
-        rt_stats = rt_stats
+        rt_binning_mode = rt_binning_mode,
+        rt_stats = rt_stats,
+        adaptive_info = rt_result$adaptive_info
       ),
 
       # m/z optimization info
@@ -316,6 +338,7 @@ optimize_windows <- function(
         window_mode = window_mode,
         n_windows_per_bin = n_windows_per_bin,
         rt_bin_width_min = rt_bin_width_min,
+        rt_binning_mode = rt_binning_mode,
         mz_strategy = mz_strategy,
         target_coverage = target_coverage,
         min_width_da = min_width_da,

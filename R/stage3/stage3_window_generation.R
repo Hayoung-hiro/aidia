@@ -59,7 +59,7 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
         filter(rt_group == i)
     } else {
       bin_data <- precursor_data %>%
-        filter(RT.Start >= rt_start & RT.Start <= rt_end)
+        filter(RT.Apex >= rt_start & RT.Apex <= rt_end)
     }
 
     # Generate windows based on mode

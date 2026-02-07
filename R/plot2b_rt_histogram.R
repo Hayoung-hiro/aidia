@@ -27,30 +27,30 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
 
   # Extract precursor data
   precursor_data <- validated_data$data %>%
-    select(RT.Start)
+    select(RT.Apex)
 
   # Calculate statistics
   n_total <- nrow(precursor_data)
-  rt_min <- min(precursor_data$RT.Start, na.rm = TRUE)
-  rt_max <- max(precursor_data$RT.Start, na.rm = TRUE)
-  rt_mean <- mean(precursor_data$RT.Start, na.rm = TRUE)
-  rt_median <- median(precursor_data$RT.Start, na.rm = TRUE)
+  rt_min <- min(precursor_data$RT.Apex, na.rm = TRUE)
+  rt_max <- max(precursor_data$RT.Apex, na.rm = TRUE)
+  rt_mean <- mean(precursor_data$RT.Apex, na.rm = TRUE)
+  rt_median <- median(precursor_data$RT.Apex, na.rm = TRUE)
 
   # Find peak RT region (highest density bin)
-  hist_data <- hist(precursor_data$RT.Start, breaks = bins, plot = FALSE)
+  hist_data <- hist(precursor_data$RT.Apex, breaks = bins, plot = FALSE)
   peak_idx <- which.max(hist_data$counts)
   peak_rt_start <- hist_data$breaks[peak_idx]
   peak_rt_end <- hist_data$breaks[peak_idx + 1]
   peak_count <- hist_data$counts[peak_idx]
 
   # Calculate early vs late RT proportions
-  early_rt <- sum(precursor_data$RT.Start < rt_mean)
-  late_rt <- sum(precursor_data$RT.Start >= rt_mean)
+  early_rt <- sum(precursor_data$RT.Apex < rt_mean)
+  late_rt <- sum(precursor_data$RT.Apex >= rt_mean)
   early_pct <- (early_rt / n_total) * 100
   late_pct <- (late_rt / n_total) * 100
 
   # Create histogram
-  p <- ggplot(precursor_data, aes(x = RT.Start)) +
+  p <- ggplot(precursor_data, aes(x = RT.Apex)) +
     # Histogram
     geom_histogram(
       bins = bins,
@@ -204,12 +204,12 @@ plot_rt_histogram_binned <- function(validated_data, bin_width_min = 5) {
 
   # Extract precursor data
   precursor_data <- validated_data$data %>%
-    select(RT.Start)
+    select(RT.Apex)
 
   # Calculate statistics
   n_total <- nrow(precursor_data)
-  rt_min <- min(precursor_data$RT.Start, na.rm = TRUE)
-  rt_max <- max(precursor_data$RT.Start, na.rm = TRUE)
+  rt_min <- min(precursor_data$RT.Apex, na.rm = TRUE)
+  rt_max <- max(precursor_data$RT.Apex, na.rm = TRUE)
 
   # Create bins
   bin_breaks <- seq(floor(rt_min), ceiling(rt_max) + bin_width_min, by = bin_width_min)
@@ -217,12 +217,12 @@ plot_rt_histogram_binned <- function(validated_data, bin_width_min = 5) {
   binned_data <- precursor_data %>%
     mutate(
       rt_bin = cut(
-        RT.Start,
+        RT.Apex,
         breaks = bin_breaks,
         include.lowest = TRUE,
         right = FALSE
       ),
-      rt_bin_start = floor(RT.Start / bin_width_min) * bin_width_min
+      rt_bin_start = floor(RT.Apex / bin_width_min) * bin_width_min
     ) %>%
     group_by(rt_bin_start) %>%
     summarise(
