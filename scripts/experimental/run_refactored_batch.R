@@ -166,7 +166,7 @@ process_file_all_combinations <- function(
   cat(sprintf("   Windows per RT bin: %d\n",
               optimization_plan$window_count_per_bin))
   cat(sprintf("   Current satisfaction: %.1f%%\n",
-              optimization_plan$diagnosis$satisfaction_ratio * 100))
+              optimization_plan$diagnosis$current_satisfaction_ratio * 100))
 
   # ===================================================================
   # Stage 3: Window Optimization (for each strategy/mode combination)

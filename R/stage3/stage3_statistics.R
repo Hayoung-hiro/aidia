@@ -18,6 +18,8 @@ library(dplyr)
 #'
 #' Computes comprehensive statistics for the generated windows including
 #' coverage, width distribution, and precursor distribution metrics.
+#' Uses a single grouped pass for both coverage and per-window counts,
+#' avoiding redundant O(n*w) computation.
 #'
 #' @param windows Data frame with window specifications
 #' @param precursor_data Data frame with precursor data
@@ -26,25 +28,36 @@ library(dplyr)
 #' @keywords internal
 calculate_window_statistics_internal <- function(windows, precursor_data) {
 
-  # Count covered precursors
+  # Single-pass coverage using grouped findInterval approach
+  # Group windows by RT segment for efficient matching
   precursor_data$covered <- FALSE
+  has_rt_group <- "rt_group" %in% colnames(precursor_data)
 
-  for (i in 1:nrow(windows)) {
-    window <- windows[i, ]
+  # Build RT segment lookup: for each unique RT segment, which windows belong to it
+  rt_segments <- unique(windows$rt_segment_id)
 
-    # Check rt_group column presence for LOCAL vs GLOBAL strategies
-    if ("rt_group" %in% colnames(precursor_data)) {
-      in_window <- (precursor_data$rt_group == window$rt_segment_id) &
-                   (precursor_data$Precursor.Mz >= window$mz_start) &
-                   (precursor_data$Precursor.Mz < window$mz_end)
+  for (seg_id in rt_segments) {
+    seg_windows <- windows[windows$rt_segment_id == seg_id, , drop = FALSE]
+
+    # Filter precursors for this RT segment
+    if (has_rt_group) {
+      seg_mask <- precursor_data$rt_group == seg_id
     } else {
-      in_window <- (precursor_data$RT.Start >= window$rt_start) &
-                   (precursor_data$RT.Start <= window$rt_end) &
-                   (precursor_data$Precursor.Mz >= window$mz_start) &
-                   (precursor_data$Precursor.Mz < window$mz_end)
+      rt_s <- seg_windows$rt_start[1]
+      rt_e <- seg_windows$rt_end[1]
+      seg_mask <- precursor_data$RT.Start >= rt_s & precursor_data$RT.Start <= rt_e
     }
 
-    precursor_data$covered[in_window] <- TRUE
+    seg_mz <- precursor_data$Precursor.Mz[seg_mask]
+    if (length(seg_mz) == 0) next
+
+    # Mark precursors covered by any window in this segment
+    for (j in seq_len(nrow(seg_windows))) {
+      in_win <- seg_mz >= seg_windows$mz_start[j] & seg_mz < seg_windows$mz_end[j]
+      # Update the original mask; use which() for indexed assignment
+      seg_indices <- which(seg_mask)
+      precursor_data$covered[seg_indices[in_win]] <- TRUE
+    }
   }
 
   covered_precursors <- sum(precursor_data$covered)

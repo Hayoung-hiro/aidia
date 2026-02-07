@@ -91,7 +91,7 @@ cat("\n")
 
 cat("Results:\n")
 cat(sprintf("  Current (2.0 sec): %.1f%% satisfaction, median DPPP = %.2f\n",
-            optimization_plan$diagnosis$satisfaction_ratio * 100,
+            optimization_plan$diagnosis$current_satisfaction_ratio * 100,
             median((validated_data$data$FWHM * 60 * 1.7) / 2.0)))
 cat(sprintf("  Recommended (%.2f sec): %.1f%%+ satisfaction\n",
             optimization_plan$required_cycle_time_sec,

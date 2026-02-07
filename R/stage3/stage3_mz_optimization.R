@@ -432,8 +432,12 @@ optimize_mz_ranges_greedy_internal <- function(precursor_data, rt_stats,
     } else {
       # Greedy search: slide fixed range across m/z axis
       # Find position with maximum precursor count
+      # O(n log n) via sort + findInterval instead of O(n*k) brute force
       best_count <- 0
       best_mz_min <- global_mz_min
+
+      # Sort m/z values once for binary search
+      mz_sorted <- sort(mz_values)
 
       # Generate trial positions
       trial_starts <- seq(global_mz_min, global_mz_max - mz_range_per_cycle, by = mz_step)
@@ -441,8 +445,10 @@ optimize_mz_ranges_greedy_internal <- function(precursor_data, rt_stats,
       for (trial_mz_min in trial_starts) {
         trial_mz_max <- trial_mz_min + mz_range_per_cycle
 
-        # Count precursors within this range
-        precursors_in_range <- sum(mz_values >= trial_mz_min & mz_values <= trial_mz_max)
+        # Binary search: count values in [trial_mz_min, trial_mz_max]
+        left <- findInterval(trial_mz_min, mz_sorted, left.open = TRUE)
+        right <- findInterval(trial_mz_max, mz_sorted, left.open = FALSE)
+        precursors_in_range <- right - left
 
         if (precursors_in_range > best_count) {
           best_count <- precursors_in_range

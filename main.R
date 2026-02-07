@@ -187,7 +187,7 @@ run_complete_pipeline <- function(
       cat(sprintf("   Windows per RT bin: %d\n",
                   optimization_plan$window_count_per_bin))
       cat(sprintf("   Current satisfaction: %.1f%%\n",
-                  optimization_plan$diagnosis$satisfaction_ratio * 100))
+                  optimization_plan$diagnosis$current_satisfaction_ratio * 100))
     }
 
     # ==================================================================
@@ -350,7 +350,7 @@ run_complete_pipeline <- function(
       }
 
       # Create row with proper scalar values, handling NULL/length-0 fields
-      satisfaction_ratio <- result$optimization_plan$diagnosis$satisfaction_ratio
+      satisfaction_ratio <- result$optimization_plan$diagnosis$current_satisfaction_ratio
       if (is.null(satisfaction_ratio) || length(satisfaction_ratio) == 0) {
         satisfaction_pct <- NA
       } else {

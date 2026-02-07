@@ -425,10 +425,11 @@ count_precursors_in_windows <- function(precursor_mz, window_starts,
   return(counts)
 }
 
-#' Count Precursors in 2D Windows (RT × m/z)
+#' Count Precursors in 2D Windows (RT x m/z)
 #'
-#' High-performance vectorized function to count precursors in each 2D window.
-#' Uses optimized vectorized operations for 50-100× speedup vs loop-based approach.
+#' Memory-efficient function to count precursors in each 2D window.
+#' Groups windows by RT segment and uses findInterval() on sorted m/z
+#' for O(n + m*log(n)) time and O(n + m) memory instead of O(n*m).
 #'
 #' @param precursor_rt Numeric vector, precursor retention times
 #' @param precursor_mz Numeric vector, precursor m/z values
@@ -466,21 +467,43 @@ count_precursors_in_2d_windows <- function(precursor_rt, precursor_mz,
     stop("precursor_rt and precursor_mz must have same length")
   }
 
-  # Vectorized approach: create logical matrix for each dimension
-  # Each row = precursor, each column = window
-  rt_match <- outer(precursor_rt, window_rt_start, ">=") &
-              outer(precursor_rt, window_rt_end, "<=")
+  counts <- integer(n_windows)
 
-  mz_match <- outer(precursor_mz, window_mz_start, ">=") &
-              outer(precursor_mz, window_mz_end, "<=")
+  # Group windows by unique RT segment to avoid redundant RT filtering
+  # Each RT segment shares the same rt_start/rt_end
+  rt_key <- paste(window_rt_start, window_rt_end, sep = "_")
+  unique_rt <- unique(data.frame(
+    rt_start = window_rt_start,
+    rt_end = window_rt_end,
+    key = rt_key,
+    stringsAsFactors = FALSE
+  ))
 
-  # Combined 2D match: both RT and m/z must match
-  match_matrix <- rt_match & mz_match
+  for (r in seq_len(nrow(unique_rt))) {
+    # Filter precursors in this RT segment once
+    rt_mask <- precursor_rt >= unique_rt$rt_start[r] &
+               precursor_rt <= unique_rt$rt_end[r]
+    mz_in_rt <- precursor_mz[rt_mask]
 
-  # Count matches per window (column sums)
-  counts <- colSums(match_matrix, na.rm = TRUE)
+    if (length(mz_in_rt) == 0) next
 
-  return(as.integer(counts))
+    # Sort m/z for binary search
+    mz_sorted <- sort(mz_in_rt)
+
+    # Find which windows belong to this RT group
+    win_idx <- which(rt_key == unique_rt$key[r])
+
+    for (w in win_idx) {
+      # findInterval: count of values in [mz_start, mz_end)
+      # left = index of last value < mz_start
+      # right = index of last value <= mz_end (using mz_end as break)
+      left <- findInterval(window_mz_start[w], mz_sorted, left.open = TRUE)
+      right <- findInterval(window_mz_end[w], mz_sorted, left.open = FALSE)
+      counts[w] <- right - left
+    }
+  }
+
+  return(counts)
 }
 
 #' Find Windows Containing Precursor

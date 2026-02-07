@@ -84,7 +84,7 @@ cat("╚════════════════════════
 
 cat("90min Dataset Results:\n")
 cat(sprintf("  Current (2.0 sec): %.1f%% satisfaction\n",
-            optimization_plan$diagnosis$satisfaction_ratio * 100))
+            optimization_plan$diagnosis$current_satisfaction_ratio * 100))
 cat(sprintf("  Recommended (%.2f sec): %.1f%%+ satisfaction\n",
             optimization_plan$required_cycle_time_sec,
             optimization_plan$parameters$target_satisfaction * 100))
