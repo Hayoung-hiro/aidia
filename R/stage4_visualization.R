@@ -61,12 +61,16 @@ if (!exists("print_header")) {
 
 # Core plot modules (R/plots/)
 plot_modules <- c(
+  "R/plots/theme_aidia.R",          # Theme must be loaded first
   "R/plots/plot_dppp.R",
   "R/plots/plot_density.R",
   "R/plots/plot_histogram.R",
   "R/plots/plot_coverage.R",
   "R/plots/plot_window.R",
-  "R/plots/plot_satisfaction.R"
+  "R/plots/plot_satisfaction.R",
+  "R/plots/plot_impact_summary.R",
+  "R/plots/plot_rt_quality.R",
+  "R/plots/plot_window_gantt.R"
 )
 
 for (module in plot_modules) {
@@ -265,6 +269,26 @@ generate_visualizations <- function(
   # Plot 6: Satisfaction Curve
   cat("  Generating Plot 6: Satisfaction vs Cycle Time Curve...\n")
   plots$`plot6_satisfaction_curve` <- plot_satisfaction_curve(optimization_plan, validated_data)
+
+  # Plot 6B: Optimization Impact Summary (Before/After Dashboard)
+  cat("  Generating Plot 6B: Optimization Impact Summary...\n")
+  plots$`plot6b_impact_summary` <- plot_optimization_impact(optimization_plan, optimized_windows, validated_data)
+
+  # Plot 9: RT Bin Quality Heatmap
+  if (exists("plot_rt_bin_quality_heatmap")) {
+    cat("  Generating Plot 9: RT Bin Quality Heatmap...\n")
+    plots$`plot9_rt_bin_quality_heatmap` <- plot_rt_bin_quality_heatmap(
+      optimized_windows, validated_data, optimization_plan
+    )
+  }
+
+  # Plot 10: Isolation Window Gantt Chart
+  if (exists("plot_isolation_window_gantt")) {
+    cat("  Generating Plot 10: Isolation Window Gantt Chart...\n")
+    plots$`plot10_isolation_window_gantt` <- plot_isolation_window_gantt(
+      optimized_windows, validated_data, show_precursors = TRUE
+    )
+  }
 
   # ===================================================================
   # Plot 7: Window Width Distribution by RT Segment (Multi-Strategy)
