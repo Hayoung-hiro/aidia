@@ -8,7 +8,7 @@
 
 # --- Dependencies ---
 library(shiny)
-library(shinydashboard)
+library(bs4Dash)
 library(shinybusy)      # Progress indicators
 library(DT)             # Interactive tables
 
@@ -92,17 +92,16 @@ is_astral_instrument <- function(instrument) {
 ui <- dashboardPage(
 
   # --- Header ---
-  dashboardHeader(
-    title = "AIDIA",
-    titleWidth = 250
+  header = dashboardHeader(
+    title = "AIDIA"
   ),
 
-  # --- Sidebar ---
-  dashboardSidebar(
+  # --- Sidebar (MINIMAL) ---
+  sidebar = dashboardSidebar(
     width = 250,
 
     # File Upload Section
-    h4("📁 Data Input", style = "padding-left: 15px; color: #ecf0f1;"),
+    h4("Data Input", style = "padding-left: 15px; color: #ecf0f1;"),
     fileInput(
       inputId = "parquet_file",
       label = "Upload Parquet File",
@@ -128,168 +127,11 @@ ui <- dashboardPage(
 
     hr(),
 
-    # Instrument Selection
-    h4("⚙️ Settings", style = "padding-left: 15px; color: #ecf0f1;"),
-    selectInput(
-      inputId = "instrument",
-      label = "Instrument Preset",
-      choices = c(
-        # Thermo Orbitrap (verified)
-        "Thermo Astral Zoom (270 Hz)" = "astral_zoom",
-        "Thermo Astral (200 Hz)" = "astral",
-        "Thermo Q Exactive (12 Hz)" = "qexactive",
-        "Thermo Q Exactive HF-X (40 Hz)" = "qexactive_hfx",
-        "Thermo Exploris 480 (40 Hz)" = "exploris",
-        "Thermo Eclipse Tribrid (40 Hz)" = "eclipse",
-        "Thermo Fusion Lumos (20 Hz)" = "fusion_lumos"
-        # TODO: Add Bruker TimsTOF, SCIEX, Waters when verified
-      ),
-      selected = "astral_zoom"
-    ),
-
-    hr(),
-
-    # Experiment Parameters Section (NEW)
-    h4("🔬 Experiment Parameters", style = "padding-left: 15px; color: #ecf0f1;"),
-    helpText("Enter your actual DIA method settings",
-             style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
-
-    # MS1 Resolution (Orbitrap only)
-    conditionalPanel(
-      condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
-      selectInput(
-        inputId = "ms1_resolution",
-        label = "MS1 Resolution",
-        choices = c(
-          "15,000" = 15000,
-          "30,000" = 30000,
-          "60,000" = 60000,
-          "120,000" = 120000,
-          "240,000" = 240000,
-          "480,000" = 480000
-        ),
-        selected = 60000
-      )
-    ),
-
-    # MS2 Resolution (Orbitrap only)
-    conditionalPanel(
-      condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
-      selectInput(
-        inputId = "ms2_resolution",
-        label = "MS2 Resolution",
-        choices = c(
-          "7,500" = 7500,
-          "15,000" = 15000,
-          "30,000" = 30000,
-          "45,000" = 45000,
-          "60,000" = 60000,
-          "120,000" = 120000,
-          "240,000" = 240000
-        ),
-        selected = 15000
-      )
-    ),
-
-    # MS1 Injection Time (Orbitrap only)
-    conditionalPanel(
-      condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
-      div(
-        style = "padding: 0 15px;",
-        tags$label("MS1 Max IT", class = "control-label"),
-        div(
-          style = "display: flex; gap: 8px; align-items: center;",
-          checkboxInput("ms1_it_auto", "Auto", value = TRUE, width = "55px"),
-          conditionalPanel(
-            condition = "!input.ms1_it_auto",
-            div(
-              style = "display: flex; align-items: center; gap: 4px;",
-              numericInput("ms1_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
-              span("ms", style = "color: #ecf0f1; font-size: 12px; font-weight: 500;")
-            )
-          ),
-          conditionalPanel(
-            condition = "input.ms1_it_auto",
-            span(textOutput("ms1_it_auto_value", inline = TRUE),
-                 style = "color: #1abc9c; font-weight: 600; font-size: 12px;")
-          )
-        )
-      )
-    ),
-
-    # MS2 Injection Time (Orbitrap only)
-    conditionalPanel(
-      condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
-      div(
-        style = "padding: 0 15px;",
-        tags$label("MS2 Max IT", class = "control-label"),
-        div(
-          style = "display: flex; gap: 8px; align-items: center;",
-          checkboxInput("ms2_it_auto", "Auto", value = TRUE, width = "55px"),
-          conditionalPanel(
-            condition = "!input.ms2_it_auto",
-            div(
-              style = "display: flex; align-items: center; gap: 4px;",
-              numericInput("ms2_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
-              span("ms", style = "color: #ecf0f1; font-size: 12px; font-weight: 500;")
-            )
-          ),
-          conditionalPanel(
-            condition = "input.ms2_it_auto",
-            span(textOutput("ms2_it_auto_value", inline = TRUE),
-                 style = "color: #1abc9c; font-weight: 600; font-size: 12px;")
-          )
-        )
-      ),
-      helpText("Auto = T_transient (Sweet Spot, 100% efficiency)",
-               style = "font-size: 10px; color: #7f8c8d; padding: 0 15px; margin-top: 4px;")
-    ),
-
-    # Astral IT (for Astral instruments)
-    conditionalPanel(
-      condition = "input.instrument == 'astral' || input.instrument == 'astral_zoom' || input.instrument == 'astral_sensitive'",
-      sliderInput(
-        inputId = "astral_ms2_it",
-        label = "Astral MS2 IT (ms)",
-        min = 2,
-        max = 40,
-        value = 3,
-        step = 0.5,
-        post = " ms"
-      ),
-      helpText("≤3ms: 200 Hz max speed | >3ms: Sensitivity mode",
-               style = "font-size: 10px; color: #7f8c8d; padding: 0 15px;")
-    ),
-
-    # MS1 Scans per Cycle (for Boxcar DIA support) - MS1 comes first
-    numericInput(
-      inputId = "ms1_scans_per_cycle",
-      label = "MS1 Scans/Cycle",
-      value = 1,
-      min = 0,
-      max = 10,
-      step = 1
-    ),
-    helpText("1 for standard DIA, 0 for parallel (Astral), 3-4 for Boxcar",
-             style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
-
-    # MS2 Window Count (clarified label)
-    numericInput(
-      inputId = "current_window_count",
-      label = "MS2 Window Count",
-      value = 40,
-      min = 10,
-      max = 500,
-      step = 5
-    ),
-    helpText("Number of MS2/DIA isolation windows per cycle",
-             style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
-
     # Calculated Cycle Time Display
     div(
       id = "cycle_time_display",
       style = "background: linear-gradient(135deg, #1a252f 0%, #2c3e50 100%); border-radius: 8px; padding: 12px; margin: 10px 15px; border-left: 4px solid #1abc9c;",
-      h5("⏱️ Calculated Cycle Time", style = "margin: 0 0 8px 0; color: #ecf0f1; font-size: 13px;"),
+      h5("Calculated Cycle Time", style = "margin: 0 0 8px 0; color: #ecf0f1; font-size: 13px;"),
       div(
         style = "display: flex; justify-content: space-between; align-items: baseline;",
         span(textOutput("calculated_cycle_time", inline = TRUE),
@@ -308,323 +150,17 @@ ui <- dashboardPage(
 
     hr(),
 
-    # DPPP Target (numericInput prevents accidental slider drift)
-    numericInput(
-      inputId = "target_dppp",
-      label = "Target DPPP",
-      value = 7.0,
-      min = 1.0,
-      max = 15.0,
-      step = 0.5
-    ),
-
-    # Quick DPPP Presets
-    div(
-      style = "display: flex; gap: 4px; padding: 0 15px; margin-top: -5px;",
-      actionButton("preset_id", "ID", class = "btn-sm btn-info",
-                   style = "flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600;"),
-      actionButton("preset_balanced", "Bal", class = "btn-sm btn-warning",
-                   style = "flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600;"),
-      actionButton("preset_quant", "Quant", class = "btn-sm btn-success",
-                   style = "flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600;")
-    ),
-
-    br(),
-
-    # Satisfaction Target
-    sliderInput(
-      inputId = "target_satisfaction",
-      label = "Target Satisfaction (%)",
-      min = 50,
-      max = 95,
-      value = 70,
-      step = 5,
-      post = "%"
-    ),
-
-    br(),
-
-    # Optimization Settings Header
-    h4("🎯 Optimization Settings", style = "padding-left: 15px; color: #ecf0f1; margin-top: 10px;"),
-
-    # m/z Optimization Strategy
-    selectInput(
-      inputId = "mz_strategy",
-      label = "m/z Range Strategy",
-      choices = c(
-        "Greedy (MacCoss, Recommended)" = "greedy",
-        "KDE (Density Peak)" = "kde",
-        "Quantile (P5-P95)" = "quantile",
-        "Coverage (Conservative)" = "coverage",
-        "Outlier (Mean ± 3σ)" = "outlier"
-      ),
-      selected = "greedy"
-    ),
-    helpText("Greedy: MacCoss method (recommended). KDE: Density-informed.",
-             style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
-
-    # Window Mode Selection
-    selectInput(
-      inputId = "window_mode",
-      label = "Window Width Mode",
-      choices = c(
-        "Density (Dense=Narrow)" = "density",
-        "Fixed (Equal Width)" = "fixed",
-        "Staggered (Offset Bins)" = "staggered"
-      ),
-      selected = "density"
-    ),
-    helpText("Density: 밀집=좁게. Fixed: 동일 폭. Staggered: 인접 bin offset (edge effect 감소).",
-             style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
-
-    # ========================================
-    # Strategy-Specific Parameters
-    # ========================================
-
-    # Quantile Strategy Parameters
-    conditionalPanel(
-      condition = "input.mz_strategy == 'quantile'",
-      div(style = "background: rgba(52, 152, 219, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-        h5("Quantile Parameters", style = "margin: 0 0 8px 0; color: #3498db;"),
-        sliderInput(
-          inputId = "quantile_lower",
-          label = "Lower Percentile",
-          min = 0.01, max = 0.20, value = 0.05, step = 0.01
-        ),
-        sliderInput(
-          inputId = "quantile_upper",
-          label = "Upper Percentile",
-          min = 0.80, max = 0.99, value = 0.95, step = 0.01
-        ),
-        checkboxInput(
-          inputId = "quantile_apply_smoothing",
-          label = "Apply SG Smoothing (smooth m/z boundaries across RT)",
-          value = FALSE
-        ),
-        helpText("P5-P95 covers 90% of precursors. SG smoothing prevents abrupt m/z jumps.",
-                 style = "font-size: 10px; color: #7f8c8d;")
-      )
-    ),
-
-    # Coverage Strategy Parameters
-    conditionalPanel(
-      condition = "input.mz_strategy == 'coverage'",
-      div(style = "background: rgba(46, 204, 113, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-        h5("Coverage Parameters", style = "margin: 0 0 8px 0; color: #27ae60;"),
-        sliderInput(
-          inputId = "target_coverage",
-          label = "Target Coverage (%)",
-          min = 70, max = 99, value = 90, step = 1, post = "%"
-        ),
-        helpText("Find minimum m/z range achieving this coverage",
-                 style = "font-size: 10px; color: #7f8c8d;")
-      )
-    ),
-
-    # Greedy Strategy Parameters
-    conditionalPanel(
-      condition = "input.mz_strategy == 'greedy'",
-      div(style = "background: rgba(241, 196, 15, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-        h5("Greedy Parameters (MacCoss Lab)", style = "margin: 0 0 8px 0; color: #f39c12;"),
-
-        # Info box explaining the algorithm
-        div(style = "background: rgba(255,255,255,0.5); padding: 8px; border-radius: 4px; margin-bottom: 10px; border-left: 3px solid #f39c12;",
-          tags$small(
-            tags$strong("How Greedy works:"), tags$br(),
-            "1. Fixed m/z range = Windows × Min Width", tags$br(),
-            "2. Slides along m/z axis to find optimal position", tags$br(),
-            "3. Maximizes precursor count within fixed range",
-            style = "color: #7f8c8d; line-height: 1.4;"
-          )
-        ),
-
-        checkboxInput(
-          inputId = "greedy_auto_windows",
-          label = "Auto Window Count (from DPPP)",
-          value = TRUE
-        ),
-        # Show recommended windows when Auto is checked
-        conditionalPanel(
-          condition = "input.greedy_auto_windows",
-          uiOutput("greedy_auto_windows_info")
-        ),
-        conditionalPanel(
-          condition = "!input.greedy_auto_windows",
-          sliderInput(
-            inputId = "greedy_n_windows",
-            label = "Windows per RT Bin",
-            min = 10, max = 100, value = 40, step = 5
-          )
-        ),
-
-        # m/z Range Preview (most important info)
-        uiOutput("greedy_mz_range_display"),
-
-        hr(style = "margin: 10px 0; border-color: rgba(243, 156, 18, 0.3);"),
-
-        # Sliding Step - clarify it's for search precision
-        tags$label("Search Precision", class = "control-label",
-                   style = "font-size: 12px; color: #7f8c8d;"),
-        sliderInput(
-          inputId = "greedy_mz_step",
-          label = NULL,
-          min = 0.5, max = 10.0, value = 2.0, step = 0.5,
-          post = " Da step"
-        ),
-        helpText("Smaller step = more precise search but slower. Does NOT affect m/z range width.",
-                 style = "font-size: 10px; color: #95a5a6; font-style: italic;"),
-
-        hr(style = "margin: 10px 0; border-color: rgba(243, 156, 18, 0.3);"),
-
-        # Post-Smoothing (following dynamicDIA.py)
-        checkboxInput(
-          inputId = "greedy_apply_smoothing",
-          label = "Apply Savitzky-Golay Smoothing",
-          value = TRUE
-        ),
-        helpText("Smooths m/z boundaries across RT bins to prevent abrupt jumps (dynamicDIA method).",
-                 style = "font-size: 10px; color: #7f8c8d;")
-      )
-    ),
-
-    # Outlier Strategy Parameters
-    conditionalPanel(
-      condition = "input.mz_strategy == 'outlier'",
-      div(style = "background: rgba(155, 89, 182, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-        h5("Outlier Parameters", style = "margin: 0 0 8px 0; color: #9b59b6;"),
-        sliderInput(
-          inputId = "outlier_threshold",
-          label = "Threshold (× SD)",
-          min = 2.0, max = 4.0, value = 3.0, step = 0.5
-        ),
-        checkboxInput(
-          inputId = "outlier_apply_smoothing",
-          label = "Apply SG Smoothing (smooth m/z boundaries across RT)",
-          value = FALSE
-        ),
-        helpText("Mean ± N×SD range. SG smoothing prevents abrupt m/z jumps.",
-                 style = "font-size: 10px; color: #7f8c8d;")
-      )
-    ),
-
-    # KDE Strategy Parameters
-    conditionalPanel(
-      condition = "input.mz_strategy == 'kde'",
-      div(style = "background: rgba(231, 76, 60, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-        h5("KDE Parameters (Density Peak)", style = "margin: 0 0 8px 0; color: #e74c3c;"),
-        sliderInput(
-          inputId = "kde_density_threshold",
-          label = "Density Threshold (%)",
-          min = 5, max = 30, value = 10, step = 5
-        ),
-        helpText("Boundary at N% of peak density. Lower = wider range.",
-                 style = "font-size: 10px; color: #7f8c8d;"),
-        sliderInput(
-          inputId = "kde_min_coverage",
-          label = "Minimum Coverage (%)",
-          min = 60, max = 95, value = 80, step = 5
-        ),
-        helpText("Expand range to ensure at least N% precursor coverage.",
-                 style = "font-size: 10px; color: #7f8c8d;")
-      )
-    ),
-
-    # NOTE: Smoothing strategy removed - use Quantile/Outlier with "Apply SG Smoothing" option instead
-
-    br(),
-
-    # Minimum Isolation Width (Moved from Experiment Parameters)
-    numericInput(
-      inputId = "min_isolation_width",
-      label = "Min Isolation Width (Da)",
-      value = 2,
-      min = 1,
-      max = 10,
-      step = 0.5
-    ),
-    helpText("Minimum window width (2 Da typical for narrow-DIA)",
-             style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
-
-    # RT Binning Mode (unified control)
-    selectInput(
-      inputId = "rt_binning_mode",
-      label = "RT Binning Mode",
-      choices = c(
-        "Fixed (auto width)" = "fixed",
-        "Adaptive (KS change-point)" = "adaptive",
-        "Custom (manual width)" = "custom"
-      ),
-      selected = "fixed"
-    ),
-    helpText("Fixed: auto-calculated bin width. Adaptive: KS-test detects m/z distribution shifts. Custom: manual bin width.",
-             style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;"),
-
-    # Manual bin width slider (Custom mode only)
-    conditionalPanel(
-      condition = "input.rt_binning_mode == 'custom'",
-      sliderInput(
-        inputId = "rt_bin_width",
-        label = "RT Bin Width (min)",
-        min = 1,
-        max = 15,
-        value = 5,
-        step = 0.5,
-        post = " min"
-      ),
-      helpText("Controls RT segment grouping. Smaller = more segments.",
-               style = "font-size: 11px; color: #bdc3c7; padding: 0 15px;")
-    ),
-
-    # Adaptive KS parameters (Adaptive mode only)
-    conditionalPanel(
-      condition = "input.rt_binning_mode == 'adaptive'",
-      div(style = "background: rgba(26, 188, 156, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-        h5("Adaptive Parameters", style = "margin: 0 0 8px 0; color: #1abc9c;"),
-        sliderInput(
-          inputId = "cpd_significance",
-          label = "Change Point Significance",
-          min = 0.001, max = 0.10, value = 0.05, step = 0.005
-        ),
-        sliderInput(
-          inputId = "cpd_min_bin_width",
-          label = "Min Bin Width (min)",
-          min = 0.5, max = 5.0, value = 1.0, step = 0.5
-        ),
-        helpText("Lower significance = fewer, more confident change points.",
-                 style = "font-size: 10px; color: #7f8c8d;")
-      )
-    ),
-
-    # Edge handling parameters (all modes)
-    div(style = "background: rgba(149, 165, 166, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-      h5("Edge Handling", style = "margin: 0 0 8px 0; color: #95a5a6;"),
-      numericInput(
-        inputId = "edge_void_buffer",
-        label = "Void Volume Buffer (min)",
-        value = 0.5, min = 0, max = 2, step = 0.1
-      ),
-      numericInput(
-        inputId = "edge_wash_threshold",
-        label = "Wash Merge Threshold (precursors)",
-        value = 30, min = 0, max = 200, step = 10
-      ),
-      helpText("Void buffer extends first bin start. Wash merge combines sparse last bin.",
-               style = "font-size: 10px; color: #7f8c8d;")
-    ),
-
-    hr(),
-
     # Run Button
     actionButton(
       inputId = "run_optimization",
-      label = "▶ Run Optimization",
+      label = "Run Optimization",
       class = "btn-primary btn-lg",
       style = "width: 90%; margin-left: 5%;"
     )
   ),
 
   # --- Main Body ---
-  dashboardBody(
+  body = dashboardBody(
 
     # Custom CSS - External stylesheet for professional styling
     tags$head(
@@ -702,19 +238,542 @@ ui <- dashboardPage(
     # Row 1: Status Cards
     fluidRow(
       # Data Status
-      infoBoxOutput("data_status", width = 4),
+      bs4InfoBoxOutput("data_status", width = 4),
       # Optimization Status
-      infoBoxOutput("optimization_status", width = 4),
+      bs4InfoBoxOutput("optimization_status", width = 4),
       # Download Status
-      infoBoxOutput("download_status", width = 4)
+      bs4InfoBoxOutput("download_status", width = 4)
     ),
 
-    # Row 2: Data Summary + Cycle Time Info
+    # Row 2: Settings (3-tab pattern)
+    fluidRow(
+      box(
+        title = "Settings",
+        status = "primary",
+        solidHeader = TRUE,
+        width = 12,
+        collapsible = TRUE,
+
+        tabsetPanel(
+          # ============================================================
+          # Tab 1: Instrument & Target
+          # ============================================================
+          tabPanel(
+            title = tagList(icon("sliders-h"), "Instrument & Target"),
+
+            br(),
+            fluidRow(
+              # Column 1: Instrument
+              column(4,
+                selectInput(
+                  inputId = "instrument",
+                  label = "Instrument Preset",
+                  choices = c(
+                    # Thermo Orbitrap (verified)
+                    "Thermo Astral Zoom (270 Hz)" = "astral_zoom",
+                    "Thermo Astral (200 Hz)" = "astral",
+                    "Thermo Q Exactive (12 Hz)" = "qexactive",
+                    "Thermo Q Exactive HF-X (40 Hz)" = "qexactive_hfx",
+                    "Thermo Exploris 480 (40 Hz)" = "exploris",
+                    "Thermo Eclipse Tribrid (40 Hz)" = "eclipse",
+                    "Thermo Fusion Lumos (20 Hz)" = "fusion_lumos"
+                    # TODO: Add Bruker TimsTOF, SCIEX, Waters when verified
+                  ),
+                  selected = "astral_zoom"
+                ),
+
+                # MS1 Resolution (Orbitrap only)
+                conditionalPanel(
+                  condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
+                  selectInput(
+                    inputId = "ms1_resolution",
+                    label = "MS1 Resolution",
+                    choices = c(
+                      "15,000" = 15000,
+                      "30,000" = 30000,
+                      "60,000" = 60000,
+                      "120,000" = 120000,
+                      "240,000" = 240000,
+                      "480,000" = 480000
+                    ),
+                    selected = 60000
+                  )
+                ),
+
+                # MS2 Resolution (Orbitrap only)
+                conditionalPanel(
+                  condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
+                  selectInput(
+                    inputId = "ms2_resolution",
+                    label = "MS2 Resolution",
+                    choices = c(
+                      "7,500" = 7500,
+                      "15,000" = 15000,
+                      "30,000" = 30000,
+                      "45,000" = 45000,
+                      "60,000" = 60000,
+                      "120,000" = 120000,
+                      "240,000" = 240000
+                    ),
+                    selected = 15000
+                  )
+                ),
+
+                # Astral MS2 IT slider (for Astral instruments)
+                conditionalPanel(
+                  condition = "input.instrument == 'astral' || input.instrument == 'astral_zoom' || input.instrument == 'astral_sensitive'",
+                  sliderInput(
+                    inputId = "astral_ms2_it",
+                    label = "Astral MS2 IT (ms)",
+                    min = 2,
+                    max = 40,
+                    value = 3,
+                    step = 0.5,
+                    post = " ms"
+                  ),
+                  helpText("3ms: 200 Hz max speed | >3ms: Sensitivity mode",
+                           style = "font-size: 10px; color: #7f8c8d;")
+                ),
+
+                # MS2 Window Count
+                numericInput(
+                  inputId = "current_window_count",
+                  label = "MS2 Window Count",
+                  value = 40,
+                  min = 10,
+                  max = 500,
+                  step = 5
+                ),
+                helpText("Number of MS2/DIA isolation windows per cycle",
+                         style = "font-size: 11px; color: #bdc3c7;")
+              ),
+
+              # Column 2: DPPP Target
+              column(4,
+                numericInput(
+                  inputId = "target_dppp",
+                  label = "Target DPPP",
+                  value = 7.0,
+                  min = 1.0,
+                  max = 15.0,
+                  step = 0.5
+                ),
+
+                # Quick DPPP Presets
+                div(
+                  style = "display: flex; gap: 4px; margin-top: -5px;",
+                  actionButton("preset_id", "ID", class = "btn-sm btn-info",
+                               style = "flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600;"),
+                  actionButton("preset_balanced", "Bal", class = "btn-sm btn-warning",
+                               style = "flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600;"),
+                  actionButton("preset_quant", "Quant", class = "btn-sm btn-success",
+                               style = "flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600;")
+                ),
+
+                br(),
+
+                # Satisfaction Target
+                sliderInput(
+                  inputId = "target_satisfaction",
+                  label = "Target Satisfaction (%)",
+                  min = 50,
+                  max = 95,
+                  value = 70,
+                  step = 5,
+                  post = "%"
+                )
+              ),
+
+              # Column 3: Strategy & Mode
+              column(4,
+                # m/z Optimization Strategy
+                selectInput(
+                  inputId = "mz_strategy",
+                  label = "m/z Range Strategy",
+                  choices = c(
+                    "Greedy (MacCoss, Recommended)" = "greedy",
+                    "KDE (Density Peak)" = "kde",
+                    "Quantile (P5-P95)" = "quantile",
+                    "Coverage (Conservative)" = "coverage",
+                    "Outlier (Mean +/- 3 SD)" = "outlier"
+                  ),
+                  selected = "greedy"
+                ),
+                helpText("Greedy: MacCoss method (recommended). KDE: Density-informed.",
+                         style = "font-size: 11px; color: #bdc3c7;"),
+
+                # Window Mode Selection
+                selectInput(
+                  inputId = "window_mode",
+                  label = "Window Width Mode",
+                  choices = c(
+                    "Density (Dense=Narrow)" = "density",
+                    "Fixed (Equal Width)" = "fixed",
+                    "Staggered (Offset Bins)" = "staggered"
+                  ),
+                  selected = "density"
+                ),
+                helpText("Density: narrow where dense. Fixed: equal width. Staggered: offset bins.",
+                         style = "font-size: 11px; color: #bdc3c7;"),
+
+                # Minimum Isolation Width
+                numericInput(
+                  inputId = "min_isolation_width",
+                  label = "Min Isolation Width (Da)",
+                  value = 2,
+                  min = 1,
+                  max = 10,
+                  step = 0.5
+                ),
+                helpText("Minimum window width (2 Da typical for narrow-DIA)",
+                         style = "font-size: 11px; color: #bdc3c7;"),
+
+                # RT Binning Mode
+                selectInput(
+                  inputId = "rt_binning_mode",
+                  label = "RT Binning Mode",
+                  choices = c(
+                    "Fixed (auto width)" = "fixed",
+                    "Adaptive (KS change-point)" = "adaptive",
+                    "Custom (manual width)" = "custom"
+                  ),
+                  selected = "fixed"
+                ),
+                helpText("Fixed: auto-calculated bin width. Adaptive: KS-test detects m/z distribution shifts.",
+                         style = "font-size: 11px; color: #bdc3c7;")
+              )
+            )
+          ),
+
+          # ============================================================
+          # Tab 2: Strategy Details
+          # ============================================================
+          tabPanel(
+            title = tagList(icon("cog"), "Strategy Details"),
+
+            br(),
+            fluidRow(
+              # Column 1: Strategy Parameters
+              column(6,
+                h5("Strategy Parameters", style = "color: #2c3e50; font-weight: 600;"),
+
+                # Greedy Strategy Parameters
+                conditionalPanel(
+                  condition = "input.mz_strategy == 'greedy'",
+                  div(style = "background: rgba(241, 196, 15, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+                    h5("Greedy Parameters (MacCoss Lab)", style = "margin: 0 0 8px 0; color: #f39c12;"),
+
+                    # Info box explaining the algorithm
+                    div(style = "background: rgba(255,255,255,0.5); padding: 8px; border-radius: 4px; margin-bottom: 10px; border-left: 3px solid #f39c12;",
+                      tags$small(
+                        tags$strong("How Greedy works:"), tags$br(),
+                        "1. Fixed m/z range = Windows x Min Width", tags$br(),
+                        "2. Slides along m/z axis to find optimal position", tags$br(),
+                        "3. Maximizes precursor count within fixed range",
+                        style = "color: #7f8c8d; line-height: 1.4;"
+                      )
+                    ),
+
+                    checkboxInput(
+                      inputId = "greedy_auto_windows",
+                      label = "Auto Window Count (from DPPP)",
+                      value = TRUE
+                    ),
+                    # Show recommended windows when Auto is checked
+                    conditionalPanel(
+                      condition = "input.greedy_auto_windows",
+                      uiOutput("greedy_auto_windows_info")
+                    ),
+                    conditionalPanel(
+                      condition = "!input.greedy_auto_windows",
+                      sliderInput(
+                        inputId = "greedy_n_windows",
+                        label = "Windows per RT Bin",
+                        min = 10, max = 100, value = 40, step = 5
+                      )
+                    ),
+
+                    # m/z Range Preview (most important info)
+                    uiOutput("greedy_mz_range_display"),
+
+                    hr(style = "margin: 10px 0; border-color: rgba(243, 156, 18, 0.3);"),
+
+                    # Sliding Step - clarify it's for search precision
+                    tags$label("Search Precision", class = "control-label",
+                               style = "font-size: 12px; color: #7f8c8d;"),
+                    sliderInput(
+                      inputId = "greedy_mz_step",
+                      label = NULL,
+                      min = 0.5, max = 10.0, value = 2.0, step = 0.5,
+                      post = " Da step"
+                    ),
+                    helpText("Smaller step = more precise search but slower. Does NOT affect m/z range width.",
+                             style = "font-size: 10px; color: #95a5a6; font-style: italic;"),
+
+                    hr(style = "margin: 10px 0; border-color: rgba(243, 156, 18, 0.3);"),
+
+                    # Post-Smoothing (following dynamicDIA.py)
+                    checkboxInput(
+                      inputId = "greedy_apply_smoothing",
+                      label = "Apply Savitzky-Golay Smoothing",
+                      value = TRUE
+                    ),
+                    helpText("Smooths m/z boundaries across RT bins to prevent abrupt jumps (dynamicDIA method).",
+                             style = "font-size: 10px; color: #7f8c8d;")
+                  )
+                ),
+
+                # Quantile Strategy Parameters
+                conditionalPanel(
+                  condition = "input.mz_strategy == 'quantile'",
+                  div(style = "background: rgba(52, 152, 219, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+                    h5("Quantile Parameters", style = "margin: 0 0 8px 0; color: #3498db;"),
+                    sliderInput(
+                      inputId = "quantile_lower",
+                      label = "Lower Percentile",
+                      min = 0.01, max = 0.20, value = 0.05, step = 0.01
+                    ),
+                    sliderInput(
+                      inputId = "quantile_upper",
+                      label = "Upper Percentile",
+                      min = 0.80, max = 0.99, value = 0.95, step = 0.01
+                    ),
+                    checkboxInput(
+                      inputId = "quantile_apply_smoothing",
+                      label = "Apply SG Smoothing (smooth m/z boundaries across RT)",
+                      value = FALSE
+                    ),
+                    helpText("P5-P95 covers 90% of precursors. SG smoothing prevents abrupt m/z jumps.",
+                             style = "font-size: 10px; color: #7f8c8d;")
+                  )
+                ),
+
+                # Coverage Strategy Parameters
+                conditionalPanel(
+                  condition = "input.mz_strategy == 'coverage'",
+                  div(style = "background: rgba(46, 204, 113, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+                    h5("Coverage Parameters", style = "margin: 0 0 8px 0; color: #27ae60;"),
+                    sliderInput(
+                      inputId = "target_coverage",
+                      label = "Target Coverage (%)",
+                      min = 70, max = 99, value = 90, step = 1, post = "%"
+                    ),
+                    helpText("Find minimum m/z range achieving this coverage",
+                             style = "font-size: 10px; color: #7f8c8d;")
+                  )
+                ),
+
+                # Outlier Strategy Parameters
+                conditionalPanel(
+                  condition = "input.mz_strategy == 'outlier'",
+                  div(style = "background: rgba(155, 89, 182, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+                    h5("Outlier Parameters", style = "margin: 0 0 8px 0; color: #9b59b6;"),
+                    sliderInput(
+                      inputId = "outlier_threshold",
+                      label = "Threshold (x SD)",
+                      min = 2.0, max = 4.0, value = 3.0, step = 0.5
+                    ),
+                    checkboxInput(
+                      inputId = "outlier_apply_smoothing",
+                      label = "Apply SG Smoothing (smooth m/z boundaries across RT)",
+                      value = FALSE
+                    ),
+                    helpText("Mean +/- NxSD range. SG smoothing prevents abrupt m/z jumps.",
+                             style = "font-size: 10px; color: #7f8c8d;")
+                  )
+                ),
+
+                # KDE Strategy Parameters
+                conditionalPanel(
+                  condition = "input.mz_strategy == 'kde'",
+                  div(style = "background: rgba(231, 76, 60, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+                    h5("KDE Parameters (Density Peak)", style = "margin: 0 0 8px 0; color: #e74c3c;"),
+                    sliderInput(
+                      inputId = "kde_density_threshold",
+                      label = "Density Threshold (%)",
+                      min = 5, max = 30, value = 10, step = 5
+                    ),
+                    helpText("Boundary at N% of peak density. Lower = wider range.",
+                             style = "font-size: 10px; color: #7f8c8d;"),
+                    sliderInput(
+                      inputId = "kde_min_coverage",
+                      label = "Minimum Coverage (%)",
+                      min = 60, max = 95, value = 80, step = 5
+                    ),
+                    helpText("Expand range to ensure at least N% precursor coverage.",
+                             style = "font-size: 10px; color: #7f8c8d;")
+                  )
+                )
+              ),
+
+              # Column 2: RT Binning Parameters
+              column(6,
+                h5("RT Binning Parameters", style = "color: #2c3e50; font-weight: 600;"),
+
+                # Manual bin width slider (Custom mode only)
+                conditionalPanel(
+                  condition = "input.rt_binning_mode == 'custom'",
+                  sliderInput(
+                    inputId = "rt_bin_width",
+                    label = "RT Bin Width (min)",
+                    min = 1,
+                    max = 15,
+                    value = 5,
+                    step = 0.5,
+                    post = " min"
+                  ),
+                  helpText("Controls RT segment grouping. Smaller = more segments.",
+                           style = "font-size: 11px; color: #bdc3c7;")
+                ),
+
+                # Adaptive KS parameters (Adaptive mode only)
+                conditionalPanel(
+                  condition = "input.rt_binning_mode == 'adaptive'",
+                  div(style = "background: rgba(26, 188, 156, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+                    h5("Adaptive Parameters", style = "margin: 0 0 8px 0; color: #1abc9c;"),
+                    sliderInput(
+                      inputId = "cpd_significance",
+                      label = "Change Point Significance",
+                      min = 0.001, max = 0.10, value = 0.05, step = 0.005
+                    ),
+                    sliderInput(
+                      inputId = "cpd_min_bin_width",
+                      label = "Min Bin Width (min)",
+                      min = 0.5, max = 5.0, value = 1.0, step = 0.5
+                    ),
+                    helpText("Lower significance = fewer, more confident change points.",
+                             style = "font-size: 10px; color: #7f8c8d;")
+                  )
+                )
+              )
+            )
+          ),
+
+          # ============================================================
+          # Tab 3: Advanced
+          # ============================================================
+          tabPanel(
+            title = tagList(icon("wrench"), "Advanced"),
+
+            br(),
+            fluidRow(
+              # Column 1: Injection Time
+              column(4,
+                h5("Injection Time", style = "color: #2c3e50; font-weight: 600;"),
+
+                # MS1 Injection Time (Orbitrap only)
+                conditionalPanel(
+                  condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
+                  div(
+                    style = "padding: 0;",
+                    tags$label("MS1 Max IT", class = "control-label"),
+                    div(
+                      style = "display: flex; gap: 8px; align-items: center;",
+                      checkboxInput("ms1_it_auto", "Auto", value = TRUE, width = "55px"),
+                      conditionalPanel(
+                        condition = "!input.ms1_it_auto",
+                        div(
+                          style = "display: flex; align-items: center; gap: 4px;",
+                          numericInput("ms1_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
+                          span("ms", style = "color: #34495e; font-size: 12px; font-weight: 500;")
+                        )
+                      ),
+                      conditionalPanel(
+                        condition = "input.ms1_it_auto",
+                        span(textOutput("ms1_it_auto_value", inline = TRUE),
+                             style = "color: #1abc9c; font-weight: 600; font-size: 12px;")
+                      )
+                    )
+                  )
+                ),
+
+                # MS2 Injection Time (Orbitrap only)
+                conditionalPanel(
+                  condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
+                  div(
+                    style = "padding: 0;",
+                    tags$label("MS2 Max IT", class = "control-label"),
+                    div(
+                      style = "display: flex; gap: 8px; align-items: center;",
+                      checkboxInput("ms2_it_auto", "Auto", value = TRUE, width = "55px"),
+                      conditionalPanel(
+                        condition = "!input.ms2_it_auto",
+                        div(
+                          style = "display: flex; align-items: center; gap: 4px;",
+                          numericInput("ms2_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
+                          span("ms", style = "color: #34495e; font-size: 12px; font-weight: 500;")
+                        )
+                      ),
+                      conditionalPanel(
+                        condition = "input.ms2_it_auto",
+                        span(textOutput("ms2_it_auto_value", inline = TRUE),
+                             style = "color: #1abc9c; font-weight: 600; font-size: 12px;")
+                      )
+                    )
+                  ),
+                  helpText("Auto = T_transient (Sweet Spot, 100% efficiency)",
+                           style = "font-size: 10px; color: #7f8c8d; margin-top: 4px;")
+                ),
+
+                # Astral IT (for Astral instruments) - note: also shown in Tab 1 but
+                # we keep a display here for consistency; the input ID is the same so
+                # it's linked. Actually, the input already exists in Tab 1 so we show
+                # just a note here.
+                conditionalPanel(
+                  condition = "input.instrument == 'astral' || input.instrument == 'astral_zoom' || input.instrument == 'astral_sensitive'",
+                  helpText("Astral MS2 IT is configured in the Instrument & Target tab.",
+                           style = "font-size: 11px; color: #7f8c8d;")
+                )
+              ),
+
+              # Column 2: Acquisition
+              column(4,
+                h5("Acquisition", style = "color: #2c3e50; font-weight: 600;"),
+
+                # MS1 Scans per Cycle
+                numericInput(
+                  inputId = "ms1_scans_per_cycle",
+                  label = "MS1 Scans/Cycle",
+                  value = 1,
+                  min = 0,
+                  max = 10,
+                  step = 1
+                ),
+                helpText("1 for standard DIA, 0 for parallel (Astral), 3-4 for Boxcar",
+                         style = "font-size: 11px; color: #bdc3c7;")
+              ),
+
+              # Column 3: Edge Handling
+              column(4,
+                h5("Edge Handling", style = "color: #2c3e50; font-weight: 600;"),
+
+                div(style = "background: rgba(149, 165, 166, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+                  numericInput(
+                    inputId = "edge_void_buffer",
+                    label = "Void Volume Buffer (min)",
+                    value = 0.5, min = 0, max = 2, step = 0.1
+                  ),
+                  numericInput(
+                    inputId = "edge_wash_threshold",
+                    label = "Wash Merge Threshold (precursors)",
+                    value = 30, min = 0, max = 200, step = 10
+                  ),
+                  helpText("Void buffer extends first bin start. Wash merge combines sparse last bin.",
+                           style = "font-size: 10px; color: #7f8c8d;")
+                )
+              )
+            )
+          )
+        )
+      )
+    ),
+
+    # Row 3: Data Summary + Cycle Time Detail
     fluidRow(
       class = "equal-height-row",
       # Left: Data Summary
       box(
-        title = "📊 Data Summary",
+        title = "Data Summary",
         status = "primary",
         solidHeader = TRUE,
         width = 6,
@@ -735,9 +794,9 @@ ui <- dashboardPage(
         )
       ),
 
-      # Right: Cycle Time Calculation Details (NEW)
+      # Right: Cycle Time Calculation Details
       box(
-        title = "⏱️ Cycle Time Calculation",
+        title = "Cycle Time Calculation",
         status = "info",
         solidHeader = TRUE,
         width = 6,
@@ -758,10 +817,10 @@ ui <- dashboardPage(
       )
     ),
 
-    # Row 2b: DPPP Preview
+    # Row 4: DPPP Quick Preview
     fluidRow(
       box(
-        title = "⚡ DPPP Quick Preview",
+        title = "DPPP Quick Preview",
         status = "warning",
         solidHeader = TRUE,
         width = 12,
@@ -781,7 +840,7 @@ ui <- dashboardPage(
               # DPPP at Different Cycle Times (Reactive to Target DPPP & Satisfaction)
               h5("DPPP at Different Cycle Times"),
               helpText(
-                sprintf("Target: DPPP ≥ "),
+                sprintf("Target: DPPP >= "),
                 textOutput("current_target_dppp", inline = TRUE),
                 style = "font-size: 11px; color: #7f8c8d; margin-bottom: 8px;"
               ),
@@ -801,10 +860,10 @@ ui <- dashboardPage(
       )
     ),
 
-    # Row 3: Optimization Results
+    # Row 5: Optimization Results
     fluidRow(
       box(
-        title = "🎯 Optimization Results",
+        title = "Optimization Results",
         status = "success",
         solidHeader = TRUE,
         width = 12,
@@ -816,9 +875,9 @@ ui <- dashboardPage(
             column(6,
               h5("Downloads", style = "margin-top: 0;"),
               fluidRow(
-                column(6, downloadButton("download_csv", "⬇️ CSV Method",
+                column(6, downloadButton("download_csv", "CSV Method",
                                          class = "btn-success btn-block")),
-                column(6, downloadButton("download_pdf", "📄 PDF Report",
+                column(6, downloadButton("download_pdf", "PDF Report",
                                          class = "btn-info btn-block"))
               )
             )
@@ -831,10 +890,10 @@ ui <- dashboardPage(
       )
     ),
 
-    # Row 3: Preview Table
+    # Row 6: Window Preview
     fluidRow(
       box(
-        title = "📋 Window Preview (First 20 rows)",
+        title = "Window Preview (First 20 rows)",
         status = "info",
         solidHeader = TRUE,
         width = 12,
@@ -844,7 +903,16 @@ ui <- dashboardPage(
         DT::dataTableOutput("window_preview")
       )
     )
-  )
+  ),
+
+  # --- Footer ---
+  footer = dashboardFooter(
+    left = "AIDIA v1.0.0",
+    right = "Adaptive Isolation for DIA"
+  ),
+
+  dark = FALSE,
+  title = "AIDIA - Adaptive Isolation for DIA"
 )
 
 # =============================================================================
@@ -992,20 +1060,20 @@ server <- function(input, output, session) {
     ms1_scans <- result$ms1$scans_per_cycle %||% 1
     if (ms1_scans == 0) {
       # Parallel mode
-      sprintf("MS1: %.0fms (parallel) | MS2: %d × %.1fms",
+      sprintf("MS1: %.0fms (parallel) | MS2: %d x %.1fms",
               result$ms1$scan_time_ms,
               result$window_count,
               result$ms2$scan_time_ms)
     } else if (ms1_scans > 1) {
       # Boxcar mode
-      sprintf("MS1: %d×%.0fms | MS2: %d × %.1fms",
+      sprintf("MS1: %dx%.0fms | MS2: %d x %.1fms",
               ms1_scans,
               result$ms1$scan_time_ms,
               result$window_count,
               result$ms2$scan_time_ms)
     } else {
       # Standard sequential
-      sprintf("MS1: %.0fms + MS2: %d × %.1fms",
+      sprintf("MS1: %.0fms + MS2: %d x %.1fms",
               result$ms1$scan_time_ms,
               result$window_count,
               result$ms2$scan_time_ms)
@@ -1031,10 +1099,10 @@ server <- function(input, output, session) {
       }
 
       if (!is.null(calc_result) && !is.na(fwhm_median)) {
-        # DPPP = 1.7 × FWHM / cycle_time
-        # cycle_time ≈ n_windows × ms2_time (simplified for Astral parallel)
-        # target_dppp = 1.7 × fwhm / (n_windows × ms2_time)
-        # n_windows = 1.7 × fwhm / (target_dppp × ms2_time)
+        # DPPP = 1.7 x FWHM / cycle_time
+        # cycle_time ~ n_windows x ms2_time (simplified for Astral parallel)
+        # target_dppp = 1.7 x fwhm / (n_windows x ms2_time)
+        # n_windows = 1.7 x fwhm / (target_dppp x ms2_time)
         target_dppp <- input$target_dppp %||% 7.0
         ms2_time_sec <- calc_result$ms2$scan_time_ms / 1000
         dppp_windows <- floor((1.7 * fwhm_median) / (target_dppp * ms2_time_sec))
@@ -1049,7 +1117,7 @@ server <- function(input, output, session) {
         style = "background: rgba(39, 174, 96, 0.15); padding: 6px 8px; border-radius: 4px; margin: 4px 0;",
         tags$span(
           style = "color: #27ae60; font-weight: 600;",
-          sprintf("✓ Auto: %d windows", plan_windows)
+          sprintf("Auto: %d windows", plan_windows)
         ),
         tags$br(),
         tags$small("(from optimization plan)", style = "color: #7f8c8d;")
@@ -1060,7 +1128,7 @@ server <- function(input, output, session) {
         style = "background: rgba(52, 152, 219, 0.15); padding: 6px 8px; border-radius: 4px; margin: 4px 0;",
         tags$span(
           style = "color: #3498db; font-weight: 600;",
-          sprintf("≈ Estimated: %d windows", dppp_windows)
+          sprintf("Estimated: %d windows", dppp_windows)
         ),
         tags$br(),
         tags$small(sprintf("(for DPPP %.1f with current settings)", input$target_dppp),
@@ -1108,13 +1176,13 @@ server <- function(input, output, session) {
 
     # Determine if this is a reasonable range (typical precursor spread is 400-1200 m/z)
     range_status <- if (mz_range < 100) {
-      list(color = "#e74c3c", icon = "⚠", msg = "Very narrow - may miss many precursors")
+      list(color = "#e74c3c", icon = "!", msg = "Very narrow - may miss many precursors")
     } else if (mz_range < 200) {
-      list(color = "#f39c12", icon = "△", msg = "Narrow range - check coverage")
+      list(color = "#f39c12", icon = "~", msg = "Narrow range - check coverage")
     } else if (mz_range > 600) {
-      list(color = "#3498db", icon = "○", msg = "Wide range - good coverage expected")
+      list(color = "#3498db", icon = "o", msg = "Wide range - good coverage expected")
     } else {
-      list(color = "#27ae60", icon = "✓", msg = "Typical range for DIA")
+      list(color = "#27ae60", icon = "v", msg = "Typical range for DIA")
     }
 
     tags$div(
@@ -1140,7 +1208,7 @@ server <- function(input, output, session) {
           style = "font-size: 12px; color: #8e44ad;",
           sprintf("%d windows", n_windows)
         ),
-        tags$span(style = "color: #7f8c8d; margin: 0 4px;", "×"),
+        tags$span(style = "color: #7f8c8d; margin: 0 4px;", "x"),
         tags$span(
           style = "font-size: 12px; color: #16a085;",
           sprintf("%.1f Da (min width)", min_width)
@@ -1168,19 +1236,19 @@ server <- function(input, output, session) {
       # Optimal
       tags$span(
         style = "background: #27ae60; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;",
-        sprintf("✓ %.0f%% Efficiency", efficiency_pct)
+        sprintf("%.0f%% Efficiency", efficiency_pct)
       )
     } else if (efficiency_pct >= 70) {
       # Acceptable
       tags$span(
         style = "background: #f39c12; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;",
-        sprintf("△ %.0f%% Efficiency", efficiency_pct)
+        sprintf("%.0f%% Efficiency", efficiency_pct)
       )
     } else {
       # Low efficiency
       tags$span(
         style = "background: #e74c3c; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;",
-        sprintf("⚠ %.0f%% Efficiency", efficiency_pct)
+        sprintf("%.0f%% Efficiency", efficiency_pct)
       )
     }
   })
@@ -1225,7 +1293,7 @@ server <- function(input, output, session) {
 
     if (is_boxcar || !is_parallel) {
       params <- c(params, "MS1 Total Time")
-      values <- c(values, sprintf("%.0f ms (= %d × %.0f ms)",
+      values <- c(values, sprintf("%.0f ms (= %d x %.0f ms)",
                                   result$ms1$total_time_ms %||% result$ms1$scan_time_ms,
                                   ms1_scans, result$ms1$scan_time_ms))
     }
@@ -1274,7 +1342,7 @@ server <- function(input, output, session) {
       tags$div(
         tags$p(
           style = "font-size: 12px; color: #7f8c8d; margin-bottom: 8px;",
-          "Sequential Mode: MS1 → MS2"
+          "Sequential Mode: MS1 -> MS2"
         ),
         tags$div(
           style = "display: flex; height: 24px; border-radius: 4px; overflow: hidden;",
@@ -1311,13 +1379,13 @@ server <- function(input, output, session) {
     if (efficiency_mode == "auto" || efficiency_pct >= 95) {
       color <- "#27ae60"
       icon_class <- "check-circle"
-      message <- sprintf("Optimal! IT (%.0f ms) ≈ T_transient (%.0f ms)", current_it, transient)
+      message <- sprintf("Optimal! IT (%.0f ms) ~ T_transient (%.0f ms)", current_it, transient)
       suggestion <- NULL
     } else {
       color <- if (efficiency_pct >= 70) "#f39c12" else "#e74c3c"
       icon_class <- "exclamation-triangle"
       message <- sprintf(
-        "IT (%.0f ms) > T_transient (%.0f ms) → Injection Limited",
+        "IT (%.0f ms) > T_transient (%.0f ms) -> Injection Limited",
         current_it, transient
       )
       suggestion <- sprintf(
@@ -1358,7 +1426,7 @@ server <- function(input, output, session) {
     req(input$parquet_file)
 
     # Show processing notification
-    showNotification("📁 Processing file...", id = "upload_progress", duration = NULL, type = "message")
+    showNotification("Processing file...", id = "upload_progress", duration = NULL, type = "message")
 
     tryCatch({
       # Read parquet file
@@ -1391,14 +1459,14 @@ server <- function(input, output, session) {
 
       removeNotification("upload_progress")
       showNotification(
-        paste("✅ Data loaded:", format(nrow(rv$validated_data$data), big.mark = ","), "precursors"),
+        paste("Data loaded:", format(nrow(rv$validated_data$data), big.mark = ","), "precursors"),
         type = "message"
       )
 
     }, error = function(e) {
       cat("[Shiny] ERROR in file upload:", e$message, "\n")
       removeNotification("upload_progress")
-      showNotification(paste("❌ Error:", e$message), type = "error", duration = 10)
+      showNotification(paste("Error:", e$message), type = "error", duration = 10)
       rv$data_loaded <- FALSE
     })
   })
@@ -1407,12 +1475,12 @@ server <- function(input, output, session) {
   observeEvent(input$run_optimization, {
     # Check if data is loaded
     if (is.null(rv$validated_data) || !rv$data_loaded) {
-      showNotification("⚠️ Please upload a parquet file first!", type = "warning")
+      showNotification("Please upload a parquet file first!", type = "warning")
       return()
     }
 
     # Show processing notification
-    showNotification("⚙️ Running optimization...", id = "opt_progress", duration = NULL, type = "message")
+    showNotification("Running optimization...", id = "opt_progress", duration = NULL, type = "message")
 
     tryCatch({
       cat("\n[Shiny] Starting optimization...\n")
@@ -1606,28 +1674,28 @@ server <- function(input, output, session) {
 
       removeNotification("opt_progress")
       showNotification(
-        paste("✅ Optimization complete:", nrow(rv$optimized_windows$windows), "windows generated"),
+        paste("Optimization complete:", nrow(rv$optimized_windows$windows), "windows generated"),
         type = "message"
       )
 
     }, error = function(e) {
       cat("[Shiny] ERROR in optimization:", e$message, "\n")
       removeNotification("opt_progress")
-      showNotification(paste("❌ Error:", e$message), type = "error", duration = 10)
+      showNotification(paste("Error:", e$message), type = "error", duration = 10)
       rv$optimization_complete <- FALSE
     })
   })
 
   # --- Output: Data Status Info Box ---
-  output$data_status <- renderInfoBox({
+  output$data_status <- renderbs4InfoBox({
     # Guard clause: return "waiting" state early if no data loaded
     if (!rv$data_loaded || is.null(rv$validated_data)) {
-      return(infoBox(
+      return(bs4InfoBox(
         title = "Data Status",
         value = "Waiting",
         subtitle = "Upload parquet file",
         icon = icon("cloud-upload-alt"),
-        color = "yellow",
+        color = "warning",
         fill = TRUE
       ))
     }
@@ -1640,26 +1708,26 @@ server <- function(input, output, session) {
       "Ready"
     }
 
-    infoBox(
+    bs4InfoBox(
       title = "Precursors Loaded",
       value = format(n_precursors, big.mark = ","),
       subtitle = gradient_len,
       icon = icon("check-circle"),
-      color = "green",
+      color = "success",
       fill = TRUE
     )
   })
 
   # --- Output: Optimization Status Info Box ---
-  output$optimization_status <- renderInfoBox({
+  output$optimization_status <- renderbs4InfoBox({
     # Guard clause: return "pending" state early if not optimized
     if (!rv$optimization_complete || is.null(rv$optimized_windows)) {
-      return(infoBox(
+      return(bs4InfoBox(
         title = "Optimization",
         value = "Pending",
         subtitle = "Configure and run",
         icon = icon("cogs"),
-        color = "yellow",
+        color = "warning",
         fill = TRUE
       ))
     }
@@ -1672,36 +1740,36 @@ server <- function(input, output, session) {
       "Optimized"
     }
 
-    infoBox(
+    bs4InfoBox(
       title = "Windows Generated",
       value = n_windows,
       subtitle = coverage,
       icon = icon("layer-group"),
-      color = "blue",
+      color = "info",
       fill = TRUE
     )
   })
 
   # --- Output: Download Status Info Box ---
-  output$download_status <- renderInfoBox({
+  output$download_status <- renderbs4InfoBox({
     # Guard clause: return "waiting" state early if not ready
     if (!rv$optimization_complete) {
-      return(infoBox(
+      return(bs4InfoBox(
         title = "Export",
         value = "Waiting",
         subtitle = "Run optimization first",
         icon = icon("hourglass-half"),
-        color = "yellow",
+        color = "warning",
         fill = TRUE
       ))
     }
 
-    infoBox(
+    bs4InfoBox(
       title = "Export Ready",
       value = "Download",
       subtitle = "CSV & PDF available",
       icon = icon("file-download"),
-      color = "green",
+      color = "success",
       fill = TRUE
     )
   })
@@ -1775,15 +1843,15 @@ server <- function(input, output, session) {
     dppp_data <- preview$dppp_preview
 
     # Build display data with Status based on current target
-    # Status shows "✓ Meet" if DPPP >= target, "✗ Below" if not
+    # Status shows "v Meet" if DPPP >= target, "x Below" if not
     display_df <- data.frame(
       `Cycle Time` = sprintf("%.1f sec", dppp_data$cycle_time_sec),
       `DPPP` = sprintf("%.1f", dppp_data$dppp_median),
       `Satisfaction` = sprintf("%.0f%%", dppp_data$satisfaction_pct),
       `Status` = ifelse(
         dppp_data$satisfaction_pct >= target_satisfaction,
-        sprintf("✓ ≥%d%%", target_satisfaction),
-        sprintf("✗ <%d%%", target_satisfaction)
+        sprintf("v >=%d%%", target_satisfaction),
+        sprintf("x <%d%%", target_satisfaction)
       ),
       check.names = FALSE
     )
@@ -1826,11 +1894,11 @@ server <- function(input, output, session) {
       ),
       tags$p(
         style = "margin: 0 0 8px 0; font-size: 13px; color: #34495e;",
-        sprintf("For DPPP ≥ %.1f with %d%% satisfaction:", target, satisfaction)
+        sprintf("For DPPP >= %.1f with %d%% satisfaction:", target, satisfaction)
       ),
       tags$p(
         style = "margin: 0 0 12px 0; font-size: 14px;",
-        "Required cycle time ≤ ",
+        "Required cycle time <= ",
         tags$strong(sprintf("%.2f sec", rec_ct), style = "color: #16a085; font-size: 16px;")
       ),
 
@@ -1841,7 +1909,7 @@ server <- function(input, output, session) {
             style = "padding: 8px; background: #d4edda; border-radius: 4px; border-left: 3px solid #28a745;",
             tags$span(
               style = "color: #155724; font-weight: 600;",
-              sprintf("✓ Your current cycle time (%.2f sec) MEETS the requirement!", current_ct)
+              sprintf("Your current cycle time (%.2f sec) MEETS the requirement!", current_ct)
             )
           )
         } else {
@@ -1853,7 +1921,7 @@ server <- function(input, output, session) {
             style = "padding: 8px; background: #f8d7da; border-radius: 4px; border-left: 3px solid #dc3545;",
             tags$span(
               style = "color: #721c24; font-weight: 600;",
-              sprintf("✗ Current: %.2f sec → Need: ≤%.2f sec", current_ct, rec_ct)
+              sprintf("Current: %.2f sec -> Need: <=%.2f sec", current_ct, rec_ct)
             ),
             tags$br(),
             tags$span(
@@ -2042,7 +2110,7 @@ server <- function(input, output, session) {
     content = function(file) {
       req(rv$optimized_windows, rv$validated_data, rv$optimization_plan)
 
-      showNotification("📄 Generating PDF report...", id = "pdf_progress",
+      showNotification("Generating PDF report...", id = "pdf_progress",
                        duration = NULL, type = "message")
 
       tryCatch({
@@ -2051,7 +2119,7 @@ server <- function(input, output, session) {
         # Generate core plots for PDF report
         plots <- list()
 
-        # Plot 1: DPPP Comparison (그대로 유지)
+        # Plot 1: DPPP Comparison
         cat("[Shiny] Generating DPPP plot...\n")
         plots[[1]] <- plot_dppp_comparison(rv$optimization_plan, rv$validated_data)
 
@@ -2130,7 +2198,7 @@ server <- function(input, output, session) {
       }, error = function(e) {
         cat("[Shiny] ERROR generating PDF:", e$message, "\n")
         removeNotification("pdf_progress")
-        showNotification(paste("❌ PDF Error:", e$message), type = "error", duration = 10)
+        showNotification(paste("PDF Error:", e$message), type = "error", duration = 10)
       })
     }
   )

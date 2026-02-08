@@ -15,8 +15,7 @@ cat("\n[1/4] Checking required packages...\n")
 
 required_packages <- c(
   "shiny",           # Core framework
-
-"shinydashboard",  # Dashboard layout
+  "bs4Dash",         # Dashboard layout (AdminLTE3 / Bootstrap 4)
   "shinybusy",       # Progress spinners
   "DT",              # Interactive tables
   "arrow"            # Parquet support
@@ -114,7 +113,7 @@ cat("\n[4/4] Testing package loading...\n")
 tryCatch({
   suppressPackageStartupMessages({
     library(shiny)
-    library(shinydashboard)
+    library(bs4Dash)
     library(shinybusy)
     library(DT)
     library(arrow)
