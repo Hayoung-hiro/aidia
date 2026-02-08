@@ -10,6 +10,12 @@ library(tidyr)
 library(gridExtra)
 library(grid)
 
+if (!exists("theme_aidia")) {
+  if (file.exists("R/plots/theme_aidia.R")) {
+    source("R/plots/theme_aidia.R")
+  }
+}
+
 #' Plot m/z Width Comparison (Single Strategy)
 #'
 #' Creates a side-by-side bar chart comparing original m/z range width
@@ -118,7 +124,7 @@ plot_mz_width_comparison <- function(optimized_windows, validated_data) {
 
     scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
 
-    theme_minimal(base_size = 11) +
+    theme_aidia(base_size = 11) +
     theme(
       plot.title = element_text(face = "bold", size = 14),
       plot.subtitle = element_text(size = 11, color = "gray30"),
@@ -275,7 +281,7 @@ plot_mz_width_comparison_all_strategies <- function(windows_list, validated_data
 
     scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
 
-    theme_minimal(base_size = 11) +
+    theme_aidia(base_size = 11) +
     theme(
       plot.title = element_text(face = "bold", size = 14),
       plot.subtitle = element_text(size = 9, color = "gray30"),

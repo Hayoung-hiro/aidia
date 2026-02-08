@@ -27,7 +27,7 @@
 # Main Functions:
 #   1. generate_visualizations() - Main orchestration function
 #   2. calculate_summary_statistics() - Calculate optimization metrics
-#   3. theme_dia_optimizer() - Custom ggplot2 theme
+#   3. theme_dia_optimizer() - Custom ggplot2 theme (via theme_aidia alias)
 #
 # Input: Refactored pipeline outputs
 #   - validated_data (ValidatedData from Stage 1)
@@ -108,21 +108,11 @@ for (module in external_modules) {
 # Custom Theme
 # =============================================================================
 
-#' Custom ggplot2 Theme for DIA Optimizer
+#' Custom ggplot2 Theme for DIA Optimizer (Alias for AIDIA Theme)
 #'
 #' @export
 theme_dia_optimizer <- function() {
-  theme_minimal() +
-    theme(
-      plot.title = element_text(face = "bold", size = 14),
-      plot.subtitle = element_text(size = 11, color = "gray30"),
-      plot.caption = element_text(size = 9, color = "gray50", hjust = 0),
-      axis.title = element_text(size = 11),
-      axis.text = element_text(size = 10),
-      legend.title = element_text(face = "bold", size = 10),
-      legend.text = element_text(size = 9),
-      panel.grid.minor = element_blank()
-    )
+  theme_aidia()
 }
 
 # =============================================================================

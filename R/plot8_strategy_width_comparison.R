@@ -13,6 +13,12 @@ library(gridExtra)
 library(grid)
 library(ggridges)
 
+if (!exists("theme_aidia")) {
+  if (file.exists("R/plots/theme_aidia.R")) {
+    source("R/plots/theme_aidia.R")
+  }
+}
+
 #' Plot 8A: Ridge Plot - Window Width Distribution by Strategy
 #'
 #' Shows overlapping density curves for each strategy (ridge plot style)
@@ -88,7 +94,7 @@ plot_strategy_width_ridge <- function(windows_list, validated_data) {
       x = "Window Width (Da)",
       y = "Strategy"
     ) +
-    theme_minimal() +
+    theme_aidia() +
     theme(
       plot.title = element_text(size = 12, face = "bold"),
       plot.subtitle = element_text(size = 9),
@@ -182,7 +188,7 @@ plot_strategy_width_boxplot <- function(windows_list, validated_data) {
       x = "Strategy",
       y = "Window Width (Da)"
     ) +
-    theme_minimal() +
+    theme_aidia() +
     theme(
       plot.title = element_text(size = 12, face = "bold"),
       plot.subtitle = element_text(size = 8, lineheight = 1.2),
@@ -268,7 +274,7 @@ plot_strategy_width_cdf <- function(windows_list, validated_data) {
       x = "Window Width (Da)",
       y = "Cumulative Probability"
     ) +
-    theme_minimal() +
+    theme_aidia() +
     theme(
       plot.title = element_text(size = 12, face = "bold"),
       plot.subtitle = element_text(size = 8, lineheight = 1.2),

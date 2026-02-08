@@ -7,6 +7,12 @@
 library(dplyr)
 library(ggplot2)
 
+if (!exists("theme_aidia")) {
+  if (file.exists("R/plots/theme_aidia.R")) {
+    source("R/plots/theme_aidia.R")
+  }
+}
+
 #' Plot RT Distribution Histogram
 #'
 #' Creates a histogram showing the distribution of precursors across retention time.
@@ -169,7 +175,7 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
       caption = "Dashed line = median RT | Dotted line = mean RT | Yellow = peak elution region"
     ) +
 
-    theme_minimal(base_size = 12) +
+    theme_aidia(base_size = 12) +
     theme(
       plot.title = element_text(face = "bold", size = 14),
       plot.subtitle = element_text(size = 11, color = "gray30"),
@@ -299,7 +305,7 @@ plot_rt_histogram_binned <- function(validated_data, bin_width_min = 5) {
       caption = "Coral bar = peak elution bin | Labels show percentage of total precursors"
     ) +
 
-    theme_minimal(base_size = 12) +
+    theme_aidia(base_size = 12) +
     theme(
       plot.title = element_text(face = "bold", size = 14),
       plot.subtitle = element_text(size = 11, color = "gray30"),

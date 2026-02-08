@@ -90,7 +90,7 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
       y = "Number of Precursors",
       caption = "Dashed = median | Dotted = mean | Yellow = peak elution region"
     ) +
-    theme_dia_optimizer() +
+    theme_aidia() +
     theme(panel.grid.major.x = element_blank())
 
   return(p)

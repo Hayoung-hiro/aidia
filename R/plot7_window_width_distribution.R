@@ -13,6 +13,12 @@ library(tidyr)
 library(gridExtra)
 library(grid)
 
+if (!exists("theme_aidia")) {
+  if (file.exists("R/plots/theme_aidia.R")) {
+    source("R/plots/theme_aidia.R")
+  }
+}
+
 #' Plot Window Width Distribution by RT Segment
 #'
 #' Creates a multi-panel visualization showing:
@@ -157,7 +163,7 @@ plot_window_width_distribution <- function(optimized_windows,
                        seg_id, nrow(seg_precursors), nrow(seg_windows)),
         x = "m/z (Da)"
       ) +
-      theme_minimal() +
+      theme_aidia() +
       theme(
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title.x = element_text(size = 9),
@@ -282,12 +288,11 @@ plot_window_width_distribution_faceted <- function(optimized_windows,
       x = "m/z (Da)",
       y = "Normalized Density"
     ) +
-    theme_minimal() +
+    theme_aidia() +
     theme(
       plot.title = element_text(face = "bold", size = 12),
       plot.subtitle = element_text(size = 10),
-      strip.text = element_text(face = "bold", size = 9),
-      panel.grid.minor = element_blank()
+      strip.text = element_text(face = "bold", size = 9)
     )
 
   return(p)
@@ -416,7 +421,7 @@ plot_cumulative_window_count <- function(optimized_windows,
         x = "m/z (Da)",
         y = "Window Index"
       ) +
-      theme_minimal() +
+      theme_aidia() +
       theme(
         plot.title = element_text(size = 9, face = "bold", hjust = 0.5, lineheight = 1.1),
         axis.title = element_text(size = 9),

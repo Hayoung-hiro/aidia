@@ -51,7 +51,7 @@ plot_rt_mz_density_heatmap <- function(validated_data, bins = 50) {
       y = "Precursor m/z (Da)",
       caption = "Bright regions = high precursor concentration"
     ) +
-    theme_dia_optimizer()
+    theme_aidia()
 
   return(p)
 }
@@ -141,7 +141,7 @@ plot_mz_normalized_density <- function(optimized_windows, validated_data) {
     # Return empty plot if no data
     return(ggplot() +
              labs(title = "m/z Normalized Density (No Data Available)") +
-             theme_dia_optimizer())
+             theme_aidia())
   }
 
   # Combine density profiles (using safe_bind_rows for vctrs compatibility)
@@ -159,7 +159,7 @@ plot_mz_normalized_density <- function(optimized_windows, validated_data) {
       y = "Normalized Density",
       caption = "Each line shows m/z distribution for one RT segment"
     ) +
-    theme_dia_optimizer() +
+    theme_aidia() +
     theme(legend.position = "right")
 
   return(p)

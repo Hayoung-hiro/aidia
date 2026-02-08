@@ -8,6 +8,12 @@ library(dplyr)
 library(ggplot2)
 library(tidyr)
 
+if (!exists("theme_aidia")) {
+  if (file.exists("R/plots/theme_aidia.R")) {
+    source("R/plots/theme_aidia.R")
+  }
+}
+
 #' Plot m/z Range Optimization (Original vs Optimized)
 #'
 #' Compares original m/z range (full data range) vs optimized range
@@ -122,7 +128,7 @@ plot_mz_range_optimization <- function(optimized_windows, validated_data) {
 
     scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
 
-    theme_minimal(base_size = 11) +
+    theme_aidia(base_size = 11) +
     theme(
       plot.title = element_text(face = "bold", size = 14),
       plot.subtitle = element_text(size = 11, color = "gray30"),

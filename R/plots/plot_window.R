@@ -51,7 +51,7 @@ plot_mz_window_width <- function(optimized_windows) {
       y = "Window Width (Da)",
       caption = "Black dashed line = mean width | Color = RT segment"
     ) +
-    theme_dia_optimizer()
+    theme_aidia()
 
   return(p)
 }

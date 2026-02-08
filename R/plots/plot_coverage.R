@@ -67,7 +67,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
       x = "Retention Time (min)",
       y = "m/z (Da)"
     ) +
-    theme_dia_optimizer() +
+    theme_aidia() +
     theme(
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5, size = 10),

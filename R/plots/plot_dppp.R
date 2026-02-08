@@ -153,7 +153,7 @@ plot_dppp_comparison <- function(optimization_plan, validated_data) {
       y = "Density",
       caption = "Shaded area shows probability density; dashed line = target DPPP"
     ) +
-    theme_dia_optimizer() +
+    theme_aidia() +
     theme(
       legend.position.inside = c(0.02, 0.85),  # ggplot2 3.5.0+ syntax
       legend.position = "inside",
@@ -387,7 +387,7 @@ plot_dppp_comparison_enhanced <- function(optimization_plan, validated_data) {
       caption = "Green zone = satisfied region (DPPP >= target); dotted lines = median DPPP"
     ) +
     # Theme
-    theme_dia_optimizer() +
+    theme_aidia() +
     theme(
       legend.position.inside = c(0.02, 0.75),  # ggplot2 3.5.0+ syntax
       legend.position = "inside",

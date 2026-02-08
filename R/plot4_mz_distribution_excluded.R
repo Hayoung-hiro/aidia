@@ -9,6 +9,12 @@ library(ggplot2)
 library(tidyr)
 library(gridExtra)
 
+if (!exists("theme_aidia")) {
+  if (file.exists("R/plots/theme_aidia.R")) {
+    source("R/plots/theme_aidia.R")
+  }
+}
+
 #' Plot m/z Distribution with Excluded Regions (Multiple RT Bins)
 #'
 #' For each RT segment, shows:
@@ -135,7 +141,7 @@ plot_mz_distribution_with_exclusions <- function(optimized_windows,
         y = "Density"
       ) +
 
-      theme_minimal(base_size = 9) +
+      theme_aidia(base_size = 9) +
       theme(
         plot.title = element_text(face = "bold", size = 10),
         plot.subtitle = element_text(size = 8, color = "gray30"),

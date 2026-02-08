@@ -221,7 +221,7 @@ plot_satisfaction_curve <- function(optimization_plan, validated_data,
       caption = "S-curve shows trade-off between cycle time and DPPP achievement; shorter cycle time = higher satisfaction"
     ) +
     # Theme
-    theme_dia_optimizer() +
+    theme_aidia() +
     theme(
       panel.grid.minor = element_line(color = "gray95", linewidth = 0.3)
     )

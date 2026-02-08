@@ -11,6 +11,12 @@ library(gridExtra)
 library(grid)
 library(viridis)
 
+if (!exists("theme_aidia")) {
+  if (file.exists("R/plots/theme_aidia.R")) {
+    source("R/plots/theme_aidia.R")
+  }
+}
+
 #' Plot RT × m/z Density Heatmap with m/z Range Overlay (Single Strategy)
 #'
 #' Creates density heatmap of precursors and overlays optimized m/z range
@@ -109,7 +115,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
       caption = NULL
     ) +
 
-    theme_minimal(base_size = 11) +
+    theme_aidia(base_size = 11) +
     theme(
       plot.title = element_text(face = "bold", size = 12, hjust = 0.5),
       plot.subtitle = element_text(size = 10, hjust = 0.5, color = "gray30"),
