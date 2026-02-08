@@ -27,14 +27,22 @@ plot_strategy_width_ridge <- function(windows_list, validated_data) {
 
   cat("  Generating Plot 8A: Ridge Plot (Window Width by Strategy)...\n")
 
+  # Source theme_aidia for format_strategy_label() and color scales
+  if (!exists("format_strategy_label")) {
+    if (file.exists("R/plots/theme_aidia.R")) {
+      source("R/plots/theme_aidia.R")
+    }
+  }
+
   # Extract window width data from all strategies
-  strategy_data <- lapply(names(windows_list), function(strategy) {
+  strategy_names <- names(windows_list)
+  strategy_data <- lapply(strategy_names, function(strategy) {
     windows_list[[strategy]]$windows %>%
       select(window_width) %>%
       mutate(
-        strategy = toupper(strategy),
-        strategy_label = factor(toupper(strategy),
-                               levels = c("COVERAGE", "OUTLIER", "SMOOTHING", "QUANTILE"))
+        strategy = strategy,
+        strategy_label = factor(format_strategy_label(strategy),
+                               levels = format_strategy_label(strategy_names))
       )
   }) %>%
     safe_bind_rows()
@@ -58,7 +66,7 @@ plot_strategy_width_ridge <- function(windows_list, validated_data) {
     )
 
   # Create ridge plot using ggridges
-  p <- ggplot(strategy_data, aes(x = window_width, y = strategy_label, fill = strategy_label)) +
+  p <- ggplot(strategy_data, aes(x = window_width, y = strategy_label, fill = strategy)) +
     # Ridge density plot
     geom_density_ridges(
       alpha = 0.7,
@@ -67,25 +75,9 @@ plot_strategy_width_ridge <- function(windows_list, validated_data) {
       quantile_lines = TRUE,
       quantiles = 2  # Show median line
     ) +
-    # Color scheme
-    scale_fill_manual(
-      values = c(
-        "QUANTILE" = "#4393C3",
-        "SMOOTHING" = "#92C5DE",
-        "OUTLIER" = "#F4A582",
-        "COVERAGE" = "#D6604D"
-      ),
-      guide = "none"
-    ) +
-    scale_color_manual(
-      values = c(
-        "QUANTILE" = "#2166AC",
-        "SMOOTHING" = "#4393C3",
-        "OUTLIER" = "#D6604D",
-        "COVERAGE" = "#B2182B"
-      ),
-      guide = "none"
-    ) +
+    # Color scheme (using theme_aidia's scale)
+    scale_fill_strategy(guide = "none") +
+    scale_color_strategy(guide = "none") +
     scale_x_continuous(
       breaks = seq(0, 100, by = 10),
       labels = function(x) sprintf("%.0f", x)
@@ -125,14 +117,19 @@ plot_strategy_width_boxplot <- function(windows_list, validated_data) {
 
   cat("  Generating Plot 8B: Box Plot (Window Width by Strategy)...\n")
 
+  # Source theme_aidia for format_strategy_label() and color scales
+  if (!exists("format_strategy_label")) {
+    if (file.exists("R/plots/theme_aidia.R")) {
+      source("R/plots/theme_aidia.R")
+    }
+  }
+
   # Extract window width data from all strategies
-  strategy_data <- lapply(names(windows_list), function(strategy) {
+  strategy_names <- names(windows_list)
+  strategy_data <- lapply(strategy_names, function(strategy) {
     windows_list[[strategy]]$windows %>%
       select(window_width) %>%
-      mutate(
-        strategy = factor(toupper(strategy),
-                         levels = c("QUANTILE", "SMOOTHING", "OUTLIER", "COVERAGE"))
-      )
+      mutate(strategy = strategy)
   }) %>%
     safe_bind_rows()
 
@@ -151,8 +148,12 @@ plot_strategy_width_boxplot <- function(windows_list, validated_data) {
       .groups = "drop"
     )
 
-  # Create box plot
-  p <- ggplot(strategy_data, aes(x = strategy, y = window_width, fill = strategy)) +
+  # Create box plot with formatted labels
+  strategy_data_formatted <- strategy_data %>%
+    mutate(strategy_label = factor(format_strategy_label(strategy),
+                                   levels = format_strategy_label(strategy_names)))
+
+  p <- ggplot(strategy_data_formatted, aes(x = strategy_label, y = window_width, fill = strategy)) +
     # Box plot
     geom_boxplot(
       alpha = 0.7,
@@ -169,16 +170,8 @@ plot_strategy_width_boxplot <- function(windows_list, validated_data) {
       fill = "white",
       color = "black"
     ) +
-    # Color scheme
-    scale_fill_manual(
-      values = c(
-        "QUANTILE" = "#4393C3",
-        "SMOOTHING" = "#92C5DE",
-        "OUTLIER" = "#F4A582",
-        "COVERAGE" = "#D6604D"
-      ),
-      guide = "none"
-    ) +
+    # Color scheme (using theme_aidia's scale)
+    scale_fill_strategy(guide = "none") +
     scale_y_continuous(
       breaks = seq(0, 100, by = 10),
       labels = function(x) sprintf("%.1f", x)
@@ -218,11 +211,19 @@ plot_strategy_width_cdf <- function(windows_list, validated_data) {
 
   cat("  Generating Plot 8C: CDF (Window Width by Strategy)...\n")
 
+  # Source theme_aidia for format_strategy_label() and color scales
+  if (!exists("format_strategy_label")) {
+    if (file.exists("R/plots/theme_aidia.R")) {
+      source("R/plots/theme_aidia.R")
+    }
+  }
+
   # Extract window width data from all strategies
-  strategy_data <- lapply(names(windows_list), function(strategy) {
+  strategy_names <- names(windows_list)
+  strategy_data <- lapply(strategy_names, function(strategy) {
     windows_list[[strategy]]$windows %>%
       select(window_width) %>%
-      mutate(strategy = toupper(strategy))
+      mutate(strategy = strategy)
   }) %>%
     safe_bind_rows()
 
@@ -251,16 +252,8 @@ plot_strategy_width_cdf <- function(windows_list, validated_data) {
       linewidth = 0.5,
       alpha = 0.5
     ) +
-    # Color scheme
-    scale_color_manual(
-      name = "Strategy",
-      values = c(
-        "QUANTILE" = "#4393C3",
-        "SMOOTHING" = "#92C5DE",
-        "OUTLIER" = "#F4A582",
-        "COVERAGE" = "#D6604D"
-      )
-    ) +
+    # Color scheme (using theme_aidia's scale)
+    scale_color_strategy() +
     scale_x_continuous(
       breaks = seq(0, 100, by = 10),
       labels = function(x) sprintf("%.0f", x)

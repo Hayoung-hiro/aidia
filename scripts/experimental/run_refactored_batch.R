@@ -208,8 +208,14 @@ process_file_all_combinations <- function(
       )
 
       # Generate output filename
-      output_filename <- sprintf("%s_%s_%s_thermo.csv",
-                                 gradient_name, strategy, mode)
+      output_filename <- format_output_filename(
+        type = "method",
+        instrument_preset = INSTRUMENT_PRESET,
+        strategy = strategy,
+        window_mode = mode,
+        rt_binning_mode = "fixed",
+        rt_bin_width_min = RT_BIN_WIDTH_MIN
+      )
       output_path <- file.path(OUTPUT_DIR, output_filename)
 
       # Export windows with Thermo 20-column format

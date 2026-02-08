@@ -195,12 +195,16 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
 
   # Extract before (current) values
   before_cycle_time <- optimization_plan$diagnosis$current_cycle_time_sec
-  before_n_windows <- optimization_plan$diagnosis$current_n_windows
   before_satisfaction <- optimization_plan$diagnosis$current_satisfaction_ratio
+
+  # Calculate before window count based on current cycle time and window size
+  # Estimate: assume same window width as optimized, count would be proportional to cycle time ratio
+  after_n_windows <- nrow(optimized_windows$windows)
+  cycle_time_ratio <- before_cycle_time / optimization_plan$required_cycle_time_sec
+  before_n_windows <- round(after_n_windows / cycle_time_ratio)
 
   # Extract after (optimized) values
   after_cycle_time <- optimization_plan$required_cycle_time_sec
-  after_n_windows <- nrow(optimized_windows$windows)
 
   # Calculate after satisfaction using optimized cycle time
   target_dppp <- optimization_plan$parameters$target_dppp

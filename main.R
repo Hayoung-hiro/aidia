@@ -35,6 +35,7 @@ source("R/stage4_visualization.R")
 #' @param rt_bin_width_min RT bin width in minutes (default: 5)
 #' @param edge_void_buffer_min Void volume buffer in minutes (default: 0.5). Extends first RT bin start.
 #' @param edge_wash_min_precursors Wash region merge threshold (default: 30). Merges last bin if sparse.
+#' @param width_grid_step Grid step for width digitization in Da (default: 0.5). Set to NULL or 0 to disable.
 #' @param create_plots Generate visualizations (default: TRUE)
 #' @param create_pdf Generate PDF report (default: TRUE)
 #' @param verbose Print detailed progress (default: TRUE)
@@ -54,6 +55,7 @@ run_complete_pipeline <- function(
   rt_binning_mode = "fixed",
   edge_void_buffer_min = 0.5,
   edge_wash_min_precursors = 30,
+  width_grid_step = 0.5,
   create_plots = TRUE,
   create_pdf = TRUE,
   verbose = TRUE
@@ -232,14 +234,21 @@ run_complete_pipeline <- function(
         polynomial_order = 2,
         min_width_da = 2,
         max_width_da = 100,
-        overlap_percentage = 0
+        overlap_percentage = 0,
+        width_grid_step = width_grid_step
       )
 
       windows_list[[strategy]] <- windows_result
 
       # Export method file for each strategy
-      method_filename <- sprintf("%s_%s_%s_method.csv",
-                                 gradient_name, strategy, window_mode)
+      method_filename <- format_output_filename(
+        type = "method",
+        instrument_preset = instrument_preset,
+        strategy = strategy,
+        window_mode = window_mode,
+        rt_binning_mode = rt_binning_mode,
+        rt_bin_width_min = rt_bin_width_min
+      )
       method_path <- file.path(output_dir, method_filename)
 
       export_windows_thermo_format(

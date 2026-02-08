@@ -183,7 +183,22 @@ export_method_files <- function(windows_list,
 
   method_files <- list()
   for (strategy in strategies_to_export) {
-    output_file <- file.path(output_dir, sprintf("method_%s.csv", strategy))
+    # Build filename using standardized naming if available
+    output_filename <- if (exists("format_output_filename") &&
+                           !is.null(windows_list[[strategy]]$parameters$window_mode)) {
+      params <- windows_list[[strategy]]$parameters
+      format_output_filename(
+        type = "method",
+        instrument_preset = instrument_type,
+        strategy = strategy,
+        window_mode = params$window_mode %||% "density",
+        rt_binning_mode = params$rt_binning_mode %||% "fixed",
+        rt_bin_width_min = params$rt_bin_width_min %||% 5
+      )
+    } else {
+      sprintf("method_%s.csv", strategy)
+    }
+    output_file <- file.path(output_dir, output_filename)
 
     cat(sprintf("  - %s: ", strategy))
 

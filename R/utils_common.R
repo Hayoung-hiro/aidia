@@ -668,6 +668,102 @@ safe_bind_rows <- function(...) {
 
 
 # =============================================================================
+# Output Filename Formatting
+# =============================================================================
+
+#' Map Instrument Preset to Short Name
+#'
+#' Converts instrument preset keys to concise abbreviations for output filenames.
+#'
+#' @param instrument_preset Character, instrument preset key from instruments.json
+#'
+#' @return Character, short instrument name
+#' @export
+format_short_instrument_name <- function(instrument_preset) {
+  mapping <- c(
+    astral           = "astral",
+    astral_zoom      = "astral_zm",
+    astral_sensitive = "astral_sens",
+    exploris         = "exploris",
+    eclipse          = "eclipse",
+    fusion_lumos     = "lumos",
+    qexactive        = "qe",
+    qexactive_hfx    = "qe_hfx",
+    timstof          = "timstof",
+    timstof_pro      = "timstof_pro",
+    timstof_ultra    = "timstof_ult",
+    waters_synapt    = "synapt",
+    custom           = "custom"
+  )
+  short <- mapping[instrument_preset]
+  if (is.na(short)) return(instrument_preset)
+  as.character(short)
+}
+
+#' Map Window Mode to Short Name
+#'
+#' @param window_mode Character, window generation mode
+#' @return Character, short window mode name
+#' @export
+format_short_window_mode <- function(window_mode) {
+  mapping <- c(
+    density   = "dens",
+    fixed     = "Fix",
+    staggered = "stag"
+  )
+  short <- mapping[window_mode]
+  if (is.na(short)) return(window_mode)
+  as.character(short)
+}
+
+#' Map RT Binning Mode to Short Name
+#'
+#' @param rt_binning_mode Character, RT binning mode ("fixed", "adaptive", or "custom")
+#' @param rt_bin_width_min Numeric, RT bin width in minutes (used for custom mode)
+#' @return Character, short RT mode name
+#' @export
+format_short_rt_mode <- function(rt_binning_mode, rt_bin_width_min = 5) {
+  if (rt_binning_mode == "fixed") return("Fix")
+  if (rt_binning_mode == "adaptive") return("Adapt")
+  # Custom mode: include the bin width
+  sprintf("%gmin", rt_bin_width_min)
+}
+
+#' Build Standardized Output Filename
+#'
+#' Generates filename in format: {type}_{instrument}_{strategy}_{window}_{rt}_{date}.{ext}
+#'
+#' @param type Character, output type ("method" or "report")
+#' @param instrument_preset Character, instrument preset key
+#' @param strategy Character, m/z optimization strategy (NULL for report)
+#' @param window_mode Character, window generation mode
+#' @param rt_binning_mode Character, RT binning mode
+#' @param rt_bin_width_min Numeric, RT bin width (for custom mode)
+#' @param ext Character, file extension without dot (default: "csv")
+#' @param date Character, date string (default: today in YYYYMMDD format)
+#'
+#' @return Character, formatted filename (without directory path)
+#' @export
+format_output_filename <- function(type,
+                                   instrument_preset,
+                                   strategy = NULL,
+                                   window_mode,
+                                   rt_binning_mode,
+                                   rt_bin_width_min = 5,
+                                   ext = "csv",
+                                   date = format(Sys.Date(), "%Y%m%d")) {
+  inst <- format_short_instrument_name(instrument_preset)
+  win  <- format_short_window_mode(window_mode)
+  rt   <- format_short_rt_mode(rt_binning_mode, rt_bin_width_min)
+
+  if (!is.null(strategy)) {
+    sprintf("%s_%s_%s_%s_%s_%s.%s", type, inst, strategy, win, rt, date, ext)
+  } else {
+    sprintf("%s_%s_%s_%s_%s.%s", type, inst, win, rt, date, ext)
+  }
+}
+
+# =============================================================================
 # Module Loading
 # =============================================================================
 
@@ -679,4 +775,5 @@ cat("   - Validation: validate_input_type(), validate_numeric_range()\n")
 cat("   - DPPP: calculate_dppp(), calculate_satisfaction_ratio()\n")
 cat("   - Performance: count_precursors_in_windows()\n")
 cat("   - Timing: create_timer()\n")
+cat("   - Naming: format_output_filename(), format_short_instrument_name()\n")
 cat("   - S3 Classes: ValidatedData, OptimizationPlan, OptimizedWindows\n")

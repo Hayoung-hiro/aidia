@@ -81,6 +81,10 @@ for (module in stage3_modules) {
 #' @param min_width_da Numeric, minimum window width in Da (default: 2)
 #' @param max_width_da Numeric, maximum window width in Da (default: 80)
 #' @param overlap_percentage Numeric, overlap % between windows (default: 0)
+#' @param width_grid_step Numeric, grid step for width digitization in Da (default: 0.5)
+#'   - Snaps window widths to nearest multiple for batch reproducibility
+#'   - Set to NULL or 0 to disable digitization
+#'   - Only applies to density (variable) window mode
 #'
 #' @return OptimizedWindows S3 object
 #' @export
@@ -134,7 +138,8 @@ optimize_windows <- function(
   cpd_min_precursors_per_bin = 50,           # Adaptive: minimum precursors per bin
   cpd_significance_level = 0.05,             # Adaptive: KS test significance threshold
   edge_void_buffer_min = 0.5,               # Edge: void volume buffer in minutes
-  edge_wash_min_precursors = 30              # Edge: minimum precursors in last bin before merge
+  edge_wash_min_precursors = 30,             # Edge: minimum precursors in last bin before merge
+  width_grid_step = 0.5                     # Width digitization grid step (Da)
 ) {
 
   # Start timing
@@ -272,7 +277,8 @@ optimize_windows <- function(
     window_mode = window_mode,
     min_width_da = min_width_da,
     max_width_da = max_width_da,
-    overlap_percentage = overlap_percentage
+    overlap_percentage = overlap_percentage,
+    width_grid_step = width_grid_step
   )
 
   total_windows <- nrow(windows)

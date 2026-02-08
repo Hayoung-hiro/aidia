@@ -68,7 +68,9 @@
     "modes": ["fixed", "variable"],
     "min_width_da": 2,
     "max_width_da": 80,
-    "overlap_percentage": 0
+    "overlap_percentage": 0,
+    "width_grid_step": 0.5,
+    "_comment_width_grid_step": "Grid step for width digitization in Da (default: 0.5). Snaps variable window widths to nearest multiple for batch reproducibility. Set to null or 0 to disable. Only applies to density (variable) mode."
   },
 
   "output": {

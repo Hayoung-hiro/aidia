@@ -93,6 +93,7 @@ run_optimization <- function(config_path) {
   min_width_da <- config$window_generation$min_width_da
   max_width_da <- config$window_generation$max_width_da
   overlap_percentage <- get_config_value(config, "window_generation.overlap_percentage", 0)
+  width_grid_step <- get_config_value(config, "window_generation.width_grid_step", 0.5)
 
   # ===================================================================
   # Process All Files
@@ -207,12 +208,19 @@ run_optimization <- function(config_path) {
           polynomial_order = polynomial_order,
           min_width_da = min_width_da,
           max_width_da = max_width_da,
-          overlap_percentage = overlap_percentage
+          overlap_percentage = overlap_percentage,
+          width_grid_step = width_grid_step
         )
 
         # Generate output filename
-        output_filename <- sprintf("%s_%s_%s_thermo.csv",
-                                   gradient_name, strategy, mode)
+        output_filename <- format_output_filename(
+          type = "method",
+          instrument_preset = instrument_preset,
+          strategy = strategy,
+          window_mode = mode,
+          rt_binning_mode = rt_binning_mode,
+          rt_bin_width_min = rt_bin_width_min
+        )
         output_path <- file.path(output_dir, output_filename)
 
         # Export windows with Thermo 22-column format

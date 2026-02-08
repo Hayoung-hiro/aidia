@@ -71,7 +71,9 @@ plot_modules <- c(
   "R/plots/plot_impact_summary.R",
   "R/plots/plot_rt_quality.R",
   "R/plots/plot_window_gantt.R",
-  "R/plots/plot_rt_changepoint.R"
+  "R/plots/plot_rt_changepoint.R",
+  "R/plots/plot_fwhm_distribution.R",
+  "R/plots/plot_strategy_table.R"
 )
 
 for (module in plot_modules) {
@@ -171,6 +173,12 @@ generate_visualizations <- function(
 
   # Generate all plots with standardized naming
   plots <- list()
+
+  # Plot 0: FWHM Distribution (Fundamental Input)
+  if (exists("plot_fwhm_distribution")) {
+    cat("  Generating Plot 0: FWHM Distribution (Fundamental Input)...\n")
+    plots$`plot0_fwhm_distribution` <- plot_fwhm_distribution(validated_data, optimization_plan)
+  }
 
   # Plot 1: DPPP Comparison - Both versions
   cat("  Generating Plot 1A: DPPP Comparison (Simple)...\n")
@@ -355,6 +363,15 @@ generate_visualizations <- function(
     plots$`plot8c_strategy_width_cdf` <- plot_strategy_width_cdf(windows_list, validated_data)
   }
 
+  # ===================================================================
+  # Plot 8D: Strategy Comparison Summary Table
+  # ===================================================================
+
+  if (exists("plot_strategy_comparison_table")) {
+    cat("\n  Generating Plot 8D: Strategy Comparison Summary Table...\n")
+    plots$`plot8d_strategy_comparison_table` <- plot_strategy_comparison_table(windows_list)
+  }
+
   cat(sprintf("\nOK All %d plots generated successfully\n\n", length(plots)))
 
   plot_end <- Sys.time()
@@ -378,7 +395,23 @@ generate_visualizations <- function(
   # Step 3: Create PDF report (optional)
   if (create_pdf) {
     cat("\nStep 3: Creating PDF report...\n")
-    pdf_file <- file.path(output_dir, "optimization_report.pdf")
+    # Build report filename from optimized_windows metadata
+    pdf_filename <- if (exists("format_output_filename") &&
+                        !is.null(optimized_windows$parameters$window_mode)) {
+      format_output_filename(
+        type = "report",
+        instrument_preset = optimized_windows$metadata$instrument_preset %||%
+                            optimization_plan$instrument$preset %||% "custom",
+        strategy = NULL,
+        window_mode = optimized_windows$parameters$window_mode,
+        rt_binning_mode = optimized_windows$parameters$rt_binning_mode %||% "fixed",
+        rt_bin_width_min = optimized_windows$parameters$rt_bin_width_min %||% 5,
+        ext = "pdf"
+      )
+    } else {
+      "optimization_report.pdf"
+    }
+    pdf_file <- file.path(output_dir, pdf_filename)
     create_pdf_report(plots, validated_data, optimization_plan, optimized_windows, pdf_file)
     report_files$pdf_report <- pdf_file
   } else {

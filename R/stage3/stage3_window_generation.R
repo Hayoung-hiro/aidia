@@ -29,13 +29,14 @@ library(tibble)
 #' @param min_width_da Minimum window width in Da
 #' @param max_width_da Maximum window width in Da
 #' @param overlap_percentage Overlap percentage between windows
+#' @param width_grid_step Grid step for width digitization in Da (default: 0.5)
 #'
 #' @return Data frame with window specifications
 #' @keywords internal
 generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
                                      n_windows_per_bin, window_mode,
                                      min_width_da, max_width_da,
-                                     overlap_percentage) {
+                                     overlap_percentage, width_grid_step = 0.5) {
 
   n_bins <- nrow(rt_stats)
   all_windows <- vector("list", n_bins)
@@ -75,7 +76,7 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
     } else {  # density (variable)
       bin_windows <- generate_variable_windows_internal(
         bin_data$Precursor.Mz, mz_min, mz_max, n_windows_per_bin,
-        min_width_da, max_width_da
+        min_width_da, max_width_da, width_grid_step = width_grid_step
       )
     }
 
@@ -173,6 +174,7 @@ generate_fixed_windows_internal <- function(mz_min, mz_max, n_windows,
 #'   Phase 1: Start with uniform distribution (guaranteed valid)
 #'   Phase 2: Iteratively adjust boundaries based on precursor density
 #'   Phase 3: Apply smoothing for gradual width transitions
+#'   Phase 3.5: Width digitization for batch reproducibility (if enabled)
 #'   Phase 4: Final validation
 #'
 #' Constraints enforced:
@@ -188,6 +190,7 @@ generate_fixed_windows_internal <- function(mz_min, mz_max, n_windows,
 #' @param max_width_da Maximum window width in Da
 #' @param max_iterations Maximum iterations for density adjustment (default: 20)
 #' @param max_change_ratio Maximum width change ratio between adjacent windows (default: 0.5)
+#' @param width_grid_step Grid step for width digitization in Da (default: 0.5). Set to NULL or 0 to disable.
 #'
 #' @return Data frame with window specifications
 #' @keywords internal
@@ -195,7 +198,8 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
                                                n_windows, min_width_da,
                                                max_width_da,
                                                max_iterations = 20,
-                                               max_change_ratio = 0.5) {
+                                               max_change_ratio = 0.5,
+                                               width_grid_step = 0.5) {
 
   # Filter precursors within range
   precursor_mz <- precursor_mz[precursor_mz >= mz_min & precursor_mz <= mz_max]
@@ -343,6 +347,47 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
 
   # Ensure last boundary is exactly mz_max (fix floating point drift)
   boundaries[length(boundaries)] <- mz_max
+
+  # =========================================================================
+  # Phase 3.5: Width digitization for robustness
+  # =========================================================================
+  if (!is.null(width_grid_step) && width_grid_step > 0) {
+    widths_raw <- widths
+    widths <- round(widths / width_grid_step) * width_grid_step
+
+    # Clamp to min/max constraints
+    widths <- pmax(widths, min_width_da)
+    widths <- pmin(widths, max_width_da)
+
+    # Redistribute remainder to preserve total range
+    mz_range <- mz_max - mz_min
+    remainder <- mz_range - sum(widths)
+
+    if (abs(remainder) > 1e-10) {
+      n_adjustments <- round(remainder / width_grid_step)
+      if (n_adjustments != 0) {
+        direction <- sign(n_adjustments)
+        rounding_errors <- widths_raw - widths
+        candidates <- order(direction * rounding_errors, decreasing = TRUE)
+        for (j in seq_len(abs(n_adjustments))) {
+          idx <- candidates[j]
+          new_width <- widths[idx] + direction * width_grid_step
+          if (new_width >= min_width_da && new_width <= max_width_da) {
+            widths[idx] <- new_width
+          }
+        }
+      }
+      # Final residual goes to last window
+      final_remainder <- mz_range - sum(widths)
+      if (abs(final_remainder) > 1e-10) {
+        widths[length(widths)] <- widths[length(widths)] + final_remainder
+      }
+    }
+
+    # Reconstruct boundaries from digitized widths
+    boundaries <- c(mz_min, mz_min + cumsum(widths))
+    boundaries[length(boundaries)] <- mz_max  # ensure exact endpoint
+  }
 
   # =========================================================================
   # Phase 4: Create final windows with validation
