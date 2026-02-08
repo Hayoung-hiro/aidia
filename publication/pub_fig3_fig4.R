@@ -28,9 +28,9 @@ optimization_plan <- plan_optimization(
   target_satisfaction = 0.70
 )
 
-windows_smoothing <- optimize_windows(
+windows_greedy <- optimize_windows(
   validated_data, optimization_plan,
-  rt_bin_width_min = 5, mz_strategy = "smoothing", window_mode = "variable",
+  rt_bin_width_min = 5, mz_strategy = "greedy", window_mode = "density",
   smoothing_window = 3, polynomial_order = 2
 )
 
@@ -51,14 +51,14 @@ plot3_simple <- ggplot(validated_data$data, aes(x = Precursor.Mz)) +
 # Excluded regions plot
 excluded_data <- validated_data$data %>%
   mutate(
-    in_range = Precursor.Mz >= min(windows_smoothing$mz_optimization$mz_ranges$mz_min) &
-               Precursor.Mz <= max(windows_smoothing$mz_optimization$mz_ranges$mz_max)
+    in_range = Precursor.Mz >= min(windows_greedy$mz_optimization$mz_ranges$mz_min) &
+               Precursor.Mz <= max(windows_greedy$mz_optimization$mz_ranges$mz_max)
   )
 
 plot3_excluded <- ggplot(excluded_data, aes(x = Precursor.Mz, fill = in_range)) +
   geom_histogram(bins = 100, alpha = 0.7) +
   scale_fill_manual(values = c("TRUE" = "steelblue", "FALSE" = "red")) +
-  labs(title = "(B) Smoothing Strategy - Coverage",
+  labs(title = "(B) Greedy Strategy - Coverage",
        x = "m/z (Da)", y = "Count", fill = "In Range") +
   theme_minimal() +
   theme(
@@ -86,7 +86,7 @@ cat("✅ Figure3_mz_optimization.png\n\n")
 
 cat("=== Figure 4: Window Width Distribution ===\n")
 
-windows <- windows_smoothing$windows
+windows <- windows_greedy$windows
 
 # Calculate density
 dens <- density(windows$window_width)
@@ -121,7 +121,7 @@ plot4 <- ggplot(windows, aes(x = window_width)) +
   ) +
   scale_y_continuous(name = "Density", expand = expansion(mult = c(0, 0.05))) +
   scale_x_continuous(name = "Window Width (Da)") +
-  labs(title = "Window Width Distribution - Smoothing Strategy") +
+  labs(title = "Window Width Distribution - Greedy Strategy") +
   theme_minimal() +
   theme(
     plot.title = element_text(size = 10, face = "bold"),

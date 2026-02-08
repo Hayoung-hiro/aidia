@@ -293,8 +293,7 @@ get_fwhm_values <- function(validated_data, unit = "seconds") {
   fwhm <- data$FWHM
 
   if (unit == "seconds") {
-    # Assume stored as minutes, convert to seconds
-    return(fwhm * 60)
+    return(ensure_fwhm_seconds(fwhm))
   } else if (unit == "minutes") {
     return(fwhm)
   } else {
@@ -764,6 +763,104 @@ format_output_filename <- function(type,
 }
 
 # =============================================================================
+# FWHM Unit Conversion
+# =============================================================================
+
+#' Ensure FWHM Values Are in Seconds
+#'
+#' Detects whether FWHM values are in minutes (median < 1) and converts
+#' to seconds if needed. Uses median-based heuristic: chromatographic FWHM
+#' is typically 5-30 seconds, so a median below 1 second is physically
+#' implausible and indicates minutes.
+#'
+#' @param fwhm_vector Numeric vector of FWHM values (may contain NAs)
+#'
+#' @return Numeric vector of FWHM values in seconds
+#' @export
+ensure_fwhm_seconds <- function(fwhm_vector) {
+  fwhm_clean <- fwhm_vector[!is.na(fwhm_vector)]
+  if (length(fwhm_clean) == 0) return(fwhm_vector)
+  if (median(fwhm_clean) < 1) {
+    return(fwhm_vector * 60)
+  }
+  return(fwhm_vector)
+}
+
+
+# =============================================================================
+# Preview / Estimation Helpers
+# =============================================================================
+
+#' Estimate Window Count for Quick Preview
+#'
+#' Quick estimation of how many MS2 windows fit given FWHM, DPPP target,
+#' and MS2 scan time. Used by Shiny preview and quick_dppp_preview.
+#'
+#' @param fwhm_median_sec Numeric, median FWHM in seconds
+#' @param target_dppp Numeric, target data points per peak
+#' @param ms2_time_sec Numeric, MS2 scan time in seconds
+#' @param min_windows Integer, minimum window count (default: 10)
+#' @param max_windows Integer, maximum window count (default: 200)
+#'
+#' @return Integer, estimated window count clamped to [min_windows, max_windows]
+#' @export
+estimate_window_count_preview <- function(fwhm_median_sec, target_dppp, ms2_time_sec,
+                                          min_windows = 10, max_windows = 200) {
+  n <- floor((1.7 * fwhm_median_sec) / (target_dppp * ms2_time_sec))
+  max(min_windows, min(max_windows, n))
+}
+
+#' Extract Gradient Name from File Path
+#'
+#' Parses gradient duration from DIA-NN report filenames (e.g., "30min", "60min").
+#'
+#' @param file_path Character, path to input file
+#'
+#' @return Character, gradient name (e.g., "30min") or "unknown"
+#' @export
+extract_gradient_name <- function(file_path) {
+  basename_file <- basename(file_path)
+
+  if (grepl("30min", basename_file)) {
+    return("30min")
+  } else if (grepl("60min", basename_file)) {
+    return("60min")
+  } else if (grepl("90min", basename_file)) {
+    return("90min")
+  } else {
+    # Generic extraction
+    matches <- regmatches(basename_file, regexpr("[0-9]+min", basename_file))
+    if (length(matches) > 0) {
+      return(matches[1])
+    } else {
+      return("unknown")
+    }
+  }
+}
+
+#' Estimate Cycle Time from Gradient Name
+#'
+#' Heuristic cycle time estimation based on gradient length:
+#' <= 30min -> 1.2s, <= 60min -> 1.6s, > 60min -> 2.0s.
+#'
+#' @param gradient_name Character, gradient name (e.g., "30min")
+#'
+#' @return Numeric, estimated cycle time in seconds
+#' @export
+estimate_cycle_time <- function(gradient_name) {
+  gradient_min <- as.numeric(gsub("min.*", "", gradient_name))
+
+  if (gradient_min <= 30) {
+    return(1.2)  # Fast gradient
+  } else if (gradient_min <= 60) {
+    return(1.6)  # Medium gradient
+  } else {
+    return(2.0)  # Long gradient
+  }
+}
+
+
+# =============================================================================
 # Module Loading
 # =============================================================================
 
@@ -776,4 +873,6 @@ cat("   - DPPP: calculate_dppp(), calculate_satisfaction_ratio()\n")
 cat("   - Performance: count_precursors_in_windows()\n")
 cat("   - Timing: create_timer()\n")
 cat("   - Naming: format_output_filename(), format_short_instrument_name()\n")
+cat("   - Shared API: ensure_fwhm_seconds(), estimate_window_count_preview()\n")
+cat("   - Shared API: extract_gradient_name(), estimate_cycle_time()\n")
 cat("   - S3 Classes: ValidatedData, OptimizationPlan, OptimizedWindows\n")

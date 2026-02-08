@@ -17,12 +17,12 @@
 #   - R/plots/plot_satisfaction.R: Satisfaction vs cycle time curve
 #   - R/stage4_export.R: Export and PDF report functions
 #
-# External Modules (from R/ root):
-#   - R/plot2b_rt_histogram.R: Binned RT histogram
-#   - R/plot4_*.R: m/z range optimization plots
-#   - R/plot5_*.R: Coverage map grid
-#   - R/plot7_*.R: Window width distribution
-#   - R/plot8_*.R: Strategy width comparison
+# Legacy Plot Modules (consolidated into R/plots/):
+#   - R/plots/plot2b_rt_histogram.R: Binned RT histogram
+#   - R/plots/plot4_*.R: m/z range optimization plots
+#   - R/plots/plot5_*.R: Coverage map grid
+#   - R/plots/plot7_*.R: Window width distribution
+#   - R/plots/plot8_*.R: Strategy width comparison
 #
 # Main Functions:
 #   1. generate_visualizations() - Main orchestration function
@@ -87,15 +87,15 @@ if (file.exists("R/stage4_export.R")) {
   source("R/stage4_export.R")
 }
 
-# External plot modules (from R/ root - for multi-strategy comparison)
+# Legacy plot modules (consolidated into R/plots/)
 external_modules <- c(
-  "R/plot2b_rt_histogram.R",
-  "R/plot4_mz_distribution_excluded.R",
-  "R/plot4_mz_width_comparison.R",
-  "R/plot4_mz_range_optimization.R",
-  "R/plot5_density_with_mz_ranges.R",
-  "R/plot7_window_width_distribution.R",
-  "R/plot8_strategy_width_comparison.R"
+  "R/plots/plot2b_rt_histogram.R",
+  "R/plots/plot4_mz_distribution_excluded.R",
+  "R/plots/plot4_mz_width_comparison.R",
+  "R/plots/plot4_mz_range_optimization.R",
+  "R/plots/plot5_density_with_mz_ranges.R",
+  "R/plots/plot7_window_width_distribution.R",
+  "R/plots/plot8_strategy_width_comparison.R"
 )
 
 for (module in external_modules) {

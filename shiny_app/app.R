@@ -67,23 +67,16 @@ for (module in stage3_modules) {
   }
 }
 
-# =============================================================================
-# Helper Functions: Instrument Type Detection
-# =============================================================================
-
-#' Check if instrument is an Orbitrap type
-#' @param instrument Character, instrument preset name
-#' @return Logical TRUE if Orbitrap
-is_orbitrap_instrument <- function(instrument) {
-  instrument %in% c("qexactive", "qexactive_hfx", "exploris", "eclipse", "fusion_lumos")
+# Source Stage 4 modules (for structured PDF report generation)
+if (source_from_parent("R/stage4_visualization.R")) {
+  cat("[Shiny] Loaded stage4_visualization.R\n")
+}
+if (source_from_parent("R/stage4_export.R")) {
+  cat("[Shiny] Loaded stage4_export.R\n")
 }
 
-#' Check if instrument is an Astral type
-#' @param instrument Character, instrument preset name
-#' @return Logical TRUE if Astral
-is_astral_instrument <- function(instrument) {
-  instrument %in% c("astral", "astral_zoom", "astral_sensitive")
-}
+## Instrument type detection: is_orbitrap_instrument(), is_astral_instrument()
+## are provided by R/instrument_utils.R (sourced above)
 
 # =============================================================================
 # UI Definition
@@ -871,9 +864,13 @@ ui <- dashboardPage(
         conditionalPanel(
           condition = "output.optimization_complete",
           fluidRow(
-            column(6, tableOutput("optimization_summary")),
-            column(6,
-              h5("Downloads", style = "margin-top: 0;"),
+            column(4, tableOutput("optimization_summary")),
+            column(4,
+              h5("m/z Range Summary", style = "margin-top: 0; color: #2c3e50; font-weight: 600;"),
+              uiOutput("mz_range_summary")
+            ),
+            column(4,
+              h5("Downloads", style = "margin-top: 0; color: #2c3e50; font-weight: 600;"),
               fluidRow(
                 column(6, downloadButton("download_csv", "CSV Method",
                                          class = "btn-success btn-block")),
@@ -1092,11 +1089,8 @@ server <- function(input, output, session) {
     # Calculate based on target DPPP if we have FWHM data
     dppp_windows <- NULL
     if (!is.null(rv$validated_data)) {
-      fwhm_median <- median(rv$validated_data$data$FWHM, na.rm = TRUE)
-      # Convert to seconds if in minutes
-      if (!is.na(fwhm_median) && fwhm_median < 1) {
-        fwhm_median <- fwhm_median * 60
-      }
+      fwhm_values <- ensure_fwhm_seconds(rv$validated_data$data$FWHM)
+      fwhm_median <- median(fwhm_values, na.rm = TRUE)
 
       if (!is.null(calc_result) && !is.na(fwhm_median)) {
         # DPPP = 1.7 x FWHM / cycle_time
@@ -1105,8 +1099,7 @@ server <- function(input, output, session) {
         # n_windows = 1.7 x fwhm / (target_dppp x ms2_time)
         target_dppp <- input$target_dppp %||% 7.0
         ms2_time_sec <- calc_result$ms2$scan_time_ms / 1000
-        dppp_windows <- floor((1.7 * fwhm_median) / (target_dppp * ms2_time_sec))
-        dppp_windows <- max(10, min(200, dppp_windows))  # Clamp to reasonable range
+        dppp_windows <- estimate_window_count_preview(fwhm_median, target_dppp, ms2_time_sec)
       }
     }
 
@@ -1156,13 +1149,12 @@ server <- function(input, output, session) {
       # Estimate if no plan yet
       if (is.null(n_windows) && !is.null(rv$validated_data)) {
         calc_result <- cycle_time_result()
-        fwhm_median <- median(rv$validated_data$data$FWHM, na.rm = TRUE)
-        if (!is.na(fwhm_median) && fwhm_median < 1) fwhm_median <- fwhm_median * 60
+        fwhm_values <- ensure_fwhm_seconds(rv$validated_data$data$FWHM)
+        fwhm_median <- median(fwhm_values, na.rm = TRUE)
         if (!is.null(calc_result) && !is.na(fwhm_median)) {
           target_dppp <- input$target_dppp %||% 7.0
           ms2_time_sec <- calc_result$ms2$scan_time_ms / 1000
-          n_windows <- floor((1.7 * fwhm_median) / (target_dppp * ms2_time_sec))
-          n_windows <- max(10, min(200, n_windows))
+          n_windows <- estimate_window_count_preview(fwhm_median, target_dppp, ms2_time_sec)
         }
       }
 
@@ -1994,24 +1986,124 @@ server <- function(input, output, session) {
       "N/A (TOF)"
     }
 
-    data.frame(
-      Metric = c(
-        "Total Windows",
-        "RT Bins",
-        "RT Bin Width (min)",
-        "IT Mode",
-        "Mean Width (Da)",
-        "Coverage (%)",
-        "Recommended Cycle Time (sec)"
+    # Build metrics dynamically (include DPPP verification if available)
+    metrics <- c(
+      "Total Windows",
+      "RT Bins",
+      "RT Bin Width (min)",
+      "IT Mode",
+      "Mean Width (Da)",
+      "Coverage (%)",
+      "Planned Cycle Time (sec)"
+    )
+    values <- c(
+      nrow(windows),
+      length(unique(windows$rt_segment_id)),
+      sprintf("%.1f", params$rt_bin_width_min),
+      it_mode_display,
+      sprintf("%.1f", mean(windows$window_width)),
+      sprintf("%.1f%%", rv$optimized_windows$statistics$coverage_percentage),
+      sprintf("%.2f", plan$required_cycle_time_sec)
+    )
+
+    # Add DPPP re-verification results if available
+    dppp_v <- rv$optimized_windows$dppp_verification
+    if (!is.null(dppp_v)) {
+      metrics <- c(metrics,
+        "Actual Cycle Time (sec)",
+        "Actual DPPP (median)",
+        "DPPP Deviation (%)"
+      )
+      deviation_str <- sprintf("%.1f%%", dppp_v$deviation_pct)
+      if (abs(dppp_v$deviation_pct) > 5) {
+        deviation_str <- paste(deviation_str, "(WARNING)")
+      } else {
+        deviation_str <- paste(deviation_str, "(PASS)")
+      }
+      values <- c(values,
+        sprintf("%.3f", dppp_v$actual_cycle_time_sec),
+        sprintf("%.2f", dppp_v$actual_dppp_median),
+        deviation_str
+      )
+    }
+
+    data.frame(Metric = metrics, Value = values)
+  })
+
+  # --- Output: m/z Range Summary (post-optimization) ---
+  output$mz_range_summary <- renderUI({
+    req(rv$optimized_windows)
+
+    windows <- rv$optimized_windows$windows
+    params <- rv$optimized_windows$parameters
+
+    # Overall m/z range from optimized windows
+    mz_min <- min(windows$mz_start, na.rm = TRUE)
+    mz_max <- max(windows$mz_end, na.rm = TRUE)
+    mz_span <- mz_max - mz_min
+
+    # Per-RT-bin statistics
+    n_rt_bins <- length(unique(windows$rt_segment_id))
+    windows_per_bin <- nrow(windows) / n_rt_bins
+
+    # Width statistics
+    min_width <- min(windows$window_width, na.rm = TRUE)
+    max_width <- max(windows$window_width, na.rm = TRUE)
+    mean_width <- mean(windows$window_width, na.rm = TRUE)
+
+    # Strategy label
+    strategy_label <- if (exists("format_strategy_label")) {
+      format_strategy_label(params$mz_strategy)
+    } else {
+      toupper(params$mz_strategy)
+    }
+
+    tags$div(
+      style = "font-size: 13px;",
+
+      # Strategy badge
+      tags$div(
+        style = "margin-bottom: 10px;",
+        tags$span(
+          style = "background: #2c3e50; color: white; padding: 4px 10px; border-radius: 4px; font-weight: 600; font-size: 12px;",
+          strategy_label
+        ),
+        tags$span(
+          style = "background: #16a085; color: white; padding: 4px 10px; border-radius: 4px; font-weight: 600; font-size: 12px; margin-left: 4px;",
+          params$window_mode %||% "density"
+        )
       ),
-      Value = c(
-        nrow(windows),
-        length(unique(windows$rt_segment_id)),
-        sprintf("%.1f", params$rt_bin_width_min),
-        it_mode_display,
-        sprintf("%.1f", mean(windows$window_width)),
-        sprintf("%.1f%%", rv$optimized_windows$statistics$coverage_percentage),
-        sprintf("%.2f", plan$required_cycle_time_sec)
+
+      # m/z range
+      tags$div(
+        style = "padding: 8px; background: #f8f9fa; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #3498db;",
+        tags$div(
+          style = "font-weight: 600; color: #2c3e50;",
+          sprintf("m/z Range: %.1f - %.1f Da (%.0f Da span)", mz_min, mz_max, mz_span)
+        ),
+        tags$div(
+          style = "color: #7f8c8d; font-size: 12px; margin-top: 4px;",
+          sprintf("%.0f windows/bin | %d RT bins", windows_per_bin, n_rt_bins)
+        )
+      ),
+
+      # Width distribution
+      tags$div(
+        style = "padding: 8px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #1abc9c;",
+        tags$div(
+          style = "font-weight: 600; color: #2c3e50;",
+          "Window Width Distribution"
+        ),
+        tags$div(
+          style = "margin-top: 4px; color: #34495e;",
+          sprintf("Min: %.1f Da | Mean: %.1f Da | Max: %.1f Da", min_width, mean_width, max_width)
+        ),
+        if (params$window_mode == "density") {
+          tags$div(
+            style = "color: #7f8c8d; font-size: 11px; margin-top: 4px; font-style: italic;",
+            sprintf("Variable width ratio: %.1fx (max/min)", max_width / max(min_width, 0.1))
+          )
+        }
       )
     )
   })
@@ -2040,41 +2132,26 @@ server <- function(input, output, session) {
       DT::formatRound(columns = c("mz_start", "mz_end", "window_width"), digits = 2)
   })
 
-  # --- Helper: Generate descriptive filename ---
-  generate_output_filename <- function(prefix, extension) {
-    # Build filename components
-    parts <- c(prefix)
-
-    # Add sample name if provided
-    sample_name <- trimws(input$sample_name %||% "")
-    if (nchar(sample_name) > 0) {
-      # Sanitize: replace spaces and special chars with underscores
-      sample_name <- gsub("[^a-zA-Z0-9_-]", "_", sample_name)
-      parts <- c(parts, sample_name)
-    }
-
-    # Add condition if provided
-    condition <- trimws(input$condition %||% "")
-    if (nchar(condition) > 0) {
-      condition <- gsub("[^a-zA-Z0-9_-]", "_", condition)
-      parts <- c(parts, condition)
-    }
-
-    # Add instrument and strategy
-    parts <- c(parts, input$instrument)
-    parts <- c(parts, input$mz_strategy)
-
-    # Add date
-    parts <- c(parts, format(Sys.Date(), "%Y%m%d"))
-
-    # Combine with underscores
-    paste0(paste(parts, collapse = "_"), ".", extension)
+  # --- Helper: Generate descriptive filename using pipeline convention ---
+  # Uses format_output_filename() from utils_common.R:
+  # {type}_{instrument}_{strategy}_{window}_{rt}_{date}.{ext}
+  shiny_output_filename <- function(type, ext) {
+    params <- rv$optimized_windows$parameters
+    format_output_filename(
+      type = type,
+      instrument_preset = input$instrument,
+      strategy = input$mz_strategy,
+      window_mode = input$window_mode %||% "density",
+      rt_binning_mode = input$rt_binning_mode %||% "fixed",
+      rt_bin_width_min = params$rt_bin_width_min %||% 5,
+      ext = ext
+    )
   }
 
   # --- Download Handler: CSV Method File ---
   output$download_csv <- downloadHandler(
     filename = function() {
-      generate_output_filename("method", "csv")
+      shiny_output_filename("method", "csv")
     },
     content = function(file) {
       req(rv$optimized_windows, rv$validated_data)
@@ -2105,7 +2182,7 @@ server <- function(input, output, session) {
   # --- Download Handler: PDF Report ---
   output$download_pdf <- downloadHandler(
     filename = function() {
-      generate_output_filename("report", "pdf")
+      shiny_output_filename("report", "pdf")
     },
     content = function(file) {
       req(rv$optimized_windows, rv$validated_data, rv$optimization_plan)
@@ -2114,83 +2191,37 @@ server <- function(input, output, session) {
                        duration = NULL, type = "message")
 
       tryCatch({
-        cat("[Shiny] Generating PDF report...\n")
+        cat("[Shiny] Generating structured PDF report via generate_visualizations()...\n")
 
-        # Generate core plots for PDF report
-        plots <- list()
+        # Use the pipeline's Stage 4 to generate plots + structured PDF
+        # generate_visualizations() calls create_pdf_report() internally
+        temp_dir <- tempdir()
+        viz_output_dir <- file.path(temp_dir, "shiny_report")
+        if (!dir.exists(viz_output_dir)) dir.create(viz_output_dir, recursive = TRUE)
 
-        # Plot 1: DPPP Comparison
-        cat("[Shiny] Generating DPPP plot...\n")
-        plots[[1]] <- plot_dppp_comparison(rv$optimization_plan, rv$validated_data)
+        # Generate all visualizations (single-strategy mode for Shiny)
+        viz_result <- generate_visualizations(
+          validated_data = rv$validated_data,
+          optimization_plan = rv$optimization_plan,
+          optimized_windows = rv$optimized_windows,
+          output_dir = viz_output_dir,
+          create_pdf = FALSE,               # We'll create PDF separately with our filename
+          create_individual_plots = FALSE,   # Skip individual PNGs in Shiny
+          windows_list = setNames(
+            list(rv$optimized_windows),
+            input$mz_strategy
+          )
+        )
 
-        # Plot 2: Coverage Map (RT x m/z with optimization boundaries)
-        cat("[Shiny] Generating coverage map...\n")
-        plots[[2]] <- plot_density_with_mz_range(rv$optimized_windows, rv$validated_data)
-
-        # Plot 3: m/z Normalized Density
-        cat("[Shiny] Generating m/z normalized density plot...\n")
-        plots[[3]] <- plot_mz_normalized_density(rv$optimized_windows, rv$validated_data)
-
-        # Plot 4: Window Width Distribution
-        cat("[Shiny] Generating window width distribution...\n")
-        plots[[4]] <- plot_window_width_distribution(rv$optimized_windows, rv$validated_data)
-
-        # Create PDF directly (no empty pages)
-        cat("[Shiny] Creating PDF file...\n")
-        pdf(file, width = 12, height = 8)
-
-        # Build title info
-        sample_name <- trimws(input$sample_name %||% "")
-        condition <- trimws(input$condition %||% "")
-        title_line2 <- ""
-        if (nchar(sample_name) > 0 || nchar(condition) > 0) {
-          title_parts <- c()
-          if (nchar(sample_name) > 0) title_parts <- c(title_parts, paste("Sample:", sample_name))
-          if (nchar(condition) > 0) title_parts <- c(title_parts, paste("Condition:", condition))
-          title_line2 <- paste(title_parts, collapse = " | ")
-        }
-
-        # Title page
-        grid::grid.newpage()
-        grid::grid.text("DIA Window Optimization Report",
-                        x = 0.5, y = 0.75,
-                        gp = grid::gpar(fontsize = 24, fontface = "bold"))
-
-        # Sample/Condition info (if provided)
-        if (nchar(title_line2) > 0) {
-          grid::grid.text(title_line2,
-                          x = 0.5, y = 0.65,
-                          gp = grid::gpar(fontsize = 16, col = "#3498db"))
-        }
-
-        grid::grid.text(sprintf("Generated: %s", Sys.time()),
-                        x = 0.5, y = 0.55,
-                        gp = grid::gpar(fontsize = 14))
-        grid::grid.text(sprintf("Instrument: %s | Strategy: %s",
-                                rv$optimization_plan$instrument$preset,
-                                input$mz_strategy),
-                        x = 0.5, y = 0.45,
-                        gp = grid::gpar(fontsize = 12))
-        grid::grid.text(sprintf("Windows: %d | Coverage: %.1f%%",
-                                nrow(rv$optimized_windows$windows),
-                                rv$optimized_windows$statistics$coverage_percentage),
-                        x = 0.5, y = 0.38,
-                        gp = grid::gpar(fontsize = 12))
-
-        # Print each plot on its own page (no empty pages)
-        for (i in seq_along(plots)) {
-          if (!is.null(plots[[i]])) {
-            # Check if it's a grob (grid object) or ggplot
-            if (inherits(plots[[i]], "grob") || inherits(plots[[i]], "gtable")) {
-              grid::grid.newpage()
-              grid::grid.draw(plots[[i]])
-            } else {
-              print(plots[[i]])
-            }
-          }
-        }
-
-        dev.off()
+        # Create structured PDF using the pipeline's create_pdf_report()
+        cat("[Shiny] Creating structured PDF with create_pdf_report()...\n")
+        create_pdf_report(
+          plots = viz_result$plots,
+          validated_data = rv$validated_data,
+          optimization_plan = rv$optimization_plan,
+          optimized_windows = rv$optimized_windows,
+          output_file = file
+        )
 
         removeNotification("pdf_progress")
         cat("[Shiny] PDF report generated successfully!\n")

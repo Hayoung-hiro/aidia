@@ -656,6 +656,44 @@ get_instrument_config <- function(preset_name) {
 }
 
 # =============================================================================
+# Instrument Classification
+# =============================================================================
+
+#' Get Instrument Analyzer Type
+#'
+#' Returns the analyzer_type field from the instrument configuration.
+#'
+#' @param preset_name Character, instrument preset name
+#'
+#' @return Character, analyzer type (e.g., "orbitrap", "astral")
+#' @export
+get_instrument_analyzer_type <- function(preset_name) {
+  config <- get_instrument_config(preset_name)
+  config$analyzer_type
+}
+
+#' Check if Instrument is Orbitrap-Based
+#'
+#' @param preset_name Character, instrument preset name
+#'
+#' @return Logical, TRUE if the instrument uses an Orbitrap analyzer
+#' @export
+is_orbitrap_instrument <- function(preset_name) {
+  get_instrument_analyzer_type(preset_name) == "orbitrap"
+}
+
+#' Check if Instrument is Astral-Based
+#'
+#' @param preset_name Character, instrument preset name
+#'
+#' @return Logical, TRUE if the instrument uses an Astral analyzer
+#' @export
+is_astral_instrument <- function(preset_name) {
+  get_instrument_analyzer_type(preset_name) == "astral"
+}
+
+
+# =============================================================================
 # Information and Listing
 # =============================================================================
 

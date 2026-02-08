@@ -11,7 +11,7 @@ source("R/stage1_data_validation.R")
 source("R/stage2_optimization_planning.R")
 source("R/stage3_window_optimization.R")
 source("R/stage4_visualization.R")
-source("R/plot5_density_with_mz_ranges.R")
+source("R/plots/plot5_density_with_mz_ranges.R")
 
 OUTPUT_DIR <- "publication_ready"
 dir.create(OUTPUT_DIR, showWarnings = FALSE)
@@ -42,28 +42,28 @@ optimization_plan <- plan_optimization(
 # Generate all 4 strategies
 windows_quantile <- optimize_windows(
   validated_data, optimization_plan,
-  rt_bin_width_min = 5, mz_strategy = "quantile", window_mode = "variable"
+  rt_bin_width_min = 5, mz_strategy = "quantile", window_mode = "density"
 )
 
-windows_smoothing <- optimize_windows(
+windows_greedy <- optimize_windows(
   validated_data, optimization_plan,
-  rt_bin_width_min = 5, mz_strategy = "smoothing", window_mode = "variable",
+  rt_bin_width_min = 5, mz_strategy = "greedy", window_mode = "density",
   smoothing_window = 3, polynomial_order = 2
 )
 
 windows_outlier <- optimize_windows(
   validated_data, optimization_plan,
-  rt_bin_width_min = 5, mz_strategy = "outlier", window_mode = "variable"
+  rt_bin_width_min = 5, mz_strategy = "outlier", window_mode = "density"
 )
 
 windows_coverage <- optimize_windows(
   validated_data, optimization_plan,
-  rt_bin_width_min = 5, mz_strategy = "coverage", window_mode = "variable"
+  rt_bin_width_min = 5, mz_strategy = "coverage", window_mode = "density"
 )
 
 windows_list <- list(
   quantile = windows_quantile,
-  smoothing = windows_smoothing,
+  greedy = windows_greedy,
   outlier = windows_outlier,
   coverage = windows_coverage
 )
@@ -138,8 +138,8 @@ plot3a <- ggplot(validated_data$data, aes(x = Precursor.Mz)) +
 # Panel B: Excluded regions
 excluded_data <- validated_data$data %>%
   mutate(
-    in_range = Precursor.Mz >= min(windows_smoothing$mz_optimization$mz_ranges$mz_min) &
-               Precursor.Mz <= max(windows_smoothing$mz_optimization$mz_ranges$mz_max)
+    in_range = Precursor.Mz >= min(windows_greedy$mz_optimization$mz_ranges$mz_min) &
+               Precursor.Mz <= max(windows_greedy$mz_optimization$mz_ranges$mz_max)
   )
 
 plot3b <- ggplot(excluded_data, aes(x = Precursor.Mz, fill = in_range)) +
@@ -149,7 +149,7 @@ plot3b <- ggplot(excluded_data, aes(x = Precursor.Mz, fill = in_range)) +
     labels = c("TRUE" = "In Range", "FALSE" = "Excluded")
   ) +
   labs(
-    title = "(B) Smoothing Strategy - Coverage",
+    title = "(B) Greedy Strategy - Coverage",
     x = "m/z (Da)",
     y = "Count",
     fill = ""
@@ -185,7 +185,7 @@ cat("✅ Figure3_mz_optimization.png (16:9 ratio, 2x1 grid)\n")
 
 cat("\n=== Figure 4: Window Width Distribution ===\n")
 
-windows <- windows_smoothing$windows
+windows <- windows_greedy$windows
 
 # Calculate density
 dens <- density(windows$window_width)
@@ -223,7 +223,7 @@ plot4 <- ggplot(windows, aes(x = window_width)) +
     expand = expansion(mult = c(0, 0.05))
   ) +
   scale_x_continuous(name = "Window Width (Da)") +
-  labs(title = "Window Width Distribution - Smoothing Strategy") +
+  labs(title = "Window Width Distribution - Greedy Strategy") +
   theme_minimal() +
   theme(
     plot.title = element_text(size = 11, face = "bold"),

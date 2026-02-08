@@ -92,7 +92,7 @@ if (file.exists("publication_ready/pipeline_data.rds")) {
   cached <- readRDS("publication_ready/pipeline_data.rds")
   validated_data <- cached$validated_data
   optimization_plan <- cached$optimization_plan
-  windows_smoothing <- cached$windows_smoothing
+  windows_greedy <- cached$windows_greedy
   windows_list <- cached$windows_list
 } else {
   cat("Running fresh pipeline...\n")
@@ -111,13 +111,13 @@ if (file.exists("publication_ready/pipeline_data.rds")) {
     target_satisfaction = 0.70
   )
 
-  # Smoothing only (for speed)
-  windows_smoothing <- optimize_windows(
+  # Greedy only (for speed)
+  windows_greedy <- optimize_windows(
     validated_data = validated_data,
     optimization_plan = optimization_plan,
     rt_bin_width_min = 5,
-    mz_strategy = "smoothing",
-    window_mode = "variable",
+    mz_strategy = "greedy",
+    window_mode = "density",
     smoothing_window = 3,
     polynomial_order = 2
   )
@@ -126,7 +126,7 @@ if (file.exists("publication_ready/pipeline_data.rds")) {
   saveRDS(list(
     validated_data = validated_data,
     optimization_plan = optimization_plan,
-    windows_smoothing = windows_smoothing
+    windows_greedy = windows_greedy
   ), "publication_ready/pipeline_data.rds")
 }
 

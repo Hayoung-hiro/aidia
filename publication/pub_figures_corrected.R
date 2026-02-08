@@ -1,8 +1,8 @@
 # Publication Figures with 16:9 Aspect Ratio (Corrected - Using Original Functions)
 # - Figure 1: DPPP comparison WITHOUT legend
 # - Figure 2: Skip (already OK)
-# - Figure 3: plot3 (mz_normalized_density) + plot4 (smoothing excluded) in 1×2 layout
-# - Figure 4: plot7 (smoothing window_width_distribution) with adjusted variable width scale
+# - Figure 3: plot3 (mz_normalized_density) + plot4 (greedy excluded) in 1×2 layout
+# - Figure 4: plot7 (greedy window_width_distribution) with adjusted density width scale
 
 library(ggplot2)
 library(dplyr)
@@ -15,8 +15,8 @@ source("R/stage1_data_validation.R")
 source("R/stage2_optimization_planning.R")
 source("R/stage3_window_optimization.R")
 source("R/stage4_visualization.R")
-source("R/plot4_mz_distribution_excluded.R")
-source("R/plot7_window_width_distribution.R")
+source("R/plots/plot4_mz_distribution_excluded.R")
+source("R/plots/plot7_window_width_distribution.R")
 
 OUTPUT_DIR <- "publication_ready"
 dir.create(OUTPUT_DIR, showWarnings = FALSE)
@@ -44,10 +44,10 @@ optimization_plan <- plan_optimization(
   target_satisfaction = 0.70
 )
 
-# Generate smoothing strategy windows
-windows_smoothing <- optimize_windows(
+# Generate greedy strategy windows
+windows_greedy <- optimize_windows(
   validated_data, optimization_plan,
-  rt_bin_width_min = 5, mz_strategy = "smoothing", window_mode = "variable",
+  rt_bin_width_min = 5, mz_strategy = "greedy", window_mode = "density",
   smoothing_window = 3, polynomial_order = 2
 )
 
@@ -79,15 +79,15 @@ cat("✅ Figure1_DPPP_comparison.png (16:9 ratio, legend removed)\n")
 # Using ORIGINAL stage4 functions
 # =============================================================================
 
-cat("\n=== Figure 3: plot3 (mz_normalized_density) + plot4 (smoothing excluded) ===\n")
+cat("\n=== Figure 3: plot3 (mz_normalized_density) + plot4 (greedy excluded) ===\n")
 
 # Plot 3: m/z Normalized Density (original function from stage4_visualization.R)
-plot3_original <- plot_mz_normalized_density(windows_smoothing, validated_data)
+plot3_original <- plot_mz_normalized_density(windows_greedy, validated_data)
 
-# Plot 4: m/z Distribution with Excluded Regions (smoothing strategy, 6 bins)
+# Plot 4: m/z Distribution with Excluded Regions (greedy strategy, 6 bins)
 # Original function from plot4_mz_distribution_excluded.R
 plot4_original <- plot_mz_distribution_with_exclusions(
-  windows_smoothing, validated_data, max_bins_to_show = 6
+  windows_greedy, validated_data, max_bins_to_show = 6
 )
 
 # Combine in 1×2 layout (side by side)
@@ -108,7 +108,7 @@ ggsave(
   bg = "white"
 )
 
-cat("✅ Figure3_mz_optimization.png (16:9 ratio, 1×2 grid: plot3 + plot4 smoothing)\n")
+cat("✅ Figure3_mz_optimization.png (16:9 ratio, 1×2 grid: plot3 + plot4 greedy)\n")
 
 # =============================================================================
 # Figure 4: plot7 Window Width Distribution (16:9, adjusted variable width scale)
@@ -124,7 +124,7 @@ cat("\n=== Figure 4: plot7 Window Width Distribution (Smoothing Strategy) ===\n"
 # The scaling is done internally via scaling_factor
 
 plot7_original <- plot_window_width_distribution(
-  windows_smoothing, validated_data, max_segments_to_show = 6
+  windows_greedy, validated_data, max_segments_to_show = 6
 )
 
 # Save directly (it's already a grid object with 6 panels)
@@ -150,8 +150,8 @@ cat("╚════════════════════════
 cat("Output files in publication_ready/:\n")
 cat("  ├── Figure1_DPPP_comparison.png (16:9, legend removed)\n")
 cat("  ├── Figure2_coverage_map.png (16:9, skipped - already OK)\n")
-cat("  ├── Figure3_mz_optimization.png (16:9, 1×2: plot3 + plot4 smoothing)\n")
-cat("  └── Figure4_window_width.png (16:9, plot7 smoothing with dual y-axis)\n\n")
+cat("  ├── Figure3_mz_optimization.png (16:9, 1×2: plot3 + plot4 greedy)\n")
+cat("  └── Figure4_window_width.png (16:9, plot7 greedy with dual y-axis)\n\n")
 
 cat("All figures use ORIGINAL functions from:\n")
 cat("  - stage4_visualization.R: plot_dppp_comparison_enhanced(), plot_mz_normalized_density()\n")

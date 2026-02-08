@@ -251,12 +251,12 @@ run_complete_pipeline <- function(
       )
       method_path <- file.path(output_dir, method_filename)
 
-      export_windows_thermo_format(
-        windows_result = windows_result,
-        optimization_plan = optimization_plan,
+      export_windows_to_csv(
+        optimized_windows = windows_result,
+        output_file = method_path,
         validated_data = validated_data,
-        gradient_name = gradient_name,
-        output_path = method_path
+        optimization_plan = optimization_plan,
+        instrument_type = instrument_preset
       )
 
       if (verbose) {
@@ -473,125 +473,6 @@ run_complete_pipeline <- function(
   }
 
   return(invisible(all_results))
-}
-
-# =============================================================================
-# Helper Functions
-# =============================================================================
-
-#' Estimate initial cycle time based on gradient length
-#'
-#' @param gradient_name Gradient identifier (e.g., "30min", "60min")
-#' @return Estimated cycle time in seconds
-estimate_cycle_time <- function(gradient_name) {
-  gradient_min <- as.numeric(gsub("min.*", "", gradient_name))
-
-  if (gradient_min <= 30) {
-    return(1.2)  # Fast gradient
-  } else if (gradient_min <= 60) {
-    return(1.6)  # Medium gradient
-  } else {
-    return(2.0)  # Long gradient
-  }
-}
-
-#' Extract gradient name from file path
-#'
-#' @param file_path Path to input file
-#' @return Gradient name (e.g., "30min")
-extract_gradient_name <- function(file_path) {
-  basename_file <- basename(file_path)
-
-  if (grepl("30min", basename_file)) {
-    return("30min")
-  } else if (grepl("60min", basename_file)) {
-    return("60min")
-  } else if (grepl("90min", basename_file)) {
-    return("90min")
-  } else {
-    # Generic extraction
-    matches <- regmatches(basename_file, regexpr("[0-9]+min", basename_file))
-    if (length(matches) > 0) {
-      return(matches[1])
-    } else {
-      return("unknown")
-    }
-  }
-}
-
-#' Export windows in Thermo Orbitrap 22-column format
-#'
-#' @param windows_result OptimizedWindows object
-#' @param optimization_plan OptimizationPlan object
-#' @param validated_data ValidatedData object
-#' @param gradient_name Gradient identifier
-#' @param output_path Output file path
-export_windows_thermo_format <- function(
-  windows_result,
-  optimization_plan,
-  validated_data,
-  gradient_name,
-  output_path
-) {
-
-  windows <- windows_result$windows
-
-  # Extract metadata
-  instrument_name <- optimization_plan$instrument$name
-  strategy <- windows_result$parameters$mz_strategy
-  mode <- windows_result$parameters$window_mode
-  recommended_cycle_time <- optimization_plan$required_cycle_time_sec
-
-  # Calculate overlap
-  overlap_prev <- c(0, diff(windows$mz_start))
-  overlap_prev[overlap_prev < 0] <- 0
-
-  overlap_next <- c(diff(windows$mz_end), 0)
-  overlap_next[overlap_next < 0] <- 0
-
-  # Create 22-column Thermo CSV
-  csv_data <- windows %>%
-    mutate(
-      Compound = "",
-      Formula = "",
-      Adduct = "",
-      `m/z` = round((mz_start + mz_end) / 2, 1),
-      z = 2,
-      `t start (min)` = round(rt_start, 1),
-      `t stop (min)` = round(rt_end, 1),
-      `Isolation Window (m/z)` = round(window_width, 1),
-      `Normalized AGC Target (%)` = 100,
-      `Start (m/z)` = round(mz_start, 1),
-      `End (m/z)` = round(mz_end, 1),
-      Window_ID = row_number(),
-      RT_Segment_ID = rt_segment_id,
-      RT_Center = round((rt_start + rt_end) / 2, 1),
-      RT_Width = round(rt_end - rt_start, 1),
-      N_Precursors = n_precursors,
-      Overlap_Prev = round(overlap_prev[row_number()], 1),
-      Overlap_Next = round(overlap_next[row_number()], 1),
-      Instrument = instrument_name,
-      Generation_Method = paste0(strategy, "_", mode),
-      Window_Type = mode,
-      Recommended_Cycle_Time_Sec = round(recommended_cycle_time, 3)
-    ) %>%
-    select(
-      Compound, Formula, Adduct,
-      `m/z`, z,
-      `t start (min)`, `t stop (min)`,
-      `Isolation Window (m/z)`,
-      `Normalized AGC Target (%)`,
-      `Start (m/z)`, `End (m/z)`,
-      Window_ID, RT_Segment_ID, RT_Center, RT_Width,
-      N_Precursors,
-      Overlap_Prev, Overlap_Next,
-      Instrument, Generation_Method, Window_Type,
-      Recommended_Cycle_Time_Sec
-    )
-
-  write.csv(csv_data, output_path, row.names = FALSE)
-
-  return(invisible(csv_data))
 }
 
 # =============================================================================

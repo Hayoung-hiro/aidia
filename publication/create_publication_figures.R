@@ -78,13 +78,13 @@ optimization_plan <- plan_optimization(
   target_satisfaction = TARGET_SATISFACTION
 )
 
-# Stage 3: Window Optimization (Smoothing strategy only for publication)
-windows_smoothing <- optimize_windows(
+# Stage 3: Window Optimization (Greedy strategy only for publication)
+windows_greedy <- optimize_windows(
   validated_data = validated_data,
   optimization_plan = optimization_plan,
   rt_bin_width_min = 5,
-  mz_strategy = "smoothing",
-  window_mode = "variable",
+  mz_strategy = "greedy",
+  window_mode = "density",
   smoothing_window = 3,
   polynomial_order = 2
 )
@@ -95,7 +95,7 @@ windows_quantile <- optimize_windows(
   optimization_plan = optimization_plan,
   rt_bin_width_min = 5,
   mz_strategy = "quantile",
-  window_mode = "variable"
+  window_mode = "density"
 )
 
 windows_outlier <- optimize_windows(
@@ -103,7 +103,7 @@ windows_outlier <- optimize_windows(
   optimization_plan = optimization_plan,
   rt_bin_width_min = 5,
   mz_strategy = "outlier",
-  window_mode = "variable"
+  window_mode = "density"
 )
 
 windows_coverage <- optimize_windows(
@@ -111,12 +111,12 @@ windows_coverage <- optimize_windows(
   optimization_plan = optimization_plan,
   rt_bin_width_min = 5,
   mz_strategy = "coverage",
-  window_mode = "variable"
+  window_mode = "density"
 )
 
 windows_list <- list(
   quantile = windows_quantile,
-  smoothing = windows_smoothing,
+  greedy = windows_greedy,
   outlier = windows_outlier,
   coverage = windows_coverage
 )
@@ -197,8 +197,8 @@ cat("\nFigure 2: Coverage Map 2×2 Grid\n")
 cat("─────────────────────────────────────────────────────────────\n")
 
 # Source plot5 function
-if (file.exists("R/plot5_density_with_mz_ranges.R")) {
-  source("R/plot5_density_with_mz_ranges.R")
+if (file.exists("R/plots/plot5_density_with_mz_ranges.R")) {
+  source("R/plots/plot5_density_with_mz_ranges.R")
 }
 
 # Generate coverage map
@@ -223,16 +223,16 @@ save_publication_plot(plot5_pub, "Figure2_coverage_map_2x2.png",
                      width_cm = 8, height_cm = 4.5)
 
 # =============================================================================
-# Figure 3: plot3 + plot4_smoothing Grid 2x1 (8cm x 4.5cm)
+# Figure 3: plot3 + plot4_greedy Grid 2x1 (8cm x 4.5cm)
 # =============================================================================
 
-cat("\nFigure 3: m/z Density + Smoothing Optimization (2×1 Grid)\n")
+cat("\nFigure 3: m/z Density + Greedy Optimization (2×1 Grid)\n")
 cat("─────────────────────────────────────────────────────────────\n")
 
 # Generate plot3: m/z density overlay
 plot3 <- plot_mz_density_overlay(
   validated_data = validated_data,
-  optimized_windows = windows_smoothing
+  optimized_windows = windows_greedy
 )
 
 # Adjust for grid layout
@@ -249,19 +249,19 @@ plot3_pub <- plot3 +
   ) +
   labs(title = "(A) m/z Density by RT Segment")
 
-# Generate plot4: smoothing m/z excluded
-if (file.exists("R/plot4_mz_distribution_excluded.R")) {
-  source("R/plot4_mz_distribution_excluded.R")
+# Generate plot4: greedy m/z excluded
+if (file.exists("R/plots/plot4_mz_distribution_excluded.R")) {
+  source("R/plots/plot4_mz_distribution_excluded.R")
 }
 
-plot4_smoothing <- plot_mz_distribution_excluded(
+plot4_greedy <- plot_mz_distribution_excluded(
   validated_data = validated_data,
-  optimized_windows = windows_smoothing,
-  strategy_name = "smoothing"
+  optimized_windows = windows_greedy,
+  strategy_name = "greedy"
 )
 
 # Adjust for grid layout
-plot4_pub <- plot4_smoothing +
+plot4_pub <- plot4_greedy +
   theme_minimal() +
   theme(
     plot.title = element_text(size = 9, face = "bold"),
@@ -270,7 +270,7 @@ plot4_pub <- plot4_smoothing +
     legend.position = "none",
     plot.margin = margin(5, 5, 5, 5, "pt")
   ) +
-  labs(title = "(B) Smoothing Strategy - Excluded Precursors")
+  labs(title = "(B) Greedy Strategy - Excluded Precursors")
 
 # Combine into 2x1 grid
 figure3_combined <- grid.arrange(
@@ -284,19 +284,19 @@ save_publication_plot(figure3_combined, "Figure3_mz_density_optimization.png",
                      width_cm = 8, height_cm = 4.5)
 
 # =============================================================================
-# Figure 4: plot7_smoothing with Adjusted Variable Width Scale
+# Figure 4: plot7_greedy with Adjusted Density Width Scale
 # =============================================================================
 
 cat("\nFigure 4: Window Width Distribution (Adjusted Scale)\n")
 cat("─────────────────────────────────────────────────────────────\n")
 
 # Source plot7 function
-if (file.exists("R/plot7_window_width_distribution.R")) {
-  source("R/plot7_window_width_distribution.R")
+if (file.exists("R/plots/plot7_window_width_distribution.R")) {
+  source("R/plots/plot7_window_width_distribution.R")
 }
 
 # Create adjusted version of plot7
-plot_window_width_adjusted <- function(optimized_windows, strategy_name = "smoothing") {
+plot_window_width_adjusted <- function(optimized_windows, strategy_name = "greedy") {
 
   windows <- optimized_windows$windows
 
@@ -380,8 +380,8 @@ plot_window_width_adjusted <- function(optimized_windows, strategy_name = "smoot
 
 # Generate adjusted plot7
 plot7_adjusted <- plot_window_width_adjusted(
-  optimized_windows = windows_smoothing,
-  strategy_name = "smoothing"
+  optimized_windows = windows_greedy,
+  strategy_name = "greedy"
 )
 
 save_publication_plot(plot7_adjusted, "Figure4_window_width_adjusted.png",

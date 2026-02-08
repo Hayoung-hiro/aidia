@@ -51,28 +51,28 @@ cat("\nStep 3: Window optimization (4 strategies)...\n")
 
 windows_quantile <- optimize_windows(
   validated_data, optimization_plan,
-  rt_bin_width_min = 5, mz_strategy = "quantile", window_mode = "variable"
+  rt_bin_width_min = 5, mz_strategy = "quantile", window_mode = "density"
 )
 
-windows_smoothing <- optimize_windows(
+windows_greedy <- optimize_windows(
   validated_data, optimization_plan,
-  rt_bin_width_min = 5, mz_strategy = "smoothing", window_mode = "variable",
+  rt_bin_width_min = 5, mz_strategy = "greedy", window_mode = "density",
   smoothing_window = 3, polynomial_order = 2
 )
 
 windows_outlier <- optimize_windows(
   validated_data, optimization_plan,
-  rt_bin_width_min = 5, mz_strategy = "outlier", window_mode = "variable"
+  rt_bin_width_min = 5, mz_strategy = "outlier", window_mode = "density"
 )
 
 windows_coverage <- optimize_windows(
   validated_data, optimization_plan,
-  rt_bin_width_min = 5, mz_strategy = "coverage", window_mode = "variable"
+  rt_bin_width_min = 5, mz_strategy = "coverage", window_mode = "density"
 )
 
 windows_list <- list(
   quantile = windows_quantile,
-  smoothing = windows_smoothing,
+  greedy = windows_greedy,
   outlier = windows_outlier,
   coverage = windows_coverage
 )
@@ -102,8 +102,8 @@ cat("  ✅ Figure1_DPPP_comparison.png\n\n")
 
 cat("Generating Figure 2: Coverage Map 2×2...\n")
 
-if (file.exists("R/plot5_density_with_mz_ranges.R")) {
-  source("R/plot5_density_with_mz_ranges.R")
+if (file.exists("R/plots/plot5_density_with_mz_ranges.R")) {
+  source("R/plots/plot5_density_with_mz_ranges.R")
 }
 
 plot5 <- plot_density_with_mz_ranges_grid(windows_list, validated_data)
@@ -120,10 +120,10 @@ cat("  ✅ Figure2_coverage_map.png\n\n")
 # Figure 3: Plot3 + Plot4 Grid (8cm × 4.5cm)
 # =============================================================================
 
-cat("Generating Figure 3: m/z Density + Smoothing...\n")
+cat("Generating Figure 3: m/z Density + Greedy...\n")
 
 # Plot 3: m/z density overlay
-plot3 <- plot_mz_normalized_density(windows_smoothing, validated_data)
+plot3 <- plot_mz_normalized_density(windows_greedy, validated_data)
 plot3_pub <- plot3 +
   theme(
     plot.title = element_text(size = 9, face = "bold"),
@@ -135,12 +135,12 @@ plot3_pub <- plot3 +
   ) +
   labs(title = "(A) m/z Density by RT Segment")
 
-# Plot 4: Smoothing m/z excluded
-if (file.exists("R/plot4_mz_distribution_excluded.R")) {
-  source("R/plot4_mz_distribution_excluded.R")
+# Plot 4: Greedy m/z excluded
+if (file.exists("R/plots/plot4_mz_distribution_excluded.R")) {
+  source("R/plots/plot4_mz_distribution_excluded.R")
 }
 
-plot4 <- plot_mz_distribution_with_exclusions(windows_smoothing, validated_data)
+plot4 <- plot_mz_distribution_with_exclusions(windows_greedy, validated_data)
 plot4_pub <- plot4 +
   theme(
     plot.title = element_text(size = 9, face = "bold"),
@@ -148,7 +148,7 @@ plot4_pub <- plot4 +
     axis.text = element_text(size = 7),
     legend.position = "none"
   ) +
-  labs(title = "(B) Smoothing - Excluded Precursors")
+  labs(title = "(B) Greedy - Excluded Precursors")
 
 # Combine
 fig3 <- grid.arrange(plot3_pub, plot4_pub, nrow = 2)
@@ -205,7 +205,7 @@ plot_window_width_adj <- function(optimized_windows) {
     ) +
     scale_y_continuous(name = "Density", expand = expansion(mult = c(0, 0.05))) +
     scale_x_continuous(name = "Window Width (Da)") +
-    labs(title = "Window Width Distribution - Smoothing Strategy") +
+    labs(title = "Window Width Distribution - Greedy Strategy") +
     theme_minimal() +
     theme(
       plot.title = element_text(size = 10, face = "bold"),
@@ -217,7 +217,7 @@ plot_window_width_adj <- function(optimized_windows) {
   return(p)
 }
 
-plot7_adj <- plot_window_width_adj(windows_smoothing)
+plot7_adj <- plot_window_width_adj(windows_greedy)
 
 ggsave(
   file.path(OUTPUT_DIR, "Figure4_window_width.png"),

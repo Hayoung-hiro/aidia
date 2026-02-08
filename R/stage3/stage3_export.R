@@ -65,7 +65,7 @@ export_windows_to_csv <- function(optimized_windows, output_file,
 
       # Core columns
       `m/z` = round(mz_center, 1),
-      z = 1,
+      z = 0,
       `t start (min)` = round(rt_start, 1),
       `t stop (min)` = round(rt_end, 1),
       `Isolation Window (m/z)` = round(mz_end - mz_start, 1),
@@ -79,16 +79,24 @@ export_windows_to_csv <- function(optimized_windows, output_file,
       RT_Center = round((rt_start + rt_end) / 2, 1),
       RT_Width = round(rt_end - rt_start, 1),
       N_Precursors = n_precursors,
-      Overlap_Prev = 0,
-      Overlap_Next = 0,
+      Overlap_Prev = {
+        prev_ends <- c(mz_start[1], head(mz_end, -1))
+        overlap <- prev_ends - mz_start
+        pmax(0, round(overlap, 1))
+      },
+      Overlap_Next = {
+        next_starts <- c(tail(mz_start, -1), tail(mz_end, 1))
+        overlap <- mz_end - next_starts
+        pmax(0, round(overlap, 1))
+      },
 
       # Configuration
       Instrument = instrument_type,
       Generation_Method = optimized_windows$parameters$mz_strategy,
       Window_Type = optimized_windows$parameters$window_mode,
 
-      # Column 22: Recommended cycle time (rounded to 1 decimal)
-      Recommended_Cycle_Time_Sec = round(recommended_cycle_time, 1)
+      # Column 22: Recommended cycle time (rounded to 3 decimals)
+      Recommended_Cycle_Time_Sec = round(recommended_cycle_time, 3)
     ) %>%
     select(Compound, Formula, Adduct, `m/z`, z,
            `t start (min)`, `t stop (min)`,

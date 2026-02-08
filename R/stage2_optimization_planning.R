@@ -936,11 +936,7 @@ quick_dppp_preview <- function(validated_data,
 
   # Convert FWHM to seconds if in minutes
   fwhm_values <- data[[fwhm_col]]
-  if (median(fwhm_values, na.rm = TRUE) < 1) {
-    fwhm_seconds <- fwhm_values * 60
-  } else {
-    fwhm_seconds <- fwhm_values
-  }
+  fwhm_seconds <- ensure_fwhm_seconds(fwhm_values)
   fwhm_seconds <- fwhm_seconds[!is.na(fwhm_seconds)]
 
   # Calculate FWHM statistics
