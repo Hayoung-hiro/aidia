@@ -548,3 +548,52 @@ body {
   background-color: #f8d7da;
   color: #721c24;
 }
+
+/* --- Progressive Disclosure --- */
+
+/* Details/Summary in sidebar */
+.main-sidebar details summary {
+  color: #bdc3c7;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 8px 15px;
+}
+.main-sidebar details summary:hover {
+  color: #1abc9c;
+}
+.main-sidebar details[open] summary {
+  color: #1abc9c;
+  border-bottom: 1px solid rgba(26,188,156,0.2);
+  margin-bottom: 8px;
+}
+
+/* More Options toggle link */
+#toggle_setup_more {
+  text-decoration: none;
+  transition: color 0.2s;
+}
+#toggle_setup_more:hover {
+  color: #16a085 !important;
+}
+
+/* Info/Warning banners in tabs */
+.tab-banner-info {
+  background: rgba(52,152,219,0.08);
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  border-left: 3px solid #3498db;
+}
+.tab-banner-warning {
+  background: rgba(243,156,18,0.08);
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  border-left: 3px solid #f39c12;
+}
+
+/* Nested boxes inside tabs — remove outer shadow for cleaner look */
+.tab-pane .box {
+  box-shadow: none;
+  border: 1px solid var(--border-color);
+}

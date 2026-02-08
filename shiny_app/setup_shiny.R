@@ -17,6 +17,7 @@ required_packages <- c(
   "shiny",           # Core framework
   "bs4Dash",         # Dashboard layout (AdminLTE3 / Bootstrap 4)
   "shinybusy",       # Progress spinners
+  "shinyjs",         # Progressive disclosure (toggle/hide)
   "DT",              # Interactive tables
   "arrow"            # Parquet support
 )
@@ -115,6 +116,7 @@ tryCatch({
     library(shiny)
     library(bs4Dash)
     library(shinybusy)
+    library(shinyjs)
     library(DT)
     library(arrow)
   })

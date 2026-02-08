@@ -10,6 +10,7 @@
 library(shiny)
 library(bs4Dash)
 library(shinybusy)      # Progress indicators
+library(shinyjs)        # Progressive disclosure (toggle/hide)
 library(DT)             # Interactive tables
 
 # --- Configuration ---
@@ -102,25 +103,19 @@ ui <- dashboardPage(
       placeholder = "DIA-NN report..."
     ),
 
-    # Sample/Project Identification for output file naming
-    textInput(
-      inputId = "sample_name",
-      label = "Sample/Project Name",
-      value = "",
-      placeholder = "e.g., HeLa_digest"
+    hr(),
+
+    # Run Button — primary CTA immediately after file upload
+    actionButton(
+      inputId = "run_optimization",
+      label = "Run Optimization",
+      class = "btn-primary btn-lg",
+      style = "width: 90%; margin-left: 5%;"
     ),
-    textInput(
-      inputId = "condition",
-      label = "Condition/Note",
-      value = "",
-      placeholder = "e.g., 60min_gradient"
-    ),
-    helpText("Used in output file names. Leave blank to use defaults.",
-             style = "font-size: 10px; color: #7f8c8d; padding: 0 15px;"),
 
     hr(),
 
-    # Calculated Cycle Time Display
+    # Calculated Cycle Time Display (reactive feedback)
     div(
       id = "cycle_time_display",
       style = "background: linear-gradient(135deg, #1a252f 0%, #2c3e50 100%); border-radius: 8px; padding: 12px; margin: 10px 15px; border-left: 4px solid #1abc9c;",
@@ -143,17 +138,31 @@ ui <- dashboardPage(
 
     hr(),
 
-    # Run Button
-    actionButton(
-      inputId = "run_optimization",
-      label = "Run Optimization",
-      class = "btn-primary btn-lg",
-      style = "width: 90%; margin-left: 5%;"
+    # Optional naming fields — collapsed by default
+    tags$details(
+      tags$summary("Sample Naming (optional)", style = "color: #bdc3c7; font-size: 12px; cursor: pointer;"),
+      textInput(
+        inputId = "sample_name",
+        label = "Sample/Project Name",
+        value = "",
+        placeholder = "e.g., HeLa_digest"
+      ),
+      textInput(
+        inputId = "condition",
+        label = "Condition/Note",
+        value = "",
+        placeholder = "e.g., 60min_gradient"
+      ),
+      helpText("Used in output file names. Leave blank to use defaults.",
+               style = "font-size: 10px; color: #7f8c8d; padding: 0 15px;")
     )
   ),
 
   # --- Main Body ---
   body = dashboardBody(
+
+    # shinyjs for progressive disclosure (toggle/hide)
+    useShinyjs(),
 
     # Custom CSS - External stylesheet for professional styling
     tags$head(
@@ -249,10 +258,10 @@ ui <- dashboardPage(
 
         tabsetPanel(
           # ============================================================
-          # Tab 1: Instrument & Target
+          # Tab 1: Setup (Essential parameters)
           # ============================================================
           tabPanel(
-            title = tagList(icon("sliders-h"), "Instrument & Target"),
+            title = tagList(icon("sliders-h"), "Setup"),
 
             br(),
             fluidRow(
@@ -409,42 +418,60 @@ ui <- dashboardPage(
                 helpText("Density: narrow where dense. Fixed: equal width. Staggered: offset bins.",
                          style = "font-size: 11px; color: #bdc3c7;"),
 
-                # Minimum Isolation Width
-                numericInput(
-                  inputId = "min_isolation_width",
-                  label = "Min Isolation Width (Da)",
-                  value = 2,
-                  min = 1,
-                  max = 10,
-                  step = 0.5
-                ),
-                helpText("Minimum window width (2 Da typical for narrow-DIA)",
-                         style = "font-size: 11px; color: #bdc3c7;"),
+                # Toggle link for rarely-changed options
+                actionLink("toggle_setup_more", "More Options...",
+                           style = "font-size: 12px; color: #1abc9c; margin-top: 8px; display: block;"),
 
-                # RT Binning Mode
-                selectInput(
-                  inputId = "rt_binning_mode",
-                  label = "RT Binning Mode",
-                  choices = c(
-                    "Fixed (auto width)" = "fixed",
-                    "Adaptive (KS change-point)" = "adaptive",
-                    "Custom (manual width)" = "custom"
-                  ),
-                  selected = "fixed"
-                ),
-                helpText("Fixed: auto-calculated bin width. Adaptive: KS-test detects m/z distribution shifts.",
-                         style = "font-size: 11px; color: #bdc3c7;")
+                # Hidden by default — min isolation width + RT binning mode
+                shinyjs::hidden(
+                  div(id = "setup_more_options",
+                    hr(style = "margin: 8px 0; border-color: rgba(26,188,156,0.3);"),
+                    # Minimum Isolation Width
+                    numericInput(
+                      inputId = "min_isolation_width",
+                      label = "Min Isolation Width (Da)",
+                      value = 2,
+                      min = 1,
+                      max = 10,
+                      step = 0.5
+                    ),
+                    helpText("Minimum window width (2 Da typical for narrow-DIA)",
+                             style = "font-size: 11px; color: #bdc3c7;"),
+
+                    # RT Binning Mode
+                    selectInput(
+                      inputId = "rt_binning_mode",
+                      label = "RT Binning Mode",
+                      choices = c(
+                        "Fixed (auto width)" = "fixed",
+                        "Adaptive (KS change-point)" = "adaptive",
+                        "Custom (manual width)" = "custom"
+                      ),
+                      selected = "fixed"
+                    ),
+                    helpText("Fixed: auto-calculated bin width. Adaptive: KS-test detects m/z distribution shifts.",
+                             style = "font-size: 11px; color: #bdc3c7;")
+                  )
+                )
               )
             )
           ),
 
           # ============================================================
-          # Tab 2: Strategy Details
+          # Tab 2: Tuning (Strategy fine-tuning)
           # ============================================================
           tabPanel(
-            title = tagList(icon("cog"), "Strategy Details"),
+            title = tagList(icon("cog"), "Tuning"),
 
             br(),
+            # Info banner — defaults work for most experiments
+            div(class = "tab-banner-info",
+              tags$small(
+                icon("info-circle"), " ",
+                "Fine-tune strategy parameters. Defaults work well for most experiments.",
+                style = "color: #2c3e50;"
+              )
+            ),
             fluidRow(
               # Column 1: Strategy Parameters
               column(6,
@@ -599,43 +626,57 @@ ui <- dashboardPage(
                 )
               ),
 
-              # Column 2: RT Binning Parameters
+              # Column 2: RT Binning Parameters — collapsed by default
               column(6,
-                h5("RT Binning Parameters", style = "color: #2c3e50; font-weight: 600;"),
+                box(
+                  title = "RT Binning Parameters",
+                  status = "info",
+                  solidHeader = FALSE,
+                  collapsible = TRUE,
+                  collapsed = TRUE,
+                  width = 12,
 
-                # Manual bin width slider (Custom mode only)
-                conditionalPanel(
-                  condition = "input.rt_binning_mode == 'custom'",
-                  sliderInput(
-                    inputId = "rt_bin_width",
-                    label = "RT Bin Width (min)",
-                    min = 1,
-                    max = 15,
-                    value = 5,
-                    step = 0.5,
-                    post = " min"
+                  # Manual bin width slider (Custom mode only)
+                  conditionalPanel(
+                    condition = "input.rt_binning_mode == 'custom'",
+                    sliderInput(
+                      inputId = "rt_bin_width",
+                      label = "RT Bin Width (min)",
+                      min = 1,
+                      max = 15,
+                      value = 5,
+                      step = 0.5,
+                      post = " min"
+                    ),
+                    helpText("Controls RT segment grouping. Smaller = more segments.",
+                             style = "font-size: 11px; color: #bdc3c7;")
                   ),
-                  helpText("Controls RT segment grouping. Smaller = more segments.",
-                           style = "font-size: 11px; color: #bdc3c7;")
-                ),
 
-                # Adaptive KS parameters (Adaptive mode only)
-                conditionalPanel(
-                  condition = "input.rt_binning_mode == 'adaptive'",
-                  div(style = "background: rgba(26, 188, 156, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-                    h5("Adaptive Parameters", style = "margin: 0 0 8px 0; color: #1abc9c;"),
-                    sliderInput(
-                      inputId = "cpd_significance",
-                      label = "Change Point Significance",
-                      min = 0.001, max = 0.10, value = 0.05, step = 0.005
-                    ),
-                    sliderInput(
-                      inputId = "cpd_min_bin_width",
-                      label = "Min Bin Width (min)",
-                      min = 0.5, max = 5.0, value = 1.0, step = 0.5
-                    ),
-                    helpText("Lower significance = fewer, more confident change points.",
-                             style = "font-size: 10px; color: #7f8c8d;")
+                  # Adaptive KS parameters (Adaptive mode only)
+                  conditionalPanel(
+                    condition = "input.rt_binning_mode == 'adaptive'",
+                    div(style = "background: rgba(26, 188, 156, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
+                      h5("Adaptive Parameters", style = "margin: 0 0 8px 0; color: #1abc9c;"),
+                      sliderInput(
+                        inputId = "cpd_significance",
+                        label = "Change Point Significance",
+                        min = 0.001, max = 0.10, value = 0.05, step = 0.005
+                      ),
+                      sliderInput(
+                        inputId = "cpd_min_bin_width",
+                        label = "Min Bin Width (min)",
+                        min = 0.5, max = 5.0, value = 1.0, step = 0.5
+                      ),
+                      helpText("Lower significance = fewer, more confident change points.",
+                               style = "font-size: 10px; color: #7f8c8d;")
+                    )
+                  ),
+
+                  # Default mode note
+                  conditionalPanel(
+                    condition = "input.rt_binning_mode == 'fixed'",
+                    helpText("Fixed mode uses auto-calculated bin width. No additional parameters needed.",
+                             style = "font-size: 11px; color: #7f8c8d;")
                   )
                 )
               )
@@ -643,104 +684,128 @@ ui <- dashboardPage(
           ),
 
           # ============================================================
-          # Tab 3: Advanced
+          # Tab 3: Expert (Instrument scan timing)
           # ============================================================
           tabPanel(
-            title = tagList(icon("wrench"), "Advanced"),
+            title = tagList(icon("flask"), "Expert"),
 
             br(),
+            # Expert warning banner
+            div(class = "tab-banner-warning",
+              tags$small(
+                icon("exclamation-triangle"), " ",
+                "Expert settings. Modify only if you understand instrument scan timing.",
+                style = "color: #856404;"
+              )
+            ),
             fluidRow(
-              # Column 1: Injection Time
+              # Column 1: Injection Time — collapsed
               column(4,
-                h5("Injection Time", style = "color: #2c3e50; font-weight: 600;"),
+                box(
+                  title = "Injection Time",
+                  status = "warning",
+                  solidHeader = FALSE,
+                  collapsible = TRUE,
+                  collapsed = TRUE,
+                  width = 12,
 
-                # MS1 Injection Time (Orbitrap only)
-                conditionalPanel(
-                  condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
-                  div(
-                    style = "padding: 0;",
-                    tags$label("MS1 Max IT", class = "control-label"),
+                  # MS1 Injection Time (Orbitrap only)
+                  conditionalPanel(
+                    condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
                     div(
-                      style = "display: flex; gap: 8px; align-items: center;",
-                      checkboxInput("ms1_it_auto", "Auto", value = TRUE, width = "55px"),
-                      conditionalPanel(
-                        condition = "!input.ms1_it_auto",
-                        div(
-                          style = "display: flex; align-items: center; gap: 4px;",
-                          numericInput("ms1_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
-                          span("ms", style = "color: #34495e; font-size: 12px; font-weight: 500;")
+                      style = "padding: 0;",
+                      tags$label("MS1 Max IT", class = "control-label"),
+                      div(
+                        style = "display: flex; gap: 8px; align-items: center;",
+                        checkboxInput("ms1_it_auto", "Auto", value = TRUE, width = "55px"),
+                        conditionalPanel(
+                          condition = "!input.ms1_it_auto",
+                          div(
+                            style = "display: flex; align-items: center; gap: 4px;",
+                            numericInput("ms1_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
+                            span("ms", style = "color: #34495e; font-size: 12px; font-weight: 500;")
+                          )
+                        ),
+                        conditionalPanel(
+                          condition = "input.ms1_it_auto",
+                          span(textOutput("ms1_it_auto_value", inline = TRUE),
+                               style = "color: #1abc9c; font-weight: 600; font-size: 12px;")
                         )
-                      ),
-                      conditionalPanel(
-                        condition = "input.ms1_it_auto",
-                        span(textOutput("ms1_it_auto_value", inline = TRUE),
-                             style = "color: #1abc9c; font-weight: 600; font-size: 12px;")
-                      )
-                    )
-                  )
-                ),
-
-                # MS2 Injection Time (Orbitrap only)
-                conditionalPanel(
-                  condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
-                  div(
-                    style = "padding: 0;",
-                    tags$label("MS2 Max IT", class = "control-label"),
-                    div(
-                      style = "display: flex; gap: 8px; align-items: center;",
-                      checkboxInput("ms2_it_auto", "Auto", value = TRUE, width = "55px"),
-                      conditionalPanel(
-                        condition = "!input.ms2_it_auto",
-                        div(
-                          style = "display: flex; align-items: center; gap: 4px;",
-                          numericInput("ms2_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
-                          span("ms", style = "color: #34495e; font-size: 12px; font-weight: 500;")
-                        )
-                      ),
-                      conditionalPanel(
-                        condition = "input.ms2_it_auto",
-                        span(textOutput("ms2_it_auto_value", inline = TRUE),
-                             style = "color: #1abc9c; font-weight: 600; font-size: 12px;")
                       )
                     )
                   ),
-                  helpText("Auto = T_transient (Sweet Spot, 100% efficiency)",
-                           style = "font-size: 10px; color: #7f8c8d; margin-top: 4px;")
-                ),
 
-                # Astral IT (for Astral instruments) - note: also shown in Tab 1 but
-                # we keep a display here for consistency; the input ID is the same so
-                # it's linked. Actually, the input already exists in Tab 1 so we show
-                # just a note here.
-                conditionalPanel(
-                  condition = "input.instrument == 'astral' || input.instrument == 'astral_zoom' || input.instrument == 'astral_sensitive'",
-                  helpText("Astral MS2 IT is configured in the Instrument & Target tab.",
-                           style = "font-size: 11px; color: #7f8c8d;")
+                  # MS2 Injection Time (Orbitrap only)
+                  conditionalPanel(
+                    condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
+                    div(
+                      style = "padding: 0;",
+                      tags$label("MS2 Max IT", class = "control-label"),
+                      div(
+                        style = "display: flex; gap: 8px; align-items: center;",
+                        checkboxInput("ms2_it_auto", "Auto", value = TRUE, width = "55px"),
+                        conditionalPanel(
+                          condition = "!input.ms2_it_auto",
+                          div(
+                            style = "display: flex; align-items: center; gap: 4px;",
+                            numericInput("ms2_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
+                            span("ms", style = "color: #34495e; font-size: 12px; font-weight: 500;")
+                          )
+                        ),
+                        conditionalPanel(
+                          condition = "input.ms2_it_auto",
+                          span(textOutput("ms2_it_auto_value", inline = TRUE),
+                               style = "color: #1abc9c; font-weight: 600; font-size: 12px;")
+                        )
+                      )
+                    ),
+                    helpText("Auto = T_transient (Sweet Spot, 100% efficiency)",
+                             style = "font-size: 10px; color: #7f8c8d; margin-top: 4px;")
+                  ),
+
+                  # Astral IT note
+                  conditionalPanel(
+                    condition = "input.instrument == 'astral' || input.instrument == 'astral_zoom' || input.instrument == 'astral_sensitive'",
+                    helpText("Astral MS2 IT is configured in the Setup tab.",
+                             style = "font-size: 11px; color: #7f8c8d;")
+                  )
                 )
               ),
 
-              # Column 2: Acquisition
+              # Column 2: Acquisition — collapsed
               column(4,
-                h5("Acquisition", style = "color: #2c3e50; font-weight: 600;"),
+                box(
+                  title = "Acquisition",
+                  status = "warning",
+                  solidHeader = FALSE,
+                  collapsible = TRUE,
+                  collapsed = TRUE,
+                  width = 12,
 
-                # MS1 Scans per Cycle
-                numericInput(
-                  inputId = "ms1_scans_per_cycle",
-                  label = "MS1 Scans/Cycle",
-                  value = 1,
-                  min = 0,
-                  max = 10,
-                  step = 1
-                ),
-                helpText("1 for standard DIA, 0 for parallel (Astral), 3-4 for Boxcar",
-                         style = "font-size: 11px; color: #bdc3c7;")
+                  # MS1 Scans per Cycle
+                  numericInput(
+                    inputId = "ms1_scans_per_cycle",
+                    label = "MS1 Scans/Cycle",
+                    value = 1,
+                    min = 0,
+                    max = 10,
+                    step = 1
+                  ),
+                  helpText("1 for standard DIA, 0 for parallel (Astral), 3-4 for Boxcar",
+                           style = "font-size: 11px; color: #bdc3c7;")
+                )
               ),
 
-              # Column 3: Edge Handling
+              # Column 3: Edge Handling — collapsed
               column(4,
-                h5("Edge Handling", style = "color: #2c3e50; font-weight: 600;"),
+                box(
+                  title = "Edge Handling",
+                  status = "warning",
+                  solidHeader = FALSE,
+                  collapsible = TRUE,
+                  collapsed = TRUE,
+                  width = 12,
 
-                div(style = "background: rgba(149, 165, 166, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
                   numericInput(
                     inputId = "edge_void_buffer",
                     label = "Void Volume Buffer (min)",
@@ -1398,6 +1463,11 @@ server <- function(input, output, session) {
         tags$p(style = "margin: 4px 0 0 0; font-size: 11px; color: #7f8c8d;", suggestion)
       }
     )
+  })
+
+  # --- Toggle: "More Options" in Setup tab ---
+  observeEvent(input$toggle_setup_more, {
+    shinyjs::toggle("setup_more_options")
   })
 
   # --- DPPP Preset Buttons ---

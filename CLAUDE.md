@@ -101,11 +101,26 @@ Stage 4: Visualization (Plots Only)
   Output: Plots + PDF report
   Main:   generate_visualizations()
   File:   R/stage4_visualization.R (451 lines, orchestrator)
-          R/plots/*.R (6 modular plot files)
-          R/plot*.R (7 legacy plot files)
+          R/plots/*.R (13 modular plot files, including 7 legacy)
 ```
 
 **Design Principle**: Stage 3 handles all data export. Stage 4 is visualization-only.
+
+### Shared API Layer
+
+Canonical functions that ALL entry points (main.R, shiny_app/app.R) must use:
+
+| Function | Location | Purpose |
+|----------|----------|---------|
+| `ensure_fwhm_seconds()` | `R/utils_common.R` | Auto-detect minutes vs seconds, convert |
+| `estimate_window_count_preview()` | `R/utils_common.R` | Quick window count from FWHM/DPPP/MS2 |
+| `extract_gradient_name()` | `R/utils_common.R` | Parse gradient name from file path |
+| `estimate_cycle_time()` | `R/utils_common.R` | Estimate cycle time from gradient length |
+| `is_orbitrap_instrument()` | `R/instrument_utils.R` | Data-driven from JSON `analyzer_type` |
+| `is_astral_instrument()` | `R/instrument_utils.R` | Data-driven from JSON `analyzer_type` |
+| `export_windows_to_csv()` | `R/stage3/stage3_export.R` | Unified 22-column Thermo CSV (z=0) |
+
+**Rule**: Never inline FWHM conversion (`median < 1 → *60`) or window count formulas. Always use shared functions.
 
 ### S3 Class Hierarchy
 
@@ -196,8 +211,12 @@ Three methods in `R/replicate_utils.R`:
 ### Common Pitfalls
 
 1. Always use **geometric CV** for log-normal intensity data (arithmetic CV underestimates by ~14x)
-3. Run full pipeline test after any changes to ensure stage integration
-4. Stage 3 is modularized in `R/stage3/` - the orchestrator at `R/stage3_window_optimization.R` sources submodules
+2. Run full pipeline test after any changes to ensure stage integration
+3. Stage 3 is modularized in `R/stage3/` - the orchestrator at `R/stage3_window_optimization.R` sources submodules
+4. Never inline FWHM conversion — use `ensure_fwhm_seconds()` from `R/utils_common.R`
+5. Never inline window count formula — use `estimate_window_count_preview()` from `R/utils_common.R`
+6. Deprecated code is in `archive/deprecated_modules/R/` (NOT in `R/deprecated/`)
+7. All plots live in `R/plots/` (NOT `R/plot*.R` at project root)
 
 ---
 
@@ -218,9 +237,10 @@ optimize_mz_ranges_newstrategy_internal <- function(data, rt_bins, ...) {
 
 ### Adding a New Instrument
 
-1. Add to `config/instruments.json` with scan times and cycle calculation mode
-2. Add resolution/transient lookup table in `R/instrument_utils.R`
+1. Add to `config/instruments.json` with scan times, cycle calculation mode, and `analyzer_type`
+2. Add resolution/transient lookup table in `R/instrument_utils.R` (if Orbitrap)
 3. Add to Shiny `selectInput` choices in `shiny_app/app.R`
+4. Instrument classification (`is_orbitrap_instrument()` etc.) is automatic from JSON `analyzer_type`
 
 ### Adding New Plots
 
@@ -235,7 +255,7 @@ Core (from DESCRIPTION):
 - `dplyr`, `tibble`, `tidyr`, `arrow`, `ggplot2`, `jsonlite`, `readr`
 - `scales`, `ggridges`, `viridis`, `gridExtra`
 
-Optional: `prospectr` (Savitzky-Golay), `yaml` (config), `shiny` + `shinydashboard` (web app)
+Optional: `prospectr` (Savitzky-Golay), `yaml` (config), `shiny` + `bs4Dash` (web app), `shinybusy`, `DT`
 
 ---
 
@@ -246,8 +266,10 @@ Optional: `prospectr` (Savitzky-Golay), `yaml` (config), `shiny` + `shinydashboa
 - Added Greedy + KDE strategies (5 total), removed standalone Smoothing
 - Added Staggered window mode (3 total)
 - Modularized Stage 3 into `R/stage3/` submodules
-- Shiny web app complete
+- Shiny web app with bs4Dash (3-tab body layout)
 - Cycle time calculator with resolution-to-transient mapping
+- Shared API layer: `ensure_fwhm_seconds()`, `estimate_window_count_preview()`, data-driven instrument classification
+- Archived 81 dead files to `archive/`, consolidated legacy plots into `R/plots/`
 
 **v2.1** (2025-11): Method file export moved to Stage 3
 
