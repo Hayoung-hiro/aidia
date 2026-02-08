@@ -310,6 +310,37 @@ optimize_windows <- function(
                      format(statistics$total_precursors, big.mark = ",")))
 
   # ===================================================================
+  # Step 5b: DPPP Re-verification (actual vs planned)
+  # ===================================================================
+  # After window generation, the actual window count per bin may differ from
+  # the planned count due to width constraints, staggered mode, or fallbacks.
+  # Re-calculate the effective cycle time and DPPP with the real window count.
+  actual_windows_per_bin <- total_windows / n_bins
+  instrument <- optimization_plan$instrument
+
+  actual_cycle_time <- if (instrument$cycle_mode == "parallel") {
+    max(instrument$ms1_time_sec, actual_windows_per_bin * instrument$ms2_time_sec)
+  } else {
+    instrument$ms1_time_sec + actual_windows_per_bin * instrument$ms2_time_sec
+  }
+
+  planned_cycle_time <- optimization_plan$required_cycle_time_sec
+  fwhm_values <- get_fwhm_values(validated_data)
+  actual_dppp_median <- calculate_dppp(median(fwhm_values), actual_cycle_time)
+
+  dppp_deviation_pct <- 100 * (actual_cycle_time - planned_cycle_time) / planned_cycle_time
+
+  if (abs(dppp_deviation_pct) > 5) {
+    print_warning(sprintf("DPPP re-check: actual cycle time %.3fs (%.1f%% from plan %.3fs)",
+                          actual_cycle_time, dppp_deviation_pct, planned_cycle_time))
+    print_warning(sprintf("  Actual median DPPP: %.2f (planned windows: %d, actual avg: %.1f)",
+                          actual_dppp_median, n_windows_per_bin, actual_windows_per_bin))
+  } else {
+    print_success(sprintf("DPPP re-check: PASS (cycle time %.3fs, median DPPP %.2f)",
+                          actual_cycle_time, actual_dppp_median))
+  }
+
+  # ===================================================================
   # Step 6: Package Results
   # ===================================================================
   print_step(6, "Package Results")
@@ -339,6 +370,15 @@ optimize_windows <- function(
         mean_width = mean(mz_ranges$mz_width)
       ),
 
+      # DPPP verification (actual vs planned)
+      dppp_verification = list(
+        planned_cycle_time_sec = planned_cycle_time,
+        actual_cycle_time_sec = actual_cycle_time,
+        actual_dppp_median = actual_dppp_median,
+        actual_windows_per_bin = actual_windows_per_bin,
+        deviation_pct = dppp_deviation_pct
+      ),
+
       # Parameters
       parameters = list(
         window_mode = window_mode,
@@ -349,7 +389,8 @@ optimize_windows <- function(
         target_coverage = target_coverage,
         min_width_da = min_width_da,
         max_width_da = max_width_da,
-        overlap_percentage = overlap_percentage
+        overlap_percentage = overlap_percentage,
+        width_grid_step = width_grid_step
       ),
 
       # Metadata

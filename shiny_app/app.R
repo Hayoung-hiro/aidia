@@ -308,13 +308,13 @@ ui <- dashboardPage(
 
     hr(),
 
-    # DPPP Target
-    sliderInput(
+    # DPPP Target (numericInput prevents accidental slider drift)
+    numericInput(
       inputId = "target_dppp",
       label = "Target DPPP",
-      min = 1.5,
-      max = 10.0,
       value = 7.0,
+      min = 1.0,
+      max = 15.0,
       step = 0.5
     ),
 
@@ -1342,15 +1342,15 @@ server <- function(input, output, session) {
 
   # --- DPPP Preset Buttons ---
   observeEvent(input$preset_id, {
-    updateSliderInput(session, "target_dppp", value = 1.5)
+    updateNumericInput(session, "target_dppp", value = 1.5)
   })
 
   observeEvent(input$preset_balanced, {
-    updateSliderInput(session, "target_dppp", value = 4.0)
+    updateNumericInput(session, "target_dppp", value = 4.0)
   })
 
   observeEvent(input$preset_quant, {
-    updateSliderInput(session, "target_dppp", value = 7.0)
+    updateNumericInput(session, "target_dppp", value = 7.0)
   })
 
   # --- File Upload Handler ---

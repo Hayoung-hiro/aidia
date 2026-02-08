@@ -167,7 +167,7 @@ plan_optimization <- function(
   target_dppp = 7.0,
   target_satisfaction = 0.85,
   dppp_tolerance = 0.0,
-  load_factor = 0.8,
+  load_factor = 1.0,
   ms1_scans_per_cycle = NULL,
   warning_threshold_windows = 5,
   ms2_resolution = NULL,  # Optional MS2 resolution override (e.g., 30000)
@@ -407,9 +407,10 @@ plan_optimization <- function(
                           actual_cycle_time, required_cycle_time))
   }
 
-  # Check 2: Scan rate
+  # Check 2: Scan rate (apply load_factor to effective scan rate)
   total_scans_needed <- window_count + ms1_scans_per_cycle
-  max_possible_scans <- floor(required_cycle_time * instrument_config$max_scan_rate)
+  effective_scan_rate <- instrument_config$max_scan_rate * load_factor
+  max_possible_scans <- floor(required_cycle_time * effective_scan_rate)
   feasibility$scan_rate_ok <- total_scans_needed <= max_possible_scans
 
   if (feasibility$scan_rate_ok) {
