@@ -30,23 +30,36 @@ library(tibble)
 #' @param max_width_da Maximum window width in Da
 #' @param overlap_percentage Overlap percentage between windows
 #' @param width_grid_step Grid step for width digitization in Da (default: 0.5)
+#' @param use_parallel Logical, whether to use parallel processing (default: FALSE)
+#' @param n_cores Integer, number of cores for parallel processing (NULL = auto)
+#' @param stagger_offset_pct Numeric, offset percentage for staggered mode (default: 0.5)
 #'
 #' @return Data frame with window specifications
 #' @keywords internal
 generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
                                      n_windows_per_bin, window_mode,
                                      min_width_da, max_width_da,
-                                     overlap_percentage, width_grid_step = 0.5) {
+                                     overlap_percentage, width_grid_step = 0.5,
+                                     use_parallel = FALSE,
+                                     n_cores = NULL,
+                                     stagger_offset_pct = 0.5) {
 
   n_bins <- nrow(rt_stats)
-  all_windows <- vector("list", n_bins)
 
-  for (i in 1:n_bins) {
+  if (use_parallel) {
+    cat("  -> Parallel window generation (future plan set by orchestrator)\n")
+  }
+
+  # Prepare indices for iteration
+  bin_indices <- 1:n_bins
+
+  # Define per-bin processing function
+  process_func <- function(i) {
     # Get m/z range for this RT bin
     mz_range <- mz_ranges %>%
       filter(rt_segment_id == i)
 
-    if (nrow(mz_range) == 0) next
+    if (nrow(mz_range) == 0) return(NULL)
 
     mz_min <- mz_range$mz_min[1]
     mz_max <- mz_range$mz_max[1]
@@ -71,7 +84,8 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
     } else if (window_mode == "staggered") {
       bin_windows <- generate_staggered_windows_internal(
         mz_min, mz_max, n_windows_per_bin, min_width_da, max_width_da,
-        rt_bin_index = i
+        rt_bin_index = i,
+        stagger_fraction = stagger_offset_pct
       )
     } else {  # density (variable)
       bin_windows <- generate_variable_windows_internal(
@@ -99,7 +113,14 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
                                             mz_min, mz_max)
     }
 
-    all_windows[[i]] <- bin_windows
+    return(bin_windows)
+  }
+
+  # Execute processing (plan is set by orchestrator if parallel)
+  if (use_parallel) {
+    all_windows <- future.apply::future_lapply(bin_indices, process_func, future.seed = TRUE)
+  } else {
+    all_windows <- lapply(bin_indices, process_func)
   }
 
   # Combine all windows

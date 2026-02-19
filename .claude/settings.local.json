@@ -1,8 +1,10 @@
 {
-  "outputStyle": "Explanatory",
   "permissions": {
     "allow": [
-      "Bash(Rscript:*)"
+      "Bash(Rscript:*)",
+      "Bash(bash:*)",
+      "Bash(git -C \"D:\\\\Projects\\\\aidia\" show --name-only 8011c8f)"
     ]
-  }
+  },
+  "outputStyle": "Explanatory"
 }

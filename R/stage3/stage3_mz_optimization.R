@@ -38,6 +38,12 @@ library(dplyr)
 #' @param smoothing_window Integer, SG window size
 #' @param polynomial_order Integer, SG polynomial order
 #'
+#' @param coverage_mode Character: "narrowest" (default) or "centered"
+#' @param mz_range_min Numeric, fallback minimum m/z for empty bins (default: 400)
+#' @param mz_range_max Numeric, fallback maximum m/z for empty bins (default: 1200)
+#' @param use_parallel Logical, whether to use parallel processing (default: FALSE)
+#' @param n_cores Integer or NULL, number of cores (NULL = auto, set by orchestrator)
+#'
 #' @return Data frame with m/z ranges per RT segment
 #' @keywords internal
 optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
@@ -51,7 +57,12 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
                                        kde_density_threshold = 0.1,
                                        kde_min_coverage = 0.80,
                                        quantile_apply_smoothing = FALSE,
-                                       outlier_apply_smoothing = FALSE) {
+                                       outlier_apply_smoothing = FALSE,
+                                       coverage_mode = "narrowest",
+                                       mz_range_min = 400,
+                                       mz_range_max = 1200,
+                                       use_parallel = FALSE,
+                                       n_cores = NULL) {
 
   n_bins <- nrow(rt_stats)
 
@@ -82,7 +93,9 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
       mz_step = mz_step,
       apply_smoothing = greedy_apply_smoothing,
       smoothing_window = smoothing_window,
-      polynomial_order = polynomial_order
+      polynomial_order = polynomial_order,
+      mz_range_min = mz_range_min,
+      mz_range_max = mz_range_max
     ))
   }
 
@@ -97,7 +110,9 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
       precursor_data = precursor_data,
       rt_stats = rt_stats,
       density_threshold = kde_density_threshold,
-      min_coverage = kde_min_coverage
+      min_coverage = kde_min_coverage,
+      mz_range_min = mz_range_min,
+      mz_range_max = mz_range_max
     ))
   }
 
@@ -111,31 +126,42 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
 
   cat(sprintf("  Strategy: %s (LOCAL optimization)\n", toupper(strategy)))
   if (apply_smoothing) {
-    cat("  -> Calculate m/z per RT bin, then apply SG smoothing\n\n")
+    cat("  -> Calculate m/z per RT bin, then apply SG smoothing\n")
   } else {
-    cat("  -> Calculate m/z independently per RT bin\n\n")
+    cat("  -> Calculate m/z independently per RT bin\n")
   }
 
-  mz_ranges <- vector("list", n_bins)
+  if (strategy == "coverage" && coverage_mode == "centered") {
+    cat("  -> Coverage mode: CENTERED (expand from median)\n")
+  }
 
-  for (i in 1:n_bins) {
+  if (use_parallel) {
+    cat("  -> Parallel processing (future plan set by orchestrator)\n\n")
+  } else {
+    cat("  -> Sequential processing\n\n")
+  }
+
+  # Prepare indices for iteration
+  bin_indices <- 1:n_bins
+
+  # Define per-bin processing function
+  process_func <- function(i) {
     # Get precursors for this RT bin
     bin_data <- precursor_data %>%
       filter(rt_group == i)
 
     if (nrow(bin_data) == 0) {
-      # Empty bin - use full range
-      mz_ranges[[i]] <- data.frame(
+      # Empty bin - use configured fallback range
+      return(data.frame(
         rt_segment_id = i,
         rt_start = rt_stats$rt_start[i],
         rt_end = rt_stats$rt_end[i],
-        mz_min = 400,
-        mz_max = 1200,
-        mz_width = 800,
+        mz_min = mz_range_min,
+        mz_max = mz_range_max,
+        mz_width = mz_range_max - mz_range_min,
         n_precursors_covered = 0,
         coverage_ratio = NA
-      )
-      next
+      ))
     }
 
     mz_values <- bin_data$Precursor.Mz
@@ -147,28 +173,49 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
       mz_max <- quantile(mz_values, quantile_upper, na.rm = TRUE, names = FALSE)
 
     } else if (strategy == "coverage") {
-      # Coverage-based: find minimum range that covers target %
-      mz_sorted <- sort(mz_values)
-      n_target <- ceiling(length(mz_sorted) * target_coverage)
-
-      # Find narrowest window containing n_target precursors
-      best_width <- Inf
-      best_min <- min(mz_sorted)
-      best_max <- max(mz_sorted)
-
-      for (start_idx in 1:(length(mz_sorted) - n_target + 1)) {
-        end_idx <- start_idx + n_target - 1
-        width <- mz_sorted[end_idx] - mz_sorted[start_idx]
-
-        if (width < best_width) {
-          best_width <- width
-          best_min <- mz_sorted[start_idx]
-          best_max <- mz_sorted[end_idx]
+      # Coverage-based: find range that covers target %
+      n_total <- length(mz_values)
+      n_target <- ceiling(n_total * target_coverage)
+      
+      if (coverage_mode == "centered") {
+        # Centered mode: expand symmetrically from median
+        mz_median <- median(mz_values)
+        abs_diff <- abs(mz_values - mz_median)
+        # Find threshold distance that covers target %
+        dist_threshold <- quantile(abs_diff, target_coverage, names = FALSE)
+        
+        mz_min <- mz_median - dist_threshold
+        mz_max <- mz_median + dist_threshold
+        
+      } else {
+        # Narrowest mode: find minimum width range
+        mz_sorted <- sort(mz_values)
+        
+        # Find narrowest window containing n_target precursors
+        best_width <- Inf
+        best_min <- min(mz_sorted)
+        best_max <- max(mz_sorted)
+  
+        # Optimization: only check necessary start points
+        valid_starts <- length(mz_sorted) - n_target + 1
+        
+        if (valid_starts > 0) {
+          # Vectorized width calculation if possible, or simple loop
+          # For R, simple loop is okay, but can be slow for huge bins
+          # Let's use a slightly more optimized loop
+          
+          starts <- 1:valid_starts
+          ends <- starts + n_target - 1
+          widths <- mz_sorted[ends] - mz_sorted[starts]
+          
+          best_idx <- which.min(widths)
+          mz_min <- mz_sorted[starts[best_idx]]
+          mz_max <- mz_sorted[ends[best_idx]]
+        } else {
+           mz_min <- min(mz_values)
+           mz_max <- max(mz_values)
         }
       }
-
-      mz_min <- best_min
-      mz_max <- best_max
 
     } else if (strategy == "outlier") {
       # Outlier removal: mean +/- threshold*SD
@@ -196,7 +243,7 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
     covered <- sum(mz_values >= mz_min & mz_values <= mz_max)
     coverage_ratio <- covered / length(mz_values)
 
-    mz_ranges[[i]] <- data.frame(
+    return(data.frame(
       rt_segment_id = i,
       rt_start = rt_stats$rt_start[i],
       rt_end = rt_stats$rt_end[i],
@@ -205,7 +252,14 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
       mz_width = mz_max - mz_min,
       n_precursors_covered = covered,
       coverage_ratio = coverage_ratio
-    )
+    ))
+  }
+
+  # Execute processing (plan is set by orchestrator if parallel)
+  if (use_parallel) {
+    mz_ranges <- future.apply::future_lapply(bin_indices, process_func, future.seed = TRUE)
+  } else {
+    mz_ranges <- lapply(bin_indices, process_func)
   }
 
   # Combine results
@@ -376,7 +430,9 @@ optimize_mz_ranges_greedy_internal <- function(precursor_data, rt_stats,
                                                 apply_smoothing = TRUE,
                                                 smoothing_window = 5,
                                                 polynomial_order = 2,
-                                                target_coverage = 0.90) {
+                                                target_coverage = 0.90,
+                                                mz_range_min = 400,
+                                                mz_range_max = 1200) {
   n_bins <- nrow(rt_stats)
 
   # Calculate FIXED m/z range per cycle (MacCoss Lab approach)
@@ -406,9 +462,10 @@ optimize_mz_ranges_greedy_internal <- function(precursor_data, rt_stats,
       filter(rt_group == i)
 
     if (nrow(bin_data) == 0) {
-      # Empty bin - use default range centered at 800
-      mz_min_raw[i] <- 800 - mz_range_per_cycle / 2
-      mz_max_raw[i] <- 800 + mz_range_per_cycle / 2
+      # Empty bin - center fixed range within configured m/z range
+      center <- (mz_range_min + mz_range_max) / 2
+      mz_min_raw[i] <- center - mz_range_per_cycle / 2
+      mz_max_raw[i] <- center + mz_range_per_cycle / 2
       n_precursors_covered[i] <- 0
       coverage_ratios[i] <- NA
       n_precursors_total[i] <- 0
@@ -603,7 +660,9 @@ optimize_mz_ranges_greedy_internal <- function(precursor_data, rt_stats,
 #' @keywords internal
 optimize_mz_ranges_kde_internal <- function(precursor_data, rt_stats,
                                             density_threshold = 0.1,
-                                            min_coverage = 0.80) {
+                                            min_coverage = 0.80,
+                                            mz_range_min = 400,
+                                            mz_range_max = 1200) {
   n_bins <- nrow(rt_stats)
   mz_ranges <- vector("list", n_bins)
 
@@ -618,14 +677,14 @@ optimize_mz_ranges_kde_internal <- function(precursor_data, rt_stats,
       filter(rt_group == i)
 
     if (nrow(bin_data) == 0) {
-      # Empty bin - use default range
+      # Empty bin - use configured fallback range
       mz_ranges[[i]] <- data.frame(
         rt_segment_id = i,
         rt_start = rt_stats$rt_start[i],
         rt_end = rt_stats$rt_end[i],
-        mz_min = 400,
-        mz_max = 1200,
-        mz_width = 800,
+        mz_min = mz_range_min,
+        mz_max = mz_range_max,
+        mz_width = mz_range_max - mz_range_min,
         n_precursors_covered = 0,
         coverage_ratio = NA,
         kde_peak_mz = NA
