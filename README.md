@@ -4,7 +4,7 @@
 
 **Your Adaptive Aid for DIA Optimization**
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/KBSI/aidia)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/Hayoung-hiro/aidia)
 [![R](https://img.shields.io/badge/R-%3E%3D%204.0.0-brightgreen.svg)](https://www.r-project.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -44,7 +44,7 @@ AIDIA aids researchers in optimizing DIA isolation windows through intelligent, 
 ```r
 # Install from GitHub
 # install.packages("remotes")
-remotes::install_github("KBSI/aidia")
+remotes::install_github("Hayoung-hiro/aidia")
 ```
 
 ### Basic Usage
@@ -168,10 +168,8 @@ Compatible with **Thermo Xcalibur**:
 
 ## 📚 Documentation
 
-- **[USAGE_GUIDE.md](docs/USAGE_GUIDE.md)**: Comprehensive user guide
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**: System architecture
-- **[CLAUDE.md](CLAUDE.md)**: Developer guide
-- **[GEOMETRIC_CV_GUIDE.md](docs/GEOMETRIC_CV_GUIDE.md)**: CV calculation
+- **[CLAUDE.md](CLAUDE.md)**: Developer guide (architecture, API, pipeline details)
+- **[CONTRIBUTING.md](CONTRIBUTING.md)**: Code style and contribution guidelines
 
 ---
 
@@ -205,9 +203,9 @@ Compatible with **Thermo Xcalibur**:
 
 ## 🤝 Contributing
 
-1. Check [USAGE_GUIDE.md](docs/USAGE_GUIDE.md)
-2. Review [ARCHITECTURE.md](docs/ARCHITECTURE.md)
-3. See [CLAUDE.md](CLAUDE.md) for development guide
+1. See [CLAUDE.md](CLAUDE.md) for architecture and development guide
+2. Review [CONTRIBUTING.md](CONTRIBUTING.md) for code style guidelines
+3. Open an issue for discussion
 
 ---
 
@@ -232,6 +230,6 @@ MIT License - See [LICENSE](LICENSE)
 
 *Aiding your DIA experiments*
 
-**Version 0.1.0** | KBSI Proteomics
+**Version 0.1.0**
 
 </div>

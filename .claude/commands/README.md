@@ -88,7 +88,7 @@ Kent Beck's principle: structural changes before behavioral changes.
 
 - Kent Beck's "Test-Driven Development: By Example"
 - Kent Beck's "Tidy First?: A Personal Exercise in Empirical Software Design"
-- See [kentbeck_CLAUDE.md](../../kentbeck_CLAUDE.md) for complete methodology
+- Kent Beck's TDD and Tidy First principles
 
 ## Integration with Project
 

@@ -1,7 +1,7 @@
 # test_phase1_plots_90min.R
 # Test Phase 1 Core Plots (Plots 1, 2, 3, 8) with 90min dataset
 #
-# Purpose: Verify STAGE4_REDESIGN_PLAN.md Phase 1 implementation
+# Purpose: Verify Stage 4 Phase 1 implementation (core plots)
 # Dataset: data/90min_report.parquet (FWHM ~8.9 sec, 80,763 precursors)
 #
 # Expected Outputs:
@@ -244,7 +244,7 @@ cat("     - Uses window_index instead of parsed window_id\n")
 cat("     - Shows DPPP achievement per window\n")
 cat("\n")
 
-cat("STAGE4_REDESIGN_PLAN.md Phase 1 Status:\n")
+cat("Stage 4 Phase 1 Status:\n")
 cat("─────────────────────────────────────────────────────────────\n")
 cat("  ✅ Plot 1: DPPP Comparison - COMPLETE\n")
 cat("  ✅ Plot 2: RT × m/z Heatmap - REUSED (no changes needed)\n")

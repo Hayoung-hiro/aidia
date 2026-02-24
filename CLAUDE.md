@@ -218,8 +218,7 @@ Three methods in `R/replicate_utils.R`:
 3. Stage 3 submodules are all in `R/` top level (no subdirectories — R packages require flat `R/`)
 4. Never inline FWHM conversion — use `ensure_fwhm_seconds()` from `R/utils_common.R`
 5. Never inline window count formula — use `estimate_window_count_preview()` from `R/utils_common.R`
-6. Deprecated code is in `archive/deprecated_modules/R/` (NOT in `R/`)
-7. All plots live in `R/plot_*.R` (flat in `R/`, no subdirectories)
+6. All plots live in `R/plot_*.R` (flat in `R/`, no subdirectories)
 8. Config files: `inst/config/instruments.json` (use `system.file("config", "instruments.json", package = "aidia")`)
 9. Shiny app: `inst/shiny_app/` (launch via `aidia::run_aidia_app()`)
 
@@ -264,7 +263,7 @@ Optional (Suggests in DESCRIPTION):
 - `prospectr` (Savitzky-Golay), `yaml` (config)
 - `shiny` + `bs4Dash` + `shinyjs` + `shinybusy` + `DT` (web app)
 - `future` + `future.apply` (parallel processing)
-- `testthat`, `knitr`, `rmarkdown` (dev/docs)
+- `testthat`, `knitr`, `rmarkdown` (development, documentation)
 
 ---
 
@@ -285,7 +284,7 @@ Optional (Suggests in DESCRIPTION):
 - Shiny web app with bs4Dash (3-tab body layout)
 - Cycle time calculator with resolution-to-transient mapping
 - Shared API layer: `ensure_fwhm_seconds()`, `estimate_window_count_preview()`, data-driven instrument classification
-- Archived 81 dead files to `archive/`
+- Removed legacy development artifacts from repository
 
 **v2.1** (2025-11): Method file export moved to Stage 3
 

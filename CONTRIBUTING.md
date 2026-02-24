@@ -850,7 +850,7 @@ Longer explanation if needed.
 
 - `fix`: Bug fix
 
-- `docs`: Documentation only
+- `doc`: Documentation only
 
 - `refactor`: Code change that neither fixes a bug nor adds a feature
 
@@ -884,7 +884,7 @@ This improves performance and makes dependencies explicit.
 
  
 
-docs: add CONTRIBUTING.md with coding standards
+doc: add CONTRIBUTING.md with coding standards
 
 ```
 
@@ -902,7 +902,7 @@ fix/string-concatenation-bug
 
 refactor/split-large-functions
 
-docs/update-readme
+doc/update-readme
 
 ```
 
@@ -964,7 +964,7 @@ If you have questions about these guidelines, please:
 
 1. Check existing code for examples
 
-2. Read the relevant documentation in `docs/`
+2. Read [CLAUDE.md](CLAUDE.md) for the developer guide
 
 3. Open an issue for discussion
 
