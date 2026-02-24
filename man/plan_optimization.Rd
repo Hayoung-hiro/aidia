@@ -59,6 +59,10 @@ Options: "astral", "orbitrap", "exploris", "timstof", etc.}
 \itemize{
 \item Issues warning if window count falls below this threshold
 }}
+
+\item{ms2_resolution}{Integer or NULL, optional MS2 resolution override (default: NULL)}
+
+\item{ms2_time_override}{Numeric or NULL, optional MS2 injection time override in seconds (default: NULL)}
 }
 \value{
 OptimizationPlan S3 object
@@ -69,6 +73,7 @@ planning stage. This function analyzes current DPPP status, calculates
 required cycle time, and determines feasible window count.
 }
 \examples{
+\dontrun{
 # Basic usage
 plan <- plan_optimization(
   validated_data,
@@ -85,4 +90,5 @@ plan <- plan_optimization(
   target_satisfaction = 0.90,  # Stricter
   load_factor = 0.9  # More aggressive
 )
+}
 }

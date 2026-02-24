@@ -36,7 +36,7 @@ calculate_window_count_internal(
 List with window count and scan time details
 }
 \description{
-Uses the correct scan time formula: t_scan = max(T_transient, IT) + δ
+Uses the correct scan time formula: t_scan = max(T_transient, IT) + delta
 Resolution determines T_transient, which sets the minimum scan time floor.
 }
 \keyword{internal}

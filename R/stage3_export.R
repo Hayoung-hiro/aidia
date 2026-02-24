@@ -134,6 +134,7 @@ export_windows_to_csv <- function(optimized_windows, output_file,
 #' @return Named list of exported file paths
 #'
 #' @examples
+#' \dontrun{
 #' # Export all 4 strategies (default)
 #' method_files <- export_method_files(windows_list, "output/", validated_data, plan)
 #'
@@ -142,6 +143,7 @@ export_windows_to_csv <- function(optimized_windows, output_file,
 #'   windows_list, "output/", validated_data, plan,
 #'   strategies = c("greedy", "quantile")
 #' )
+#' }
 #'
 #' @export
 export_method_files <- function(windows_list,

@@ -25,7 +25,7 @@ For parallel instruments (Astral, TimsTOF), calculates the efficiency
 of ion accumulation during the transient/detection period.
 }
 \details{
-Formula: Efficiency = IT / (Transient + δ)
+Formula: Efficiency = IT / (Transient + delta)
 \itemize{
 \item Efficiency = 1.0: Perfect utilization (IT fills entire available time)
 \item Efficiency < 1.0: Underutilization (could use longer IT)

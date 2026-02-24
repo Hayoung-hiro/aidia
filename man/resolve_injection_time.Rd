@@ -26,7 +26,7 @@ When ms2_time = "auto":
 \itemize{
 \item For Orbitrap analyzers: IT = T_transient (balanced/sweet spot mode)
 \item This maximizes efficiency: no wasted time, no sensitivity loss
-\item Example: 30K resolution → IT = 64 ms (= T_transient)
+\item Example: 30K resolution -> IT = 64 ms (= T_transient)
 }
 
 When ms2_time is numeric:
@@ -35,12 +35,12 @@ When ms2_time is numeric:
 }
 }
 \examples{
-# Auto mode at 30K resolution → 64 ms (T_transient)
+# Auto mode at 30K resolution -> 64 ms (T_transient)
 resolve_injection_time("auto", 30000, "orbitrap")
 
-# Auto mode at 7.5K resolution → 16 ms
+# Auto mode at 7.5K resolution -> 16 ms
 resolve_injection_time("auto", 7500, "orbitrap")
 
-# Explicit IT value → returned unchanged
+# Explicit IT value -> returned unchanged
 resolve_injection_time(50, 30000, "orbitrap")  # Returns 50
 }

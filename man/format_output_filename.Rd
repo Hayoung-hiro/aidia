@@ -36,5 +36,5 @@ format_output_filename(
 Character, formatted filename (without directory path)
 }
 \description{
-Generates filename in format: {type}\emph{{instrument}}{strategy}\emph{{window}}{rt}_{date}.{ext}
+Generates filename in format: \code{type_instrument_strategy_window_rt_date.ext}
 }

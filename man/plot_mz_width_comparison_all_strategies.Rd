@@ -20,6 +20,7 @@ Creates a single grouped bar chart comparing Original m/z width
 vs all strategies in one plot.
 }
 \examples{
+\dontrun{
 windows_list <- list(
   quantile = optimized_windows_q,
   smoothing = optimized_windows_s,
@@ -27,4 +28,5 @@ windows_list <- list(
   coverage = optimized_windows_c
 )
 plot4c <- plot_mz_width_comparison_all_strategies(windows_list, validated_data)
+}
 }

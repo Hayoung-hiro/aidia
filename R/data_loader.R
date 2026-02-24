@@ -340,9 +340,9 @@ validate_data <- function(data, apply_quality_filters = TRUE, ...) {
 #     if (length(raw_metadata) > 0) {
 #       # Add metadata columns to data
 #       data <- add_metadata_to_diann_data(data, raw_metadata)
-#       cat("✅ Raw metadata successfully integrated\n")
+#       cat("[OK] Raw metadata successfully integrated\n")
 #     } else {
-#       cat("⚠️ No metadata extracted from raw files\n")
+#       cat("[!] No metadata extracted from raw files\n")
 #     }
 #   }
 #
@@ -398,13 +398,13 @@ validate_data <- function(data, apply_quality_filters = TRUE, ...) {
 #       }
 #     }
 #
-#     cat(sprintf("  • Instrument: %s (S/N: %s)\n",
+#     cat(sprintf("  - Instrument: %s (S/N: %s)\n",
 #                 primary_metadata$instrument$model,
 #                 primary_metadata$instrument$serial_number))
-#     cat(sprintf("  • Duration: %.1f minutes\n",
+#     cat(sprintf("  - Duration: %.1f minutes\n",
 #                 primary_metadata$acquisition$duration_minutes))
 #     if (!is.null(primary_metadata$scan_cycle_stats$scan_rate)) {
-#       cat(sprintf("  • Scan rate: %.1f Hz\n",
+#       cat(sprintf("  - Scan rate: %.1f Hz\n",
 #                   primary_metadata$scan_cycle_stats$scan_rate))
 #     }
 #   }
@@ -429,9 +429,9 @@ validate_data <- function(data, apply_quality_filters = TRUE, ...) {
 #
 #   user_config <- rjson::fromJSON(config_json)
 #
-#   cat(sprintf("✅ User configuration loaded\n"))
-#   cat(sprintf("  • Source instrument: %s\n", user_config$metadata_source$instrument_model))
-#   cat(sprintf("  • Recommended preset: %s\n", user_config$recommended_settings$primary_preset))
+#   cat(sprintf("[OK] User configuration loaded\n"))
+#   cat(sprintf("  - Source instrument: %s\n", user_config$metadata_source$instrument_model))
+#   cat(sprintf("  - Recommended preset: %s\n", user_config$recommended_settings$primary_preset))
 #
 #   return(user_config)
 # }
@@ -470,7 +470,7 @@ validate_data <- function(data, apply_quality_filters = TRUE, ...) {
 #       if (setting %in% names(base_config)) {
 #         old_value <- base_config[[setting]]
 #         base_config[[setting]] <- custom_overrides[[setting]]
-#         cat(sprintf("  • %s: %s -> %s\n", setting, old_value, custom_overrides[[setting]]))
+#         cat(sprintf("  - %s: %s -> %s\n", setting, old_value, custom_overrides[[setting]]))
 #       }
 #     }
 #   }

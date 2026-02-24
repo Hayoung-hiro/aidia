@@ -51,7 +51,7 @@ calculate_window_statistics_internal <- function(windows, precursor_data) {
     if (length(seg_mz) == 0) next
 
     # Mark precursors covered by any window in this segment
-    seg_indices <- which(seg_mask)  # Invariant across inner loop — hoist out
+    seg_indices <- which(seg_mask)  # Invariant across inner loop - hoist out
     for (j in seq_len(nrow(seg_windows))) {
       in_win <- seg_mz >= seg_windows$mz_start[j] & seg_mz < seg_windows$mz_end[j]
       precursor_data$covered[seg_indices[in_win]] <- TRUE

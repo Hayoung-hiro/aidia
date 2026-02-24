@@ -27,9 +27,11 @@ the optimization pipeline. This function:
 No user configuration needed - this always applies the same logic.
 }
 \examples{
+\dontrun{
 # Standard usage (automatic)
 filtered_data <- select_essential_columns(validated_data$data)
 
 # Silent mode
 filtered_data <- select_essential_columns(validated_data$data, verbose = FALSE)
+}
 }

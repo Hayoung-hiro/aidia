@@ -8,7 +8,7 @@
 # =============================================================================
 # Constants: Resolution-Transient Time Mapping (Orbitrap)
 # =============================================================================
-# Theoretical relationship: Transient Time ∝ Resolution
+# Theoretical relationship: Transient Time proportional to Resolution
 # These values are for Orbitrap analyzers (Thermo Fisher)
 # Reference: Orbitrap physics - higher resolution requires longer transient
 #
@@ -99,7 +99,7 @@ ASTRAL_IT_TO_SCANRATE <- c(
 # =============================================================================
 # Constants: Overhead Modeling
 # =============================================================================
-# δ (overhead) includes:
+# delta (overhead) includes:
 #   - Ion transfer time between mass analyzers
 #   - C-trap fill/empty time
 #   - Orbitrap stabilization time
@@ -107,8 +107,8 @@ ASTRAL_IT_TO_SCANRATE <- c(
 #   - Data transfer overhead
 #
 # Typical values:
-#   - δ ≈ 0.15-0.25 × Transient Time (15-25% overhead)
-#   - Minimum δ ≈ 3-5 ms for modern instruments
+#   - delta ~= 0.15-0.25 x Transient Time (15-25% overhead)
+#   - Minimum delta ~= 3-5 ms for modern instruments
 
 #' Default Overhead Factor
 #'
@@ -126,8 +126,8 @@ MINIMUM_OVERHEAD_MS <- 5.0
 
 #' Calculate Scan Overhead
 #'
-#' Estimates the overhead time (δ) for each MS2 scan.
-#' δ includes ion transfer, C-trap operation, and data handling.
+#' Estimates the overhead time (delta) for each MS2 scan.
+#' delta includes ion transfer, C-trap operation, and data handling.
 #'
 #' @param transient_time_ms Numeric, transient time in milliseconds
 #' @param overhead_factor Numeric, overhead as fraction of transient (default: 0.20)
@@ -153,7 +153,7 @@ calculate_scan_overhead <- function(transient_time_ms,
 #' Calculate Maximum Injection Time
 #'
 #' Determines the maximum IT that maintains efficiency.
-#' Formula: IT_max ≤ Transient_Time - δ
+#' Formula: IT_max <= Transient_Time - delta
 #'
 #' @param transient_time_ms Numeric, transient time in ms
 #' @param overhead_ms Numeric, overhead time in ms (or NULL for auto-calculate)
@@ -173,7 +173,7 @@ calculate_max_injection_time <- function(transient_time_ms,
     overhead_ms <- calculate_scan_overhead(transient_time_ms)
   }
 
-  # IT_max = Transient - δ, with safety margin
+  # IT_max = Transient - delta, with safety margin
   it_max <- (transient_time_ms - overhead_ms) * safety_margin
 
   # Ensure positive IT
@@ -185,12 +185,12 @@ calculate_max_injection_time <- function(transient_time_ms,
 #' Calculate MS2 Scan Time
 #'
 #' Calculates the total time for a single MS2 scan based on the fundamental
-#' scan time equation: t_scan = max(T_transient, IT) + δ
+#' scan time equation: t_scan = max(T_transient, IT) + delta
 #'
 #' This is the core formula for accurate window count calculation:
 #' - Resolution determines T_transient (detection time floor)
 #' - IT can be shorter (Resolution-Limited) or longer (Sensitivity-Limited)
-#' - Overhead (δ) is always added
+#' - Overhead (delta) is always added
 #'
 #' ## Efficiency Modes (Orbitrap)
 #'
@@ -236,7 +236,7 @@ calculate_max_injection_time <- function(transient_time_ms,
 #'
 #' # Astral analyzer (fixed detection time)
 #' calculate_ms2_scan_time(80000, 3.0, analyzer = "astral")
-#' # t_scan = max(2.5, 3.0) + 2.0 = 5.0 ms → 200 Hz
+#' # t_scan = max(2.5, 3.0) + 2.0 = 5.0 ms -> 200 Hz
 calculate_ms2_scan_time <- function(resolution = 30000,
                                      injection_time_ms,
                                      overhead_ms = NULL,
@@ -267,7 +267,7 @@ calculate_ms2_scan_time <- function(resolution = 30000,
       effective_time_ms <- min_cycle_ms
       efficiency_pct <- 100.0
       efficiency_mode <- "auto"
-      efficiency_message <- "장비 효율 100% (Parallel Mode - 200 Hz)"
+      efficiency_message <- "\uc7a5\ube44 \ud6a8\uc728 100% (Parallel Mode - 200 Hz)"
       efficiency_message_en <- "Instrument efficiency 100% (Parallel Mode - 200 Hz)"
     } else {
       # IT exceeds parallel capacity, becomes IT-limited
@@ -280,7 +280,7 @@ calculate_ms2_scan_time <- function(resolution = 30000,
       efficiency_pct <- round((min_cycle_ms / t_scan_ms) * 100, 1)
       efficiency_mode <- "custom"
       efficiency_message <- sprintf(
-        "장비 효율 %.1f%% (Sensitivity Mode) - 더 긴 IT로 감도 향상",
+        "\uc7a5\ube44 \ud6a8\uc728 %.1f%% (Sensitivity Mode) - \ub354 \uae34 IT\ub85c \uac10\ub3c4 \ud5a5\uc0c1",
         efficiency_pct
       )
       efficiency_message_en <- sprintf(
@@ -290,7 +290,7 @@ calculate_ms2_scan_time <- function(resolution = 30000,
 
       if (verbose) {
         message(sprintf(
-          "Astral Sensitivity Mode: IT=%.1f ms → %.0f Hz (Max: 200 Hz at IT≤3ms)",
+          "Astral Sensitivity Mode: IT=%.1f ms -> %.0f Hz (Max: 200 Hz at IT<=3ms)",
           injection_time_ms, 1000 / t_scan_ms
         ))
       }
@@ -322,7 +322,7 @@ calculate_ms2_scan_time <- function(resolution = 30000,
   # =========================================================================
   # TOF Analyzers (timsTOF, SCIEX, Waters)
   # =========================================================================
-  # TOF has no transient time concept; scan time ≈ IT + fixed overhead
+  # TOF has no transient time concept; scan time ~= IT + fixed overhead
   if (analyzer == "tof") {
     if (is.null(overhead_ms)) {
       overhead_ms <- MINIMUM_OVERHEAD_MS
@@ -344,7 +344,7 @@ calculate_ms2_scan_time <- function(resolution = 30000,
       analyzer = "tof",
       efficiency_pct = 100.0,  # TOF efficiency is relative to IT chosen
       efficiency_mode = "auto",
-      efficiency_message = "TOF 효율 100% (IT-dependent)",
+      efficiency_message = "TOF \ud6a8\uc728 100% (IT-dependent)",
       efficiency_message_en = "TOF efficiency 100% (IT-dependent)"
     ))
   }
@@ -367,7 +367,7 @@ calculate_ms2_scan_time <- function(resolution = 30000,
     }
   }
 
-  # Core formula: t_scan = max(T_transient, IT) + δ
+  # Core formula: t_scan = max(T_transient, IT) + delta
   effective_time_ms <- max(transient_ms, injection_time_ms)
   t_scan_ms <- effective_time_ms + overhead_ms
 
@@ -376,7 +376,7 @@ calculate_ms2_scan_time <- function(resolution = 30000,
     limiting_factor <- "resolution"
     efficiency_mode <- "auto"  # Resolution-limited = optimal for speed
     efficiency_pct <- 100.0    # Full efficiency
-    efficiency_message <- "장비 효율 100% (Resolution Limited)"
+    efficiency_message <- "\uc7a5\ube44 \ud6a8\uc728 100% (Resolution Limited)"
     efficiency_message_en <- "Instrument efficiency 100% (Resolution Limited)"
   } else if (injection_time_ms > transient_ms) {
     limiting_factor <- "sensitivity"
@@ -386,7 +386,7 @@ calculate_ms2_scan_time <- function(resolution = 30000,
     optimal_scan_ms <- transient_ms + overhead_ms
     efficiency_pct <- round((optimal_scan_ms / t_scan_ms) * 100, 1)
     efficiency_message <- sprintf(
-      "장비 효율 감소 %.1f%% (Injection Limited) - IT가 T_transient보다 %.1f ms 깁니다",
+      "\uc7a5\ube44 \ud6a8\uc728 \uac10\uc18c %.1f%% (Injection Limited) - IT\uac00 T_transient\ubcf4\ub2e4 %.1f ms \uae41\ub2c8\ub2e4",
       efficiency_pct, injection_time_ms - transient_ms
     )
     efficiency_message_en <- sprintf(
@@ -399,18 +399,18 @@ calculate_ms2_scan_time <- function(resolution = 30000,
       message(sprintf(
         paste0(
           "\n",
-          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
-          "⚠️  효율성 경고 (Efficiency Warning)\n",
-          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
-          "  현재 IT (%.1f ms) > T_transient (%.1f ms)\n",
-          "  이온 주입 시간으로 인해 전체 사이클이 느려지며 DPPP가 하락할 수 있습니다.\n",
+          "====================================================================\n",
+          "[!] \ud6a8\uc728\uc131 \uacbd\uace0 (Efficiency Warning)\n",
+          "====================================================================\n",
+          "  \ud604\uc7ac IT (%.1f ms) > T_transient (%.1f ms)\n",
+          "  \uc774\uc628 \uc8fc\uc785 \uc2dc\uac04\uc73c\ub85c \uc778\ud574 \uc804\uccb4 \uc0ac\uc774\ud074\uc774 \ub290\ub824\uc9c0\uba70 DPPP\uac00 \ud558\ub77d\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.\n",
           "\n",
           "  Current IT (%.1f ms) > T_transient (%.1f ms)\n",
           "  Longer injection time may slow cycle time and reduce DPPP.\n",
           "\n",
-          "  권장 (Recommended): IT = %.1f ms (Auto/Sweet Spot 모드)\n",
-          "  효율성 (Efficiency): %.1f%%\n",
-          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+          "  \uad8c\uc7a5 (Recommended): IT = %.1f ms (Auto/Sweet Spot \ubaa8\ub4dc)\n",
+          "  \ud6a8\uc728\uc131 (Efficiency): %.1f%%\n",
+          "====================================================================\n"
         ),
         injection_time_ms, transient_ms,
         injection_time_ms, transient_ms,
@@ -418,14 +418,14 @@ calculate_ms2_scan_time <- function(resolution = 30000,
       ))
     }
   } else {
-    limiting_factor <- "balanced"  # IT ≈ T_transient (Sweet Spot)
+    limiting_factor <- "balanced"  # IT ~= T_transient (Sweet Spot)
     efficiency_mode <- "auto"
     efficiency_pct <- 100.0
-    efficiency_message <- "장비 효율 100% (Balanced - Sweet Spot)"
+    efficiency_message <- "\uc7a5\ube44 \ud6a8\uc728 100% (Balanced - Sweet Spot)"
     efficiency_message_en <- "Instrument efficiency 100% (Balanced - Sweet Spot)"
   }
 
-  # Sweet spot IT (≈ T_transient for Orbitrap)
+  # Sweet spot IT (~= T_transient for Orbitrap)
   sweet_spot_it_ms <- ifelse(transient_ms > 0, transient_ms, injection_time_ms)
 
   # Calculate scan rate
@@ -453,7 +453,7 @@ calculate_ms2_scan_time <- function(resolution = 30000,
 #' For parallel instruments (Astral, TimsTOF), calculates the efficiency
 #' of ion accumulation during the transient/detection period.
 #'
-#' Formula: Efficiency = IT / (Transient + δ)
+#' Formula: Efficiency = IT / (Transient + delta)
 #' - Efficiency = 1.0: Perfect utilization (IT fills entire available time)
 #' - Efficiency < 1.0: Underutilization (could use longer IT)
 #' - Efficiency > 1.0: Not possible (IT exceeds available time)
@@ -740,9 +740,9 @@ list_available_instruments <- function() {
 print_instrument_info <- function(preset_name) {
   config <- get_instrument_config(preset_name)
 
-  cat("\n╔════════════════════════════════════════════════════════════════╗\n")
-  cat("║              INSTRUMENT CONFIGURATION                          ║\n")
-  cat("╚════════════════════════════════════════════════════════════════╝\n\n")
+  cat("\n+================================================================+\n")
+  cat("|              INSTRUMENT CONFIGURATION                          |\n")
+  cat("+================================================================+\n\n")
 
   cat(sprintf("Preset: %s\n", preset_name))
   cat(sprintf("Name: %s\n", config$name))
@@ -750,7 +750,11 @@ print_instrument_info <- function(preset_name) {
 
   cat("Hardware Specifications:\n")
   cat(sprintf("  MS1 time: %.1f ms\n", config$ms1_time))
-  cat(sprintf("  MS2 time: %.1f ms\n", config$ms2_time))
+  if (is.numeric(config$ms2_time)) {
+    cat(sprintf("  MS2 time: %.1f ms\n", config$ms2_time))
+  } else {
+    cat(sprintf("  MS2 time: %s\n", config$ms2_time))
+  }
   cat(sprintf("  Max scan rate: %d Hz\n", config$max_scan_rate))
   cat(sprintf("  Cycle calculation: %s\n", config$cycle_calculation))
   cat(sprintf("  MS1 scans per cycle: %d\n", config$ms1_scans_per_cycle))
@@ -940,19 +944,19 @@ calculate_effective_scan_rate <- function(max_scan_rate_hz, load_factor = 0.8) {
 #' When ms2_time = "auto":
 #'   - For Orbitrap analyzers: IT = T_transient (balanced/sweet spot mode)
 #'   - This maximizes efficiency: no wasted time, no sensitivity loss
-#'   - Example: 30K resolution → IT = 64 ms (= T_transient)
+#'   - Example: 30K resolution -> IT = 64 ms (= T_transient)
 #'
 #' When ms2_time is numeric:
 #'   - Returns the value unchanged
 #'
 #' @examples
-#' # Auto mode at 30K resolution → 64 ms (T_transient)
+#' # Auto mode at 30K resolution -> 64 ms (T_transient)
 #' resolve_injection_time("auto", 30000, "orbitrap")
 #'
-#' # Auto mode at 7.5K resolution → 16 ms
+#' # Auto mode at 7.5K resolution -> 16 ms
 #' resolve_injection_time("auto", 7500, "orbitrap")
 #'
-#' # Explicit IT value → returned unchanged
+#' # Explicit IT value -> returned unchanged
 #' resolve_injection_time(50, 30000, "orbitrap")  # Returns 50
 resolve_injection_time <- function(ms2_time, resolution = NULL, analyzer_type = "orbitrap") {
 
@@ -1053,11 +1057,11 @@ generate_efficiency_report <- function(resolution,
 
   # Determine status
   if (current$efficiency_mode == "auto") {
-    status <- if (language == "ko") "최적" else "Optimal"
-    status_symbol <- "✅"
+    status <- if (language == "ko") "\ucd5c\uc801" else "Optimal"
+    status_symbol <- "[OK]"
   } else {
-    status <- if (language == "ko") "효율 감소" else "Reduced Efficiency"
-    status_symbol <- "⚠️"
+    status <- if (language == "ko") "\ud6a8\uc728 \uac10\uc18c" else "Reduced Efficiency"
+    status_symbol <- "[!]"
   }
 
   # Generate summary message (split into parts to avoid sprintf format issues)
@@ -1066,28 +1070,28 @@ generate_efficiency_report <- function(resolution,
     header <- sprintf(
       paste0(
         "\n",
-        "╔════════════════════════════════════════════════════════════════════╗\n",
-        "║                    효율성 리포트 (Efficiency Report)               ║\n",
-        "╚════════════════════════════════════════════════════════════════════╝\n",
+        "+====================================================================+\n",
+        "|                    \ud6a8\uc728\uc131 \ub9ac\ud3ec\ud2b8 (Efficiency Report)               |\n",
+        "+====================================================================+\n",
         "\n",
-        "장비 정보:\n",
+        "\uc7a5\ube44 \uc815\ubcf4:\n",
         "  Analyzer: %s\n",
         "  Resolution: %gK\n",
         "  T_transient: %.1f ms\n",
         "\n",
-        "현재 설정 vs 최적 설정:\n",
-        "  ┌───────────────────┬─────────────┬─────────────┐\n",
-        "  │     항목          │   현재      │   최적(Auto)│\n",
-        "  ├───────────────────┼─────────────┼─────────────┤\n",
-        "  │ IT (Injection)    │ %6.1f ms   │ %6.1f ms   │\n",
-        "  │ t_scan (총 시간)  │ %6.1f ms   │ %6.1f ms   │\n",
-        "  │ Scan Rate         │ %6.1f Hz   │ %6.1f Hz   │\n",
-        "  │ Limiting Factor   │ %-11s │ %-11s │\n",
-        "  └───────────────────┴─────────────┴─────────────┘\n",
+        "\ud604\uc7ac \uc124\uc815 vs \ucd5c\uc801 \uc124\uc815:\n",
+        "  +-------------------+-------------+-------------+\n",
+        "  |     \ud56d\ubaa9          |   \ud604\uc7ac      |   \ucd5c\uc801(Auto)|\n",
+        "  +-------------------+-------------+-------------+\n",
+        "  | IT (Injection)    | %6.1f ms   | %6.1f ms   |\n",
+        "  | t_scan (\ucd1d \uc2dc\uac04)  | %6.1f ms   | %6.1f ms   |\n",
+        "  | Scan Rate         | %6.1f Hz   | %6.1f Hz   |\n",
+        "  | Limiting Factor   | %-11s | %-11s |\n",
+        "  +-------------------+-------------+-------------+\n",
         "\n",
-        "효율성 분석:\n",
-        "  %s 상태: %s\n",
-        "  효율: %.1f%%\n",
+        "\ud6a8\uc728\uc131 \ubd84\uc11d:\n",
+        "  %s \uc0c1\ud0dc: %s\n",
+        "  \ud6a8\uc728: %.1f%%\n",
         "  %s\n\n"
       ),
       toupper(analyzer),
@@ -1106,31 +1110,31 @@ generate_efficiency_report <- function(resolution,
     if (current$efficiency_mode == "custom") {
       recommendation <- sprintf(
         paste0(
-          "권장 사항:\n",
-          "  - Auto 모드 (IT = T_transient = %.1f ms) 사용 시:\n",
-          "    → %.1f Hz 달성 가능 (현재 대비 %.1fx 빠름)\n",
-          "    → IT를 %.1f ms 줄이면 사이클 시간 %.1f ms 단축\n",
-          "  - 감도가 중요한 경우 현재 설정 유지 가능\n"
+          "\uad8c\uc7a5 \uc0ac\ud56d:\n",
+          "  - Auto \ubaa8\ub4dc (IT = T_transient = %.1f ms) \uc0ac\uc6a9 \uc2dc:\n",
+          "    -> %.1f Hz \ub2ec\uc131 \uac00\ub2a5 (\ud604\uc7ac \ub300\ube44 %.1fx \ube60\ub984)\n",
+          "    -> IT\ub97c %.1f ms \uc904\uc774\uba74 \uc0ac\uc774\ud074 \uc2dc\uac04 %.1f ms \ub2e8\ucd95\n",
+          "  - \uac10\ub3c4\uac00 \uc911\uc694\ud55c \uacbd\uc6b0 \ud604\uc7ac \uc124\uc815 \uc720\uc9c0 \uac00\ub2a5\n"
         ),
         sweet_spot_it_ms,
         optimal$scan_rate_hz, speed_ratio,
         it_diff_ms, time_diff_ms
       )
     } else {
-      recommendation <- "  현재 설정이 최적입니다. Auto 모드로 운영 중입니다.\n"
+      recommendation <- "  \ud604\uc7ac \uc124\uc815\uc774 \ucd5c\uc801\uc785\ub2c8\ub2e4. Auto \ubaa8\ub4dc\ub85c \uc6b4\uc601 \uc911\uc785\ub2c8\ub2e4.\n"
     }
 
     summary <- paste0(header, recommendation,
-                      "════════════════════════════════════════════════════════════════════\n")
+                      "====================================================================\n")
 
   } else {
     # English version
     header <- sprintf(
       paste0(
         "\n",
-        "╔════════════════════════════════════════════════════════════════════╗\n",
-        "║                    EFFICIENCY REPORT                               ║\n",
-        "╚════════════════════════════════════════════════════════════════════╝\n",
+        "+====================================================================+\n",
+        "|                    EFFICIENCY REPORT                               |\n",
+        "+====================================================================+\n",
         "\n",
         "Instrument Info:\n",
         "  Analyzer: %s\n",
@@ -1138,14 +1142,14 @@ generate_efficiency_report <- function(resolution,
         "  T_transient: %.1f ms\n",
         "\n",
         "Current vs Optimal Settings:\n",
-        "  ┌───────────────────┬─────────────┬─────────────┐\n",
-        "  │     Parameter     │   Current   │   Optimal   │\n",
-        "  ├───────────────────┼─────────────┼─────────────┤\n",
-        "  │ IT (Injection)    │ %6.1f ms   │ %6.1f ms   │\n",
-        "  │ t_scan (total)    │ %6.1f ms   │ %6.1f ms   │\n",
-        "  │ Scan Rate         │ %6.1f Hz   │ %6.1f Hz   │\n",
-        "  │ Limiting Factor   │ %-11s │ %-11s │\n",
-        "  └───────────────────┴─────────────┴─────────────┘\n",
+        "  +-------------------+-------------+-------------+\n",
+        "  |     Parameter     |   Current   |   Optimal   |\n",
+        "  +-------------------+-------------+-------------+\n",
+        "  | IT (Injection)    | %6.1f ms   | %6.1f ms   |\n",
+        "  | t_scan (total)    | %6.1f ms   | %6.1f ms   |\n",
+        "  | Scan Rate         | %6.1f Hz   | %6.1f Hz   |\n",
+        "  | Limiting Factor   | %-11s | %-11s |\n",
+        "  +-------------------+-------------+-------------+\n",
         "\n",
         "Efficiency Analysis:\n",
         "  %s Status: %s\n",
@@ -1169,8 +1173,8 @@ generate_efficiency_report <- function(resolution,
         paste0(
           "Recommendations:\n",
           "  - Using Auto mode (IT = T_transient = %.1f ms):\n",
-          "    → Can achieve %.1f Hz (%.1fx faster than current)\n",
-          "    → Reducing IT by %.1f ms saves %.1f ms per scan\n",
+          "    -> Can achieve %.1f Hz (%.1fx faster than current)\n",
+          "    -> Reducing IT by %.1f ms saves %.1f ms per scan\n",
           "  - Keep current settings if sensitivity is critical\n"
         ),
         sweet_spot_it_ms,
@@ -1182,7 +1186,7 @@ generate_efficiency_report <- function(resolution,
     }
 
     summary <- paste0(header, recommendation,
-                      "════════════════════════════════════════════════════════════════════\n")
+                      "====================================================================\n")
   }
 
   return(list(
@@ -1226,10 +1230,11 @@ generate_efficiency_report <- function(resolution,
 #' - t_scan = max(5.0 ms, IT + 2.0 ms) for parallel architecture
 #'
 #' **Cycle Time:**
-#' - Sequential: cycle_time = MS1_time + (n_windows × MS2_time)
-#' - Parallel: cycle_time = max(MS1_time, n_windows × MS2_time)
+#' - Sequential: cycle_time = MS1_time + (n_windows x MS2_time)
+#' - Parallel: cycle_time = max(MS1_time, n_windows x MS2_time)
 #'
 #' @examples
+#' \dontrun{
 #' # From YAML config
 #' config <- yaml::read_yaml("config/user_experiment_config.yaml")
 #' result <- calculate_cycle_time_from_experiment(config)
@@ -1242,7 +1247,8 @@ generate_efficiency_report <- function(resolution,
 #'   dia_windows = list(window_count = 40)
 #' )
 #' result <- calculate_cycle_time_from_experiment(config)
-#' cat(sprintf("Cycle time: %.3f sec\n", result$cycle_time_sec))
+#' cat(sprintf("Cycle time: %.3f sec\\n", result$cycle_time_sec))
+#' }
 calculate_cycle_time_from_experiment <- function(experiment_config,
                                                   verbose = TRUE,
                                                   language = "ko") {
@@ -1361,95 +1367,95 @@ calculate_cycle_time_from_experiment <- function(experiment_config,
   if (verbose) {
     if (language == "ko") {
       cat("\n")
-      cat("╔════════════════════════════════════════════════════════════════════════╗\n")
-      cat("║            실제 실험 조건 기반 Cycle Time 계산                         ║\n")
-      cat("║            Actual Experiment-Based Cycle Time Calculation              ║\n")
-      cat("╚════════════════════════════════════════════════════════════════════════╝\n")
+      cat("+========================================================================+\n")
+      cat("|            \uc2e4\uc81c \uc2e4\ud5d8 \uc870\uac74 \uae30\ubc18 Cycle Time \uacc4\uc0b0                         |\n")
+      cat("|            Actual Experiment-Based Cycle Time Calculation              |\n")
+      cat("+========================================================================+\n")
       cat("\n")
-      cat(sprintf("장비 설정 (Instrument): %s (%s)\n",
+      cat(sprintf("\uc7a5\ube44 \uc124\uc815 (Instrument): %s (%s)\n",
                   base_config$name, toupper(analyzer_type)))
-      cat(sprintf("Cycle 계산 모드: %s\n\n", cycle_calculation))
+      cat(sprintf("Cycle \uacc4\uc0b0 \ubaa8\ub4dc: %s\n\n", cycle_calculation))
 
-      cat("┌─────────────────────────────────────────────────────────────────────────┐\n")
-      cat("│ MS1 스캔 파라미터                                                       │\n")
-      cat("├─────────────────────────────────────────────────────────────────────────┤\n")
-      cat(sprintf("│  Resolution:     %s\n", format(ms1_resolution, big.mark = ",")))
-      cat(sprintf("│  T_transient:    %.1f ms\n", ms1_transient))
-      cat(sprintf("│  Max IT:         %.1f ms (입력: %s)\n",
+      cat("+-------------------------------------------------------------------------+\n")
+      cat("| MS1 \uc2a4\uce94 \ud30c\ub77c\ubbf8\ud130                                                       |\n")
+      cat("+-------------------------------------------------------------------------+\n")
+      cat(sprintf("|  Resolution:     %s\n", format(ms1_resolution, big.mark = ",")))
+      cat(sprintf("|  T_transient:    %.1f ms\n", ms1_transient))
+      cat(sprintf("|  Max IT:         %.1f ms (\uc785\ub825: %s)\n",
                   ms1_it_resolved,
                   ifelse(is.character(experiment_config$ms1$max_injection_time_ms),
                          experiment_config$ms1$max_injection_time_ms,
                          sprintf("%.1f ms", experiment_config$ms1$max_injection_time_ms %||% ms1_it_resolved))))
-      cat(sprintf("│  Overhead:       %.1f ms\n", ms1_overhead))
-      cat(sprintf("│  ► MS1 Scan Time: %.1f ms\n", ms1_scan_time_ms))
-      cat("└─────────────────────────────────────────────────────────────────────────┘\n\n")
+      cat(sprintf("|  Overhead:       %.1f ms\n", ms1_overhead))
+      cat(sprintf("|  >> MS1 Scan Time: %.1f ms\n", ms1_scan_time_ms))
+      cat("+-------------------------------------------------------------------------+\n\n")
 
-      cat("┌─────────────────────────────────────────────────────────────────────────┐\n")
-      cat("│ MS2 스캔 파라미터                                                       │\n")
-      cat("├─────────────────────────────────────────────────────────────────────────┤\n")
-      cat(sprintf("│  Resolution:     %s\n", format(ms2_resolution, big.mark = ",")))
-      cat(sprintf("│  T_transient:    %.1f ms\n", ms2_scan_info$transient_ms))
-      cat(sprintf("│  Max IT:         %.1f ms (입력: %s)\n",
+      cat("+-------------------------------------------------------------------------+\n")
+      cat("| MS2 \uc2a4\uce94 \ud30c\ub77c\ubbf8\ud130                                                       |\n")
+      cat("+-------------------------------------------------------------------------+\n")
+      cat(sprintf("|  Resolution:     %s\n", format(ms2_resolution, big.mark = ",")))
+      cat(sprintf("|  T_transient:    %.1f ms\n", ms2_scan_info$transient_ms))
+      cat(sprintf("|  Max IT:         %.1f ms (\uc785\ub825: %s)\n",
                   ms2_it_resolved,
                   ifelse(is.character(experiment_config$ms2$max_injection_time_ms),
                          experiment_config$ms2$max_injection_time_ms,
                          sprintf("%.1f ms", experiment_config$ms2$max_injection_time_ms %||% ms2_it_resolved))))
-      cat(sprintf("│  Overhead:       %.1f ms\n", ms2_scan_info$overhead_ms))
-      cat(sprintf("│  ► MS2 Scan Time: %.1f ms (%.1f Hz)\n",
+      cat(sprintf("|  Overhead:       %.1f ms\n", ms2_scan_info$overhead_ms))
+      cat(sprintf("|  >> MS2 Scan Time: %.1f ms (%.1f Hz)\n",
                   ms2_scan_time_ms, theoretical_scan_rate_hz))
-      cat(sprintf("│  효율 상태:      %s\n", ms2_scan_info$efficiency_message))
-      cat("└─────────────────────────────────────────────────────────────────────────┘\n\n")
+      cat(sprintf("|  \ud6a8\uc728 \uc0c1\ud0dc:      %s\n", ms2_scan_info$efficiency_message))
+      cat("+-------------------------------------------------------------------------+\n\n")
 
-      cat("┌─────────────────────────────────────────────────────────────────────────┐\n")
-      cat("│ DIA 윈도우 설정                                                         │\n")
-      cat("├─────────────────────────────────────────────────────────────────────────┤\n")
-      cat(sprintf("│  MS1 Scans/Cycle: %d %s\n", ms1_scans_per_cycle,
+      cat("+-------------------------------------------------------------------------+\n")
+      cat("| DIA \uc708\ub3c4\uc6b0 \uc124\uc815                                                         |\n")
+      cat("+-------------------------------------------------------------------------+\n")
+      cat(sprintf("|  MS1 Scans/Cycle: %d %s\n", ms1_scans_per_cycle,
                   ifelse(ms1_scans_per_cycle > 1, "(Boxcar)", ifelse(ms1_scans_per_cycle == 0, "(Parallel)", ""))))
-      cat(sprintf("│  MS2 Window 수:   %d 개\n", window_count))
-      cat(sprintf("│  MS1 총 시간:     %.1f ms (= %d × %.1f ms)\n",
+      cat(sprintf("|  MS2 Window \uc218:   %d \uac1c\n", window_count))
+      cat(sprintf("|  MS1 \ucd1d \uc2dc\uac04:     %.1f ms (= %d x %.1f ms)\n",
                   ms1_total_time_ms, ms1_scans_per_cycle, ms1_scan_time_ms))
-      cat(sprintf("│  MS2 총 시간:     %.1f ms (= %d × %.1f ms)\n",
+      cat(sprintf("|  MS2 \ucd1d \uc2dc\uac04:     %.1f ms (= %d x %.1f ms)\n",
                   ms2_total_time_ms, window_count, ms2_scan_time_ms))
-      cat("└─────────────────────────────────────────────────────────────────────────┘\n\n")
+      cat("+-------------------------------------------------------------------------+\n\n")
 
-      cat("╔═════════════════════════════════════════════════════════════════════════╗\n")
-      cat("║                    최종 Cycle Time 계산 결과                            ║\n")
-      cat("╠═════════════════════════════════════════════════════════════════════════╣\n")
+      cat("+=========================================================================+\n")
+      cat("|                    \ucd5c\uc885 Cycle Time \uacc4\uc0b0 \uacb0\uacfc                            |\n")
+      cat("+=========================================================================+\n")
 
       if (ms1_scans_per_cycle == 0 || cycle_calculation == "parallel") {
-        cat(sprintf("║  Cycle Time = max(MS1, MS2 총합) = max(%.1f, %.1f) ms\n",
+        cat(sprintf("|  Cycle Time = max(MS1, MS2 \ucd1d\ud569) = max(%.1f, %.1f) ms\n",
                     ms1_scan_time_ms, ms2_total_time_ms))
       } else if (ms1_scans_per_cycle > 1) {
-        cat(sprintf("║  Cycle Time = %d×MS1 + MS2 총합 = %.1f + %.1f ms (Boxcar)\n",
+        cat(sprintf("|  Cycle Time = %dxMS1 + MS2 \ucd1d\ud569 = %.1f + %.1f ms (Boxcar)\n",
                     ms1_scans_per_cycle, ms1_total_time_ms, ms2_total_time_ms))
       } else {
-        cat(sprintf("║  Cycle Time = MS1 + MS2 총합 = %.1f + %.1f ms\n",
+        cat(sprintf("|  Cycle Time = MS1 + MS2 \ucd1d\ud569 = %.1f + %.1f ms\n",
                     ms1_scan_time_ms, ms2_total_time_ms))
       }
 
-      cat("║                                                                         ║\n")
-      cat(sprintf("║  ►►► Cycle Time = %.1f ms = %.3f 초 ◄◄◄\n",
+      cat("|                                                                         |\n")
+      cat(sprintf("|  >>> Cycle Time = %.1f ms = %.3f \ucd08 <<<\n",
                   cycle_time_ms, cycle_time_sec))
-      cat("║                                                                         ║\n")
-      cat(sprintf("║  유효 스캔 속도: %.1f windows/sec\n", effective_scan_rate_hz))
-      cat("╚═════════════════════════════════════════════════════════════════════════╝\n\n")
+      cat("|                                                                         |\n")
+      cat(sprintf("|  \uc720\ud6a8 \uc2a4\uce94 \uc18d\ub3c4: %.1f windows/sec\n", effective_scan_rate_hz))
+      cat("+=========================================================================+\n\n")
     } else {
       # English version (abbreviated)
       cat("\n")
-      cat("╔════════════════════════════════════════════════════════════════════════╗\n")
-      cat("║            Experiment-Based Cycle Time Calculation                      ║\n")
-      cat("╚════════════════════════════════════════════════════════════════════════╝\n")
+      cat("+========================================================================+\n")
+      cat("|            Experiment-Based Cycle Time Calculation                      |\n")
+      cat("+========================================================================+\n")
       cat(sprintf("\nInstrument: %s (%s), Mode: %s\n\n",
                   base_config$name, toupper(analyzer_type), cycle_calculation))
 
-      cat(sprintf("MS1: %dK res, IT=%.1f ms → Scan=%.1f ms\n",
+      cat(sprintf("MS1: %dK res, IT=%.1f ms -> Scan=%.1f ms\n",
                   ms1_resolution/1000, ms1_it_resolved, ms1_scan_time_ms))
-      cat(sprintf("MS2: %dK res, IT=%.1f ms → Scan=%.1f ms (%.1f Hz)\n",
+      cat(sprintf("MS2: %dK res, IT=%.1f ms -> Scan=%.1f ms (%.1f Hz)\n",
                   ms2_resolution/1000, ms2_it_resolved, ms2_scan_time_ms, theoretical_scan_rate_hz))
-      cat(sprintf("Windows: %d × %.1f ms = %.1f ms\n\n",
+      cat(sprintf("Windows: %d x %.1f ms = %.1f ms\n\n",
                   window_count, ms2_scan_time_ms, ms2_total_time_ms))
 
-      cat(sprintf("►►► CYCLE TIME = %.1f ms = %.3f sec ◄◄◄\n\n",
+      cat(sprintf(">>> CYCLE TIME = %.1f ms = %.3f sec <<<\n\n",
                   cycle_time_ms, cycle_time_sec))
     }
   }
@@ -1516,7 +1522,9 @@ calculate_cycle_time_from_experiment <- function(experiment_config,
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' config <- load_experiment_config("config/user_experiment_config.yaml")
+#' }
 load_experiment_config <- function(config_path = "config/user_experiment_config.yaml") {
 
   if (!file.exists(config_path)) {
@@ -1548,8 +1556,10 @@ load_experiment_config <- function(config_path = "config/user_experiment_config.
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' config <- get_instrument_config("fusion_lumos")
 #' get_ms1_scans_per_cycle(NULL, config)  # Returns 1 (sequential)
+#' }
 get_ms1_scans_per_cycle <- function(ms1_scans_per_cycle, instrument_config) {
 
   if (!is.null(ms1_scans_per_cycle)) {

@@ -40,11 +40,12 @@ The cycle time calculation uses the fundamental scan time equations:
 
 \strong{Cycle Time:}
 \itemize{
-\item Sequential: cycle_time = MS1_time + (n_windows × MS2_time)
-\item Parallel: cycle_time = max(MS1_time, n_windows × MS2_time)
+\item Sequential: cycle_time = MS1_time + (n_windows x MS2_time)
+\item Parallel: cycle_time = max(MS1_time, n_windows x MS2_time)
 }
 }
 \examples{
+\dontrun{
 # From YAML config
 config <- yaml::read_yaml("config/user_experiment_config.yaml")
 result <- calculate_cycle_time_from_experiment(config)
@@ -57,5 +58,6 @@ config <- list(
   dia_windows = list(window_count = 40)
 )
 result <- calculate_cycle_time_from_experiment(config)
-cat(sprintf("Cycle time: \%.3f sec\n", result$cycle_time_sec))
+cat(sprintf("Cycle time: \%.3f sec\\\\n", result$cycle_time_sec))
+}
 }

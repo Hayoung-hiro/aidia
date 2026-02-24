@@ -19,5 +19,7 @@ Creates a bar chart showing precursor counts in fixed time intervals
 (e.g., 5 or 10 minute bins) with more detailed statistics.
 }
 \examples{
+\dontrun{
 plot2b_binned <- plot_rt_histogram_binned(validated_data, bin_width_min = 10)
+}
 }

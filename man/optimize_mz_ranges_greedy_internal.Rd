@@ -45,7 +45,7 @@ GREEDY optimization based on MacCoss Lab dynamicDIA.py algorithm.
 }
 \details{
 \strong{Key Concept}: The m/z range per cycle is FIXED by instrument constraints:
-mz_range_per_cycle = n_windows × isolation_width
+mz_range_per_cycle = n_windows x isolation_width
 
 The algorithm slides this fixed range across the m/z axis to find the
 position that covers the MAXIMUM number of precursors.
@@ -56,8 +56,8 @@ to prevent abrupt jumps between adjacent bins.
 
 \strong{Difference from Coverage strategy}:
 \itemize{
-\item Coverage: Fixed target coverage → Variable m/z range
-\item Greedy:   Fixed m/z range → Variable coverage (maximized within constraint)
+\item Coverage: Fixed target coverage -> Variable m/z range
+\item Greedy:   Fixed m/z range -> Variable coverage (maximized within constraint)
 }
 
 Reference: https://github.com/uw-maccosslab/manuscript-dynamic-dia

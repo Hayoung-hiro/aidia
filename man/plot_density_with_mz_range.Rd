@@ -3,7 +3,7 @@
 %   R/plot_coverage.R
 \name{plot_density_with_mz_range}
 \alias{plot_density_with_mz_range}
-\title{Plot RT × m/z Density Heatmap with m/z Range Overlay (Single Strategy)}
+\title{Plot RT x m/z Density Heatmap with m/z Range Overlay (Single Strategy)}
 \usage{
 plot_density_with_mz_range(optimized_windows, validated_data, bins = 50)
 

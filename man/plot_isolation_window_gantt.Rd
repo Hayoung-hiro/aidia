@@ -24,10 +24,10 @@ overlays actual precursor locations}
 Prevents rendering issues with large datasets. Default: 5000}
 }
 \value{
-A ggplot object showing isolation windows as rectangles in RT × m/z space
+A ggplot object showing isolation windows as rectangles in RT x m/z space
 }
 \description{
-Creates a Gantt-style chart showing all isolation windows as rectangles in RT × m/z space.
+Creates a Gantt-style chart showing all isolation windows as rectangles in RT x m/z space.
 Each window is colored by precursor density. Optional precursor overlay available.
 }
 \details{
@@ -35,7 +35,7 @@ The plot shows:
 \itemize{
 \item X-axis: Retention Time (minutes)
 \item Y-axis: m/z (Da)
-\item Rectangles: Isolation windows (rt_start to rt_end × mz_start to mz_end)
+\item Rectangles: Isolation windows (rt_start to rt_end x mz_start to mz_end)
 \item Fill color: n_precursors (viridis cividis scale, colorblind safe)
 \item RT bin boundaries: Vertical dashed lines
 \item Optional precursor overlay: Scatter points showing actual precursor locations

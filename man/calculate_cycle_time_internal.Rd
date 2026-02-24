@@ -30,6 +30,6 @@ calculate_cycle_time_internal(
 Cycle time in seconds
 }
 \description{
-Uses the correct scan time formula: t_scan = max(T_transient, IT) + δ
+Uses the correct scan time formula: t_scan = max(T_transient, IT) + delta
 }
 \keyword{internal}

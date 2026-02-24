@@ -10,12 +10,6 @@
 #   7. Output format consistency (both modes)
 
 library(testthat)
-library(dplyr)
-
-# Source the module under test (resolve path relative to project root)
-# test_path() returns "tests/testthat" — go up 2 levels to reach project root
-project_root <- normalizePath(file.path(testthat::test_path(), "..", ".."), winslash = "/")
-source(file.path(project_root, "R", "stage3", "stage3_rt_binning.R"))
 
 # =============================================================================
 # Test Data Helpers

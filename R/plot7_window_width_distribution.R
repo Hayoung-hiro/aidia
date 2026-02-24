@@ -29,9 +29,11 @@ if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' plot7 <- plot_window_width_distribution(optimized_windows, validated_data)
 #' # Show all segments
 #' plot7 <- plot_window_width_distribution(optimized_windows, validated_data, max_segments_to_show = NULL)
+#' }
 plot_window_width_distribution <- function(optimized_windows,
                                             validated_data,
                                             max_segments_to_show = 6) {
@@ -187,7 +189,7 @@ plot_window_width_distribution <- function(optimized_windows,
   n_cols <- min(3, n_plots)
   n_rows <- ceiling(n_plots / n_cols)
 
-  cat(sprintf("    Created %d panels (%d rows × %d cols)\n", n_plots, n_rows, n_cols))
+  cat(sprintf("    Created %d panels (%d rows x %d cols)\n", n_plots, n_rows, n_cols))
 
   # Create final grid with shared legend
   final_plot <- do.call(grid.arrange, c(plot_list, ncol = n_cols))
@@ -308,7 +310,9 @@ plot_window_width_distribution_faceted <- function(optimized_windows,
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' plot7b <- plot_cumulative_window_count(optimized_windows, validated_data)
+#' }
 plot_cumulative_window_count <- function(optimized_windows,
                                           validated_data,
                                           max_segments_to_show = 6) {
@@ -438,7 +442,7 @@ plot_cumulative_window_count <- function(optimized_windows,
   n_cols <- min(3, n_plots)
   n_rows <- ceiling(n_plots / n_cols)
 
-  cat(sprintf("    Created %d panels (%d rows × %d cols)\n", n_plots, n_rows, n_cols))
+  cat(sprintf("    Created %d panels (%d rows x %d cols)\n", n_plots, n_rows, n_cols))
 
   # Create final grid
   final_plot <- do.call(grid.arrange, c(plot_list, ncol = n_cols))

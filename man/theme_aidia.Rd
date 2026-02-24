@@ -19,5 +19,7 @@ Consistent theme for all AIDIA plots. Based on theme_minimal() with
 enhanced typography, spacing, and accessibility.
 }
 \examples{
+\dontrun{
 ggplot(data) + geom_point() + theme_aidia()
+}
 }

@@ -24,7 +24,9 @@ if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' plot2b <- plot_rt_histogram(validated_data)
+#' }
 plot_rt_histogram <- function(validated_data, bins = 50) {
 
   cat("  Generating Plot 2B: RT Distribution Histogram...\n")
@@ -138,7 +140,7 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
       x = rt_max,
       y = Inf,
       label = sprintf(
-        "Early RT (<%.1f min): %s (%.1f%%)\nLate RT (≥%.1f min): %s (%.1f%%)",
+        "Early RT (<%.1f min): %s (%.1f%%)\nLate RT (>=%.1f min): %s (%.1f%%)",
         rt_mean,
         format(early_rt, big.mark = ","), early_pct,
         rt_mean,
@@ -201,7 +203,9 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' plot2b_binned <- plot_rt_histogram_binned(validated_data, bin_width_min = 10)
+#' }
 plot_rt_histogram_binned <- function(validated_data, bin_width_min = 5) {
 
   cat(sprintf("  Generating Plot 2B (binned): RT Distribution (%d-min bins)...\n", bin_width_min))

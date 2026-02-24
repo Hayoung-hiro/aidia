@@ -65,11 +65,13 @@ QC_COLUMNS <- c(
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' # Standard usage (automatic)
 #' filtered_data <- select_essential_columns(validated_data$data)
 #'
 #' # Silent mode
 #' filtered_data <- select_essential_columns(validated_data$data, verbose = FALSE)
+#' }
 select_essential_columns <- function(data, verbose = TRUE) {
 
   # Get available columns
@@ -92,7 +94,7 @@ select_essential_columns <- function(data, verbose = TRUE) {
             rename(Protein.Group = !!sym(alt_col))
           available_columns <- colnames(data)
           if (verbose) {
-            cat(sprintf("  → Renamed '%s' to 'Protein.Group'\n", alt_col))
+            cat(sprintf("  -> Renamed '%s' to 'Protein.Group'\n", alt_col))
           }
         }
         break
@@ -127,7 +129,7 @@ select_essential_columns <- function(data, verbose = TRUE) {
     n_removed <- n_before - n_after
     pct_reduction <- round((n_removed / n_before) * 100, 1)
 
-    cat(sprintf("✓ Column selection: %d → %d columns (removed %d, %.1f%% reduction)\n",
+    cat(sprintf("OK Column selection: %d -> %d columns (removed %d, %.1f%% reduction)\n",
                 n_before, n_after, n_removed, pct_reduction))
 
     # List kept columns if reasonable number

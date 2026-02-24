@@ -367,7 +367,7 @@ enforce_bin_constraints <- function(change_points,
 
   for (i in 2:length(change_points)) {
     if ((change_points[i] - change_points[last_kept]) < min_bin_width) {
-      # Too close — keep the one with the lower p-value
+      # Too close - keep the one with the lower p-value
       if (p_values[change_indices[i]] < p_values[change_indices[last_kept]]) {
         kept[last_kept] <- FALSE
         kept[i] <- TRUE

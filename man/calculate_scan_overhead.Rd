@@ -21,8 +21,8 @@ calculate_scan_overhead(
 Numeric, overhead time in milliseconds
 }
 \description{
-Estimates the overhead time (δ) for each MS2 scan.
-δ includes ion transfer, C-trap operation, and data handling.
+Estimates the overhead time (delta) for each MS2 scan.
+delta includes ion transfer, C-trap operation, and data handling.
 }
 \examples{
 calculate_scan_overhead(64)   # For 30K resolution: returns ~12.8 ms

@@ -26,6 +26,8 @@ Creates a 2x2 panel dashboard showing the impact of optimization:
 }
 }
 \examples{
+\dontrun{
 p <- plot_optimization_impact(optimization_plan, optimized_windows, validated_data)
 ggsave("impact_summary.png", p, width = 10, height = 8)
+}
 }

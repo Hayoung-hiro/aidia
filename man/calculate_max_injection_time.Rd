@@ -22,7 +22,7 @@ Numeric, maximum injection time in milliseconds
 }
 \description{
 Determines the maximum IT that maintains efficiency.
-Formula: IT_max ≤ Transient_Time - δ
+Formula: IT_max <= Transient_Time - delta
 }
 \examples{
 calculate_max_injection_time(64)  # 30K: ~64 - 12.8 = ~51 ms

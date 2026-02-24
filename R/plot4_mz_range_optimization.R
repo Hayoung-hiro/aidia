@@ -23,7 +23,9 @@ if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' plot4 <- plot_mz_range_optimization(optimized_windows, validated_data)
+#' }
 plot_mz_range_optimization <- function(optimized_windows, validated_data) {
 
   cat("  Generating Plot 4: m/z Range Optimization...\n")

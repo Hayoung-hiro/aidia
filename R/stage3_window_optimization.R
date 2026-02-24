@@ -95,6 +95,12 @@ if (!isNamespaceLoaded("aidia")) {
 #' @param use_parallel Logical, enable parallel processing via future (default: FALSE)
 #' @param n_cores Integer or NULL, number of cores (NULL = auto-detect)
 #' @param rt_binning_mode Character, RT binning mode: "fixed" or "adaptive" (default: "fixed")
+#' @param cpd_min_bin_width Numeric, minimum RT bin width in minutes for adaptive binning (default: 1.0)
+#' @param cpd_max_bin_width Numeric, maximum RT bin width in minutes for adaptive binning (default: 15.0)
+#' @param cpd_min_precursors_per_bin Integer, minimum precursors per bin for adaptive binning (default: 50)
+#' @param cpd_significance_level Numeric, significance level for changepoint detection (default: 0.05)
+#' @param edge_void_buffer_min Numeric, buffer in minutes for edge bins with no precursors (default: 0.5)
+#' @param edge_wash_min_precursors Integer, minimum precursors for edge bin retention (default: 30)
 #' @param width_grid_step Numeric, grid step for width digitization in Da (default: 0.5)
 #'   - Snaps window widths to nearest multiple for batch reproducibility
 #'   - Set to NULL or 0 to disable digitization
@@ -104,6 +110,7 @@ if (!isNamespaceLoaded("aidia")) {
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' # Basic usage
 #' windows <- optimize_windows(
 #'   validated_data,
@@ -122,7 +129,7 @@ if (!isNamespaceLoaded("aidia")) {
 #'   target_coverage = 0.98,
 #'   window_mode = "density"
 #' )
-#' @export
+#' }
 optimize_windows <- function(
   validated_data,
   optimization_plan,

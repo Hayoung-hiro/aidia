@@ -6,6 +6,11 @@
 \usage{
 \method{print}{VisualizationResult}(x, ...)
 }
+\arguments{
+\item{x}{A VisualizationResult object}
+
+\item{...}{Additional arguments (ignored)}
+}
 \description{
 Print method for VisualizationResult
 }

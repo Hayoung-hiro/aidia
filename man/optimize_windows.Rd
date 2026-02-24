@@ -115,6 +115,18 @@ optimize_windows(
 
 \item{rt_binning_mode}{Character, RT binning mode: "fixed" or "adaptive" (default: "fixed")}
 
+\item{cpd_min_bin_width}{Numeric, minimum RT bin width in minutes for adaptive binning (default: 1.0)}
+
+\item{cpd_max_bin_width}{Numeric, maximum RT bin width in minutes for adaptive binning (default: 15.0)}
+
+\item{cpd_min_precursors_per_bin}{Integer, minimum precursors per bin for adaptive binning (default: 50)}
+
+\item{cpd_significance_level}{Numeric, significance level for changepoint detection (default: 0.05)}
+
+\item{edge_void_buffer_min}{Numeric, buffer in minutes for edge bins with no precursors (default: 0.5)}
+
+\item{edge_wash_min_precursors}{Integer, minimum precursors for edge bin retention (default: 30)}
+
 \item{width_grid_step}{Numeric, grid step for width digitization in Da (default: 0.5)
 \itemize{
 \item Snaps window widths to nearest multiple for batch reproducibility
@@ -134,6 +146,7 @@ This function operates per-RT-bin: each RT bin independently generates
 the specified number of windows, resulting in total_windows = n_bins x n_windows.
 }
 \examples{
+\dontrun{
 # Basic usage
 windows <- optimize_windows(
   validated_data,
@@ -152,4 +165,5 @@ windows <- optimize_windows(
   target_coverage = 0.98,
   window_mode = "density"
 )
+}
 }

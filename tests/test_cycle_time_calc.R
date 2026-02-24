@@ -5,8 +5,8 @@ cat("\n=========================================================================
   Test: Cycle Time Calculation from Experiment Config
 =============================================================================\n\n")
 
-# Load dependencies
-source("R/instrument_utils.R")
+# Load package (functions available via namespace)
+library(aidia)
 
 # Helper: Print test header with consistent formatting
 print_test_header <- function(test_num, description) {

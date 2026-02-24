@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot5_density_with_mz_ranges.R
 \name{plot_density_with_mz_ranges_grid}
 \alias{plot_density_with_mz_ranges_grid}
-\title{Plot RT × m/z Density Heatmap with m/z Range Overlay (All Strategies, 2×2 Grid)}
+\title{Plot RT x m/z Density Heatmap with m/z Range Overlay (All Strategies, 2x2 Grid)}
 \usage{
 plot_density_with_mz_ranges_grid(windows_list, validated_data, bins = 50)
 }
@@ -18,10 +18,11 @@ List names should match strategy keys (e.g., "greedy", "kde", "quantile")}
 Combined plot (grid.arrange object)
 }
 \description{
-Creates a 2×2 grid showing density heatmap with optimized m/z range overlay
+Creates a 2x2 grid showing density heatmap with optimized m/z range overlay
 for all optimization strategies.
 }
 \examples{
+\dontrun{
 windows_list <- list(
   quantile = optimized_windows_q,
   smoothing = optimized_windows_s,
@@ -29,4 +30,5 @@ windows_list <- list(
   coverage = optimized_windows_c
 )
 plot5 <- plot_density_with_mz_ranges_grid(windows_list, validated_data)
+}
 }

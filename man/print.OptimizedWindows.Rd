@@ -6,6 +6,11 @@
 \usage{
 \method{print}{OptimizedWindows}(x, ...)
 }
+\arguments{
+\item{x}{An OptimizedWindows object}
+
+\item{...}{Additional arguments (ignored)}
+}
 \description{
 Print method for OptimizedWindows
 }

@@ -15,7 +15,7 @@ plot_fwhm_distribution(validated_data, optimization_plan = NULL)
 ggplot object
 }
 \description{
-Shows chromatographic peak width distribution — the fundamental input
+Shows chromatographic peak width distribution - the fundamental input
 driving the entire DPPP optimization. Displays histogram with density overlay,
 median, P15 (critical percentile for DPPP), and optional cycle time context.
 }
@@ -25,6 +25,8 @@ the target cycle time. P15 (15th percentile) is the critical threshold
 used in DPPP calculations (1.7 * P15_FWHM / cycle_time).
 }
 \examples{
+\dontrun{
 p <- plot_fwhm_distribution(validated_data, optimization_plan)
 ggsave("fwhm_distribution.png", p, width = 10, height = 6)
+}
 }

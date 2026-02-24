@@ -50,7 +50,7 @@ and creates a structured ValidatedData object for downstream stages.
 }
 \details{
 Pipeline Pattern: Data flows through transformation functions:
-Load → Validate Columns → Handle Replicates → Select Columns → Validate Quality → Package
+Load -> Validate Columns -> Handle Replicates -> Select Columns -> Validate Quality -> Package
 
 Column Selection: Automatically keeps only essential columns for memory efficiency
 (Precursor.Id, RT.Start, Precursor.Mz, FWHM, Protein.Group + QC columns if present)

@@ -37,6 +37,7 @@ Batch export method CSV files for multiple optimization strategies.
 Default behavior exports all 5 strategies (greedy, kde, quantile, coverage, outlier).
 }
 \examples{
+\dontrun{
 # Export all 4 strategies (default)
 method_files <- export_method_files(windows_list, "output/", validated_data, plan)
 
@@ -45,5 +46,6 @@ method_files <- export_method_files(
   windows_list, "output/", validated_data, plan,
   strategies = c("greedy", "quantile")
 )
+}
 
 }

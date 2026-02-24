@@ -22,7 +22,7 @@ Numeric vector of DPPP values
 }
 \description{
 Computes DPPP using the standard formula:
-DPPP = (peak_width_factor × FWHM_seconds) / cycle_time_seconds
+DPPP = (peak_width_factor x FWHM_seconds) / cycle_time_seconds
 }
 \examples{
 fwhm <- c(10, 15, 20)  # seconds

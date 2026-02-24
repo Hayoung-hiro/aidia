@@ -15,7 +15,7 @@ grob object (tableGrob)
 \description{
 Creates a visual table comparing all strategies side by side.
 Shows Coverage\%, Mean Width, Window Count, and Range Utilization.
-Does NOT recommend a strategy — provides insights only for informed decision-making.
+Does NOT recommend a strategy - provides insights only for informed decision-making.
 }
 \details{
 Purpose: Provide at-a-glance comparison of key metrics across all strategies
@@ -23,7 +23,9 @@ to help users understand trade-offs. Final quantification quality depends
 on sample complexity and downstream analysis software.
 }
 \examples{
+\dontrun{
 p <- plot_strategy_comparison_table(windows_list)
 grid::grid.draw(p)
 ggsave("strategy_comparison.png", p, width = 12, height = 6)
+}
 }

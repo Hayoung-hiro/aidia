@@ -18,6 +18,8 @@ Integer (0 or 1)
 Get ms1_scans_per_cycle with automatic detection
 }
 \examples{
+\dontrun{
 config <- get_instrument_config("fusion_lumos")
 get_ms1_scans_per_cycle(NULL, config)  # Returns 1 (sequential)
+}
 }

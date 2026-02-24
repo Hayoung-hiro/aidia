@@ -16,7 +16,7 @@ Estimated cycle time in seconds
 }
 \description{
 Auto-estimates cycle time when not provided by user.
-Uses heuristic: cycle_time ≈ gradient_length / 15 (capped at 3.5 sec)
+Uses heuristic: cycle_time ~= gradient_length / 15 (capped at 3.5 sec)
 This assumes ~15 data points per chromatographic peak as initial estimate.
 }
 \keyword{internal}

@@ -26,7 +26,7 @@ if (!isNamespaceLoaded("aidia")) {
 #' and creates a structured ValidatedData object for downstream stages.
 #'
 #' Pipeline Pattern: Data flows through transformation functions:
-#'   Load → Validate Columns → Handle Replicates → Select Columns → Validate Quality → Package
+#'   Load -> Validate Columns -> Handle Replicates -> Select Columns -> Validate Quality -> Package
 #'
 #' Column Selection: Automatically keeps only essential columns for memory efficiency
 #' (Precursor.Id, RT.Start, Precursor.Mz, FWHM, Protein.Group + QC columns if present)
@@ -60,9 +60,9 @@ create_validated_dataset <- function(
 ) {
 
   cat("\n")
-  cat("╔═══════════════════════════════════════════════╗\n")
-  cat("║   STAGE 1: Data Validation                   ║\n")
-  cat("╚═══════════════════════════════════════════════╝\n\n")
+  cat("+===============================================+\n")
+  cat("|   STAGE 1: Data Validation                   |\n")
+  cat("+===============================================+\n\n")
 
   start_time <- Sys.time()
 
@@ -82,17 +82,17 @@ create_validated_dataset <- function(
       ...
     )
 
-  cat(sprintf("✓ Loaded %d precursors\n", nrow(loaded_data$data)))
+  cat(sprintf("OK Loaded %d precursors\n", nrow(loaded_data$data)))
 
   # Pipeline Step 2: Validate required columns
   cat("\nStep 2: Validating required columns...\n")
   validate_required_columns(loaded_data$data, c("RT.Start", "Precursor.Mz", "FWHM"))
-  cat("✓ All required columns present\n")
+  cat("OK All required columns present\n")
 
   # Compute RT.Apex from midpoint of RT.Start and RT.Stop
   if ("RT.Stop" %in% names(loaded_data$data)) {
     loaded_data$data$RT.Apex <- (loaded_data$data$RT.Start + loaded_data$data$RT.Stop) / 2
-    cat("✓ Computed RT.Apex from midpoint of RT.Start and RT.Stop\n")
+    cat("OK Computed RT.Apex from midpoint of RT.Start and RT.Stop\n")
   } else {
     loaded_data$data$RT.Apex <- loaded_data$data$RT.Start
     cat("i RT.Stop not available, using RT.Start as RT.Apex\n")
@@ -121,7 +121,7 @@ create_validated_dataset <- function(
   cat("\nStep 5: Validating data quality...\n")
   quality_results <- validate_data_quality(processed_data)
   quality_score <- quality_results$quality_score
-  cat(sprintf("✓ Quality score: %.2f\n", quality_score))
+  cat(sprintf("OK Quality score: %.2f\n", quality_score))
 
   # Check quality threshold
   quality_passed <- quality_score >= quality_threshold
@@ -153,8 +153,8 @@ create_validated_dataset <- function(
     processing_time = processing_time
   )
 
-  cat("✓ ValidatedData object created\n")
-  cat("\n═══ STAGE 1 COMPLETE ═══\n")
+  cat("OK ValidatedData object created\n")
+  cat("\n=== STAGE 1 COMPLETE ===\n")
   cat(sprintf("Processing time: %.2f seconds\n", processing_time))
 
   return(validated_data)
@@ -344,7 +344,7 @@ load_optional_raw_metadata <- function(enable, raw_file_dir) {
     }
 
     metadata <- load_raw_metadata(raw_file_dir)
-    cat("✓ Raw metadata loaded successfully\n")
+    cat("OK Raw metadata loaded successfully\n")
     return(metadata)
 
   }, error = function(e) {
@@ -377,23 +377,23 @@ handle_technical_replicates <- function(
   has_run_column <- "Run" %in% colnames(data)
 
   if (!has_run_column) {
-    cat("✓ No Run column - treating as single run\n")
+    cat("OK No Run column - treating as single run\n")
     attr(data, "consensus_metadata") <- list(n_runs = 1)
     return(data)
   }
 
   n_runs <- length(unique(data$Run))
-  cat(sprintf("✓ Detected %d run(s)\n", n_runs))
+  cat(sprintf("OK Detected %d run(s)\n", n_runs))
 
   if (n_runs == 1 || !enable_consensus) {
     msg <- if (n_runs == 1) "Single run detected" else "Replicate consensus disabled"
-    cat(sprintf("  → %s - skipping consensus\n", msg))
+    cat(sprintf("  -> %s - skipping consensus\n", msg))
     attr(data, "consensus_metadata") <- list(n_runs = n_runs)
     return(data)
   }
 
   # Apply consensus
-  cat(sprintf("  → Creating consensus dataset (max intensity CV: %d%%)...\n", max_intensity_cv_percent))
+  cat(sprintf("  -> Creating consensus dataset (max intensity CV: %d%%)...\n", max_intensity_cv_percent))
 
   consensus_data <- calculate_consensus_dataset(
     data,
@@ -404,7 +404,7 @@ handle_technical_replicates <- function(
   # Extract and attach metadata
   consensus_meta <- attr(consensus_data, "metadata") %||% list(n_runs = n_runs)
 
-  cat(sprintf("  ✓ Consensus: %d → %d precursors (filtered %d by CV)\n",
+  cat(sprintf("  OK Consensus: %d -> %d precursors (filtered %d by CV)\n",
               consensus_meta$n_precursors_before %||% nrow(data),
               consensus_meta$n_precursors_after %||% nrow(consensus_data),
               consensus_meta$n_filtered_cv %||% 0))

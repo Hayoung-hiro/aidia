@@ -29,8 +29,10 @@ For each RT segment, shows:
 }
 }
 \examples{
+\dontrun{
 # Show all bins (default)
 plot4 <- plot_mz_distribution_with_exclusions(optimized_windows, validated_data)
 # Show only 6 bins (sampled)
 plot4 <- plot_mz_distribution_with_exclusions(optimized_windows, validated_data, max_bins_to_show = 6)
+}
 }

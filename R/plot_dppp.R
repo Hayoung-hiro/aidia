@@ -92,7 +92,7 @@ plot_dppp_comparison <- function(optimization_plan, validated_data) {
 
   # Create annotation text with larger font and simplified formula
   annotation_text <- sprintf(
-    "DPPP = (FWHM × 1.7) / cycle_time\n\nCurrent State:\n  Median FWHM: %.1f sec\n  Cycle time: %.1f sec\n  Satisfaction: %.1f%%\n\nRecommended:\n  Cycle time: %.1f sec\n  Expected satisfaction: %.1f%%+\n\nTotal precursors: %s",
+    "DPPP = (FWHM x 1.7) / cycle_time\n\nCurrent State:\n  Median FWHM: %.1f sec\n  Cycle time: %.1f sec\n  Satisfaction: %.1f%%\n\nRecommended:\n  Cycle time: %.1f sec\n  Expected satisfaction: %.1f%%+\n\nTotal precursors: %s",
     median_fwhm_sec,
     current_cycle_time,
     current_satisfaction,
@@ -240,7 +240,7 @@ plot_dppp_comparison_enhanced <- function(optimization_plan, validated_data) {
 
   # Create annotation text
   annotation_text <- sprintf(
-    "DPPP = (FWHM × 1.7) / cycle_time\n\nCurrent State:\n  Median FWHM: %.1f sec\n  Cycle time: %.1f sec\n  Median DPPP: %.2f\n  Satisfaction: %.1f%%\n\nRecommended:\n  Cycle time: %.1f sec\n  Median DPPP: %.2f\n  Expected satisfaction: %.1f%%+\n\nDPPP Improvement: +%.2f\nTotal precursors: %s",
+    "DPPP = (FWHM x 1.7) / cycle_time\n\nCurrent State:\n  Median FWHM: %.1f sec\n  Cycle time: %.1f sec\n  Median DPPP: %.2f\n  Satisfaction: %.1f%%\n\nRecommended:\n  Cycle time: %.1f sec\n  Median DPPP: %.2f\n  Expected satisfaction: %.1f%%+\n\nDPPP Improvement: +%.2f\nTotal precursors: %s",
     median_fwhm_sec,
     current_cycle_time,
     median_current_dppp,

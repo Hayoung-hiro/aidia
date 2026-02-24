@@ -26,5 +26,7 @@ Y-axis represents cumulative width (in Da), showing each window's contribution
 This visualizes the variable window width distribution clearly
 }
 \examples{
+\dontrun{
 plot7b <- plot_cumulative_window_count(optimized_windows, validated_data)
+}
 }

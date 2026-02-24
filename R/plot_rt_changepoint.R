@@ -11,7 +11,7 @@
 
 
 # =============================================================================
-# Plot 11: RT Change Point Validation — Contour Density + Bin Boundaries
+# Plot 11: RT Change Point Validation - Contour Density + Bin Boundaries
 # =============================================================================
 
 #' RT Change Point Validation: Adaptive vs Fixed Binning

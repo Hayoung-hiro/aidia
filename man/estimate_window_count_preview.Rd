@@ -24,7 +24,7 @@ estimate_window_count_preview(
 \item{max_windows}{Integer, maximum window count (default: 200)}
 }
 \value{
-Integer, estimated window count clamped to \link{min_windows, max_windows}
+Integer, estimated window count clamped to \code{min_windows}:\code{max_windows} range
 }
 \description{
 Quick estimation of how many MS2 windows fit given FWHM, DPPP target,

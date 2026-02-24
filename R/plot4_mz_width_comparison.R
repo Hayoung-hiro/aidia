@@ -23,7 +23,9 @@ if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' plot4b <- plot_mz_width_comparison(optimized_windows, validated_data)
+#' }
 plot_mz_width_comparison <- function(optimized_windows, validated_data) {
 
   cat("  Generating Plot 4B: m/z Width Comparison (Bar Chart)...\n")
@@ -150,6 +152,7 @@ plot_mz_width_comparison <- function(optimized_windows, validated_data) {
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' windows_list <- list(
 #'   quantile = optimized_windows_q,
 #'   smoothing = optimized_windows_s,
@@ -157,6 +160,7 @@ plot_mz_width_comparison <- function(optimized_windows, validated_data) {
 #'   coverage = optimized_windows_c
 #' )
 #' plot4c <- plot_mz_width_comparison_all_strategies(windows_list, validated_data)
+#' }
 plot_mz_width_comparison_all_strategies <- function(windows_list, validated_data) {
 
   cat("  Generating Plot 4C: m/z Width Comparison (All Strategies Overlay)...\n")
@@ -174,7 +178,7 @@ plot_mz_width_comparison_all_strategies <- function(windows_list, validated_data
     "greedy" = "Greedy (MacCoss)",
     "kde" = "KDE (Density Peak)",
     "quantile" = "Quantile (P5-P95)",
-    "outlier" = "Outlier (±3SD)",
+    "outlier" = "Outlier (+/-3SD)",
     "coverage" = "Coverage (95%)"
   )
 
@@ -262,7 +266,7 @@ plot_mz_width_comparison_all_strategies <- function(windows_list, validated_data
       labels = c("Original" = "Original (full range)",
                  "Quantile" = "Quantile (P5-P95)",
                  "Smoothing" = "Smoothing (SG)",
-                 "Outlier" = "Outlier (±3SD)",
+                 "Outlier" = "Outlier (+/-3SD)",
                  "Coverage" = "Coverage (95%)")
     ) +
 

@@ -27,3 +27,15 @@
 ^TODO.*
 ^\.gitignore$
 ^\.github$
+^.*\.md$
+^.*\.txt$
+^.*\.code-workspace$
+^[^/]*\.json$
+^Rplots\.pdf$
+^.*\.parquet$
+^package-lock\.json$
+^kentbeck_CLAUDE\.md$
+^PACKAGING_PLAN\.md$
+^CONTRIBUTING\.md$
+^DEVELOPMENT\.md$
+^CLAUDE\.md$

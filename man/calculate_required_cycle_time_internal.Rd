@@ -13,6 +13,6 @@ calculate_required_cycle_time_internal(
 }
 \description{
 Uses windowed percentile for robustness against FWHM outliers.
-Instead of single percentile, averages over a small window (±2\%).
+Instead of single percentile, averages over a small window (+/-2\%).
 }
 \keyword{internal}

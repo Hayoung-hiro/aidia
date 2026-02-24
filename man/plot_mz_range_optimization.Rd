@@ -19,5 +19,7 @@ Compares original m/z range (full data range) vs optimized range
 (after quantile/smoothing/outlier/coverage strategy) for each RT segment.
 }
 \examples{
+\dontrun{
 plot4 <- plot_mz_range_optimization(optimized_windows, validated_data)
+}
 }

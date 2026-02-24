@@ -17,7 +17,9 @@ Maps strategy names to the AIDIA colorblind-safe palette.
 Use with aes(fill = strategy).
 }
 \examples{
+\dontrun{
 ggplot(data, aes(x, y, fill = strategy)) +
   geom_col() +
   scale_fill_strategy()
+}
 }

@@ -6,6 +6,11 @@
 \usage{
 \method{summary}{ValidatedData}(object, ...)
 }
+\arguments{
+\item{object}{A ValidatedData object}
+
+\item{...}{Additional arguments (ignored)}
+}
 \description{
 Summary method for ValidatedData
 }

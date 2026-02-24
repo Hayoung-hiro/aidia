@@ -6,6 +6,11 @@
 \usage{
 \method{print}{ValidatedData}(x, ...)
 }
+\arguments{
+\item{x}{A ValidatedData object}
+
+\item{...}{Additional arguments (ignored)}
+}
 \description{
 Print method for ValidatedData
 }

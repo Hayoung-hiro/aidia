@@ -18,7 +18,7 @@
 #' @export
 validate_data_quality <- function(data) {
 
-  # Pipeline: Detection → Validation → Scoring
+  # Pipeline: Detection -> Validation -> Scoring
   results <- list(
     fwhm_outliers = detect_fwhm_outliers(data$FWHM),
     rt_issues = validate_rt_values(data$RT.Apex),

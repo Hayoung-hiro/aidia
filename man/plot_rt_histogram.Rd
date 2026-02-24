@@ -27,5 +27,7 @@ Creates a histogram showing the distribution of precursors across retention time
 Supplementary plot to the density heatmap to show temporal elution patterns.
 }
 \examples{
+\dontrun{
 plot2b <- plot_rt_histogram(validated_data)
+}
 }

@@ -7,7 +7,7 @@
 #   - kde: Kernel Density Estimation based range
 #   - quantile: P5-P95 percentiles (with optional SG smoothing)
 #   - coverage: Minimum range for target coverage
-#   - outlier: Mean ± 3σ (with optional SG smoothing)
+#   - outlier: Mean +/- 3 sigma (with optional SG smoothing)
 #
 # Functions:
 #   - optimize_mz_ranges_internal(): Main dispatcher (quantile/coverage/outlier/greedy/kde)
@@ -396,7 +396,7 @@ interpolate_at_rt <- function(rt_points, values, target_rt) {
 #' GREEDY optimization based on MacCoss Lab dynamicDIA.py algorithm.
 #'
 #' **Key Concept**: The m/z range per cycle is FIXED by instrument constraints:
-#'   mz_range_per_cycle = n_windows × isolation_width
+#'   mz_range_per_cycle = n_windows x isolation_width
 #'
 #' The algorithm slides this fixed range across the m/z axis to find the
 #' position that covers the MAXIMUM number of precursors.
@@ -406,8 +406,8 @@ interpolate_at_rt <- function(rt_points, values, target_rt) {
 #' to prevent abrupt jumps between adjacent bins.
 #'
 #' **Difference from Coverage strategy**:
-#' - Coverage: Fixed target coverage → Variable m/z range
-#' - Greedy:   Fixed m/z range → Variable coverage (maximized within constraint)
+#' - Coverage: Fixed target coverage -> Variable m/z range
+#' - Greedy:   Fixed m/z range -> Variable coverage (maximized within constraint)
 #'
 #' Reference: https://github.com/uw-maccosslab/manuscript-dynamic-dia
 #'
@@ -623,7 +623,7 @@ optimize_mz_ranges_greedy_internal <- function(precursor_data, rt_stats,
               mean_coverage * 100, mz_range_per_cycle))
 
   if (mean_coverage < 0.5) {
-    cat(sprintf("\n  ⚠ Note: Low coverage is expected when precursor m/z distribution\n"))
+    cat(sprintf("\n  [!] Note: Low coverage is expected when precursor m/z distribution\n"))
     cat(sprintf("         is wider than instrument capacity (%.0f Da range).\n", mz_range_per_cycle))
     cat(sprintf("         Consider using 'coverage' strategy for higher coverage.\n"))
   }

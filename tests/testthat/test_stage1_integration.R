@@ -4,24 +4,7 @@
 # Following Kent Beck's TDD: RED → GREEN → REFACTOR
 
 library(testthat)
-library(dplyr)
-library(tibble)
 library(arrow)
-
-# Source required modules
-if (file.exists("R/stage1_data_validation.R")) {
-  source("R/stage1_data_validation.R")
-  source("R/replicate_utils.R")
-  source("R/column_selection_simple.R")
-  source("R/quality_validation.R")
-} else if (file.exists("../../R/stage1_data_validation.R")) {
-  source("../../R/stage1_data_validation.R")
-  source("../../R/replicate_utils.R")
-  source("../../R/column_selection_simple.R")
-  source("../../R/quality_validation.R")
-} else {
-  stop("Cannot find R/stage1_data_validation.R")
-}
 
 # ============================================================================
 # Helper: Create Test Fixture with 3 Technical Replicates
@@ -37,6 +20,7 @@ create_replicate_test_data <- function(n_precursors = 100) {
       Run = runs[run_idx],
       Precursor.Id = paste0("Precursor_", 1:n_precursors),
       RT.Start = rnorm(n_precursors, mean = 50, sd = 10) + rnorm(n_precursors, 0, 0.1),
+      RT.Stop = rnorm(n_precursors, mean = 50, sd = 10) + abs(rnorm(n_precursors, 1, 0.2)),
       Precursor.Mz = rnorm(n_precursors, mean = 600, sd = 100) + rnorm(n_precursors, 0, 0.5),
       FWHM = abs(rnorm(n_precursors, mean = 0.5, sd = 0.1)) + abs(rnorm(n_precursors, 0, 0.02)),
       Precursor.Quantity = base_intensity * exp(rnorm(n_precursors, 0, 0.15)),  # Add intensity with variation
@@ -103,6 +87,7 @@ test_that("create_validated_dataset works with single run (no replication)", {
     Run = "Run1",
     Precursor.Id = paste0("Precursor_", 1:50),
     RT.Start = rnorm(50, mean = 50, sd = 10),
+    RT.Stop = rnorm(50, mean = 50, sd = 10) + abs(rnorm(50, 1, 0.2)),
     Precursor.Mz = rnorm(50, mean = 600, sd = 100),
     FWHM = abs(rnorm(50, mean = 0.5, sd = 0.1)),
     Protein.Group = paste0("ProteinGroup_", sample(1:20, 50, replace = TRUE)),  # Add Protein.Group

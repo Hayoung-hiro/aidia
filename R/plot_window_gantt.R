@@ -1,6 +1,6 @@
 #' Isolation Window Gantt Chart
 #'
-#' Creates a Gantt-style chart showing all isolation windows as rectangles in RT × m/z space.
+#' Creates a Gantt-style chart showing all isolation windows as rectangles in RT x m/z space.
 #' Each window is colored by precursor density. Optional precursor overlay available.
 #'
 #' @param optimized_windows OptimizedWindows object containing windows tibble with columns:
@@ -11,13 +11,13 @@
 #' @param max_precursors Integer. Maximum precursors to plot (randomly sampled if exceeded).
 #'   Prevents rendering issues with large datasets. Default: 5000
 #'
-#' @return A ggplot object showing isolation windows as rectangles in RT × m/z space
+#' @return A ggplot object showing isolation windows as rectangles in RT x m/z space
 #'
 #' @details
 #' The plot shows:
 #' - X-axis: Retention Time (minutes)
 #' - Y-axis: m/z (Da)
-#' - Rectangles: Isolation windows (rt_start to rt_end × mz_start to mz_end)
+#' - Rectangles: Isolation windows (rt_start to rt_end x mz_start to mz_end)
 #' - Fill color: n_precursors (viridis cividis scale, colorblind safe)
 #' - RT bin boundaries: Vertical dashed lines
 #' - Optional precursor overlay: Scatter points showing actual precursor locations
@@ -84,7 +84,7 @@ plot_isolation_window_gantt <- function(optimized_windows,
                alpha = 0.6) +
     # Labels and theme
     labs(
-      title = "Isolation Window Map: RT × m/z",
+      title = "Isolation Window Map: RT x m/z",
       subtitle = sprintf("%d windows | Mean width: %.1f Da | %d RT bins",
                         n_windows, mean_width, n_rt_bins),
       x = "Retention Time (min)",

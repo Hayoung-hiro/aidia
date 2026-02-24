@@ -3,19 +3,6 @@
 #
 # Following Kent Beck's TDD: RED → GREEN → REFACTOR
 
-library(testthat)
-library(dplyr)
-library(tibble)
-
-# Source the module under test (handle different working directories)
-if (file.exists("R/replicate_utils.R")) {
-  source("R/replicate_utils.R")
-} else if (file.exists("../../R/replicate_utils.R")) {
-  source("../../R/replicate_utils.R")
-} else {
-  stop("Cannot find R/replicate_utils.R - check working directory")
-}
-
 # ============================================================================
 # Task 2.1.1: identify_replicate_groups() - RED Phase
 # ============================================================================

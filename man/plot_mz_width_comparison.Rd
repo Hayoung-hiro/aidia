@@ -19,5 +19,7 @@ Creates a side-by-side bar chart comparing original m/z range width
 vs optimized width for each RT segment.
 }
 \examples{
+\dontrun{
 plot4b <- plot_mz_width_comparison(optimized_windows, validated_data)
+}
 }

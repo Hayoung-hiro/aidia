@@ -6,6 +6,11 @@
 \usage{
 \method{summary}{OptimizedWindows}(object, ...)
 }
+\arguments{
+\item{object}{An OptimizedWindows object}
+
+\item{...}{Additional arguments (ignored)}
+}
 \description{
 Summary method for OptimizedWindows
 }

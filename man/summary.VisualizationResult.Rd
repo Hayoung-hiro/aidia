@@ -6,6 +6,11 @@
 \usage{
 \method{summary}{VisualizationResult}(object, ...)
 }
+\arguments{
+\item{object}{A VisualizationResult object}
+
+\item{...}{Additional arguments (ignored)}
+}
 \description{
 Summary method for VisualizationResult
 }

@@ -1,6 +1,3 @@
-#' @keywords internal
-"_PACKAGE"
-
 #' AIDIA: Adaptive Isolation for DIA
 #'
 #' @description
@@ -89,7 +86,7 @@
 #'
 #' @import dplyr
 #' @import ggplot2
-#' @importFrom tibble tibble as_tibble
+#' @importFrom tibble tibble as_tibble deframe
 #' @importFrom arrow read_parquet
 #' @importFrom jsonlite fromJSON toJSON
 #' @importFrom tidyr pivot_longer pivot_wider
@@ -98,10 +95,13 @@
 #' @importFrom ggridges geom_density_ridges
 #' @importFrom gridExtra grid.arrange
 #' @importFrom grid unit
+#' @importFrom graphics hist
 #' @importFrom stats median sd quantile ecdf density approx complete.cases
-#' @importFrom utils read.csv write.csv head tail
+#' @importFrom utils read.csv write.csv read.delim head tail
 #' @importFrom grDevices pdf dev.off
-NULL
+#'
+#' @keywords internal
+"_PACKAGE"
 
 #' Pipe operator
 #'

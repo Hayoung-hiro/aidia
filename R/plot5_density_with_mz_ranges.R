@@ -1,5 +1,5 @@
 # plot5_density_with_mz_ranges.R
-# Plot 5: RT × m/z Density Heatmap with Optimized m/z Range Overlay (2×2 Grid)
+# Plot 5: RT x m/z Density Heatmap with Optimized m/z Range Overlay (2x2 Grid)
 #
 # Purpose: Combine Plot 2 (density heatmap) with Plot 4 (m/z range optimization)
 #          to visualize how each strategy adjusts m/z ranges across RT
@@ -11,7 +11,7 @@ if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
   }
 }
 
-#' Plot RT × m/z Density Heatmap with m/z Range Overlay (Single Strategy)
+#' Plot RT x m/z Density Heatmap with m/z Range Overlay (Single Strategy)
 #'
 #' Creates density heatmap of precursors and overlays optimized m/z range
 #' boundaries for one strategy.
@@ -124,9 +124,9 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
 }
 
 
-#' Plot RT × m/z Density Heatmap with m/z Range Overlay (All Strategies, 2×2 Grid)
+#' Plot RT x m/z Density Heatmap with m/z Range Overlay (All Strategies, 2x2 Grid)
 #'
-#' Creates a 2×2 grid showing density heatmap with optimized m/z range overlay
+#' Creates a 2x2 grid showing density heatmap with optimized m/z range overlay
 #' for all optimization strategies.
 #'
 #' @param windows_list Named list of OptimizedWindows objects for each strategy
@@ -138,6 +138,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' windows_list <- list(
 #'   quantile = optimized_windows_q,
 #'   smoothing = optimized_windows_s,
@@ -145,9 +146,10 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
 #'   coverage = optimized_windows_c
 #' )
 #' plot5 <- plot_density_with_mz_ranges_grid(windows_list, validated_data)
+#' }
 plot_density_with_mz_ranges_grid <- function(windows_list, validated_data, bins = 50) {
 
-  cat("  Generating Plot 5: RT × m/z Density with m/z Range Overlay (2×2 Grid)...\n")
+  cat("  Generating Plot 5: RT x m/z Density with m/z Range Overlay (2x2 Grid)...\n")
 
   # Use all available strategies (preserve preferred order where applicable)
   preferred_order <- c("greedy", "kde", "quantile", "coverage", "outlier")

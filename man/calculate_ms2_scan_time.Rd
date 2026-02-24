@@ -39,14 +39,14 @@ List with scan time breakdown:
 }
 \description{
 Calculates the total time for a single MS2 scan based on the fundamental
-scan time equation: t_scan = max(T_transient, IT) + δ
+scan time equation: t_scan = max(T_transient, IT) + delta
 }
 \details{
 This is the core formula for accurate window count calculation:
 \itemize{
 \item Resolution determines T_transient (detection time floor)
 \item IT can be shorter (Resolution-Limited) or longer (Sensitivity-Limited)
-\item Overhead (δ) is always added
+\item Overhead (delta) is always added
 }
 \subsection{Efficiency Modes (Orbitrap)}{
 
@@ -79,5 +79,5 @@ calculate_ms2_scan_time(15000, 30)
 
 # Astral analyzer (fixed detection time)
 calculate_ms2_scan_time(80000, 3.0, analyzer = "astral")
-# t_scan = max(2.5, 3.0) + 2.0 = 5.0 ms → 200 Hz
+# t_scan = max(2.5, 3.0) + 2.0 = 5.0 ms -> 200 Hz
 }

@@ -6,6 +6,11 @@
 \usage{
 \method{print}{OptimizationPlan}(x, ...)
 }
+\arguments{
+\item{x}{An OptimizationPlan object}
+
+\item{...}{Additional arguments (ignored)}
+}
 \description{
 Print method for OptimizationPlan
 }

@@ -6,6 +6,11 @@
 \usage{
 \method{summary}{OptimizationPlan}(object, ...)
 }
+\arguments{
+\item{object}{An OptimizationPlan object}
+
+\item{...}{Additional arguments (ignored)}
+}
 \description{
 Summary method for OptimizationPlan
 }

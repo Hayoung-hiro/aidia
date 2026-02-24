@@ -1,6 +1,6 @@
 #' Plot FWHM Distribution
 #'
-#' Shows chromatographic peak width distribution — the fundamental input
+#' Shows chromatographic peak width distribution - the fundamental input
 #' driving the entire DPPP optimization. Displays histogram with density overlay,
 #' median, P15 (critical percentile for DPPP), and optional cycle time context.
 #'
@@ -15,8 +15,10 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' p <- plot_fwhm_distribution(validated_data, optimization_plan)
 #' ggsave("fwhm_distribution.png", p, width = 10, height = 6)
+#' }
 plot_fwhm_distribution <- function(validated_data, optimization_plan = NULL) {
 
   cat("  Generating FWHM Distribution Plot...\n")
@@ -125,7 +127,7 @@ plot_fwhm_distribution <- function(validated_data, optimization_plan = NULL) {
         x = Inf,
         y = Inf,
         label = sprintf(
-          "Target Cycle Time: %.2fs\n(for DPPP ≥ %.1f)",
+          "Target Cycle Time: %.2fs\n(for DPPP >= %.1f)",
           target_cycle_time,
           target_dppp
         ),

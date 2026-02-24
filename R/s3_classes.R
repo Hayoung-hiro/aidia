@@ -550,6 +550,8 @@ get_plots.default <- function(x, name = NULL) {
 # =============================================================================
 
 #' Print method for ValidatedData
+#' @param x A ValidatedData object
+#' @param ... Additional arguments (ignored)
 #' @export
 print.ValidatedData <- function(x, ...) {
   cat("ValidatedData object\n")
@@ -566,6 +568,8 @@ print.ValidatedData <- function(x, ...) {
 }
 
 #' Print method for OptimizationPlan
+#' @param x An OptimizationPlan object
+#' @param ... Additional arguments (ignored)
 #' @export
 print.OptimizationPlan <- function(x, ...) {
   cat("OptimizationPlan object\n")
@@ -579,6 +583,8 @@ print.OptimizationPlan <- function(x, ...) {
 }
 
 #' Print method for OptimizedWindows
+#' @param x An OptimizedWindows object
+#' @param ... Additional arguments (ignored)
 #' @export
 print.OptimizedWindows <- function(x, ...) {
   cat("OptimizedWindows object\n")
@@ -594,6 +600,8 @@ print.OptimizedWindows <- function(x, ...) {
 }
 
 #' Print method for VisualizationResult
+#' @param x A VisualizationResult object
+#' @param ... Additional arguments (ignored)
 #' @export
 print.VisualizationResult <- function(x, ...) {
   cat("VisualizationResult object\n")
@@ -616,6 +624,8 @@ print.VisualizationResult <- function(x, ...) {
 # =============================================================================
 
 #' Summary method for ValidatedData
+#' @param object A ValidatedData object
+#' @param ... Additional arguments (ignored)
 #' @export
 summary.ValidatedData <- function(object, ...) {
   cat("=== ValidatedData Summary ===\n\n")
@@ -647,6 +657,8 @@ summary.ValidatedData <- function(object, ...) {
 }
 
 #' Summary method for OptimizationPlan
+#' @param object An OptimizationPlan object
+#' @param ... Additional arguments (ignored)
 #' @export
 summary.OptimizationPlan <- function(object, ...) {
   cat("=== Optimization Plan Summary ===\n\n")
@@ -680,6 +692,8 @@ summary.OptimizationPlan <- function(object, ...) {
 }
 
 #' Summary method for OptimizedWindows
+#' @param object An OptimizedWindows object
+#' @param ... Additional arguments (ignored)
 #' @export
 summary.OptimizedWindows <- function(object, ...) {
   cat("=== Optimized Windows Summary ===\n\n")
@@ -720,6 +734,8 @@ summary.OptimizedWindows <- function(object, ...) {
 }
 
 #' Summary method for VisualizationResult
+#' @param object A VisualizationResult object
+#' @param ... Additional arguments (ignored)
 #' @export
 summary.VisualizationResult <- function(object, ...) {
   cat("=== Visualization Result Summary ===\n\n")

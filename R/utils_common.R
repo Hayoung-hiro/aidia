@@ -42,17 +42,17 @@ print_header <- function(title, width = 50) {
     title_length <- width - 6
   }
 
-  padding_total <- width - title_length - 4  # 4 for "║  " and "  ║"
+  padding_total <- width - title_length - 4  # 4 for "|  " and "  |"
   padding_left <- floor(padding_total / 2)
   padding_right <- ceiling(padding_total / 2)
 
   # Print box
   cat("\n")
-  cat(rep("═", width), "\n", sep = "")
-  cat("║",
+  cat(rep("=", width), "\n", sep = "")
+  cat("|",
       rep(" ", padding_left), title, rep(" ", padding_right),
-      "║\n", sep = "")
-  cat(rep("═", width), "\n\n", sep = "")
+      "|\n", sep = "")
+  cat(rep("=", width), "\n\n", sep = "")
 }
 
 #' Print Progress Step
@@ -64,7 +64,7 @@ print_header <- function(title, width = 50) {
 #'
 #' @export
 print_step <- function(step_num, description) {
-  cat(sprintf("\n─── Step %d: %s ───\n", step_num, description))
+  cat(sprintf("\n--- Step %d: %s ---\n", step_num, description))
 }
 
 #' Print Success Message
@@ -76,7 +76,7 @@ print_step <- function(step_num, description) {
 #'
 #' @export
 print_success <- function(message, indent = 2) {
-  cat(sprintf("%s✅ %s\n", rep(" ", indent), message))
+  cat(sprintf("%s[OK] %s\n", rep(" ", indent), message))
 }
 
 #' Print Warning Message
@@ -88,7 +88,7 @@ print_success <- function(message, indent = 2) {
 #'
 #' @export
 print_warning <- function(message, indent = 2) {
-  cat(sprintf("%s⚠️  %s\n", rep(" ", indent), message))
+  cat(sprintf("%s[!] %s\n", rep(" ", indent), message))
 }
 
 #' Print Info Message
@@ -307,7 +307,7 @@ get_fwhm_values <- function(validated_data, unit = "seconds") {
 #' Calculate DPPP (Data Points Per Peak)
 #'
 #' Computes DPPP using the standard formula:
-#' DPPP = (peak_width_factor × FWHM_seconds) / cycle_time_seconds
+#' DPPP = (peak_width_factor x FWHM_seconds) / cycle_time_seconds
 #'
 #' @param fwhm_seconds Numeric vector, FWHM in seconds
 #' @param cycle_time_sec Numeric, cycle time in seconds
@@ -436,6 +436,7 @@ count_precursors_in_windows <- function(precursor_mz, window_starts,
 #' @param window_mz_end Numeric vector, window m/z end values
 #'
 #' @return Integer vector with precursor counts for each window
+#' @export
 #'
 #' @examples
 #' rt <- c(10.1, 10.5, 20.2, 20.8)
@@ -728,7 +729,7 @@ format_short_rt_mode <- function(rt_binning_mode, rt_bin_width_min = 5) {
 
 #' Build Standardized Output Filename
 #'
-#' Generates filename in format: {type}_{instrument}_{strategy}_{window}_{rt}_{date}.{ext}
+#' Generates filename in format: \code{type_instrument_strategy_window_rt_date.ext}
 #'
 #' @param type Character, output type ("method" or "report")
 #' @param instrument_preset Character, instrument preset key
@@ -800,7 +801,7 @@ ensure_fwhm_seconds <- function(fwhm_vector) {
 #' @param min_windows Integer, minimum window count (default: 10)
 #' @param max_windows Integer, maximum window count (default: 200)
 #'
-#' @return Integer, estimated window count clamped to [min_windows, max_windows]
+#' @return Integer, estimated window count clamped to \code{min_windows}:\code{max_windows} range
 #' @export
 estimate_window_count_preview <- function(fwhm_median_sec, target_dppp, ms2_time_sec,
                                           min_windows = 10, max_windows = 200) {

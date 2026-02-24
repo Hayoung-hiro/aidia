@@ -16,5 +16,7 @@ List containing experiment parameters
 Loads experiment configuration from a YAML file.
 }
 \examples{
+\dontrun{
 config <- load_experiment_config("config/user_experiment_config.yaml")
+}
 }

@@ -4,7 +4,8 @@
 #' for all AIDIA plots. Ensures consistency across the 4-stage pipeline
 #' and colorblind-safe strategy color mapping.
 #'
-#' @name theme_aidia
+#' @name aidia-design-system
+NULL
 
 
 # Strategy Color Palette (colorblind-safe) ---------------------------------
@@ -54,7 +55,9 @@ aidia_colors <- list(
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' ggplot(data) + geom_point() + theme_aidia()
+#' }
 theme_aidia <- function(base_size = 12, base_family = "") {
   theme_minimal(base_size = base_size, base_family = base_family) +
     theme(
@@ -145,7 +148,7 @@ format_strategy_label <- function(strategy_name) {
     kde      = "KDE (Density Peak)",
     quantile = "Quantile (P5-P95)",
     coverage = "Coverage (95%)",
-    outlier  = "Outlier (±3σ)"
+    outlier  = "Outlier (+/-3 SD)"
   )
 
   # Return mapped label if exists, otherwise title-case the input
@@ -172,9 +175,11 @@ format_strategy_label <- function(strategy_name) {
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' ggplot(data, aes(x, y, color = strategy)) +
 #'   geom_point() +
 #'   scale_color_strategy()
+#' }
 scale_color_strategy <- function(...) {
   scale_color_manual(
     values = aidia_strategy_colors,
@@ -195,9 +200,11 @@ scale_color_strategy <- function(...) {
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' ggplot(data, aes(x, y, fill = strategy)) +
 #'   geom_col() +
 #'   scale_fill_strategy()
+#' }
 scale_fill_strategy <- function(...) {
   scale_fill_manual(
     values = aidia_strategy_colors,
