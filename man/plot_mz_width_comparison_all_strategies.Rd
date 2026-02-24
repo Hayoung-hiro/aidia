@@ -7,8 +7,8 @@
 plot_mz_width_comparison_all_strategies(windows_list, validated_data)
 }
 \arguments{
-\item{windows_list}{Named list of 4 OptimizedWindows objects
-Names: "quantile", "smoothing", "outlier", "coverage"}
+\item{windows_list}{Named list of OptimizedWindows objects
+Names: strategy name keys (e.g., "greedy", "kde", "quantile", "coverage", "outlier")}
 
 \item{validated_data}{ValidatedData object from Stage 1}
 }
@@ -17,7 +17,7 @@ ggplot object
 }
 \description{
 Creates a single grouped bar chart comparing Original m/z width
-vs all 4 optimized strategies in one plot.
+vs all strategies in one plot.
 }
 \examples{
 windows_list <- list(

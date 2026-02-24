@@ -8,7 +8,7 @@ plot_density_with_mz_ranges_grid(windows_list, validated_data, bins = 50)
 }
 \arguments{
 \item{windows_list}{Named list of OptimizedWindows objects for each strategy
-List names should be: "quantile", "smoothing", "outlier", "coverage"}
+List names should match strategy keys (e.g., "greedy", "kde", "quantile")}
 
 \item{validated_data}{ValidatedData object from Stage 1}
 
@@ -19,7 +19,7 @@ Combined plot (grid.arrange object)
 }
 \description{
 Creates a 2×2 grid showing density heatmap with optimized m/z range overlay
-for all 4 optimization strategies.
+for all optimization strategies.
 }
 \examples{
 windows_list <- list(

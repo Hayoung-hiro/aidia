@@ -9,10 +9,10 @@
 
 # Strategy Color Palette (colorblind-safe) ---------------------------------
 
-#' Strategy color palette for AIDIA's 5 m/z optimization strategies
+#' Strategy color palette for AIDIA
 #'
+#' Named vector of 5 colors for m/z optimization strategies.
 #' Based on ColorBrewer/Viridis principles for accessibility.
-#' Used by scale_color_strategy() and scale_fill_strategy().
 #'
 #' @export
 aidia_strategy_colors <- c(

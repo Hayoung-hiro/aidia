@@ -6,13 +6,37 @@
 \usage{
 calculate_window_count_internal(
   target_cycle_time_sec,
-  scan_rate_hz,
-  ms1_scans_per_cycle,
-  warning_threshold_windows,
-  max_windows
+  ms1_time_sec,
+  ms2_time_sec,
+  resolution = 30000,
+  analyzer_type = "orbitrap",
+  cycle_mode = "sequential",
+  warning_threshold_windows = 5,
+  max_windows = 300
 )
 }
+\arguments{
+\item{target_cycle_time_sec}{Target cycle time in seconds}
+
+\item{ms1_time_sec}{MS1 scan time in seconds}
+
+\item{ms2_time_sec}{MS2 injection time in seconds (IT)}
+
+\item{resolution}{MS2 resolution (e.g., 30000 for 30K)}
+
+\item{analyzer_type}{Analyzer type ("orbitrap" or "tof")}
+
+\item{cycle_mode}{"parallel" or "sequential"}
+
+\item{warning_threshold_windows}{Low window count warning threshold}
+
+\item{max_windows}{Instrument maximum windows}
+}
+\value{
+List with window count and scan time details
+}
 \description{
-Calculate Window Count from Cycle Time (Internal)
+Uses the correct scan time formula: t_scan = max(T_transient, IT) + δ
+Resolution determines T_transient, which sets the minimum scan time floor.
 }
 \keyword{internal}

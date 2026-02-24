@@ -2,10 +2,10 @@
 % Please edit documentation in R/stage4_visualization.R
 \name{theme_dia_optimizer}
 \alias{theme_dia_optimizer}
-\title{Custom ggplot2 Theme for DIA Optimizer}
+\title{Custom ggplot2 Theme for DIA Optimizer (Alias for AIDIA Theme)}
 \usage{
 theme_dia_optimizer()
 }
 \description{
-Custom ggplot2 Theme for DIA Optimizer
+Custom ggplot2 Theme for DIA Optimizer (Alias for AIDIA Theme)
 }

@@ -4,9 +4,32 @@
 \alias{calculate_cycle_time_internal}
 \title{Calculate Cycle Time (Internal)}
 \usage{
-calculate_cycle_time_internal(n_windows, cycle_mode, ms1_time, ms2_time)
+calculate_cycle_time_internal(
+  n_windows,
+  cycle_mode,
+  ms1_time,
+  ms2_time,
+  resolution = 30000,
+  analyzer_type = "orbitrap"
+)
+}
+\arguments{
+\item{n_windows}{Number of MS2 windows}
+
+\item{cycle_mode}{"parallel" or "sequential"}
+
+\item{ms1_time}{MS1 scan time in seconds}
+
+\item{ms2_time}{MS2 injection time in seconds (IT)}
+
+\item{resolution}{MS2 resolution (e.g., 30000)}
+
+\item{analyzer_type}{Analyzer type ("orbitrap" or "tof")}
+}
+\value{
+Cycle time in seconds
 }
 \description{
-Calculate Cycle Time (Internal)
+Uses the correct scan time formula: t_scan = max(T_transient, IT) + δ
 }
 \keyword{internal}

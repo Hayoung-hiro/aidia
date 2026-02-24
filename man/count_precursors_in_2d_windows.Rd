@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils_common.R
 \name{count_precursors_in_2d_windows}
 \alias{count_precursors_in_2d_windows}
-\title{Count Precursors in 2D Windows (RT × m/z)}
+\title{Count Precursors in 2D Windows (RT x m/z)}
 \usage{
 count_precursors_in_2d_windows(
   precursor_rt,
@@ -30,8 +30,9 @@ count_precursors_in_2d_windows(
 Integer vector with precursor counts for each window
 }
 \description{
-High-performance vectorized function to count precursors in each 2D window.
-Uses optimized vectorized operations for 50-100× speedup vs loop-based approach.
+Memory-efficient function to count precursors in each 2D window.
+Groups windows by RT segment and uses findInterval() on sorted m/z
+for O(n + m\emph{log(n)) time and O(n + m) memory instead of O(n}m).
 }
 \examples{
 rt <- c(10.1, 10.5, 20.2, 20.8)

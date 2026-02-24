@@ -7,7 +7,7 @@
 validate_data_quality(data)
 }
 \arguments{
-\item{data}{Data frame with RT.Start, Precursor.Mz, FWHM columns}
+\item{data}{Data frame with RT.Apex, Precursor.Mz, FWHM columns}
 }
 \value{
 List with quality_score, warnings, errors, details

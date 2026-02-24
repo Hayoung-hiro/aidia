@@ -15,8 +15,12 @@ These columns are ALWAYS required for the complete optimization workflow.
 Based on actual usage analysis across all stages:
 \itemize{
 \item Stage 2 (DPPP diagnosis): FWHM
-\item Stage 3 (Window optimization): RT.Start, Precursor.Mz
-\item Stage 4 (Visualization): RT.Start, Precursor.Mz, FWHM
+\item Stage 3 (Window optimization): RT.Apex, Precursor.Mz
+\item Stage 4 (Visualization): RT.Apex, Precursor.Mz, FWHM
 }
+}
+\details{
+RT.Apex is computed in Stage 1 as midpoint of RT.Start and RT.Stop.
+All downstream stages use RT.Apex as the single RT reference.
 }
 \keyword{datasets}

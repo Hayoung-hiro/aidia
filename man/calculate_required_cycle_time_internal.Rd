@@ -7,10 +7,12 @@
 calculate_required_cycle_time_internal(
   fwhm_seconds,
   target_dppp,
-  target_satisfaction
+  target_satisfaction,
+  robustness_window = 0.02
 )
 }
 \description{
-Calculate Required Cycle Time (Internal)
+Uses windowed percentile for robustness against FWHM outliers.
+Instead of single percentile, averages over a small window (±2\%).
 }
 \keyword{internal}

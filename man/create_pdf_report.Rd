@@ -2,7 +2,7 @@
 % Please edit documentation in R/stage4_export.R
 \name{create_pdf_report}
 \alias{create_pdf_report}
-\title{Create PDF Report}
+\title{Create Structured PDF Report}
 \usage{
 create_pdf_report(
   plots,
@@ -13,7 +13,7 @@ create_pdf_report(
 )
 }
 \arguments{
-\item{plots}{List of ggplot objects}
+\item{plots}{Named list of ggplot/grob objects from generate_visualizations()}
 
 \item{validated_data}{ValidatedData object from Stage 1}
 
@@ -24,5 +24,19 @@ create_pdf_report(
 \item{output_file}{PDF output path}
 }
 \description{
-Creates a comprehensive multi-panel PDF report with all plots.
+Creates a professionally structured AIDIA optimization report with
+cover page, parameter summary, and logically grouped plot sections.
+}
+\details{
+Report Structure:
+\enumerate{
+\item Cover Page (AIDIA branding + key metrics)
+\item Parameter Summary (configuration table)
+\item Input Data Profile (FWHM, RT x m/z heatmap, histograms)
+\item DPPP Analysis & Optimization (DPPP, satisfaction, impact)
+\item Window Optimization Results (density overlay, quality, gantt)
+\item Strategy Comparison (table, ridge, box, CDF)
+A. Detailed Per-Strategy Analysis (appendix)
+B. Adaptive RT Binning (conditional, only if adaptive mode)
+}
 }

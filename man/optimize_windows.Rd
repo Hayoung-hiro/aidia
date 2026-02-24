@@ -9,7 +9,9 @@ optimize_windows(
   optimization_plan,
   rt_bin_width_min = 5,
   mz_strategy = "quantile",
-  window_mode = "variable",
+  window_mode = "density",
+  mz_range_min = 400,
+  mz_range_max = 1200,
   target_coverage = 0.95,
   quantile_lower = 0.05,
   quantile_upper = 0.95,
@@ -18,7 +20,26 @@ optimize_windows(
   polynomial_order = 3,
   min_width_da = 2,
   max_width_da = 80,
-  overlap_percentage = 0
+  overlap_percentage = 0,
+  mz_step = 0.5,
+  n_windows_override = NULL,
+  greedy_apply_smoothing = TRUE,
+  kde_density_threshold = 0.1,
+  kde_min_coverage = 0.8,
+  quantile_apply_smoothing = FALSE,
+  outlier_apply_smoothing = FALSE,
+  stagger_offset_pct = 0.5,
+  coverage_mode = "narrowest",
+  use_parallel = FALSE,
+  n_cores = NULL,
+  rt_binning_mode = "fixed",
+  cpd_min_bin_width = 1,
+  cpd_max_bin_width = 15,
+  cpd_min_precursors_per_bin = 50,
+  cpd_significance_level = 0.05,
+  edge_void_buffer_min = 0.5,
+  edge_wash_min_precursors = 30,
+  width_grid_step = 0.5
 )
 }
 \arguments{
@@ -35,17 +56,22 @@ optimize_windows(
 
 \item{mz_strategy}{Character, m/z optimization strategy (default: "quantile")
 \itemize{
+\item "greedy": MacCoss Lab algorithm, maximize precursor count (recommended)
+\item "kde": Kernel Density Estimation, find density peak and expand
 \item "quantile": Use percentiles (P5-P95), fast and robust
 \item "coverage": Minimum range for target coverage, conservative
 \item "outlier": Mean +/- 3*SD, removes outliers
-\item "smoothing": GLOBAL Savitzky-Golay smoothing across RT
 }}
 
-\item{window_mode}{Character, window generation mode (default: "variable")
+\item{window_mode}{Character, window generation mode (default: "density")
 \itemize{
 \item "fixed": Equal-width windows
-\item "variable": Density-based adaptive windows (recommended)
+\item "density": Density-based adaptive windows (recommended)
 }}
+
+\item{mz_range_min}{Numeric, fallback minimum m/z for empty RT bins (default: 400)}
+
+\item{mz_range_max}{Numeric, fallback maximum m/z for empty RT bins (default: 1200)}
 
 \item{target_coverage}{Numeric, target m/z coverage 0-1 (default: 0.95)}
 
@@ -64,6 +90,37 @@ optimize_windows(
 \item{max_width_da}{Numeric, maximum window width in Da (default: 80)}
 
 \item{overlap_percentage}{Numeric, overlap \% between windows (default: 0)}
+
+\item{mz_step}{Numeric, step size for greedy sliding window in Da (default: 0.5)}
+
+\item{n_windows_override}{Integer or NULL, override window count (for Greedy strategy)}
+
+\item{greedy_apply_smoothing}{Logical, apply SG smoothing to greedy boundaries (default: TRUE)}
+
+\item{kde_density_threshold}{Numeric, KDE density threshold 0-1 (default: 0.1)}
+
+\item{kde_min_coverage}{Numeric, KDE minimum coverage 0-1 (default: 0.80)}
+
+\item{quantile_apply_smoothing}{Logical, apply SG smoothing to quantile boundaries (default: FALSE)}
+
+\item{outlier_apply_smoothing}{Logical, apply SG smoothing to outlier boundaries (default: FALSE)}
+
+\item{stagger_offset_pct}{Numeric, stagger offset fraction 0-1 (default: 0.5)}
+
+\item{coverage_mode}{Character, coverage strategy mode: "narrowest" or "centered"}
+
+\item{use_parallel}{Logical, enable parallel processing via future (default: FALSE)}
+
+\item{n_cores}{Integer or NULL, number of cores (NULL = auto-detect)}
+
+\item{rt_binning_mode}{Character, RT binning mode: "fixed" or "adaptive" (default: "fixed")}
+
+\item{width_grid_step}{Numeric, grid step for width digitization in Da (default: 0.5)
+\itemize{
+\item Snaps window widths to nearest multiple for batch reproducibility
+\item Set to NULL or 0 to disable digitization
+\item Only applies to density (variable) window mode
+}}
 }
 \value{
 OptimizedWindows S3 object
@@ -83,7 +140,7 @@ windows <- optimize_windows(
   optimization_plan,
   rt_bin_width_min = 5,
   mz_strategy = "quantile",
-  window_mode = "variable"
+  window_mode = "density"
 )
 
 # Conservative settings
@@ -93,6 +150,6 @@ windows <- optimize_windows(
   rt_bin_width_min = 3,
   mz_strategy = "coverage",
   target_coverage = 0.98,
-  window_mode = "variable"
+  window_mode = "density"
 )
 }

@@ -11,9 +11,11 @@ plan_optimization(
   target_dppp = 7,
   target_satisfaction = 0.85,
   dppp_tolerance = 0,
-  load_factor = 0.8,
+  load_factor = 1,
   ms1_scans_per_cycle = NULL,
-  warning_threshold_windows = 5
+  warning_threshold_windows = 5,
+  ms2_resolution = NULL,
+  ms2_time_override = NULL
 )
 }
 \arguments{
