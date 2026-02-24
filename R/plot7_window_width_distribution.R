@@ -112,7 +112,7 @@ plot_window_width_distribution <- function(optimized_windows,
       ) %>%
       ungroup() %>%
       select(mz_seq, width_seq) %>%
-      unnest(cols = c(mz_seq, width_seq)) %>%
+      tidyr::unnest(cols = c(mz_seq, width_seq)) %>%
       rename(mz = mz_seq, window_width = width_seq)
 
     # Calculate scaling factor for dual y-axis
