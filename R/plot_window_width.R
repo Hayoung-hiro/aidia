@@ -1,4 +1,4 @@
-# plot7_window_width_distribution.R
+# plot_window_width.R
 # Plot 7: Window Width Distribution by RT Segment
 #
 # Purpose: Show precursor density and window width distribution

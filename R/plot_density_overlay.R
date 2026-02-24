@@ -1,4 +1,4 @@
-# plot5_density_with_mz_ranges.R
+# plot_density_overlay.R
 # Plot 5: RT x m/z Density Heatmap with Optimized m/z Range Overlay (2x2 Grid)
 #
 # Purpose: Combine Plot 2 (density heatmap) with Plot 4 (m/z range optimization)

@@ -1,4 +1,4 @@
-# plot8_strategy_width_comparison.R
+# plot_strategy_comparison.R
 # Plot 8: 4-Strategy Window Width Comparison
 #
 # Purpose: Compare window width distributions across different m/z optimization strategies

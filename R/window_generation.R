@@ -1,4 +1,4 @@
-# stage3_window_generation.R - Window Generation Functions
+# window_generation.R - Window Generation Functions
 #
 # Purpose: Generate DIA isolation windows from optimized m/z ranges
 #
@@ -571,4 +571,4 @@ apply_overlap_internal <- function(windows, overlap_percentage, mz_min, mz_max) 
   return(windows)
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [stage3_window_generation.R] Window generation functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [window_generation.R] Window generation functions loaded\n")

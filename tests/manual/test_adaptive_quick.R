@@ -2,7 +2,7 @@
 # Tests just the RT binning module (not full pipeline) for fast feedback
 
 setwd("D:/Projects/aidia")
-source("R/stage3/stage3_rt_binning.R")
+source("R/rt_binning.R")
 library(arrow)
 library(dplyr)
 

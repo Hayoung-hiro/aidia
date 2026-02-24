@@ -7,10 +7,10 @@ library(arrow)
 library(dplyr)
 
 # Source all required modules
-source("R/stage1_data_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage3_window_optimization.R")
-source("R/stage4_visualization.R")
+source("R/data_validation.R")
+source("R/optimization_planning.R")
+source("R/window_optimization.R")
+source("R/visualization.R")
 source("R/utils_common.R")
 
 cat("╔════════════════════════════════════════════════════════════════╗\n")

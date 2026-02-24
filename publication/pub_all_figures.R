@@ -12,10 +12,10 @@ library(scales)
 
 source("R/utils_common.R")
 source("R/instrument_utils.R")
-source("R/stage1_data_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage3_window_optimization.R")
-source("R/stage4_visualization.R")
+source("R/data_validation.R")
+source("R/optimization_planning.R")
+source("R/window_optimization.R")
+source("R/visualization.R")
 
 OUTPUT_DIR <- "publication_ready"
 dir.create(OUTPUT_DIR, showWarnings = FALSE)
@@ -102,8 +102,8 @@ cat("  ✅ Figure1_DPPP_comparison.png\n\n")
 
 cat("Generating Figure 2: Coverage Map 2×2...\n")
 
-if (file.exists("R/plots/plot5_density_with_mz_ranges.R")) {
-  source("R/plots/plot5_density_with_mz_ranges.R")
+if (file.exists("R/plot_density_overlay.R")) {
+  source("R/plot_density_overlay.R")
 }
 
 plot5 <- plot_density_with_mz_ranges_grid(windows_list, validated_data)
@@ -136,8 +136,8 @@ plot3_pub <- plot3 +
   labs(title = "(A) m/z Density by RT Segment")
 
 # Plot 4: Greedy m/z excluded
-if (file.exists("R/plots/plot4_mz_distribution_excluded.R")) {
-  source("R/plots/plot4_mz_distribution_excluded.R")
+if (file.exists("R/plot_mz_excluded.R")) {
+  source("R/plot_mz_excluded.R")
 }
 
 plot4 <- plot_mz_distribution_with_exclusions(windows_greedy, validated_data)

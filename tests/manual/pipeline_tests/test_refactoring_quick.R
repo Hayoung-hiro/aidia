@@ -8,9 +8,9 @@ cat("╚════════════════════════
 # Load modules first
 source("R/config_loader.R")
 source("R/instrument_utils.R")
-source("R/stage1_data_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage3_window_optimization.R")
+source("R/data_validation.R")
+source("R/optimization_planning.R")
+source("R/window_optimization.R")
 source("R/utils_common.R")
 
 # Load configuration

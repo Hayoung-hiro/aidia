@@ -1,4 +1,4 @@
-# stage3_statistics.R - Window Statistics Functions
+# window_statistics.R - Window Statistics Functions
 #
 # Purpose: Calculate statistics for generated DIA windows
 #
@@ -110,4 +110,4 @@ calculate_precursors_per_window <- function(windows, precursor_data) {
   windows
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [stage3_statistics.R] Statistics functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [window_statistics.R] Statistics functions loaded\n")

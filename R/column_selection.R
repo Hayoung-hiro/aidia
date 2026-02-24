@@ -1,4 +1,4 @@
-# column_selection_simple.R - Automatic Essential Column Selection
+# column_selection.R - Automatic Essential Column Selection
 # DIA Window Optimizer v2.0
 #
 # Purpose: Automatically keep only essential columns for memory efficiency

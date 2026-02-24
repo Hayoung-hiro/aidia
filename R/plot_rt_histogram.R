@@ -1,4 +1,4 @@
-# plot2b_rt_histogram.R
+# plot_rt_histogram.R
 # Plot 2B: RT Distribution Histogram (Supplementary to Density Heatmap)
 #
 # Purpose: Show RT distribution of precursors to complement the density heatmap

@@ -82,9 +82,9 @@ cat("─────────────────────────
 # Source required modules
 source("R/utils_common.R")
 source("R/instrument_utils.R")
-source("R/stage1_data_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage3_window_optimization.R")
+source("R/data_validation.R")
+source("R/optimization_planning.R")
+source("R/window_optimization.R")
 
 # Check if we have saved data
 if (file.exists("publication_ready/pipeline_data.rds")) {
@@ -139,7 +139,7 @@ cat("✅ Data loaded\n\n")
 cat("Generating Figure 1: DPPP Comparison (no legend)...\n")
 
 # Source plot function
-source("R/stage4_visualization.R")
+source("R/visualization.R")
 
 # Generate plot
 plot1b <- plot_dppp_comparison_enhanced(optimization_plan, validated_data)

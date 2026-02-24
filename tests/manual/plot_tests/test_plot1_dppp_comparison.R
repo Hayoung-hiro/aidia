@@ -7,9 +7,9 @@ library(dplyr)
 library(ggplot2)
 library(tidyr)
 
-source("R/stage1_data_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage4_visualization.R")
+source("R/data_validation.R")
+source("R/optimization_planning.R")
+source("R/visualization.R")
 source("R/config_loader.R")
 
 cat("\n╔════════════════════════════════════════════════════════════════╗\n")

@@ -1,4 +1,4 @@
-# stage1_data_validation.R - Stage 1: Data Validation
+# data_validation.R - Stage 1: Data Validation
 # DIA Window Optimizer v2.0
 #
 # Purpose: Load and validate DIA-NN data, producing ValidatedData structure for downstream stages
@@ -16,7 +16,7 @@ if (!isNamespaceLoaded("aidia")) {
   source_if_exists("R/data_loader.R")
   source_if_exists("R/utils.R")
   source_if_exists("R/replicate_utils.R")
-  source_if_exists("R/column_selection_simple.R")
+  source_if_exists("R/column_selection.R")
   source_if_exists("R/quality_validation.R")
 }
 

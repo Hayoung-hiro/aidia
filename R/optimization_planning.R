@@ -1,4 +1,4 @@
-# stage2_optimization_planning.R - Stage 2: Optimization Planning (Refactored)
+# optimization_planning.R - Stage 2: Optimization Planning (Refactored)
 #
 # Purpose: Unified module for DPPP diagnosis and window count determination
 #

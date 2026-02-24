@@ -7,7 +7,7 @@ library(testthat)
 # Source required dependencies
 if (!exists("generate_variable_windows_internal")) {
   source("../../R/utils_common.R")
-  source("../../R/stage3/stage3_window_generation.R")
+  source("../../R/window_generation.R")
 }
 
 test_that("digitization snaps widths to grid", {

@@ -11,11 +11,11 @@ library(gridExtra)
 
 # Load utilities and modules
 source("R/utils_common.R")
-source("R/stage1_data_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage3_window_optimization.R")
-source("R/plots/theme_aidia.R")
-source("R/plots/plot_impact_summary.R")
+source("R/data_validation.R")
+source("R/optimization_planning.R")
+source("R/window_optimization.R")
+source("R/theme_aidia.R")
+source("R/plot_impact_summary.R")
 
 cat("\n")
 cat("╔═══════════════════════════════════════════════════════════════════════╗\n")

@@ -1,19 +1,19 @@
-# stage3_window_optimization.R - Stage 3: Window Optimization (Orchestrator)
+# window_optimization.R - Stage 3: Window Optimization (Orchestrator)
 #
 # Purpose: Unified module for RT binning, m/z optimization, and window generation
 #
 # Version: 2.1 (Modularized architecture)
 #
 # Architecture:
-#   This file is the orchestrator that sources modular functions from R/stage3/
+#   This file is the orchestrator that sources modular functions from R/
 #   and coordinates the overall window optimization pipeline.
 #
 # Sourced Modules:
-#   - R/stage3_rt_binning.R: RT segmentation
-#   - R/stage3_mz_optimization.R: m/z range optimization (6 strategies)
-#   - R/stage3_window_generation.R: Window generation (fixed/variable)
-#   - R/stage3_statistics.R: Statistics calculation
-#   - R/stage3_export.R: CSV export and S3 methods
+#   - R/rt_binning.R: RT segmentation
+#   - R/mz_optimization.R: m/z range optimization (6 strategies)
+#   - R/window_generation.R: Window generation (fixed/variable)
+#   - R/window_statistics.R: Statistics calculation
+#   - R/export_methods.R: CSV export and S3 methods
 #
 # Input: ValidatedData (Stage 1) + OptimizationPlan (Stage 2)
 # Output: OptimizedWindows with complete isolation window set
@@ -31,11 +31,11 @@ if (!isNamespaceLoaded("aidia")) {
 
   # Source Stage 3 modules
   stage3_modules <- c(
-    "R/stage3_rt_binning.R",
-    "R/stage3_mz_optimization.R",
-    "R/stage3_window_generation.R",
-    "R/stage3_statistics.R",
-    "R/stage3_export.R"
+    "R/rt_binning.R",
+    "R/mz_optimization.R",
+    "R/window_generation.R",
+    "R/window_statistics.R",
+    "R/export_methods.R"
   )
 
   for (module in stage3_modules) {
@@ -501,11 +501,11 @@ if (!isNamespaceLoaded("aidia")) {
   cat("   Main function: optimize_windows(validated_data, optimization_plan, ...)\n")
   cat("   Output: OptimizedWindows object\n")
   cat("   Sourced modules:\n")
-  cat("     - R/stage3_rt_binning.R\n")
-  cat("     - R/stage3_mz_optimization.R\n")
-  cat("     - R/stage3_window_generation.R\n")
-  cat("     - R/stage3_statistics.R\n")
-  cat("     - R/stage3_export.R\n")
+  cat("     - R/rt_binning.R\n")
+  cat("     - R/mz_optimization.R\n")
+  cat("     - R/window_generation.R\n")
+  cat("     - R/window_statistics.R\n")
+  cat("     - R/export_methods.R\n")
   cat("   Export:\n")
   cat("     - export_windows_to_csv(optimized_windows, output_file)  # Single strategy\n")
   cat("     - export_method_files(windows_list, output_dir, ...)     # All strategies\n")

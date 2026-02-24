@@ -8,8 +8,8 @@ library(viridis)
 
 # Load modules
 source("R/utils_common.R")
-source("R/stage1_data_validation.R")
-source("R/stage4_visualization.R")
+source("R/data_validation.R")
+source("R/visualization.R")
 
 cat("\n╔════════════════════════════════════════════════════════════════╗\n")
 cat("║              Test Plot 2: RT × m/z Density Heatmap             ║\n")

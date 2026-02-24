@@ -1,4 +1,4 @@
-# stage3_mz_optimization.R - m/z Range Optimization Functions
+# mz_optimization.R - m/z Range Optimization Functions
 #
 # Purpose: Optimize m/z ranges for each RT bin using various strategies
 #
@@ -15,7 +15,7 @@
 #   - optimize_mz_ranges_kde_internal(): KDE-based optimization
 #   - apply_sg_smoothing_to_mz_ranges(): Post-processing SG smoothing
 #
-# Dependencies: dplyr, R/smoothing_utils.R, R/stage3_rt_binning.R
+# Dependencies: dplyr, R/smoothing_utils.R, R/rt_binning.R
 
 
 # =============================================================================
@@ -774,4 +774,4 @@ optimize_mz_ranges_kde_internal <- function(precursor_data, rt_stats,
 }
 
 
-if (!isNamespaceLoaded("aidia")) cat("  [stage3_mz_optimization.R] m/z optimization functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [mz_optimization.R] m/z optimization functions loaded\n")

@@ -13,10 +13,10 @@ library(ggridges)
 
 # Load modules
 source("R/utils_common.R")
-source("R/stage1_data_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage3_window_optimization.R")
-source("R/plot8_strategy_width_comparison.R")
+source("R/data_validation.R")
+source("R/optimization_planning.R")
+source("R/window_optimization.R")
+source("R/plot_strategy_comparison.R")
 
 cat("\n╔════════════════════════════════════════════════════════════════╗\n")
 cat("║   Test Plot 8: 4-Strategy Window Width Comparison             ║\n")

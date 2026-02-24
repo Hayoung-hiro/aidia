@@ -1,4 +1,4 @@
-# plot4_mz_width_comparison.R
+# plot_mz_width.R
 # Plot 4 Supplementary: m/z Range Width Comparison (Bar Charts)
 #
 # Purpose: Compare Original vs Optimized m/z width across RT segments

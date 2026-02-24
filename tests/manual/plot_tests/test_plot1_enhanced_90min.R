@@ -7,9 +7,9 @@ library(jsonlite)
 
 # Source modules
 source("R/utils_common.R")
-source("R/stage1_data_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage4_visualization.R")
+source("R/data_validation.R")
+source("R/optimization_planning.R")
+source("R/visualization.R")
 
 cat("\n╔════════════════════════════════════════════════════════════════╗\n")
 cat("║     Test Enhanced Plot 1: DPPP Comparison (90min)            ║\n")

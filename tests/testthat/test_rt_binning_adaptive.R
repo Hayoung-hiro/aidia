@@ -147,7 +147,7 @@ test_that("dispatcher routes to adaptive mode when requested", {
 
 test_that("dispatcher is backward-compatible with old call signature", {
   data <- create_bimodal_data()
-  # This is the exact call from stage3_window_optimization.R line 193-196
+  # This is the exact call from window_optimization.R line 193-196
   result <- perform_rt_binning_internal(
     precursor_data = data,
     rt_bin_width_min = 5

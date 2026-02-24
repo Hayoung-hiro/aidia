@@ -1,4 +1,4 @@
-# stage3_rt_binning.R - RT Binning Functions for Stage 3
+# rt_binning.R - RT Binning Functions for Stage 3
 #
 # Purpose: Perform RT (retention time) binning/segmentation
 #   Supports two modes:
@@ -602,4 +602,4 @@ calculate_auto_rt_bin_width <- function(rt_range,
   )
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [stage3_rt_binning.R] RT binning functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [rt_binning.R] RT binning functions loaded\n")

@@ -1,4 +1,4 @@
-# stage4_visualization.R - Stage 4: Visualization & Reporting (Orchestrator)
+# visualization.R - Stage 4: Visualization & Reporting (Orchestrator)
 #
 # Purpose: Generate comprehensive visualizations and reports for DIA window optimization
 #
@@ -12,13 +12,13 @@
 #   - R/plot_dppp.R: DPPP distribution comparison plots
 #   - R/plot_density.R: Density heatmap and normalized density
 #   - R/plot_satisfaction.R: Satisfaction vs cycle time curve
-#   - R/stage4_export.R: Export and PDF report functions
+#   - R/export_plots.R: Export and PDF report functions
 #
 # Legacy Plot Modules (consolidated into R/):
-#   - R/plot2b_rt_histogram.R: Binned RT histogram
-#   - R/plot5_density_with_mz_ranges.R: Coverage map grid
-#   - R/plot7_window_width_distribution.R: Window width distribution
-#   - R/plot8_strategy_width_comparison.R: Strategy width comparison
+#   - R/plot_rt_histogram.R: Binned RT histogram
+#   - R/plot_density_overlay.R: Coverage map grid
+#   - R/plot_window_width.R: Window width distribution
+#   - R/plot_strategy_comparison.R: Strategy width comparison
 #
 # Main Functions:
 #   1. generate_visualizations() - Main orchestration function
@@ -66,18 +66,18 @@ if (!isNamespaceLoaded("aidia")) {
   }
 
   # Export functions
-  if (file.exists("R/stage4_export.R")) {
-    source("R/stage4_export.R")
+  if (file.exists("R/export_plots.R")) {
+    source("R/export_plots.R")
   }
 
   # Legacy plot modules (consolidated into R/)
   external_modules <- c(
-    "R/plot2b_rt_histogram.R",
-    "R/plot4_mz_distribution_excluded.R",
-    "R/plot4_mz_width_comparison.R",
-    "R/plot5_density_with_mz_ranges.R",
-    "R/plot7_window_width_distribution.R",
-    "R/plot8_strategy_width_comparison.R"
+    "R/plot_rt_histogram.R",
+    "R/plot_mz_excluded.R",
+    "R/plot_mz_width.R",
+    "R/plot_density_overlay.R",
+    "R/plot_window_width.R",
+    "R/plot_strategy_comparison.R"
   )
 
   for (module in external_modules) {
@@ -183,8 +183,8 @@ generate_visualizations <- function(
 
     # Load Stage 3 module for optimization
     if (!exists("optimize_windows") && !isNamespaceLoaded("aidia")) {
-      if (file.exists("R/stage3_window_optimization.R")) {
-        source("R/stage3_window_optimization.R")
+      if (file.exists("R/window_optimization.R")) {
+        source("R/window_optimization.R")
       }
     }
 
@@ -485,6 +485,6 @@ if (!isNamespaceLoaded("aidia")) {
   cat("     - R/plot_dppp.R\n")
   cat("     - R/plot_density.R\n")
   cat("     - R/plot_satisfaction.R\n")
-  cat("     - R/stage4_export.R\n")
+  cat("     - R/export_plots.R\n")
   cat("   Dependencies: ggplot2, dplyr, tidyr, viridis, scales, gridExtra, grid\n")
 }

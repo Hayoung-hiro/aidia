@@ -26,10 +26,10 @@ library(arrow)
 # Source required modules
 source("R/utils_common.R")
 source("R/instrument_utils.R")
-source("R/stage1_data_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage3_window_optimization.R")
-source("R/stage4_visualization.R")
+source("R/data_validation.R")
+source("R/optimization_planning.R")
+source("R/window_optimization.R")
+source("R/visualization.R")
 
 # =============================================================================
 # Configuration
@@ -168,7 +168,7 @@ cat("\nFigure 1: DPPP Distribution Comparison\n")
 cat("─────────────────────────────────────────────────────────────\n")
 
 # Use existing plot function and modify
-source("R/stage4_visualization.R")
+source("R/visualization.R")
 
 # Generate base plot
 plot1b <- plot_dppp_comparison_enhanced(optimization_plan, validated_data)
@@ -197,8 +197,8 @@ cat("\nFigure 2: Coverage Map 2×2 Grid\n")
 cat("─────────────────────────────────────────────────────────────\n")
 
 # Source plot5 function
-if (file.exists("R/plots/plot5_density_with_mz_ranges.R")) {
-  source("R/plots/plot5_density_with_mz_ranges.R")
+if (file.exists("R/plot_density_overlay.R")) {
+  source("R/plot_density_overlay.R")
 }
 
 # Generate coverage map
@@ -250,8 +250,8 @@ plot3_pub <- plot3 +
   labs(title = "(A) m/z Density by RT Segment")
 
 # Generate plot4: greedy m/z excluded
-if (file.exists("R/plots/plot4_mz_distribution_excluded.R")) {
-  source("R/plots/plot4_mz_distribution_excluded.R")
+if (file.exists("R/plot_mz_excluded.R")) {
+  source("R/plot_mz_excluded.R")
 }
 
 plot4_greedy <- plot_mz_distribution_excluded(
@@ -291,8 +291,8 @@ cat("\nFigure 4: Window Width Distribution (Adjusted Scale)\n")
 cat("─────────────────────────────────────────────────────────────\n")
 
 # Source plot7 function
-if (file.exists("R/plots/plot7_window_width_distribution.R")) {
-  source("R/plots/plot7_window_width_distribution.R")
+if (file.exists("R/plot_window_width.R")) {
+  source("R/plot_window_width.R")
 }
 
 # Create adjusted version of plot7

@@ -10,10 +10,10 @@ library(grid)
 
 # Load modules
 source("R/utils_common.R")
-source("R/stage1_data_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage3_window_optimization.R")
-source("R/plot4_mz_distribution_excluded.R")
+source("R/data_validation.R")
+source("R/optimization_planning.R")
+source("R/window_optimization.R")
+source("R/plot_mz_excluded.R")
 
 cat("\n╔════════════════════════════════════════════════════════════════╗\n")
 cat("║   Test Plot 4: m/z Distribution with Excluded Regions         ║\n")

@@ -8,11 +8,11 @@ library(dplyr)
 library(tibble)
 
 # Source Stage 1 and Stage 2 modules
-source("R/stage1_data_validation.R")
+source("R/data_validation.R")
 source("R/replicate_utils.R")
-source("R/column_selection_simple.R")
+source("R/column_selection.R")
 source("R/quality_validation.R")
-source("R/stage2_optimization_planning.R")
+source("R/optimization_planning.R")
 
 cat("\n")
 cat("╔═══════════════════════════════════════════════════════════════════════╗\n")

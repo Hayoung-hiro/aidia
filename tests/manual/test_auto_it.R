@@ -103,7 +103,7 @@ cat("Test 6: Window count comparison (Auto vs Manual IT)\n")
 cat(paste0(rep("-", 40), collapse = ""), "\n")
 
 source("R/utils_common.R")
-source("R/stage2_optimization_planning.R")
+source("R/optimization_planning.R")
 
 # At 30K resolution:
 # - T_transient = 64 ms

@@ -1,4 +1,4 @@
-# plot4_mz_distribution_excluded.R
+# plot_mz_excluded.R
 # Plot 4: m/z Density Distribution with Excluded Regions
 #
 # Purpose: Visualize m/z distribution for each RT bin and show which regions

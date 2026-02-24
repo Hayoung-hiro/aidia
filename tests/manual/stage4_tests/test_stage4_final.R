@@ -1,5 +1,5 @@
 # test_stage4_final.R
-# Final Verification: stage4_visualization.R generates all plots correctly
+# Final Verification: visualization.R generates all plots correctly
 
 library(dplyr)
 library(ggplot2)
@@ -12,10 +12,10 @@ cat("╚════════════════════════
 # Load all required modules
 cat("Loading modules...\n")
 source("R/utils_common.R")
-source("R/stage1_data_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage3_window_optimization.R")
-source("R/stage4_visualization.R")
+source("R/data_validation.R")
+source("R/optimization_planning.R")
+source("R/window_optimization.R")
+source("R/visualization.R")
 
 # Stage 1: Load data
 cat("\n[1/4] Loading data...\n")
@@ -48,7 +48,7 @@ optimized_windows <- optimize_windows(
 cat(sprintf("✓ %d windows generated\n", nrow(optimized_windows$windows)))
 
 # Stage 4: Generate ALL visualizations
-cat("\n[4/4] Generating visualizations with stage4_visualization.R...\n")
+cat("\n[4/4] Generating visualizations with visualization.R...\n")
 cat("═══════════════════════════════════════════════════════════════\n\n")
 
 output_dir <- "test_final_check/"
@@ -139,10 +139,10 @@ cat("Summary:\n")
 cat("───────────────────────────────────────────────────────────────\n")
 all_ok <- (plot_count == length(expected_plots)) && multi_ok && naming_ok
 if (all_ok) {
-  cat("  ✅ PASS: stage4_visualization.R generates all plots correctly\n")
+  cat("  ✅ PASS: visualization.R generates all plots correctly\n")
   cat("  ✅ All 13 plots follow standardized naming\n")
   cat("  ✅ Multi-strategy comparison implemented\n")
-  cat("\n  👍 stage4_visualization.R is ready for production!\n")
+  cat("\n  👍 visualization.R is ready for production!\n")
 } else {
   cat("  ❌ FAIL: Some issues detected\n")
   cat(sprintf("     Expected: %d plots, Got: %d plots\n", length(expected_plots), plot_count))

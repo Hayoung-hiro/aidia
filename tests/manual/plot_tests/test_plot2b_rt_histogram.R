@@ -1,4 +1,4 @@
-# test_plot2b_rt_histogram.R
+# test_plot_rt_histogram.R
 # Test Plot 2B: RT Distribution Histogram (Supplementary to Density Heatmap)
 #
 # Purpose: Generate RT distribution histograms to complement the density heatmap
@@ -9,8 +9,8 @@ library(arrow)
 
 # Load modules
 source("R/utils_common.R")
-source("R/stage1_data_validation.R")
-source("R/plot2b_rt_histogram.R")
+source("R/data_validation.R")
+source("R/plot_rt_histogram.R")
 
 cat("\n╔════════════════════════════════════════════════════════════════╗\n")
 cat("║   Test Plot 2B: RT Distribution Histogram                     ║\n")

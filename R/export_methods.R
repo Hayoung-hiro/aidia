@@ -1,4 +1,4 @@
-# stage3_export.R - Export Functions for Stage 3
+# export_methods.R - Export Functions for Stage 3
 #
 # Purpose: Export DIA windows to CSV and method files for instrument upload
 #
@@ -235,4 +235,4 @@ export_method_files <- function(windows_list,
 # This ensures consistency and reduces code duplication.
 # See: print.OptimizedWindows(), summary.OptimizedWindows()
 
-if (!isNamespaceLoaded("aidia")) cat("  [stage3_export.R] Export functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [export_methods.R] Export functions loaded\n")

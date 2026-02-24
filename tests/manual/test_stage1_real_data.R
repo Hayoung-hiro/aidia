@@ -9,9 +9,9 @@ library(tibble)
 library(arrow)
 
 # Source Stage 1 modules
-source("R/stage1_data_validation.R")
+source("R/data_validation.R")
 source("R/replicate_utils.R")
-source("R/column_selection_simple.R")
+source("R/column_selection.R")
 source("R/quality_validation.R")
 
 cat("\n")

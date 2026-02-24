@@ -8,12 +8,12 @@ library(dplyr)
 library(tibble)
 
 # Source all required modules
-source("R/stage1_data_validation.R")
+source("R/data_validation.R")
 source("R/replicate_utils.R")
-source("R/column_selection_simple.R")
+source("R/column_selection.R")
 source("R/quality_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage3_window_optimization.R")
+source("R/optimization_planning.R")
+source("R/window_optimization.R")
 
 cat("\n")
 cat("╔═══════════════════════════════════════════════════════════════════════╗\n")

@@ -1,4 +1,4 @@
-# stage4_export.R - Export Functions for Stage 4 Visualization
+# export_plots.R - Export Functions for Stage 4 Visualization
 #
 # Purpose: Handle export of plots and PDF reports
 #
@@ -438,4 +438,4 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   cat(sprintf("  OK PDF report saved: %s (%d pages)\n", basename(output_file), n_pages))
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [stage4_export.R] Export functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [export_plots.R] Export functions loaded\n")

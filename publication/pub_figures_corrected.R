@@ -11,12 +11,12 @@ library(grid)
 
 source("R/utils_common.R")
 source("R/instrument_utils.R")
-source("R/stage1_data_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage3_window_optimization.R")
-source("R/stage4_visualization.R")
-source("R/plots/plot4_mz_distribution_excluded.R")
-source("R/plots/plot7_window_width_distribution.R")
+source("R/data_validation.R")
+source("R/optimization_planning.R")
+source("R/window_optimization.R")
+source("R/visualization.R")
+source("R/plot_mz_excluded.R")
+source("R/plot_window_width.R")
 
 OUTPUT_DIR <- "publication_ready"
 dir.create(OUTPUT_DIR, showWarnings = FALSE)
@@ -81,11 +81,11 @@ cat("✅ Figure1_DPPP_comparison.png (16:9 ratio, legend removed)\n")
 
 cat("\n=== Figure 3: plot3 (mz_normalized_density) + plot4 (greedy excluded) ===\n")
 
-# Plot 3: m/z Normalized Density (original function from stage4_visualization.R)
+# Plot 3: m/z Normalized Density (original function from visualization.R)
 plot3_original <- plot_mz_normalized_density(windows_greedy, validated_data)
 
 # Plot 4: m/z Distribution with Excluded Regions (greedy strategy, 6 bins)
-# Original function from plot4_mz_distribution_excluded.R
+# Original function from plot_mz_excluded.R
 plot4_original <- plot_mz_distribution_with_exclusions(
   windows_greedy, validated_data, max_bins_to_show = 6
 )
@@ -117,7 +117,7 @@ cat("✅ Figure3_mz_optimization.png (16:9 ratio, 1×2 grid: plot3 + plot4 greed
 
 cat("\n=== Figure 4: plot7 Window Width Distribution (Smoothing Strategy) ===\n")
 
-# Original function from plot7_window_width_distribution.R
+# Original function from plot_window_width.R
 # This already has dual y-axis with:
 # - Left: Normalized Density (0-1)
 # - Right: Window Width (Da)
@@ -154,8 +154,8 @@ cat("  ├── Figure3_mz_optimization.png (16:9, 1×2: plot3 + plot4 greedy)\
 cat("  └── Figure4_window_width.png (16:9, plot7 greedy with dual y-axis)\n\n")
 
 cat("All figures use ORIGINAL functions from:\n")
-cat("  - stage4_visualization.R: plot_dppp_comparison_enhanced(), plot_mz_normalized_density()\n")
-cat("  - plot4_mz_distribution_excluded.R: plot_mz_distribution_with_exclusions()\n")
-cat("  - plot7_window_width_distribution.R: plot_window_width_distribution()\n\n")
+cat("  - visualization.R: plot_dppp_comparison_enhanced(), plot_mz_normalized_density()\n")
+cat("  - plot_mz_excluded.R: plot_mz_distribution_with_exclusions()\n")
+cat("  - plot_window_width.R: plot_window_width_distribution()\n\n")
 
 cat("All figures generated at 300 dpi, 16:9 ratio for publication quality.\n")

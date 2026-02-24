@@ -80,30 +80,30 @@ Stage 1: Data Validation
   Input:  DIA-NN parquet/TSV
   Output: ValidatedData (5-6 essential columns)
   Main:   create_validated_dataset()
-  File:   R/stage1_data_validation.R (537 lines)
+  File:   R/data_validation.R (537 lines)
 
 Stage 2: Optimization Planning
   Input:  ValidatedData + experiment config
   Output: OptimizationPlan (DPPP diagnosis, window count, cycle time)
   Main:   plan_optimization()
-  File:   R/stage2_optimization_planning.R (1,006 lines)
+  File:   R/optimization_planning.R (1,006 lines)
 
 Stage 3: Window Optimization + Export  [MODULARIZED]
   Input:  ValidatedData + OptimizationPlan
   Output: OptimizedWindows + 22-column CSV files
   Main:   optimize_windows()
-  File:   R/stage3_window_optimization.R (orchestrator)
-          R/stage3_mz_optimization.R (5 strategies)
-          R/stage3_window_generation.R (3 modes)
-          R/stage3_export.R (Thermo CSV)
-          R/stage3_rt_binning.R
-          R/stage3_statistics.R
+  File:   R/window_optimization.R (orchestrator)
+          R/mz_optimization.R (5 strategies)
+          R/window_generation.R (3 modes)
+          R/export_methods.R (Thermo CSV)
+          R/rt_binning.R
+          R/window_statistics.R
 
 Stage 4: Visualization (Plots Only)
   Input:  All previous outputs
   Output: Plots + PDF report
   Main:   generate_visualizations()
-  File:   R/stage4_visualization.R (orchestrator)
+  File:   R/visualization.R (orchestrator)
           R/plot_*.R (13 modular plot files, including 7 legacy)
 ```
 
@@ -121,7 +121,7 @@ Canonical functions that ALL entry points (main.R, inst/shiny_app/app.R) must us
 | `estimate_cycle_time()` | `R/utils_common.R` | Estimate cycle time from gradient length |
 | `is_orbitrap_instrument()` | `R/instrument_utils.R` | Data-driven from JSON `analyzer_type` |
 | `is_astral_instrument()` | `R/instrument_utils.R` | Data-driven from JSON `analyzer_type` |
-| `export_windows_to_csv()` | `R/stage3/stage3_export.R` | Unified 22-column Thermo CSV (z=0) |
+| `export_windows_to_csv()` | `R/export_methods.R` | Unified 22-column Thermo CSV (z=0) |
 
 **Rule**: Never inline FWHM conversion (`median < 1 → *60`) or window count formulas. Always use shared functions.
 
@@ -185,7 +185,7 @@ Three methods in `R/replicate_utils.R`:
 
 ### 22-Column Thermo Method File Export
 
-`export_windows_to_csv()` in `R/stage3/stage3_export.R` produces Xcalibur-compatible CSV with compound template fields, m/z boundaries, RT windows, and acquisition parameters.
+`export_windows_to_csv()` in `R/export_methods.R` produces Xcalibur-compatible CSV with compound template fields, m/z boundaries, RT windows, and acquisition parameters.
 
 ---
 
@@ -215,7 +215,7 @@ Three methods in `R/replicate_utils.R`:
 
 1. Always use **geometric CV** for log-normal intensity data (arithmetic CV underestimates by ~14x)
 2. Run full pipeline test after any changes to ensure stage integration
-3. Stage 3 submodules (`R/stage3_*.R`) are all in `R/` top level (no subdirectories — R packages require flat `R/`)
+3. Stage 3 submodules are all in `R/` top level (no subdirectories — R packages require flat `R/`)
 4. Never inline FWHM conversion — use `ensure_fwhm_seconds()` from `R/utils_common.R`
 5. Never inline window count formula — use `estimate_window_count_preview()` from `R/utils_common.R`
 6. Deprecated code is in `archive/deprecated_modules/R/` (NOT in `R/`)
@@ -229,7 +229,7 @@ Three methods in `R/replicate_utils.R`:
 
 ### Adding a New m/z Strategy
 
-1. Implement in `R/stage3_mz_optimization.R`:
+1. Implement in `R/mz_optimization.R`:
 ```r
 optimize_mz_ranges_newstrategy_internal <- function(data, rt_bins, ...) {
   return(mz_ranges_df)  # Must have: rt_segment_id, mz_start, mz_end
@@ -250,7 +250,7 @@ optimize_mz_ranges_newstrategy_internal <- function(data, rt_bins, ...) {
 ### Adding New Plots
 
 1. Create `R/plot_new.R` with function returning a ggplot object (flat in `R/`, no subdirectories)
-2. Add to `generate_visualizations()` in `R/stage4_visualization.R`
+2. Add to `generate_visualizations()` in `R/visualization.R`
 
 ---
 
