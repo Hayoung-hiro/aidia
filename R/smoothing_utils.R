@@ -4,13 +4,7 @@
 #
 # Dependencies: prospectr package only
 
-# Safe package loading with fallback
-if (!requireNamespace("prospectr", quietly = TRUE)) {
-  warning("Package 'prospectr' not installed. Smoothing will use simple moving average fallback.")
-  PROSPECTR_AVAILABLE <- FALSE
-} else {
-  PROSPECTR_AVAILABLE <- TRUE
-}
+# prospectr availability is checked at runtime inside smooth_savgol()
 
 # =============================================================================
 # Core Smoothing Function (Savitzky-Golay only)
@@ -43,7 +37,7 @@ smooth_savgol <- function(y_array, window_size = 7, poly_order = 3) {
   original_length <- length(y_array)
 
   # Check if prospectr is available
-  if (!exists("PROSPECTR_AVAILABLE") || !PROSPECTR_AVAILABLE) {
+  if (!requireNamespace("prospectr", quietly = TRUE)) {
     # Fallback: Simple moving average smoothing
     cat("     Using moving average fallback (prospectr not available)\n")
     return(smooth_moving_average(y_array, window_size))

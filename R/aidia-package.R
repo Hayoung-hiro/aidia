@@ -98,7 +98,7 @@
 #' @importFrom ggridges geom_density_ridges
 #' @importFrom gridExtra grid.arrange
 #' @importFrom grid unit
-#' @importFrom stats median sd quantile ecdf density
+#' @importFrom stats median sd quantile ecdf density approx complete.cases
 #' @importFrom utils read.csv write.csv head tail
 #' @importFrom grDevices pdf dev.off
 NULL
