@@ -72,30 +72,30 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
 #' Draw Cover Page
 #' @keywords internal
 .draw_cover_page <- function(optimization_plan, optimized_windows, validated_data) {
-  grid.newpage()
+  grid::grid.newpage()
 
   # Background accent bar at top
-  grid.rect(x = 0, y = 1, width = 1, height = 0.08,
+  grid::grid.rect(x = 0, y = 1, width = 1, height = 0.08,
             just = c("left", "top"),
-            gp = gpar(fill = .report_colors$primary, col = NA))
+            gp = grid::gpar(fill = .report_colors$primary, col = NA))
 
   # Title
-  grid.text("AIDIA",
+  grid::grid.text("AIDIA",
             x = 0.5, y = 0.72,
-            gp = gpar(fontsize = 42, fontface = "bold",
+            gp = grid::gpar(fontsize = 42, fontface = "bold",
                        col = .report_colors$primary))
-  grid.text("Adaptive Isolation for DIA",
+  grid::grid.text("Adaptive Isolation for DIA",
             x = 0.5, y = 0.65,
-            gp = gpar(fontsize = 16, col = .report_colors$secondary))
+            gp = grid::gpar(fontsize = 16, col = .report_colors$secondary))
 
   # Divider line
   grid.lines(x = c(0.3, 0.7), y = c(0.60, 0.60),
-             gp = gpar(col = .report_colors$accent, lwd = 2))
+             gp = grid::gpar(col = .report_colors$accent, lwd = 2))
 
   # Subtitle
-  grid.text("Window Optimization Report",
+  grid::grid.text("Window Optimization Report",
             x = 0.5, y = 0.55,
-            gp = gpar(fontsize = 20, fontface = "bold",
+            gp = grid::gpar(fontsize = 20, fontface = "bold",
                        col = .report_colors$primary))
 
   # Key metrics (centered block)
@@ -114,32 +114,32 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
   )
 
   for (i in seq_along(metrics)) {
-    grid.text(metrics[i],
+    grid::grid.text(metrics[i],
               x = 0.5, y = 0.44 - (i - 1) * 0.05,
-              gp = gpar(fontsize = 13, col = .report_colors$primary))
+              gp = grid::gpar(fontsize = 13, col = .report_colors$primary))
   }
 
   # Timestamp at bottom
-  grid.text(sprintf("Generated: %s", format(Sys.time(), "%Y-%m-%d %H:%M")),
+  grid::grid.text(sprintf("Generated: %s", format(Sys.time(), "%Y-%m-%d %H:%M")),
             x = 0.5, y = 0.15,
-            gp = gpar(fontsize = 11, col = .report_colors$secondary,
+            gp = grid::gpar(fontsize = 11, col = .report_colors$secondary,
                        fontface = "italic"))
 
   # Bottom bar
-  grid.rect(x = 0, y = 0, width = 1, height = 0.04,
+  grid::grid.rect(x = 0, y = 0, width = 1, height = 0.04,
             just = c("left", "bottom"),
-            gp = gpar(fill = .report_colors$primary, col = NA))
+            gp = grid::gpar(fill = .report_colors$primary, col = NA))
 }
 
 #' Draw Section Divider Page
 #' @keywords internal
 .draw_section_page <- function(section_number, section_title, section_subtitle = NULL) {
-  grid.newpage()
+  grid::grid.newpage()
 
   # Left accent bar
-  grid.rect(x = 0, y = 0, width = 0.02, height = 1,
+  grid::grid.rect(x = 0, y = 0, width = 0.02, height = 1,
             just = c("left", "bottom"),
-            gp = gpar(fill = .report_colors$accent, col = NA))
+            gp = grid::gpar(fill = .report_colors$accent, col = NA))
 
   # Section number (large, supports numeric or string like "A", "B")
   section_label <- if (is.numeric(section_number)) {
@@ -147,25 +147,25 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
   } else {
     as.character(section_number)
   }
-  grid.text(section_label,
+  grid::grid.text(section_label,
             x = 0.12, y = 0.55,
             just = "left",
-            gp = gpar(fontsize = 60, fontface = "bold",
+            gp = grid::gpar(fontsize = 60, fontface = "bold",
                        col = .report_colors$grid))
 
   # Section title
-  grid.text(section_title,
+  grid::grid.text(section_title,
             x = 0.12, y = 0.45,
             just = "left",
-            gp = gpar(fontsize = 22, fontface = "bold",
+            gp = grid::gpar(fontsize = 22, fontface = "bold",
                        col = .report_colors$primary))
 
   # Subtitle
   if (!is.null(section_subtitle)) {
-    grid.text(section_subtitle,
+    grid::grid.text(section_subtitle,
               x = 0.12, y = 0.38,
               just = "left",
-              gp = gpar(fontsize = 12, col = .report_colors$secondary,
+              gp = grid::gpar(fontsize = 12, col = .report_colors$secondary,
                          fontface = "italic"))
   }
 }
@@ -173,12 +173,12 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
 #' Draw Parameter Summary Page
 #' @keywords internal
 .draw_parameter_summary <- function(optimization_plan, optimized_windows, validated_data) {
-  grid.newpage()
+  grid::grid.newpage()
 
   # Header
-  grid.text("Configuration Summary",
+  grid::grid.text("Configuration Summary",
             x = 0.5, y = 0.95,
-            gp = gpar(fontsize = 18, fontface = "bold",
+            gp = grid::gpar(fontsize = 18, fontface = "bold",
                        col = .report_colors$primary))
 
   # Build parameter table
@@ -256,7 +256,7 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
 
   # Position table centered with some padding
   pushViewport(viewport(x = 0.5, y = 0.45, width = 0.7, height = 0.8))
-  grid.draw(table_grob)
+  grid::grid.draw(table_grob)
   popViewport()
 }
 
@@ -265,20 +265,20 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
 .render_plot <- function(p) {
   tryCatch({
     if (inherits(p, "grob") || inherits(p, "gTree") || inherits(p, "gtable")) {
-      grid.newpage()
-      grid.draw(p)
+      grid::grid.newpage()
+      grid::grid.draw(p)
     } else if (inherits(p, "ggplot")) {
       print(p)
     } else {
       # Fallback: try print
-      grid.newpage()
+      grid::grid.newpage()
       print(p)
     }
   }, error = function(e) {
-    grid.newpage()
-    grid.text(sprintf("Error rendering plot: %s", e$message),
+    grid::grid.newpage()
+    grid::grid.text(sprintf("Error rendering plot: %s", e$message),
               x = 0.5, y = 0.5,
-              gp = gpar(fontsize = 12, col = .report_colors$accent))
+              gp = grid::gpar(fontsize = 12, col = .report_colors$accent))
   })
 }
 

@@ -145,14 +145,14 @@ plot_strategy_comparison_table <- function(windows_list) {
   )
 
   # Add title and note
-  title_grob <- textGrob(
+  title_grob <- grid::textGrob(
     "Strategy Comparison Summary",
-    gp = gpar(fontsize = 14, fontface = "bold", col = aidia_colors$primary)
+    gp = grid::gpar(fontsize = 14, fontface = "bold", col = aidia_colors$primary)
   )
 
-  note_grob <- textGrob(
+  note_grob <- grid::textGrob(
     "Note: Final quantification quality depends on sample complexity and downstream analysis software (DIA-NN, Spectronaut, etc.).\nNo single strategy is universally optimal — evaluate based on your analytical goals.",
-    gp = gpar(fontsize = 8, col = aidia_colors$secondary, fontface = "italic"),
+    gp = grid::gpar(fontsize = 8, col = aidia_colors$secondary, fontface = "italic"),
     just = "left",
     x = 0.02
   )

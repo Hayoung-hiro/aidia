@@ -258,9 +258,9 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
   p4 <- create_metrics_table(optimized_windows, validated_data)
 
   # Assemble composite plot
-  title_grob <- textGrob(
+  title_grob <- grid::textGrob(
     "AIDIA Optimization Impact Summary",
-    gp = gpar(fontsize = 16, fontface = "bold")
+    gp = grid::gpar(fontsize = 16, fontface = "bold")
   )
 
   composite <- arrangeGrob(
