@@ -263,7 +263,7 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
     gp = grid::gpar(fontsize = 16, fontface = "bold")
   )
 
-  composite <- arrangeGrob(
+  composite <- gridExtra::arrangeGrob(
     p1, p2, p3, p4,
     ncol = 2,
     top = title_grob

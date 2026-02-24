@@ -620,7 +620,7 @@ load_instruments_config <- function() {
 
   configs <- tryCatch(
     {
-      fromJSON(json_path, simplifyVector = FALSE)
+      jsonlite::fromJSON(json_path, simplifyVector = FALSE)
     },
     error = function(e) {
       stop(sprintf(

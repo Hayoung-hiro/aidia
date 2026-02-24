@@ -89,7 +89,7 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
             gp = grid::gpar(fontsize = 16, col = .report_colors$secondary))
 
   # Divider line
-  grid.lines(x = c(0.3, 0.7), y = c(0.60, 0.60),
+  grid::grid.lines(x = c(0.3, 0.7), y = c(0.60, 0.60),
              gp = grid::gpar(col = .report_colors$accent, lwd = 2))
 
   # Subtitle
@@ -233,10 +233,10 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
     stringsAsFactors = FALSE
   )
 
-  table_grob <- tableGrob(
+  table_grob <- gridExtra::tableGrob(
     param_data,
     rows = NULL,
-    theme = ttheme_minimal(
+    theme = gridExtra::ttheme_minimal(
       core = list(
         fg_params = list(fontsize = 10, col = .report_colors$primary,
                           hjust = 0, x = 0.05),
@@ -255,9 +255,9 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
   )
 
   # Position table centered with some padding
-  pushViewport(viewport(x = 0.5, y = 0.45, width = 0.7, height = 0.8))
+  grid::pushViewport(grid::viewport(x = 0.5, y = 0.45, width = 0.7, height = 0.8))
   grid::grid.draw(table_grob)
-  popViewport()
+  grid::popViewport()
 }
 
 #' Safely render a plot to the PDF device

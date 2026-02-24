@@ -110,10 +110,10 @@ plot_strategy_comparison_table <- function(windows_list) {
     select(Strategy, Coverage, `Mean Width`, Windows, `Range Utilization`)
 
   # Create tableGrob with AIDIA colors
-  table_grob <- tableGrob(
+  table_grob <- gridExtra::tableGrob(
     display_table,
     rows = NULL,
-    theme = ttheme_minimal(
+    theme = gridExtra::ttheme_minimal(
       core = list(
         fg_params = list(
           fontsize = 10,
@@ -158,7 +158,7 @@ plot_strategy_comparison_table <- function(windows_list) {
   )
 
   # Assemble final plot with title and note
-  composite <- arrangeGrob(
+  composite <- gridExtra::arrangeGrob(
     title_grob,
     table_grob,
     note_grob,
