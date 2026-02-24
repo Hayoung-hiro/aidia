@@ -11,23 +11,18 @@
 # Sourced Modules:
 #   - R/plot_dppp.R: DPPP distribution comparison plots
 #   - R/plot_density.R: Density heatmap and normalized density
-#   - R/plot_histogram.R: RT distribution histogram
-#   - R/plot_coverage.R: Coverage map with m/z overlay
-#   - R/plot_window.R: Window width distribution
 #   - R/plot_satisfaction.R: Satisfaction vs cycle time curve
 #   - R/stage4_export.R: Export and PDF report functions
 #
 # Legacy Plot Modules (consolidated into R/):
 #   - R/plot2b_rt_histogram.R: Binned RT histogram
-#   - R/plot4_*.R: m/z range optimization plots
-#   - R/plot5_*.R: Coverage map grid
-#   - R/plot7_*.R: Window width distribution
-#   - R/plot8_*.R: Strategy width comparison
+#   - R/plot5_density_with_mz_ranges.R: Coverage map grid
+#   - R/plot7_window_width_distribution.R: Window width distribution
+#   - R/plot8_strategy_width_comparison.R: Strategy width comparison
 #
 # Main Functions:
 #   1. generate_visualizations() - Main orchestration function
 #   2. calculate_summary_statistics() - Calculate optimization metrics
-#   3. theme_dia_optimizer() - Custom ggplot2 theme (via theme_aidia alias)
 #
 # Input: Refactored pipeline outputs
 #   - validated_data (ValidatedData from Stage 1)
@@ -55,9 +50,6 @@ if (!isNamespaceLoaded("aidia")) {
     "R/theme_aidia.R",          # Theme must be loaded first
     "R/plot_dppp.R",
     "R/plot_density.R",
-    "R/plot_histogram.R",
-    "R/plot_coverage.R",
-    "R/plot_window.R",
     "R/plot_satisfaction.R",
     "R/plot_impact_summary.R",
     "R/plot_rt_quality.R",
@@ -83,7 +75,6 @@ if (!isNamespaceLoaded("aidia")) {
     "R/plot2b_rt_histogram.R",
     "R/plot4_mz_distribution_excluded.R",
     "R/plot4_mz_width_comparison.R",
-    "R/plot4_mz_range_optimization.R",
     "R/plot5_density_with_mz_ranges.R",
     "R/plot7_window_width_distribution.R",
     "R/plot8_strategy_width_comparison.R"
@@ -94,17 +85,6 @@ if (!isNamespaceLoaded("aidia")) {
       source(module)
     }
   }
-}
-
-# =============================================================================
-# Custom Theme
-# =============================================================================
-
-#' Custom ggplot2 Theme for DIA Optimizer (Alias for AIDIA Theme)
-#'
-#' @export
-theme_dia_optimizer <- function() {
-  theme_aidia()
 }
 
 # =============================================================================
@@ -504,9 +484,6 @@ if (!isNamespaceLoaded("aidia")) {
   cat("   Sourced modules:\n")
   cat("     - R/plot_dppp.R\n")
   cat("     - R/plot_density.R\n")
-  cat("     - R/plot_histogram.R\n")
-  cat("     - R/plot_coverage.R\n")
-  cat("     - R/plot_window.R\n")
   cat("     - R/plot_satisfaction.R\n")
   cat("     - R/stage4_export.R\n")
   cat("   Dependencies: ggplot2, dplyr, tidyr, viridis, scales, gridExtra, grid\n")

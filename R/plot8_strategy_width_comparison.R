@@ -282,34 +282,3 @@ plot_strategy_width_cdf <- function(windows_list, validated_data) {
 
   return(p)
 }
-
-
-#' Plot 8: Combined Strategy Width Comparison (3-panel)
-#'
-#' Creates a combined figure with Ridge, Box, and CDF plots
-#'
-#' @param windows_list Named list of OptimizedWindows objects
-#' @param validated_data ValidatedData object from Stage 1
-#'
-#' @return Combined grid plot
-#' @export
-plot_strategy_width_comparison_combined <- function(windows_list, validated_data) {
-
-  cat("  Generating Plot 8: Combined Strategy Width Comparison (3-panel)...\n")
-
-  # Generate individual plots
-  p_ridge <- plot_strategy_width_ridge(windows_list, validated_data)
-  p_box <- plot_strategy_width_boxplot(windows_list, validated_data)
-  p_cdf <- plot_strategy_width_cdf(windows_list, validated_data)
-
-  # Combine in 3-row layout
-  combined <- grid.arrange(
-    p_ridge,
-    p_box,
-    p_cdf,
-    ncol = 1,
-    heights = c(1, 1, 1)
-  )
-
-  return(combined)
-}

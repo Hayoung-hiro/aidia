@@ -349,45 +349,6 @@ apply_sg_smoothing_to_mz_ranges <- function(mz_ranges, smoothing_window,
 
 
 # =============================================================================
-# Helper Functions
-# =============================================================================
-
-#' Interpolate value at given RT from RT-value curve
-#'
-#' @param rt_points Numeric vector of RT points
-#' @param values Numeric vector of values at each RT point
-#' @param target_rt Target RT for interpolation
-#'
-#' @return Interpolated value at target_rt
-#' @keywords internal
-interpolate_at_rt <- function(rt_points, values, target_rt) {
-
-  # Find bounding points
-  if (target_rt <= rt_points[1]) {
-    return(values[1])
-  }
-
-  if (target_rt >= rt_points[length(rt_points)]) {
-    return(values[length(values)])
-  }
-
-  # Linear interpolation
-  idx_upper <- which(rt_points >= target_rt)[1]
-  idx_lower <- idx_upper - 1
-
-  rt_lower <- rt_points[idx_lower]
-  rt_upper <- rt_points[idx_upper]
-  val_lower <- values[idx_lower]
-  val_upper <- values[idx_upper]
-
-  # Interpolate
-  fraction <- (target_rt - rt_lower) / (rt_upper - rt_lower)
-  interpolated <- val_lower + fraction * (val_upper - val_lower)
-
-  return(interpolated)
-}
-
-# =============================================================================
 # GREEDY Optimization: MacCoss Lab Dynamic DIA Algorithm
 # =============================================================================
 
