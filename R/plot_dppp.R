@@ -8,9 +8,6 @@
 #
 # Dependencies: ggplot2, dplyr, tidyr, utils_common.R (calculate_dppp)
 
-library(ggplot2)
-library(dplyr)
-library(tidyr)
 
 # =============================================================================
 # Shared Helper
@@ -400,4 +397,4 @@ plot_dppp_comparison_enhanced <- function(optimization_plan, validated_data) {
   return(p)
 }
 
-cat("  [plot_dppp.R] DPPP distribution functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [plot_dppp.R] DPPP distribution functions loaded\n")

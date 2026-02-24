@@ -10,8 +10,6 @@
 #
 # Dependencies: dplyr, tibble, utils_common.R
 
-library(dplyr)
-library(tibble)
 
 # =============================================================================
 # Main Window Generation Function
@@ -573,4 +571,4 @@ apply_overlap_internal <- function(windows, overlap_percentage, mz_min, mz_max) 
   return(windows)
 }
 
-cat("  [stage3_window_generation.R] Window generation functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [stage3_window_generation.R] Window generation functions loaded\n")

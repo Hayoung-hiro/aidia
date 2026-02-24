@@ -6,16 +6,10 @@
 #          - Plot 8B: Box Plot (Statistical summary)
 #          - Plot 8C: CDF (Cumulative distribution)
 
-library(dplyr)
-library(ggplot2)
-library(tidyr)
-library(gridExtra)
-library(grid)
-library(ggridges)
 
-if (!exists("theme_aidia")) {
-  if (file.exists("R/plots/theme_aidia.R")) {
-    source("R/plots/theme_aidia.R")
+if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
+  if (file.exists("R/theme_aidia.R")) {
+    source("R/theme_aidia.R")
   }
 }
 
@@ -34,9 +28,9 @@ plot_strategy_width_ridge <- function(windows_list, validated_data) {
   cat("  Generating Plot 8A: Ridge Plot (Window Width by Strategy)...\n")
 
   # Source theme_aidia for format_strategy_label() and color scales
-  if (!exists("format_strategy_label")) {
-    if (file.exists("R/plots/theme_aidia.R")) {
-      source("R/plots/theme_aidia.R")
+  if (!exists("format_strategy_label") && !isNamespaceLoaded("aidia")) {
+    if (file.exists("R/theme_aidia.R")) {
+      source("R/theme_aidia.R")
     }
   }
 
@@ -124,9 +118,9 @@ plot_strategy_width_boxplot <- function(windows_list, validated_data) {
   cat("  Generating Plot 8B: Box Plot (Window Width by Strategy)...\n")
 
   # Source theme_aidia for format_strategy_label() and color scales
-  if (!exists("format_strategy_label")) {
-    if (file.exists("R/plots/theme_aidia.R")) {
-      source("R/plots/theme_aidia.R")
+  if (!exists("format_strategy_label") && !isNamespaceLoaded("aidia")) {
+    if (file.exists("R/theme_aidia.R")) {
+      source("R/theme_aidia.R")
     }
   }
 
@@ -218,9 +212,9 @@ plot_strategy_width_cdf <- function(windows_list, validated_data) {
   cat("  Generating Plot 8C: CDF (Window Width by Strategy)...\n")
 
   # Source theme_aidia for format_strategy_label() and color scales
-  if (!exists("format_strategy_label")) {
-    if (file.exists("R/plots/theme_aidia.R")) {
-      source("R/plots/theme_aidia.R")
+  if (!exists("format_strategy_label") && !isNamespaceLoaded("aidia")) {
+    if (file.exists("R/theme_aidia.R")) {
+      source("R/theme_aidia.R")
     }
   }
 

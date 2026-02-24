@@ -4,7 +4,6 @@
 # Version: 2.1 (Updated with Astral MR-TOF support)
 # Last Updated: 2026-01-29
 
-library(jsonlite)
 
 # =============================================================================
 # Constants: Resolution-Transient Time Mapping (Orbitrap)
@@ -594,15 +593,25 @@ get_transient_time <- function(resolution, analyzer = "orbitrap") {
 #' configs <- load_instruments_config()
 #' names(configs)  # List available instruments
 load_instruments_config <- function() {
-  # Support both project root and shiny_app/ subdirectory
-  json_path <- "config/instruments.json"
-
-  if (!file.exists(json_path)) {
-    # Try parent directory (for shiny_app/)
-    json_path <- "../config/instruments.json"
+  # Package-aware path resolution
+  json_path <- system.file("config", "instruments.json", package = "aidia")
+  if (!nzchar(json_path) || !file.exists(json_path)) {
+    # Development fallback paths
+    candidates <- c(
+      "inst/config/instruments.json",
+      "config/instruments.json",
+      "../config/instruments.json",
+      "../inst/config/instruments.json"
+    )
+    for (candidate in candidates) {
+      if (file.exists(candidate)) {
+        json_path <- candidate
+        break
+      }
+    }
   }
 
-  if (!file.exists(json_path)) {
+  if (!nzchar(json_path) || !file.exists(json_path)) {
     stop(paste(
       "Instrument configuration file not found.",
       "Please ensure config/instruments.json exists."
@@ -1530,10 +1539,6 @@ load_experiment_config <- function(config_path = "config/user_experiment_config.
   config <- yaml::read_yaml(config_path)
   return(config)
 }
-
-#' Null-coalescing operator (like %||% in base R 4.0+)
-#' @keywords internal
-`%||%` <- function(x, y) if (is.null(x)) y else x
 
 #' Get ms1_scans_per_cycle with automatic detection
 #'

@@ -4,16 +4,10 @@
 # Purpose: Combine Plot 2 (density heatmap) with Plot 4 (m/z range optimization)
 #          to visualize how each strategy adjusts m/z ranges across RT
 
-library(dplyr)
-library(ggplot2)
-library(tidyr)
-library(gridExtra)
-library(grid)
-library(viridis)
 
-if (!exists("theme_aidia")) {
-  if (file.exists("R/plots/theme_aidia.R")) {
-    source("R/plots/theme_aidia.R")
+if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
+  if (file.exists("R/theme_aidia.R")) {
+    source("R/theme_aidia.R")
   }
 }
 

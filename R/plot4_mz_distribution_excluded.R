@@ -4,14 +4,10 @@
 # Purpose: Visualize m/z distribution for each RT bin and show which regions
 #          were excluded by the optimization strategy (quantile/smoothing/outlier/coverage)
 
-library(dplyr)
-library(ggplot2)
-library(tidyr)
-library(gridExtra)
 
-if (!exists("theme_aidia")) {
-  if (file.exists("R/plots/theme_aidia.R")) {
-    source("R/plots/theme_aidia.R")
+if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
+  if (file.exists("R/theme_aidia.R")) {
+    source("R/theme_aidia.R")
   }
 }
 

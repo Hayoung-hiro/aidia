@@ -7,9 +7,6 @@
 #
 # Dependencies: ggplot2, dplyr, viridis
 
-library(ggplot2)
-library(dplyr)
-library(viridis)
 
 # =============================================================================
 # Plot 5: m/z Window Width Distribution
@@ -56,4 +53,4 @@ plot_mz_window_width <- function(optimized_windows) {
   return(p)
 }
 
-cat("  [plot_window.R] Window width functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [plot_window.R] Window width functions loaded\n")

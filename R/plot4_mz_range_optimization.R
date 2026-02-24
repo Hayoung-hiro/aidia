@@ -4,13 +4,10 @@
 # Purpose: Visualize m/z range reduction from Stage 3C optimization
 # Shows before/after comparison for each RT segment
 
-library(dplyr)
-library(ggplot2)
-library(tidyr)
 
-if (!exists("theme_aidia")) {
-  if (file.exists("R/plots/theme_aidia.R")) {
-    source("R/plots/theme_aidia.R")
+if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
+  if (file.exists("R/theme_aidia.R")) {
+    source("R/theme_aidia.R")
   }
 }
 

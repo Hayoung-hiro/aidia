@@ -32,8 +32,6 @@
 #'                                    show_precursors = TRUE)
 #' }
 #'
-library(ggplot2)
-library(dplyr)
 
 #' @export
 plot_isolation_window_gantt <- function(optimized_windows,
@@ -130,4 +128,4 @@ plot_isolation_window_gantt <- function(optimized_windows,
   return(p)
 }
 
-cat("  [plot_window_gantt.R] Isolation window Gantt chart loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [plot_window_gantt.R] Isolation window Gantt chart loaded\n")

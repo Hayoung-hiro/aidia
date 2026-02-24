@@ -9,7 +9,6 @@ if (!requireNamespace("prospectr", quietly = TRUE)) {
   warning("Package 'prospectr' not installed. Smoothing will use simple moving average fallback.")
   PROSPECTR_AVAILABLE <- FALSE
 } else {
-  library(prospectr)
   PROSPECTR_AVAILABLE <- TRUE
 }
 
@@ -149,10 +148,12 @@ smooth_mz_boundaries <- function(
   return(smoothed)
 }
 
-cat("OK Smoothing utilities loaded\n")
-cat("   Main function: smooth_savgol(), smooth_mz_boundaries()\n")
-if (exists("PROSPECTR_AVAILABLE") && PROSPECTR_AVAILABLE) {
-  cat("   Mode: Savitzky-Golay (prospectr)\n")
-} else {
-  cat("   Mode: Moving average (fallback - prospectr not available)\n")
+if (!isNamespaceLoaded("aidia")) {
+  cat("OK Smoothing utilities loaded\n")
+  cat("   Main function: smooth_savgol(), smooth_mz_boundaries()\n")
+  if (exists("PROSPECTR_AVAILABLE") && PROSPECTR_AVAILABLE) {
+    cat("   Mode: Savitzky-Golay (prospectr)\n")
+  } else {
+    cat("   Mode: Moving average (fallback - prospectr not available)\n")
+  }
 }

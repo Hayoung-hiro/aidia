@@ -8,9 +8,6 @@
 #
 # Dependencies: ggplot2, gridExtra, grid
 
-library(ggplot2)
-library(gridExtra)
-library(grid)
 
 # =============================================================================
 # Export Individual Plots
@@ -441,4 +438,4 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   cat(sprintf("  OK PDF report saved: %s (%d pages)\n", basename(output_file), n_pages))
 }
 
-cat("  [stage4_export.R] Export functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [stage4_export.R] Export functions loaded\n")

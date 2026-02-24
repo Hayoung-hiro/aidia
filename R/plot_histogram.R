@@ -7,9 +7,6 @@
 #
 # Dependencies: ggplot2, dplyr, scales
 
-library(ggplot2)
-library(dplyr)
-library(scales)
 
 # =============================================================================
 # Plot 2B: RT Distribution Histogram
@@ -96,4 +93,4 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
   return(p)
 }
 
-cat("  [plot_histogram.R] RT histogram functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [plot_histogram.R] RT histogram functions loaded\n")

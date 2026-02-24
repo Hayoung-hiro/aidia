@@ -7,8 +7,6 @@
 #
 # Dependencies: ggplot2, dplyr, utils_common.R (calculate_dppp)
 
-library(ggplot2)
-library(dplyr)
 
 # =============================================================================
 # Plot 6: Satisfaction vs Cycle Time Trade-off Curve
@@ -229,4 +227,4 @@ plot_satisfaction_curve <- function(optimization_plan, validated_data,
   return(p)
 }
 
-cat("  [plot_satisfaction.R] Satisfaction curve functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [plot_satisfaction.R] Satisfaction curve functions loaded\n")

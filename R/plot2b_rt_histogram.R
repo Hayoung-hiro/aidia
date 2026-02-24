@@ -4,12 +4,10 @@
 # Purpose: Show RT distribution of precursors to complement the density heatmap
 #          and help understand temporal precursor elution patterns
 
-library(dplyr)
-library(ggplot2)
 
-if (!exists("theme_aidia")) {
-  if (file.exists("R/plots/theme_aidia.R")) {
-    source("R/plots/theme_aidia.R")
+if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
+  if (file.exists("R/theme_aidia.R")) {
+    source("R/theme_aidia.R")
   }
 }
 

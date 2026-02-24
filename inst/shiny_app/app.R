@@ -18,66 +18,19 @@ library(DT)             # Interactive tables
 # DIA-NN parquet files can be 50-500MB depending on experiment size
 options(shiny.maxRequestSize = 500 * 1024^2)
 
-# --- Load aidia package ---
-# Option 1: Use installed package (production)
-# library(aidia)
-
-# Option 2: Use devtools::load_all() for development
-# This loads the package from source without installing
-if (!requireNamespace("aidia", quietly = TRUE)) {
-  # Package not installed, use load_all for development
-  devtools::load_all("..")
-} else {
+# --- Load AIDIA package ---
+if (requireNamespace("aidia", quietly = TRUE)) {
   library(aidia)
-}
-
-# --- Ensure all required modules are loaded ---
-# When running from shiny_app/, the relative paths in package files don't work
-# Source all required modules explicitly to ensure availability
-
-# Helper to source from parent directory
-source_from_parent <- function(rel_path) {
-  full_path <- file.path("..", rel_path)
-  if (file.exists(full_path)) {
-    source(full_path)
-    return(TRUE)
-  }
-  return(FALSE)
-}
-
-# Load instrument_utils for cycle time calculation
-source_from_parent("R/instrument_utils.R")
-
-# Source utils_common.R first (contains count_precursors_in_windows)
-if (source_from_parent("R/utils_common.R")) {
-  cat("[Shiny] Loaded utils_common.R\n")
-}
-
-# Source all Stage 3 modules
-stage3_modules <- c(
-  "R/stage3/stage3_rt_binning.R",
-  "R/stage3/stage3_mz_optimization.R",
-  "R/stage3/stage3_window_generation.R",
-  "R/stage3/stage3_statistics.R",
-  "R/stage3/stage3_export.R"
-)
-
-for (module in stage3_modules) {
-  if (source_from_parent(module)) {
-    cat("[Shiny] Loaded", basename(module), "\n")
+} else {
+  # Development mode: load from package source
+  if (file.exists(file.path("..", "..", "DESCRIPTION"))) {
+    devtools::load_all(file.path("..", ".."))
+  } else if (file.exists(file.path("..", "DESCRIPTION"))) {
+    devtools::load_all("..")
+  } else {
+    stop("AIDIA package not found. Install with: remotes::install_github('KBSI/aidia')")
   }
 }
-
-# Source Stage 4 modules (for structured PDF report generation)
-if (source_from_parent("R/stage4_visualization.R")) {
-  cat("[Shiny] Loaded stage4_visualization.R\n")
-}
-if (source_from_parent("R/stage4_export.R")) {
-  cat("[Shiny] Loaded stage4_export.R\n")
-}
-
-## Instrument type detection: is_orbitrap_instrument(), is_astral_instrument()
-## are provided by R/instrument_utils.R (sourced above)
 
 # =============================================================================
 # UI Definition

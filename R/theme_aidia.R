@@ -6,7 +6,6 @@
 #'
 #' @name theme_aidia
 
-library(ggplot2)
 
 # Strategy Color Palette (colorblind-safe) ---------------------------------
 
@@ -210,4 +209,4 @@ scale_fill_strategy <- function(...) {
 
 # Module Load Message -------------------------------------------------------
 
-cat("  [theme_aidia.R] AIDIA design system loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [theme_aidia.R] AIDIA design system loaded\n")

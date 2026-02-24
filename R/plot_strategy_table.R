@@ -22,15 +22,12 @@ plot_strategy_comparison_table <- function(windows_list) {
   cat("  Generating Strategy Comparison Table...\n")
 
   # Source theme_aidia for colors and format_strategy_label
-  if (!exists("theme_aidia")) {
-    if (file.exists("R/plots/theme_aidia.R")) {
-      source("R/plots/theme_aidia.R")
+  if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
+    if (file.exists("R/theme_aidia.R")) {
+      source("R/theme_aidia.R")
     }
   }
 
-  library(gridExtra)
-  library(grid)
-  library(dplyr)
 
   # Build summary data frame from each strategy's statistics
   strategy_names <- names(windows_list)
@@ -172,4 +169,4 @@ plot_strategy_comparison_table <- function(windows_list) {
   return(composite)
 }
 
-cat("  [plot_strategy_table.R] Strategy comparison table loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [plot_strategy_table.R] Strategy comparison table loaded\n")

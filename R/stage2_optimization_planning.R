@@ -12,16 +12,16 @@
 # Version: 2.0 (Refactored)
 # Last Updated: 2025-10-25
 
-library(dplyr)
-library(tibble)
 
-# Load dependencies
-if (!exists("print_header")) {
-  source("R/utils_common.R")
-}
+# Source dependencies only when running outside package context
+if (!isNamespaceLoaded("aidia")) {
+  if (!exists("print_header")) {
+    source("R/utils_common.R")
+  }
 
-if (!exists("get_instrument_config")) {
-  source("R/instrument_utils.R")
+  if (!exists("get_instrument_config")) {
+    source("R/instrument_utils.R")
+  }
 }
 
 # =============================================================================
@@ -998,6 +998,8 @@ quick_dppp_preview <- function(validated_data,
 # Module Loading
 # =============================================================================
 
-cat("✅ Stage 2 (Optimization Planning) loaded successfully\n")
-cat("   Main function: plan_optimization(validated_data, current_cycle_time, ...)\n")
-cat("   Output: OptimizationPlan object\n")
+if (!isNamespaceLoaded("aidia")) {
+  cat("OK Stage 2 (Optimization Planning) loaded successfully\n")
+  cat("   Main function: plan_optimization(validated_data, current_cycle_time, ...)\n")
+  cat("   Output: OptimizationPlan object\n")
+}

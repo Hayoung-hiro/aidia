@@ -3,8 +3,6 @@
 #
 # Purpose: Handle technical replicates using median-based consensus and geometric CV
 
-library(dplyr)
-library(tibble)
 
 # ============================================================================
 # Task 2.1.1: Replicate Group Identification - GREEN Phase (Minimal Implementation)

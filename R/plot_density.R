@@ -8,9 +8,6 @@
 #
 # Dependencies: ggplot2, dplyr, viridis
 
-library(ggplot2)
-library(dplyr)
-library(viridis)
 
 # =============================================================================
 # Plot 2: RT x m/z Density Heatmap
@@ -165,4 +162,4 @@ plot_mz_normalized_density <- function(optimized_windows, validated_data) {
   return(p)
 }
 
-cat("  [plot_density.R] Density visualization functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [plot_density.R] Density visualization functions loaded\n")

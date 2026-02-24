@@ -4,7 +4,6 @@
 # Purpose: Automatically keep only essential columns for memory efficiency
 #          No configuration needed - always applies the same logic
 
-library(dplyr)
 
 # ============================================================================
 # Essential Columns for Pipeline (Stages 1-4)

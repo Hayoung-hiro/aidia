@@ -10,10 +10,6 @@
 #'
 #' Dependencies: ggplot2, dplyr, gridExtra, grid
 
-library(ggplot2)
-library(dplyr)
-library(gridExtra)
-library(grid)
 
 # =============================================================================
 # Helper Functions
@@ -276,4 +272,4 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
   return(composite)
 }
 
-cat("  [plot_impact_summary.R] Optimization impact summary loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [plot_impact_summary.R] Optimization impact summary loaded\n")

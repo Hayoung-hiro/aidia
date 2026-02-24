@@ -7,9 +7,6 @@
 #
 # Dependencies: ggplot2, dplyr, tidyr, utils_common.R (calculate_dppp)
 
-library(ggplot2)
-library(dplyr)
-library(tidyr)
 
 # =============================================================================
 # RT Bin Quality Heatmap
@@ -267,4 +264,4 @@ plot_rt_bin_quality_heatmap <- function(optimized_windows, validated_data, optim
   return(p)
 }
 
-cat("  [plot_rt_quality.R] RT bin quality heatmap loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [plot_rt_quality.R] RT bin quality heatmap loaded\n")

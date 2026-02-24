@@ -10,9 +10,6 @@
 # Requirements:
 # - DIA-NN version 2.2 or later (for FWHM column in main report)
 
-library(arrow)
-library(dplyr)
-library(tidyr)
 
 #' Load DIA-NN output data from various formats
 #'

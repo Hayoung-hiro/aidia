@@ -3,7 +3,6 @@
 #
 # Purpose: Extract quality validation logic from Stage 1 for better modularity
 
-library(dplyr)
 
 # =====================================================
 # Quality Validation Pipeline

@@ -4,7 +4,7 @@
 
 **Your Adaptive Aid for DIA Optimization**
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/KBSI/aidia)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/KBSI/aidia)
 [![R](https://img.shields.io/badge/R-%3E%3D%204.0.0-brightgreen.svg)](https://www.r-project.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -42,24 +42,15 @@ AIDIA aids researchers in optimizing DIA isolation windows through intelligent, 
 ### Installation
 
 ```r
-# Install required packages
-install.packages(c("arrow", "dplyr", "ggplot2", "gridExtra",
-                   "yaml", "tidyr", "viridis", "scales",
-                   "prospectr", "ggridges"))
-
-# Clone and use
-# git clone https://github.com/KBSI/aidia
+# Install from GitHub
+# install.packages("remotes")
+remotes::install_github("KBSI/aidia")
 ```
 
 ### Basic Usage
 
 ```r
-# Load modules
-source("R/utils_common.R")
-source("R/stage1_data_validation.R")
-source("R/stage2_optimization_planning.R")
-source("R/stage3_window_optimization.R")
-source("R/stage4_visualization.R")
+library(aidia)
 
 # Run pipeline
 validated <- create_validated_dataset("data/report.parquet")
@@ -79,7 +70,7 @@ viz <- generate_visualizations(validated, plan, windows, output_dir = "output/")
 
 ```r
 # Launch interactive UI
-shiny::runApp("shiny_app")
+aidia::run_aidia_app()
 ```
 
 ---
@@ -208,7 +199,7 @@ Compatible with **Thermo Xcalibur**:
 
 ### RT-Dependent Optimization
 - **LOCAL strategies**: Bin-specific (Quantile, Coverage, Outlier)
-- **GLOBAL strategies**: Continuous function (Greedy, KDE, Smoothing)
+- **GLOBAL strategies**: Continuous function (Greedy, KDE)
 
 ---
 
@@ -241,6 +232,6 @@ MIT License - See [LICENSE](LICENSE)
 
 *Aiding your DIA experiments*
 
-**Version 1.0.0** | KBSI Proteomics
+**Version 0.1.0** | KBSI Proteomics
 
 </div>

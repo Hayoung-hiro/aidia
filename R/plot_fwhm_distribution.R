@@ -22,9 +22,9 @@ plot_fwhm_distribution <- function(validated_data, optimization_plan = NULL) {
   cat("  Generating FWHM Distribution Plot...\n")
 
   # Source theme_aidia if not loaded
-  if (!exists("theme_aidia")) {
-    if (file.exists("R/plots/theme_aidia.R")) {
-      source("R/plots/theme_aidia.R")
+  if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
+    if (file.exists("R/theme_aidia.R")) {
+      source("R/theme_aidia.R")
     }
   }
 
@@ -140,4 +140,4 @@ plot_fwhm_distribution <- function(validated_data, optimization_plan = NULL) {
   return(p)
 }
 
-cat("  [plot_fwhm_distribution.R] FWHM distribution plot loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [plot_fwhm_distribution.R] FWHM distribution plot loaded\n")

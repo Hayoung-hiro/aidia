@@ -15,7 +15,6 @@
 #
 # Dependencies: dplyr, stats (base R)
 
-library(dplyr)
 
 # =============================================================================
 # RT Column Helper
@@ -603,4 +602,4 @@ calculate_auto_rt_bin_width <- function(rt_range,
   )
 }
 
-cat("  [stage3_rt_binning.R] RT binning functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [stage3_rt_binning.R] RT binning functions loaded\n")

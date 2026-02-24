@@ -9,39 +9,39 @@
 #   and coordinates the overall window optimization pipeline.
 #
 # Sourced Modules:
-#   - R/stage3/stage3_rt_binning.R: RT segmentation
-#   - R/stage3/stage3_mz_optimization.R: m/z range optimization (6 strategies)
-#   - R/stage3/stage3_window_generation.R: Window generation (fixed/variable)
-#   - R/stage3/stage3_statistics.R: Statistics calculation
-#   - R/stage3/stage3_export.R: CSV export and S3 methods
+#   - R/stage3_rt_binning.R: RT segmentation
+#   - R/stage3_mz_optimization.R: m/z range optimization (6 strategies)
+#   - R/stage3_window_generation.R: Window generation (fixed/variable)
+#   - R/stage3_statistics.R: Statistics calculation
+#   - R/stage3_export.R: CSV export and S3 methods
 #
 # Input: ValidatedData (Stage 1) + OptimizationPlan (Stage 2)
 # Output: OptimizedWindows with complete isolation window set
 
-library(dplyr)
-library(tibble)
 
 # =============================================================================
 # Source Dependencies and Modules
 # =============================================================================
 
-# Load common utilities
-if (!exists("print_header")) {
-  source("R/utils_common.R")
-}
+# Source dependencies only when running outside package context
+if (!isNamespaceLoaded("aidia")) {
+  if (!exists("print_header")) {
+    source("R/utils_common.R")
+  }
 
-# Source Stage 3 modules
-stage3_modules <- c(
-  "R/stage3/stage3_rt_binning.R",
-  "R/stage3/stage3_mz_optimization.R",
-  "R/stage3/stage3_window_generation.R",
-  "R/stage3/stage3_statistics.R",
-  "R/stage3/stage3_export.R"
-)
+  # Source Stage 3 modules
+  stage3_modules <- c(
+    "R/stage3_rt_binning.R",
+    "R/stage3_mz_optimization.R",
+    "R/stage3_window_generation.R",
+    "R/stage3_statistics.R",
+    "R/stage3_export.R"
+  )
 
-for (module in stage3_modules) {
-  if (file.exists(module)) {
-    source(module)
+  for (module in stage3_modules) {
+    if (file.exists(module)) {
+      source(module)
+    }
   }
 }
 
@@ -488,16 +488,18 @@ optimize_windows <- function(
 # Module Loading
 # =============================================================================
 
-cat("OK Stage 3 (Window Optimization) loaded successfully\n")
-cat("   Version: 2.1 (Modularized architecture)\n")
-cat("   Main function: optimize_windows(validated_data, optimization_plan, ...)\n")
-cat("   Output: OptimizedWindows object\n")
-cat("   Sourced modules:\n")
-cat("     - R/stage3/stage3_rt_binning.R\n")
-cat("     - R/stage3/stage3_mz_optimization.R\n")
-cat("     - R/stage3/stage3_window_generation.R\n")
-cat("     - R/stage3/stage3_statistics.R\n")
-cat("     - R/stage3/stage3_export.R\n")
-cat("   Export:\n")
-cat("     - export_windows_to_csv(optimized_windows, output_file)  # Single strategy\n")
-cat("     - export_method_files(windows_list, output_dir, ...)     # All strategies\n")
+if (!isNamespaceLoaded("aidia")) {
+  cat("OK Stage 3 (Window Optimization) loaded successfully\n")
+  cat("   Version: 2.1 (Modularized architecture)\n")
+  cat("   Main function: optimize_windows(validated_data, optimization_plan, ...)\n")
+  cat("   Output: OptimizedWindows object\n")
+  cat("   Sourced modules:\n")
+  cat("     - R/stage3_rt_binning.R\n")
+  cat("     - R/stage3_mz_optimization.R\n")
+  cat("     - R/stage3_window_generation.R\n")
+  cat("     - R/stage3_statistics.R\n")
+  cat("     - R/stage3_export.R\n")
+  cat("   Export:\n")
+  cat("     - export_windows_to_csv(optimized_windows, output_file)  # Single strategy\n")
+  cat("     - export_method_files(windows_list, output_dir, ...)     # All strategies\n")
+}

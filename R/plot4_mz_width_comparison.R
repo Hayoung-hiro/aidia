@@ -4,15 +4,10 @@
 # Purpose: Compare Original vs Optimized m/z width across RT segments
 #          as a quantitative bar chart visualization
 
-library(dplyr)
-library(ggplot2)
-library(tidyr)
-library(gridExtra)
-library(grid)
 
-if (!exists("theme_aidia")) {
-  if (file.exists("R/plots/theme_aidia.R")) {
-    source("R/plots/theme_aidia.R")
+if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
+  if (file.exists("R/theme_aidia.R")) {
+    source("R/theme_aidia.R")
   }
 }
 

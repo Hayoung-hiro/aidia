@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**AIDIA v1.0.0** (Adaptive Isolation for DIA) - Production-ready R tool for optimizing Data-Independent Acquisition (DIA) isolation windows for mass spectrometry. Uses DIA-NN results to generate optimized RT-dependent isolation windows for **Thermo Fisher Orbitrap** instruments.
+**AIDIA v0.1.0** (Adaptive Isolation for DIA) - R package for optimizing Data-Independent Acquisition (DIA) isolation windows for mass spectrometry. Uses DIA-NN results to generate optimized RT-dependent isolation windows for **Thermo Fisher Orbitrap** instruments.
 
-**Status**: Production-Ready (All 4 pipeline stages complete and tested)
+**Status**: Development (All 4 pipeline stages complete, packaging in progress)
 
 ### Instrument Focus
 
@@ -62,8 +62,11 @@ testthat::test_dir("tests/testthat")
 ### Shiny Web App
 
 ```r
-source("shiny_app/setup_shiny.R")  # First time: install dependencies
-shiny::runApp("shiny_app")
+# Option 1: Package function (recommended)
+aidia::run_aidia_app()
+
+# Option 2: Development mode
+shiny::runApp(system.file("shiny_app", package = "aidia"))
 ```
 
 ---
@@ -89,26 +92,26 @@ Stage 3: Window Optimization + Export  [MODULARIZED]
   Input:  ValidatedData + OptimizationPlan
   Output: OptimizedWindows + 22-column CSV files
   Main:   optimize_windows()
-  File:   R/stage3_window_optimization.R (372 lines, orchestrator)
-          R/stage3/stage3_mz_optimization.R (5 strategies)
-          R/stage3/stage3_window_generation.R (510 lines, 3 modes)
-          R/stage3/stage3_export.R (214 lines, Thermo CSV)
-          R/stage3/stage3_rt_binning.R (125 lines)
-          R/stage3/stage3_statistics.R (102 lines)
+  File:   R/stage3_window_optimization.R (orchestrator)
+          R/stage3_mz_optimization.R (5 strategies)
+          R/stage3_window_generation.R (3 modes)
+          R/stage3_export.R (Thermo CSV)
+          R/stage3_rt_binning.R
+          R/stage3_statistics.R
 
 Stage 4: Visualization (Plots Only)
   Input:  All previous outputs
   Output: Plots + PDF report
   Main:   generate_visualizations()
-  File:   R/stage4_visualization.R (451 lines, orchestrator)
-          R/plots/*.R (13 modular plot files, including 7 legacy)
+  File:   R/stage4_visualization.R (orchestrator)
+          R/plot_*.R (13 modular plot files, including 7 legacy)
 ```
 
 **Design Principle**: Stage 3 handles all data export. Stage 4 is visualization-only.
 
 ### Shared API Layer
 
-Canonical functions that ALL entry points (main.R, shiny_app/app.R) must use:
+Canonical functions that ALL entry points (main.R, inst/shiny_app/app.R) must use:
 
 | Function | Location | Purpose |
 |----------|----------|---------|
@@ -212,11 +215,13 @@ Three methods in `R/replicate_utils.R`:
 
 1. Always use **geometric CV** for log-normal intensity data (arithmetic CV underestimates by ~14x)
 2. Run full pipeline test after any changes to ensure stage integration
-3. Stage 3 is modularized in `R/stage3/` - the orchestrator at `R/stage3_window_optimization.R` sources submodules
+3. Stage 3 submodules (`R/stage3_*.R`) are all in `R/` top level (no subdirectories — R packages require flat `R/`)
 4. Never inline FWHM conversion — use `ensure_fwhm_seconds()` from `R/utils_common.R`
 5. Never inline window count formula — use `estimate_window_count_preview()` from `R/utils_common.R`
-6. Deprecated code is in `archive/deprecated_modules/R/` (NOT in `R/deprecated/`)
-7. All plots live in `R/plots/` (NOT `R/plot*.R` at project root)
+6. Deprecated code is in `archive/deprecated_modules/R/` (NOT in `R/`)
+7. All plots live in `R/plot_*.R` (flat in `R/`, no subdirectories)
+8. Config files: `inst/config/instruments.json` (use `system.file("config", "instruments.json", package = "aidia")`)
+9. Shiny app: `inst/shiny_app/` (launch via `aidia::run_aidia_app()`)
 
 ---
 
@@ -224,7 +229,7 @@ Three methods in `R/replicate_utils.R`:
 
 ### Adding a New m/z Strategy
 
-1. Implement in `R/stage3/stage3_mz_optimization.R`:
+1. Implement in `R/stage3_mz_optimization.R`:
 ```r
 optimize_mz_ranges_newstrategy_internal <- function(data, rt_bins, ...) {
   return(mz_ranges_df)  # Must have: rt_segment_id, mz_start, mz_end
@@ -237,39 +242,50 @@ optimize_mz_ranges_newstrategy_internal <- function(data, rt_bins, ...) {
 
 ### Adding a New Instrument
 
-1. Add to `config/instruments.json` with scan times, cycle calculation mode, and `analyzer_type`
+1. Add to `inst/config/instruments.json` with scan times, cycle calculation mode, and `analyzer_type`
 2. Add resolution/transient lookup table in `R/instrument_utils.R` (if Orbitrap)
-3. Add to Shiny `selectInput` choices in `shiny_app/app.R`
+3. Add to Shiny `selectInput` choices in `inst/shiny_app/app.R`
 4. Instrument classification (`is_orbitrap_instrument()` etc.) is automatic from JSON `analyzer_type`
 
 ### Adding New Plots
 
-1. Create `R/plots/plot_new.R` with function returning a ggplot object
-2. Source it from `R/stage4_visualization.R` and add to `generate_visualizations()`
+1. Create `R/plot_new.R` with function returning a ggplot object (flat in `R/`, no subdirectories)
+2. Add to `generate_visualizations()` in `R/stage4_visualization.R`
 
 ---
 
 ## Dependencies
 
-Core (from DESCRIPTION):
-- `dplyr`, `tibble`, `tidyr`, `arrow`, `ggplot2`, `jsonlite`, `readr`
-- `scales`, `ggridges`, `viridis`, `gridExtra`
+Core (Imports in DESCRIPTION):
+- `dplyr`, `tibble`, `tidyr`, `arrow`, `ggplot2`, `jsonlite`
+- `scales`, `ggridges`, `viridis`, `gridExtra`, `grid`, `stats`, `utils`, `grDevices`
 
-Optional: `prospectr` (Savitzky-Golay), `yaml` (config), `shiny` + `bs4Dash` (web app), `shinybusy`, `DT`
+Optional (Suggests in DESCRIPTION):
+- `prospectr` (Savitzky-Golay), `yaml` (config)
+- `shiny` + `bs4Dash` + `shinyjs` + `shinybusy` + `DT` (web app)
+- `future` + `future.apply` (parallel processing)
+- `testthat`, `knitr`, `rmarkdown` (dev/docs)
 
 ---
 
 ## Version History
 
-**v1.0.0** (2026-02): AIDIA rebrand
+**v0.1.0** (2026-02): R package packaging
+- Proper R package structure: DESCRIPTION, NAMESPACE, .Rbuildignore, inst/
+- Flattened R/ (no subdirectories — R package requirement)
+- Config files moved to inst/config/ (system.file() access)
+- Shiny app moved to inst/shiny_app/ with run_aidia_app() launcher
+- Removed top-level library()/cat() calls, guarded source() for package compliance
+- Version reset to 0.1.0 for development phase
+
+**v1.0.0** (2026-02): AIDIA rebrand (pre-packaging)
 - Rebranded from "DIA Window Optimizer"
 - Added Greedy + KDE strategies (5 total), removed standalone Smoothing
 - Added Staggered window mode (3 total)
-- Modularized Stage 3 into `R/stage3/` submodules
 - Shiny web app with bs4Dash (3-tab body layout)
 - Cycle time calculator with resolution-to-transient mapping
 - Shared API layer: `ensure_fwhm_seconds()`, `estimate_window_count_preview()`, data-driven instrument classification
-- Archived 81 dead files to `archive/`, consolidated legacy plots into `R/plots/`
+- Archived 81 dead files to `archive/`
 
 **v2.1** (2025-11): Method file export moved to Stage 3
 

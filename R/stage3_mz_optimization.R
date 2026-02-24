@@ -15,9 +15,8 @@
 #   - optimize_mz_ranges_kde_internal(): KDE-based optimization
 #   - apply_sg_smoothing_to_mz_ranges(): Post-processing SG smoothing
 #
-# Dependencies: dplyr, R/smoothing_utils.R, R/stage3/stage3_rt_binning.R
+# Dependencies: dplyr, R/smoothing_utils.R, R/stage3_rt_binning.R
 
-library(dplyr)
 
 # =============================================================================
 # LOCAL Optimization: Quantile, Coverage, Outlier Strategies
@@ -303,7 +302,7 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
 apply_sg_smoothing_to_mz_ranges <- function(mz_ranges, smoothing_window,
                                              polynomial_order, precursor_data) {
   # Load smoothing utilities if not already loaded
-  if (!exists("smooth_savgol")) {
+  if (!exists("smooth_savgol") && !isNamespaceLoaded("aidia")) {
     source("R/smoothing_utils.R")
   }
 
@@ -526,7 +525,7 @@ optimize_mz_ranges_greedy_internal <- function(precursor_data, rt_stats,
   # =========================================================================
   if (apply_smoothing && n_bins >= 3) {
     # Load smoothing utilities if not already loaded
-    if (!exists("smooth_savgol")) {
+    if (!exists("smooth_savgol") && !isNamespaceLoaded("aidia")) {
       tryCatch({
         source("R/smoothing_utils.R")
       }, error = function(e) {
@@ -814,4 +813,4 @@ optimize_mz_ranges_kde_internal <- function(precursor_data, rt_stats,
 }
 
 
-cat("  [stage3_mz_optimization.R] m/z optimization functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [stage3_mz_optimization.R] m/z optimization functions loaded\n")

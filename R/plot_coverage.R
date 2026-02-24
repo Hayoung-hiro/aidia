@@ -7,9 +7,6 @@
 #
 # Dependencies: ggplot2, dplyr, viridis
 
-library(ggplot2)
-library(dplyr)
-library(viridis)
 
 # =============================================================================
 # Plot 5: Density Heatmap with m/z Range Overlay
@@ -79,4 +76,4 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
   return(p)
 }
 
-cat("  [plot_coverage.R] Coverage map functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [plot_coverage.R] Coverage map functions loaded\n")

@@ -10,7 +10,6 @@
 #
 # Dependencies: dplyr, utils_common.R
 
-library(dplyr)
 
 # =============================================================================
 # Single Strategy CSV Export
@@ -234,4 +233,4 @@ export_method_files <- function(windows_list,
 # This ensures consistency and reduces code duplication.
 # See: print.OptimizedWindows(), summary.OptimizedWindows()
 
-cat("  [stage3_export.R] Export functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [stage3_export.R] Export functions loaded\n")

@@ -5,24 +5,24 @@
 # Version: 4.1 (Modularized architecture)
 #
 # Architecture:
-#   This file is the orchestrator that sources modular plot functions from R/plots/
+#   This file is the orchestrator that sources modular plot functions from R/
 #   and coordinates the overall visualization pipeline.
 #
 # Sourced Modules:
-#   - R/plots/plot_dppp.R: DPPP distribution comparison plots
-#   - R/plots/plot_density.R: Density heatmap and normalized density
-#   - R/plots/plot_histogram.R: RT distribution histogram
-#   - R/plots/plot_coverage.R: Coverage map with m/z overlay
-#   - R/plots/plot_window.R: Window width distribution
-#   - R/plots/plot_satisfaction.R: Satisfaction vs cycle time curve
+#   - R/plot_dppp.R: DPPP distribution comparison plots
+#   - R/plot_density.R: Density heatmap and normalized density
+#   - R/plot_histogram.R: RT distribution histogram
+#   - R/plot_coverage.R: Coverage map with m/z overlay
+#   - R/plot_window.R: Window width distribution
+#   - R/plot_satisfaction.R: Satisfaction vs cycle time curve
 #   - R/stage4_export.R: Export and PDF report functions
 #
-# Legacy Plot Modules (consolidated into R/plots/):
-#   - R/plots/plot2b_rt_histogram.R: Binned RT histogram
-#   - R/plots/plot4_*.R: m/z range optimization plots
-#   - R/plots/plot5_*.R: Coverage map grid
-#   - R/plots/plot7_*.R: Window width distribution
-#   - R/plots/plot8_*.R: Strategy width comparison
+# Legacy Plot Modules (consolidated into R/):
+#   - R/plot2b_rt_histogram.R: Binned RT histogram
+#   - R/plot4_*.R: m/z range optimization plots
+#   - R/plot5_*.R: Coverage map grid
+#   - R/plot7_*.R: Window width distribution
+#   - R/plot8_*.R: Strategy width comparison
 #
 # Main Functions:
 #   1. generate_visualizations() - Main orchestration function
@@ -36,71 +36,63 @@
 #
 # Output: VisualizationResult with plots, reports, and method files
 
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-library(viridis)
-library(scales)
-library(gridExtra)
-library(grid)
 
 # =============================================================================
 # Source Dependencies
 # =============================================================================
 
-# Load common utilities and S3 classes
-if (!exists("print_header")) {
-  if (file.exists("R/utils_common.R")) {
-    source("R/utils_common.R")
+# Source dependencies only when running outside package context
+if (!isNamespaceLoaded("aidia")) {
+  # Load common utilities and S3 classes
+  if (!exists("print_header")) {
+    if (file.exists("R/utils_common.R")) {
+      source("R/utils_common.R")
+    }
   }
-}
 
-# =============================================================================
-# Source Modular Plot Functions
-# =============================================================================
+  # Core plot modules (R/)
+  plot_modules <- c(
+    "R/theme_aidia.R",          # Theme must be loaded first
+    "R/plot_dppp.R",
+    "R/plot_density.R",
+    "R/plot_histogram.R",
+    "R/plot_coverage.R",
+    "R/plot_window.R",
+    "R/plot_satisfaction.R",
+    "R/plot_impact_summary.R",
+    "R/plot_rt_quality.R",
+    "R/plot_window_gantt.R",
+    "R/plot_rt_changepoint.R",
+    "R/plot_fwhm_distribution.R",
+    "R/plot_strategy_table.R"
+  )
 
-# Core plot modules (R/plots/)
-plot_modules <- c(
-  "R/plots/theme_aidia.R",          # Theme must be loaded first
-  "R/plots/plot_dppp.R",
-  "R/plots/plot_density.R",
-  "R/plots/plot_histogram.R",
-  "R/plots/plot_coverage.R",
-  "R/plots/plot_window.R",
-  "R/plots/plot_satisfaction.R",
-  "R/plots/plot_impact_summary.R",
-  "R/plots/plot_rt_quality.R",
-  "R/plots/plot_window_gantt.R",
-  "R/plots/plot_rt_changepoint.R",
-  "R/plots/plot_fwhm_distribution.R",
-  "R/plots/plot_strategy_table.R"
-)
-
-for (module in plot_modules) {
-  if (file.exists(module)) {
-    source(module)
+  for (module in plot_modules) {
+    if (file.exists(module)) {
+      source(module)
+    }
   }
-}
 
-# Export functions
-if (file.exists("R/stage4_export.R")) {
-  source("R/stage4_export.R")
-}
+  # Export functions
+  if (file.exists("R/stage4_export.R")) {
+    source("R/stage4_export.R")
+  }
 
-# Legacy plot modules (consolidated into R/plots/)
-external_modules <- c(
-  "R/plots/plot2b_rt_histogram.R",
-  "R/plots/plot4_mz_distribution_excluded.R",
-  "R/plots/plot4_mz_width_comparison.R",
-  "R/plots/plot4_mz_range_optimization.R",
-  "R/plots/plot5_density_with_mz_ranges.R",
-  "R/plots/plot7_window_width_distribution.R",
-  "R/plots/plot8_strategy_width_comparison.R"
-)
+  # Legacy plot modules (consolidated into R/)
+  external_modules <- c(
+    "R/plot2b_rt_histogram.R",
+    "R/plot4_mz_distribution_excluded.R",
+    "R/plot4_mz_width_comparison.R",
+    "R/plot4_mz_range_optimization.R",
+    "R/plot5_density_with_mz_ranges.R",
+    "R/plot7_window_width_distribution.R",
+    "R/plot8_strategy_width_comparison.R"
+  )
 
-for (module in external_modules) {
-  if (file.exists(module)) {
-    source(module)
+  for (module in external_modules) {
+    if (file.exists(module)) {
+      source(module)
+    }
   }
 }
 
@@ -210,7 +202,7 @@ generate_visualizations <- function(
     strategies <- default_strategies
 
     # Load Stage 3 module for optimization
-    if (!exists("optimize_windows")) {
+    if (!exists("optimize_windows") && !isNamespaceLoaded("aidia")) {
       if (file.exists("R/stage3_window_optimization.R")) {
         source("R/stage3_window_optimization.R")
       }
@@ -505,15 +497,17 @@ calculate_summary_statistics <- function(validated_data, optimization_plan, opti
 # Module Load Message
 # =============================================================================
 
-cat("OK Stage 4 (Visualization & Reporting) loaded successfully\n")
-cat("   Version: 4.1 (Modularized architecture)\n")
-cat("   Main function: generate_visualizations()\n")
-cat("   Sourced modules:\n")
-cat("     - R/plots/plot_dppp.R\n")
-cat("     - R/plots/plot_density.R\n")
-cat("     - R/plots/plot_histogram.R\n")
-cat("     - R/plots/plot_coverage.R\n")
-cat("     - R/plots/plot_window.R\n")
-cat("     - R/plots/plot_satisfaction.R\n")
-cat("     - R/stage4_export.R\n")
-cat("   Dependencies: ggplot2, dplyr, tidyr, viridis, scales, gridExtra, grid\n")
+if (!isNamespaceLoaded("aidia")) {
+  cat("OK Stage 4 (Visualization & Reporting) loaded successfully\n")
+  cat("   Version: 4.1 (Modularized architecture)\n")
+  cat("   Main function: generate_visualizations()\n")
+  cat("   Sourced modules:\n")
+  cat("     - R/plot_dppp.R\n")
+  cat("     - R/plot_density.R\n")
+  cat("     - R/plot_histogram.R\n")
+  cat("     - R/plot_coverage.R\n")
+  cat("     - R/plot_window.R\n")
+  cat("     - R/plot_satisfaction.R\n")
+  cat("     - R/stage4_export.R\n")
+  cat("   Dependencies: ggplot2, dplyr, tidyr, viridis, scales, gridExtra, grid\n")
+}

@@ -6,8 +6,6 @@
 # Version: 2.0 (Refactored)
 # Last Updated: 2025-10-25
 
-library(dplyr)
-library(tibble)
 
 # =============================================================================
 # Constants
@@ -603,7 +601,7 @@ create_s3_object <- function(data, class_name) {
 # =============================================================================
 
 # Source centralized S3 class definitions if not already loaded
-if (!exists("new_ValidatedData")) {
+if (!exists("new_ValidatedData") && !isNamespaceLoaded("aidia")) {
   s3_classes_path <- "R/s3_classes.R"
   if (file.exists(s3_classes_path)) {
     source(s3_classes_path)
@@ -864,15 +862,17 @@ estimate_cycle_time <- function(gradient_name) {
 # Module Loading
 # =============================================================================
 
-cat("OK Common utilities loaded successfully\n")
-cat("   Available functions:\n")
-cat("   - UI: print_header(), print_step(), print_success(), print_warning()\n")
-cat("   - Stats: calculate_summary_stats(), calculate_cv()\n")
-cat("   - Validation: validate_input_type(), validate_numeric_range()\n")
-cat("   - DPPP: calculate_dppp(), calculate_satisfaction_ratio()\n")
-cat("   - Performance: count_precursors_in_windows()\n")
-cat("   - Timing: create_timer()\n")
-cat("   - Naming: format_output_filename(), format_short_instrument_name()\n")
-cat("   - Shared API: ensure_fwhm_seconds(), estimate_window_count_preview()\n")
-cat("   - Shared API: extract_gradient_name(), estimate_cycle_time()\n")
-cat("   - S3 Classes: ValidatedData, OptimizationPlan, OptimizedWindows\n")
+if (!isNamespaceLoaded("aidia")) {
+  cat("OK Common utilities loaded successfully\n")
+  cat("   Available functions:\n")
+  cat("   - UI: print_header(), print_step(), print_success(), print_warning()\n")
+  cat("   - Stats: calculate_summary_stats(), calculate_cv()\n")
+  cat("   - Validation: validate_input_type(), validate_numeric_range()\n")
+  cat("   - DPPP: calculate_dppp(), calculate_satisfaction_ratio()\n")
+  cat("   - Performance: count_precursors_in_windows()\n")
+  cat("   - Timing: create_timer()\n")
+  cat("   - Naming: format_output_filename(), format_short_instrument_name()\n")
+  cat("   - Shared API: ensure_fwhm_seconds(), estimate_window_count_preview()\n")
+  cat("   - Shared API: extract_gradient_name(), estimate_cycle_time()\n")
+  cat("   - S3 Classes: ValidatedData, OptimizationPlan, OptimizedWindows\n")
+}

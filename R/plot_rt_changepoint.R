@@ -9,9 +9,6 @@
 #
 # Dependencies: ggplot2, viridis, scales
 
-library(ggplot2)
-library(viridis)
-library(scales)
 
 # =============================================================================
 # Plot 11: RT Change Point Validation — Contour Density + Bin Boundaries
@@ -249,4 +246,4 @@ plot_ks_statistic_trace <- function(optimized_windows) {
 
 # Module Load Message -------------------------------------------------------
 
-cat("  [plot_rt_changepoint.R] RT change point validation plots loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [plot_rt_changepoint.R] RT change point validation plots loaded\n")

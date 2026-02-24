@@ -8,7 +8,6 @@
 #
 # Dependencies: dplyr, utils_common.R
 
-library(dplyr)
 
 # =============================================================================
 # Window Statistics Calculation
@@ -111,4 +110,4 @@ calculate_precursors_per_window <- function(windows, precursor_data) {
   windows
 }
 
-cat("  [stage3_statistics.R] Statistics functions loaded\n")
+if (!isNamespaceLoaded("aidia")) cat("  [stage3_statistics.R] Statistics functions loaded\n")
