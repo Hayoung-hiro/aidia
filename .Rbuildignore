@@ -39,3 +39,8 @@
 ^CONTRIBUTING\.md$
 ^DEVELOPMENT\.md$
 ^CLAUDE\.md$
+^tests/manual$
+^tests/manual/
+^tests/test_cycle_time_calc\.R$
+^shiny_app$
+^shiny_app/
