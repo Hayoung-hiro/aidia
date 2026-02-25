@@ -225,7 +225,11 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   n_precursors <- length(precursor_mz)
 
   # Fallback to fixed windows if insufficient precursors
- if (n_precursors < n_windows * 2) {
+  if (n_precursors < n_windows * 2) {
+    warning(sprintf(
+      "Density mode fallback: only %d precursors in bin (need >= %d for %d windows). Using fixed-width.",
+      n_precursors, n_windows * 2, n_windows
+    ))
     return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
                                            min_width_da, max_width_da))
   }
