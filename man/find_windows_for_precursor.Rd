@@ -20,3 +20,4 @@ Integer vector, indices of windows containing this precursor
 For each precursor, finds which windows contain it.
 Returns a list where each element corresponds to a precursor.
 }
+\keyword{internal}

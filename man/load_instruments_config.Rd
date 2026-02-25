@@ -16,3 +16,4 @@ Load all instrument configurations from JSON
 configs <- load_instruments_config()
 names(configs)  # List available instruments
 }
+\keyword{internal}

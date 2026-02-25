@@ -27,3 +27,4 @@ ends <- c(500, 600, 700)
 counts <- count_precursors_in_windows(precursors, starts, ends)
 # Returns: c(2, 2, 1)
 }
+\keyword{internal}

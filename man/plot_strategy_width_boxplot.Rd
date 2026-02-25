@@ -18,3 +18,4 @@ ggplot object
 Shows box plots with statistical summaries for each strategy
 Includes median, quartiles, and outliers
 }
+\keyword{internal}

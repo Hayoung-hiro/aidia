@@ -28,3 +28,4 @@ Shows the relationship between cycle time and DPPP satisfaction ratio
 as a continuous S-curve, highlighting current state, recommended state,
 and the optimization trade-off.
 }
+\keyword{internal}

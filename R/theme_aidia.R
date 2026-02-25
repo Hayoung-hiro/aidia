@@ -214,6 +214,3 @@ scale_fill_strategy <- function(...) {
   )
 }
 
-# Module Load Message -------------------------------------------------------
-
-if (!isNamespaceLoaded("aidia")) cat("  [theme_aidia.R] AIDIA design system loaded\n")

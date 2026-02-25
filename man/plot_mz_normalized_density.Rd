@@ -19,3 +19,4 @@ Creates normalized density profiles showing m/z distribution
 for sampled RT segments, useful for comparing how precursor
 distribution changes across the gradient.
 }
+\keyword{internal}

@@ -33,7 +33,7 @@
 #' }
 #'
 
-#' @export
+#' @keywords internal
 plot_isolation_window_gantt <- function(optimized_windows,
                                         validated_data = NULL,
                                         show_precursors = FALSE,
@@ -128,4 +128,3 @@ plot_isolation_window_gantt <- function(optimized_windows,
   return(p)
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [plot_window_gantt.R] Isolation window Gantt chart loaded\n")

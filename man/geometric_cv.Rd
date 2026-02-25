@@ -19,3 +19,4 @@ CV = sqrt(exp(sd(log(x))^2) - 1) * 100
 \details{
 Reference: docs/GEOMETRIC_CV_GUIDE.md
 }
+\keyword{internal}

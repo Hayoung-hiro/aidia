@@ -235,4 +235,3 @@ export_method_files <- function(windows_list,
 # This ensures consistency and reduces code duplication.
 # See: print.OptimizedWindows(), summary.OptimizedWindows()
 
-if (!isNamespaceLoaded("aidia")) cat("  [export_methods.R] Export functions loaded\n")

@@ -32,3 +32,4 @@ windows_list <- list(
 plot5 <- plot_density_with_mz_ranges_grid(windows_list, validated_data)
 }
 }
+\keyword{internal}

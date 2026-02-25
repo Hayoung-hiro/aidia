@@ -14,3 +14,4 @@ print_warning(message, indent = 2)
 \description{
 Prints a formatted warning message with warning symbol.
 }
+\keyword{internal}

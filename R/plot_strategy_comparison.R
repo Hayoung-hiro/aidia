@@ -7,12 +7,6 @@
 #          - Plot 8C: CDF (Cumulative distribution)
 
 
-if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
-  if (file.exists("R/theme_aidia.R")) {
-    source("R/theme_aidia.R")
-  }
-}
-
 #' Plot 8A: Ridge Plot - Window Width Distribution by Strategy
 #'
 #' Shows overlapping density curves for each strategy (ridge plot style)
@@ -22,17 +16,10 @@ if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
 #' @param validated_data ValidatedData object from Stage 1
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 plot_strategy_width_ridge <- function(windows_list, validated_data) {
 
   cat("  Generating Plot 8A: Ridge Plot (Window Width by Strategy)...\n")
-
-  # Source theme_aidia for format_strategy_label() and color scales
-  if (!exists("format_strategy_label") && !isNamespaceLoaded("aidia")) {
-    if (file.exists("R/theme_aidia.R")) {
-      source("R/theme_aidia.R")
-    }
-  }
 
   # Extract window width data from all strategies
   strategy_names <- names(windows_list)
@@ -112,17 +99,10 @@ plot_strategy_width_ridge <- function(windows_list, validated_data) {
 #' @param validated_data ValidatedData object from Stage 1
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 plot_strategy_width_boxplot <- function(windows_list, validated_data) {
 
   cat("  Generating Plot 8B: Box Plot (Window Width by Strategy)...\n")
-
-  # Source theme_aidia for format_strategy_label() and color scales
-  if (!exists("format_strategy_label") && !isNamespaceLoaded("aidia")) {
-    if (file.exists("R/theme_aidia.R")) {
-      source("R/theme_aidia.R")
-    }
-  }
 
   # Extract window width data from all strategies
   strategy_names <- names(windows_list)
@@ -206,17 +186,10 @@ plot_strategy_width_boxplot <- function(windows_list, validated_data) {
 #' @param validated_data ValidatedData object from Stage 1
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 plot_strategy_width_cdf <- function(windows_list, validated_data) {
 
   cat("  Generating Plot 8C: CDF (Window Width by Strategy)...\n")
-
-  # Source theme_aidia for format_strategy_label() and color scales
-  if (!exists("format_strategy_label") && !isNamespaceLoaded("aidia")) {
-    if (file.exists("R/theme_aidia.R")) {
-      source("R/theme_aidia.R")
-    }
-  }
 
   # Extract window width data from all strategies
   strategy_names <- names(windows_list)

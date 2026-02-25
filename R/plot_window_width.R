@@ -8,12 +8,6 @@
 # Reference: Improved design based on user feedback
 
 
-if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
-  if (file.exists("R/theme_aidia.R")) {
-    source("R/theme_aidia.R")
-  }
-}
-
 #' Plot Window Width Distribution by RT Segment
 #'
 #' Creates a multi-panel visualization showing:
@@ -26,7 +20,7 @@ if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
 #' @param max_segments_to_show Maximum number of RT segments to display (default: 6, NULL = all)
 #'
 #' @return ggplot object (combined grid)
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{
@@ -209,7 +203,7 @@ plot_window_width_distribution <- function(optimized_windows,
 #' @param max_segments_to_show Maximum number of RT segments to display (default: 6, NULL = all)
 #'
 #' @return ggplot object (combined grid)
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{

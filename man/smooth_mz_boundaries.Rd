@@ -29,3 +29,4 @@ Smoothed numeric vector
 \description{
 Smooth m/z boundaries with optional quantile pre-filtering
 }
+\keyword{internal}

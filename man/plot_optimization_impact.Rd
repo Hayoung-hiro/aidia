@@ -31,3 +31,4 @@ p <- plot_optimization_impact(optimization_plan, optimized_windows, validated_da
 ggsave("impact_summary.png", p, width = 10, height = 8)
 }
 }
+\keyword{internal}

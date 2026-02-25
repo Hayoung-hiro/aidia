@@ -15,3 +15,4 @@ Character, short window mode name
 \description{
 Map Window Mode to Short Name
 }
+\keyword{internal}

@@ -17,3 +17,4 @@ Creates a consistent box-style header for stage/section titles.
 \examples{
 print_header("Stage 2: Optimization Planning")
 }
+\keyword{internal}

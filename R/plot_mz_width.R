@@ -5,12 +5,6 @@
 #          as a quantitative bar chart visualization
 
 
-if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
-  if (file.exists("R/theme_aidia.R")) {
-    source("R/theme_aidia.R")
-  }
-}
-
 #' Plot m/z Width Comparison - All Strategies Overlay
 #'
 #' Creates a single grouped bar chart comparing Original m/z width
@@ -21,7 +15,7 @@ if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
 #' @param validated_data ValidatedData object from Stage 1
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{

@@ -15,3 +15,4 @@ Numeric, value in seconds
 \description{
 Simple unit conversion utility.
 }
+\keyword{internal}

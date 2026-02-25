@@ -16,3 +16,4 @@ Combined data frame
 Wrapper around dplyr::bind_rows that falls back to base R rbind
 when vctrs package has compatibility issues (e.g., ffi_list2 error).
 }
+\keyword{internal}

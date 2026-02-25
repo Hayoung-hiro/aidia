@@ -52,3 +52,4 @@ p2 <- plot_isolation_window_gantt(optimized_windows, validated_data,
 }
 
 }
+\keyword{internal}

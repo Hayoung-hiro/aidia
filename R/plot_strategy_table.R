@@ -11,7 +11,7 @@
 #' @param windows_list Named list of OptimizedWindows objects (one per strategy)
 #'
 #' @return grob object (tableGrob)
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{
@@ -22,14 +22,6 @@
 plot_strategy_comparison_table <- function(windows_list) {
 
   cat("  Generating Strategy Comparison Table...\n")
-
-  # Source theme_aidia for colors and format_strategy_label
-  if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
-    if (file.exists("R/theme_aidia.R")) {
-      source("R/theme_aidia.R")
-    }
-  }
-
 
   # Build summary data frame from each strategy's statistics
   strategy_names <- names(windows_list)
@@ -171,4 +163,3 @@ plot_strategy_comparison_table <- function(windows_list) {
   return(composite)
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [plot_strategy_table.R] Strategy comparison table loaded\n")

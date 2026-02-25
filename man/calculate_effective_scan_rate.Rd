@@ -21,3 +21,4 @@ Calculate effective scan rate with load factor
 # Fusion Lumos with 80\% load factor
 calculate_effective_scan_rate(20, 0.8)  # Returns 16 Hz
 }
+\keyword{internal}

@@ -36,3 +36,4 @@ plot4 <- plot_mz_distribution_with_exclusions(optimized_windows, validated_data)
 plot4 <- plot_mz_distribution_with_exclusions(optimized_windows, validated_data, max_bins_to_show = 6)
 }
 }
+\keyword{internal}

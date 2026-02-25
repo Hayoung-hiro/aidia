@@ -14,3 +14,4 @@ print_success(message, indent = 2)
 \description{
 Prints a formatted success message with checkmark.
 }
+\keyword{internal}

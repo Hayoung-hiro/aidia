@@ -19,3 +19,4 @@ NULL (invisible), throws error if validation fails
 \description{
 Checks if a value is a positive integer.
 }
+\keyword{internal}

@@ -5,12 +5,6 @@
 #          were excluded by the optimization strategy (quantile/smoothing/outlier/coverage)
 
 
-if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
-  if (file.exists("R/theme_aidia.R")) {
-    source("R/theme_aidia.R")
-  }
-}
-
 #' Plot m/z Distribution with Excluded Regions (Multiple RT Bins)
 #'
 #' For each RT segment, shows:
@@ -23,7 +17,7 @@ if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
 #' @param max_bins_to_show Maximum number of RT bins to display (default: NULL = all bins, or specify number to sample)
 #'
 #' @return ggplot object (grid of subplots)
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{

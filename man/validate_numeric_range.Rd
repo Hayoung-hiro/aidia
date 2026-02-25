@@ -21,3 +21,4 @@ NULL (invisible), throws error if validation fails
 \description{
 Checks if a numeric value is within specified range.
 }
+\keyword{internal}

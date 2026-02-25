@@ -5,21 +5,6 @@
 # Refactored: Option B - Pipeline pattern with memory optimization
 
 
-# Source dependencies only when running outside package context
-if (!isNamespaceLoaded("aidia")) {
-  source_if_exists <- function(file_path) {
-    if (file.exists(file_path)) {
-      source(file_path)
-    }
-  }
-
-  source_if_exists("R/data_loader.R")
-  source_if_exists("R/utils.R")
-  source_if_exists("R/replicate_utils.R")
-  source_if_exists("R/column_selection.R")
-  source_if_exists("R/quality_validation.R")
-}
-
 #' Validate DIA-NN Data and Create ValidatedData Structure
 #'
 #' Main function for Stage 1: Loads DIA-NN output, performs quality validation,

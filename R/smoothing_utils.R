@@ -18,7 +18,7 @@
 #' @param window_size Window size (default: 7, must be odd number)
 #' @param poly_order Polynomial order (default: 3)
 #' @return Smoothed numeric vector
-#' @export
+#' @keywords internal
 smooth_savgol <- function(y_array, window_size = 7, poly_order = 3) {
 
   # Ensure we have enough data points
@@ -120,7 +120,7 @@ smooth_moving_average <- function(y_array, window_size) {
 #' @param window_size Smoothing window size (default: 7)
 #' @param poly_order Polynomial order (default: 3)
 #' @return Smoothed numeric vector
-#' @export
+#' @keywords internal
 smooth_mz_boundaries <- function(
   mz_array,
   quantile_lower = 0.05,
@@ -142,12 +142,3 @@ smooth_mz_boundaries <- function(
   return(smoothed)
 }
 
-if (!isNamespaceLoaded("aidia")) {
-  cat("OK Smoothing utilities loaded\n")
-  cat("   Main function: smooth_savgol(), smooth_mz_boundaries()\n")
-  if (exists("PROSPECTR_AVAILABLE") && PROSPECTR_AVAILABLE) {
-    cat("   Mode: Savitzky-Golay (prospectr)\n")
-  } else {
-    cat("   Mode: Moving average (fallback - prospectr not available)\n")
-  }
-}

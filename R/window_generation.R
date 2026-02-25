@@ -563,4 +563,3 @@ apply_overlap_internal <- function(windows, overlap_percentage, mz_min, mz_max) 
   return(windows)
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [window_generation.R] Window generation functions loaded\n")

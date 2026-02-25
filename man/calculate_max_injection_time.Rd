@@ -28,3 +28,4 @@ Formula: IT_max <= Transient_Time - delta
 calculate_max_injection_time(64)  # 30K: ~64 - 12.8 = ~51 ms
 calculate_max_injection_time(32)  # 15K: ~32 - 6.4 = ~25.6 ms
 }
+\keyword{internal}

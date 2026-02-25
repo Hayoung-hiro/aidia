@@ -18,3 +18,4 @@ ggplot object
 Shows overlapping density curves for each strategy (ridge plot style)
 Useful for comparing distribution shapes across strategies
 }
+\keyword{internal}

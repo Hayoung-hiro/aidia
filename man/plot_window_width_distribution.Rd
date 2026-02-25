@@ -35,3 +35,4 @@ plot7 <- plot_window_width_distribution(optimized_windows, validated_data)
 plot7 <- plot_window_width_distribution(optimized_windows, validated_data, max_segments_to_show = NULL)
 }
 }
+\keyword{internal}

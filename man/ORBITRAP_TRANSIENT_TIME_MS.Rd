@@ -14,4 +14,4 @@ ORBITRAP_TRANSIENT_TIME_MS
 Standard mapping for Thermo Orbitrap analyzers.
 Transient time is the ion detection time in the Orbitrap.
 }
-\keyword{datasets}
+\keyword{internal}

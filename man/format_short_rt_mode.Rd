@@ -17,3 +17,4 @@ Character, short RT mode name
 \description{
 Map RT Binning Mode to Short Name
 }
+\keyword{internal}

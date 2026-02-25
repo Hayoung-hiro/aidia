@@ -20,7 +20,7 @@
 #' Transient time is the ion detection time in the Orbitrap.
 #'
 #' @format Named numeric vector (resolution -> transient_time_ms)
-#' @export
+#' @keywords internal
 ORBITRAP_TRANSIENT_TIME_MS <- c(
   "7500"   = 16,
   "15000"  = 32,
@@ -56,7 +56,7 @@ ORBITRAP_TRANSIENT_TIME_MS <- c(
 #' The Astral uses a Multi-Reflection TOF design with fixed resolution.
 #' Scan rate is determined by injection time, not resolution.
 #'
-#' @export
+#' @keywords internal
 ASTRAL_FIXED_RESOLUTION <- 80000  # Fixed at m/z 524
 
 #' Astral Detection Time (ms)
@@ -65,7 +65,7 @@ ASTRAL_FIXED_RESOLUTION <- 80000  # Fixed at m/z 524
 #' Unlike Orbitrap, this doesn't change with resolution (fixed at 80K).
 #' The MR-TOF has ~2.5ms detection time in standard operation.
 #'
-#' @export
+#' @keywords internal
 ASTRAL_DETECTION_TIME_MS <- 2.5
 
 #' Astral Minimum Cycle Time (ms)
@@ -73,7 +73,7 @@ ASTRAL_DETECTION_TIME_MS <- 2.5
 #' The minimum time per scan at maximum speed (200 Hz).
 #' This includes all parallelized operations.
 #'
-#' @export
+#' @keywords internal
 ASTRAL_MIN_CYCLE_TIME_MS <- 5.0  # 1000 / 200 Hz
 
 #' Astral Injection Time to Scan Rate Mapping
@@ -85,7 +85,7 @@ ASTRAL_MIN_CYCLE_TIME_MS <- 5.0  # 1000 / 200 Hz
 #' Source: https://proteomicsresource.washington.edu/instruments/astral.php
 #'
 #' @format Named numeric vector (injection_time_ms -> scan_rate_hz)
-#' @export
+#' @keywords internal
 ASTRAL_IT_TO_SCANRATE <- c(
   "2.5" = 200,   # Maximum speed
   "3.0" = 200,   # Still at max (parallelized)
@@ -114,14 +114,14 @@ ASTRAL_IT_TO_SCANRATE <- c(
 #'
 #' Overhead as fraction of transient time.
 #' Conservative estimate for stable operation.
-#' @export
+#' @keywords internal
 DEFAULT_OVERHEAD_FACTOR <- 0.20  # 20% of transient time
 
 #' Minimum Overhead (ms)
 #'
 #' Hardware minimum overhead regardless of transient time.
 #' Accounts for ion transfer and settling times.
-#' @export
+#' @keywords internal
 MINIMUM_OVERHEAD_MS <- 5.0
 
 #' Calculate Scan Overhead
@@ -134,7 +134,7 @@ MINIMUM_OVERHEAD_MS <- 5.0
 #' @param min_overhead_ms Numeric, minimum overhead in ms (default: 5.0)
 #'
 #' @return Numeric, overhead time in milliseconds
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' calculate_scan_overhead(64)   # For 30K resolution: returns ~12.8 ms
@@ -160,7 +160,7 @@ calculate_scan_overhead <- function(transient_time_ms,
 #' @param safety_margin Numeric, additional margin factor (default: 0.95)
 #'
 #' @return Numeric, maximum injection time in milliseconds
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' calculate_max_injection_time(64)  # 30K: ~64 - 12.8 = ~51 ms
@@ -219,7 +219,7 @@ calculate_max_injection_time <- function(transient_time_ms,
 #'   - efficiency_pct: Efficiency percentage (100% = optimal)
 #'   - efficiency_mode: "auto" (optimal) or "custom" (user-defined)
 #'   - efficiency_message: Human-readable efficiency status
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' # 30K resolution with 50ms IT (Resolution-Limited)
@@ -460,7 +460,7 @@ calculate_ms2_scan_time <- function(resolution = 30000,
 #' @param analyzer Character, analyzer type: "orbitrap", "astral", or "tof"
 #'
 #' @return Numeric, transient/detection time in milliseconds (NA for TOF)
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' get_transient_time(30000, "orbitrap")  # Returns 64 ms
@@ -528,7 +528,7 @@ get_transient_time <- function(resolution, analyzer = "orbitrap") {
 #' Load all instrument configurations from JSON
 #'
 #' @return List of instrument configurations
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' configs <- load_instruments_config()
@@ -578,7 +578,7 @@ load_instruments_config <- function() {
 #'
 #' @param preset_name Instrument preset name (e.g., "fusion_lumos", "astral")
 #' @return Instrument configuration list
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' config <- get_instrument_config("fusion_lumos")
@@ -650,7 +650,7 @@ is_astral_instrument <- function(preset_name) {
 #' List all available instruments
 #'
 #' @return Data frame with instrument information
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' list_available_instruments()
@@ -674,7 +674,7 @@ list_available_instruments <- function() {
 #' Print instrument information
 #'
 #' @param preset_name Instrument preset name
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' print_instrument_info("fusion_lumos")
@@ -847,7 +847,7 @@ validate_instrument_config <- function(config, preset_name = "unknown") {
 #' @param max_scan_rate_hz Maximum scan rate in Hz
 #' @param load_factor Load factor (0-1), typically 0.8 for stability
 #' @return Effective scan rate in Hz
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' # Fusion Lumos with 80% load factor
@@ -879,7 +879,7 @@ calculate_effective_scan_rate <- function(max_scan_rate_hz, load_factor = 0.8) {
 #' @param analyzer_type Character, analyzer type (default: "orbitrap")
 #'
 #' @return Numeric, resolved injection time in milliseconds
-#' @export
+#' @keywords internal
 #'
 #' @details
 #' When ms2_time = "auto":
@@ -963,7 +963,7 @@ if (is.numeric(ms2_time)) {
 #' @param language Character, output language: "ko" (Korean) or "en" (English)
 #'
 #' @return List with calculated cycle time and detailed breakdown
-#' @export
+#' @keywords internal
 #'
 #' @details
 #' The cycle time calculation uses the fundamental scan time equations:
@@ -1265,7 +1265,7 @@ calculate_cycle_time_from_experiment <- function(experiment_config,
 #' @param ms1_scans_per_cycle User-specified value (NULL for auto-detect)
 #' @param instrument_config Instrument configuration from JSON
 #' @return Integer (0 or 1)
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{

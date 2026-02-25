@@ -5,12 +5,6 @@
 #          and help understand temporal precursor elution patterns
 
 
-if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
-  if (file.exists("R/theme_aidia.R")) {
-    source("R/theme_aidia.R")
-  }
-}
-
 #' Plot RT Distribution Histogram
 #'
 #' Creates a histogram showing the distribution of precursors across retention time.
@@ -21,7 +15,7 @@ if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
 #' @param bins Number of histogram bins (default: 50)
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{
@@ -200,7 +194,7 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
 #' @param bin_width_min Width of time bins in minutes (default: 5)
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{

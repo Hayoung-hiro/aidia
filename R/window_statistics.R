@@ -110,4 +110,3 @@ calculate_precursors_per_window <- function(windows, precursor_data) {
   windows
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [window_statistics.R] Statistics functions loaded\n")

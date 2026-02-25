@@ -5,12 +5,6 @@
 #          to visualize how each strategy adjusts m/z ranges across RT
 
 
-if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
-  if (file.exists("R/theme_aidia.R")) {
-    source("R/theme_aidia.R")
-  }
-}
-
 #' Plot RT x m/z Density Heatmap with m/z Range Overlay (Single Strategy)
 #'
 #' Creates density heatmap of precursors and overlays optimized m/z range
@@ -21,7 +15,7 @@ if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
 #' @param bins Number of bins for density calculation (default: 50)
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 plot_density_with_mz_range <- function(optimized_windows, validated_data, bins = 50) {
 
   # Extract precursor data
@@ -135,7 +129,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
 #' @param bins Number of bins for density calculation (default: 50)
 #'
 #' @return Combined plot (grid.arrange object)
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{

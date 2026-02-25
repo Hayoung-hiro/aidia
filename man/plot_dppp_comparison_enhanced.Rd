@@ -23,3 +23,4 @@ Enhanced version of plot_dppp_comparison() with additional visual elements:
 \item Clearer visual separation of satisfied/unsatisfied regions
 }
 }
+\keyword{internal}

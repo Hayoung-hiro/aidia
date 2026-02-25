@@ -14,4 +14,4 @@ MINIMUM_OVERHEAD_MS
 Hardware minimum overhead regardless of transient time.
 Accounts for ion transfer and settling times.
 }
-\keyword{datasets}
+\keyword{internal}

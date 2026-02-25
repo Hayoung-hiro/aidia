@@ -30,3 +30,4 @@ This visualizes the variable window width distribution clearly
 plot7b <- plot_cumulative_window_count(optimized_windows, validated_data)
 }
 }
+\keyword{internal}

@@ -602,4 +602,3 @@ calculate_auto_rt_bin_width <- function(rt_range,
   )
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [rt_binning.R] RT binning functions loaded\n")

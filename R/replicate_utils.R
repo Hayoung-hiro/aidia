@@ -57,7 +57,7 @@ identify_replicate_groups <- function(data) {
 #'
 #' @param x Numeric vector of values
 #' @return Base CV percentage, or NA if n < 2
-#' @export
+#' @keywords internal
 base_cv <- function(x) {
   # Remove NA values
   x <- x[!is.na(x)]
@@ -79,7 +79,7 @@ base_cv <- function(x) {
 #'
 #' @param x Numeric vector of values
 #' @return Geometric CV percentage, or NA if n < 2
-#' @export
+#' @keywords internal
 geometric_cv <- function(x) {
   # Remove NA values
   x <- x[!is.na(x)]

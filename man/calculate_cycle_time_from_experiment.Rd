@@ -61,3 +61,4 @@ result <- calculate_cycle_time_from_experiment(config)
 cat(sprintf("Cycle time: \%.3f sec\\\\n", result$cycle_time_sec))
 }
 }
+\keyword{internal}

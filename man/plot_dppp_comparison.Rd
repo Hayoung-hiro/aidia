@@ -18,3 +18,4 @@ ggplot object
 Shows dual density curves comparing current DPPP with expected DPPP
 after applying recommended cycle time. Includes target line and statistics.
 }
+\keyword{internal}

@@ -19,3 +19,4 @@ Smoothed numeric vector
 \description{
 Falls back to simple moving average if prospectr is not available.
 }
+\keyword{internal}

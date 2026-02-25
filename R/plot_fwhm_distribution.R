@@ -12,7 +12,7 @@
 #' @param optimization_plan OptimizationPlan object (optional, for cycle time annotation)
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{
@@ -22,13 +22,6 @@
 plot_fwhm_distribution <- function(validated_data, optimization_plan = NULL) {
 
   cat("  Generating FWHM Distribution Plot...\n")
-
-  # Source theme_aidia if not loaded
-  if (!exists("theme_aidia") && !isNamespaceLoaded("aidia")) {
-    if (file.exists("R/theme_aidia.R")) {
-      source("R/theme_aidia.R")
-    }
-  }
 
   # Extract FWHM in seconds (convert from minutes)
   data <- validated_data$data
@@ -142,4 +135,3 @@ plot_fwhm_distribution <- function(validated_data, optimization_plan = NULL) {
   return(p)
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [plot_fwhm_distribution.R] FWHM distribution plot loaded\n")

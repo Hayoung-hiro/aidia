@@ -14,3 +14,4 @@ print_info(message, indent = 2)
 \description{
 Prints a formatted info message.
 }
+\keyword{internal}

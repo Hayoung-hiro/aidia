@@ -39,7 +39,7 @@ extract_dppp_inputs <- function(optimization_plan, validated_data) {
 #' @param validated_data ValidatedData object from Stage 1
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 plot_dppp_comparison <- function(optimization_plan, validated_data) {
 
   cat("  Generating Plot 1: DPPP Distribution Comparison...\n")
@@ -179,7 +179,7 @@ plot_dppp_comparison <- function(optimization_plan, validated_data) {
 #' @param validated_data ValidatedData object from Stage 1
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 plot_dppp_comparison_enhanced <- function(optimization_plan, validated_data) {
 
   cat("  Generating Plot 1 Enhanced: DPPP Distribution with Visual Annotations...\n")
@@ -397,4 +397,3 @@ plot_dppp_comparison_enhanced <- function(optimization_plan, validated_data) {
   return(p)
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [plot_dppp.R] DPPP distribution functions loaded\n")

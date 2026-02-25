@@ -18,3 +18,4 @@ ggplot object
 Creates a 2D density heatmap showing the distribution of precursors
 across retention time (RT) and m/z space.
 }
+\keyword{internal}

@@ -15,3 +15,4 @@ Character, short instrument name
 \description{
 Converts instrument preset keys to concise abbreviations for output filenames.
 }
+\keyword{internal}

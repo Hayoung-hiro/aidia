@@ -24,3 +24,4 @@ A ggplot object with centered text message
 Returns a standardized ggplot placeholder when there isn't enough data
 to render a meaningful visualization (e.g., density plots need >= 2 points).
 }
+\keyword{internal}

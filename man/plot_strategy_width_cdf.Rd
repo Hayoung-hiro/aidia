@@ -18,3 +18,4 @@ ggplot object
 Shows cumulative distribution of window widths for each strategy
 Useful for comparing distributions statistically
 }
+\keyword{internal}

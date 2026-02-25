@@ -18,4 +18,4 @@ Beyond 3ms, IT starts to dominate the cycle time.
 \details{
 Source: https://proteomicsresource.washington.edu/instruments/astral.php
 }
-\keyword{datasets}
+\keyword{internal}

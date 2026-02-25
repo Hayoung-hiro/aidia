@@ -23,3 +23,4 @@ config <- get_instrument_config("fusion_lumos")
 get_ms1_scans_per_cycle(NULL, config)  # Returns 1 (sequential)
 }
 }
+\keyword{internal}

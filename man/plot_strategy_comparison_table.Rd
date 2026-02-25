@@ -29,3 +29,4 @@ grid::grid.draw(p)
 ggsave("strategy_comparison.png", p, width = 12, height = 6)
 }
 }
+\keyword{internal}

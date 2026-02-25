@@ -20,3 +20,4 @@ ggplot object
 Creates density heatmap of precursors and overlays optimized m/z range
 boundaries for one strategy.
 }
+\keyword{internal}

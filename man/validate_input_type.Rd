@@ -20,3 +20,4 @@ NULL (invisible), throws error if validation fails
 Checks if an object inherits from expected class(es) and provides
 informative error messages.
 }
+\keyword{internal}

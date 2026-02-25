@@ -764,15 +764,3 @@ summary.VisualizationResult <- function(object, ...) {
   invisible(object)
 }
 
-# =============================================================================
-# Module Loading
-# =============================================================================
-
-if (!isNamespaceLoaded("aidia")) {
-  cat("OK S3 Classes module loaded successfully\n")
-  cat("   Classes: ValidatedData, OptimizationPlan, OptimizedWindows, VisualizationResult\n")
-  cat("   Functions:\n")
-  cat("     - Constructors: new_*, validate_*, is_*, as_*\n")
-  cat("     - Accessors: get_data(), get_metadata(), get_windows(), get_statistics()\n")
-  cat("     - Methods: print.*, summary.*\n")
-}

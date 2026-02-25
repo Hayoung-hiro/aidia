@@ -19,3 +19,4 @@ CV = (sd / mean) * 100
 \details{
 Reference: docs/GEOMETRIC_CV_GUIDE.md
 }
+\keyword{internal}

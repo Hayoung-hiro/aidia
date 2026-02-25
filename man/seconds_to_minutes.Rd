@@ -15,3 +15,4 @@ Numeric, value in minutes
 \description{
 Simple unit conversion utility.
 }
+\keyword{internal}

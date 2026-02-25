@@ -30,7 +30,7 @@ PEAK_WIDTH_FACTOR <- 1.7
 #' @param title Character, the title text to display
 #' @param width Integer, total width of the box (default: 50)
 #'
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' print_header("Stage 2: Optimization Planning")
@@ -62,7 +62,7 @@ print_header <- function(title, width = 50) {
 #' @param step_num Integer, step number
 #' @param description Character, step description
 #'
-#' @export
+#' @keywords internal
 print_step <- function(step_num, description) {
   cat(sprintf("\n--- Step %d: %s ---\n", step_num, description))
 }
@@ -74,7 +74,7 @@ print_step <- function(step_num, description) {
 #' @param message Character, success message
 #' @param indent Integer, number of spaces to indent (default: 2)
 #'
-#' @export
+#' @keywords internal
 print_success <- function(message, indent = 2) {
   cat(sprintf("%s[OK] %s\n", rep(" ", indent), message))
 }
@@ -86,7 +86,7 @@ print_success <- function(message, indent = 2) {
 #' @param message Character, warning message
 #' @param indent Integer, number of spaces to indent (default: 2)
 #'
-#' @export
+#' @keywords internal
 print_warning <- function(message, indent = 2) {
   cat(sprintf("%s[!] %s\n", rep(" ", indent), message))
 }
@@ -98,7 +98,7 @@ print_warning <- function(message, indent = 2) {
 #' @param message Character, info message
 #' @param indent Integer, number of spaces to indent (default: 2)
 #'
-#' @export
+#' @keywords internal
 print_info <- function(message, indent = 2) {
   cat(sprintf("%s%s\n", rep(" ", indent), message))
 }
@@ -180,7 +180,7 @@ calculate_cv <- function(x, as_percentage = FALSE, na.rm = TRUE) {
 #' @param param_name Character, parameter name for error message
 #'
 #' @return NULL (invisible), throws error if validation fails
-#' @export
+#' @keywords internal
 validate_input_type <- function(obj, expected_class, param_name = "input") {
   if (!any(sapply(expected_class, function(cls) inherits(obj, cls)))) {
     stop(sprintf(
@@ -203,7 +203,7 @@ validate_input_type <- function(obj, expected_class, param_name = "input") {
 #' @param param_name Character, parameter name for error message
 #'
 #' @return NULL (invisible), throws error if validation fails
-#' @export
+#' @keywords internal
 validate_numeric_range <- function(value, min = NULL, max = NULL,
                                    param_name = "value") {
   if (!is.numeric(value) || length(value) != 1) {
@@ -230,7 +230,7 @@ validate_numeric_range <- function(value, min = NULL, max = NULL,
 #' @param allow_zero Logical, allow zero (default: FALSE)
 #'
 #' @return NULL (invisible), throws error if validation fails
-#' @export
+#' @keywords internal
 validate_positive_integer <- function(value, param_name = "value",
                                       allow_zero = FALSE) {
   if (!is.numeric(value) || length(value) != 1) {
@@ -388,7 +388,7 @@ calculate_satisfaction_ratio <- function(values, target, tolerance = 0.0,
 #' @param window_ends Numeric vector, window end m/z values
 #'
 #' @return Integer vector, precursor count per window
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' precursors <- c(400.5, 450.2, 500.8, 550.3, 600.1)
@@ -436,7 +436,7 @@ count_precursors_in_windows <- function(precursor_mz, window_starts,
 #' @param window_mz_end Numeric vector, window m/z end values
 #'
 #' @return Integer vector with precursor counts for each window
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' rt <- c(10.1, 10.5, 20.2, 20.8)
@@ -514,7 +514,7 @@ count_precursors_in_2d_windows <- function(precursor_rt, precursor_mz,
 #' @param window_ends Numeric vector, window end m/z values
 #'
 #' @return Integer vector, indices of windows containing this precursor
-#' @export
+#' @keywords internal
 find_windows_for_precursor <- function(precursor_mz, window_starts,
                                        window_ends) {
   which(precursor_mz >= window_starts & precursor_mz < window_ends)
@@ -532,7 +532,7 @@ find_windows_for_precursor <- function(precursor_mz, window_starts,
 #' @param minutes Numeric, value in minutes
 #'
 #' @return Numeric, value in seconds
-#' @export
+#' @keywords internal
 minutes_to_seconds <- function(minutes) {
   return(minutes * 60)
 }
@@ -544,7 +544,7 @@ minutes_to_seconds <- function(minutes) {
 #' @param seconds Numeric, value in seconds
 #'
 #' @return Numeric, value in minutes
-#' @export
+#' @keywords internal
 seconds_to_minutes <- function(seconds) {
   return(seconds / 60)
 }
@@ -591,22 +591,9 @@ create_timer <- function() {
 #' @param class_name Character, S3 class name
 #'
 #' @return S3 object
-#' @export
+#' @keywords internal
 create_s3_object <- function(data, class_name) {
   structure(data, class = c(class_name, "list"))
-}
-
-
-# =============================================================================
-# Source S3 Classes Module
-# =============================================================================
-
-# Source centralized S3 class definitions if not already loaded
-if (!exists("new_ValidatedData") && !isNamespaceLoaded("aidia")) {
-  s3_classes_path <- "R/s3_classes.R"
-  if (file.exists(s3_classes_path)) {
-    source(s3_classes_path)
-  }
 }
 
 
@@ -624,7 +611,7 @@ if (!exists("new_ValidatedData") && !isNamespaceLoaded("aidia")) {
 #' @param message Character, message to display (default: "Insufficient data")
 #'
 #' @return A ggplot object with centered text message
-#' @export
+#' @keywords internal
 create_insufficient_data_plot <- function(title,
                                           subtitle = "Not enough data points",
                                           message = "Insufficient data\n(need at least 2 data points)") {
@@ -650,7 +637,7 @@ create_insufficient_data_plot <- function(title,
 #' @param ... Data frames or list of data frames to bind
 #'
 #' @return Combined data frame
-#' @export
+#' @keywords internal
 safe_bind_rows <- function(...) {
   tryCatch({
     dplyr::bind_rows(...)
@@ -676,7 +663,7 @@ safe_bind_rows <- function(...) {
 #' @param instrument_preset Character, instrument preset key from instruments.json
 #'
 #' @return Character, short instrument name
-#' @export
+#' @keywords internal
 format_short_instrument_name <- function(instrument_preset) {
   mapping <- c(
     astral           = "astral",
@@ -702,7 +689,7 @@ format_short_instrument_name <- function(instrument_preset) {
 #'
 #' @param window_mode Character, window generation mode
 #' @return Character, short window mode name
-#' @export
+#' @keywords internal
 format_short_window_mode <- function(window_mode) {
   mapping <- c(
     density   = "dens",
@@ -719,7 +706,7 @@ format_short_window_mode <- function(window_mode) {
 #' @param rt_binning_mode Character, RT binning mode ("fixed", "adaptive", or "custom")
 #' @param rt_bin_width_min Numeric, RT bin width in minutes (used for custom mode)
 #' @return Character, short RT mode name
-#' @export
+#' @keywords internal
 format_short_rt_mode <- function(rt_binning_mode, rt_bin_width_min = 5) {
   if (rt_binning_mode == "fixed") return("Fix")
   if (rt_binning_mode == "adaptive") return("Adapt")
@@ -741,7 +728,7 @@ format_short_rt_mode <- function(rt_binning_mode, rt_bin_width_min = 5) {
 #' @param date Character, date string (default: today in YYYYMMDD format)
 #'
 #' @return Character, formatted filename (without directory path)
-#' @export
+#' @keywords internal
 format_output_filename <- function(type,
                                    instrument_preset,
                                    strategy = NULL,
@@ -859,21 +846,3 @@ estimate_cycle_time <- function(gradient_name) {
 }
 
 
-# =============================================================================
-# Module Loading
-# =============================================================================
-
-if (!isNamespaceLoaded("aidia")) {
-  cat("OK Common utilities loaded successfully\n")
-  cat("   Available functions:\n")
-  cat("   - UI: print_header(), print_step(), print_success(), print_warning()\n")
-  cat("   - Stats: calculate_summary_stats(), calculate_cv()\n")
-  cat("   - Validation: validate_input_type(), validate_numeric_range()\n")
-  cat("   - DPPP: calculate_dppp(), calculate_satisfaction_ratio()\n")
-  cat("   - Performance: count_precursors_in_windows()\n")
-  cat("   - Timing: create_timer()\n")
-  cat("   - Naming: format_output_filename(), format_short_instrument_name()\n")
-  cat("   - Shared API: ensure_fwhm_seconds(), estimate_window_count_preview()\n")
-  cat("   - Shared API: extract_gradient_name(), estimate_cycle_time()\n")
-  cat("   - S3 Classes: ValidatedData, OptimizationPlan, OptimizedWindows\n")
-}

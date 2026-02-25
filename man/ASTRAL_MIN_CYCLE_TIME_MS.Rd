@@ -14,4 +14,4 @@ ASTRAL_MIN_CYCLE_TIME_MS
 The minimum time per scan at maximum speed (200 Hz).
 This includes all parallelized operations.
 }
-\keyword{datasets}
+\keyword{internal}

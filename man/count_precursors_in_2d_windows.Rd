@@ -45,3 +45,4 @@ counts <- count_precursors_in_2d_windows(rt, mz, win_rt_start, win_rt_end,
                                           win_mz_start, win_mz_end)
 # Returns: c(2, 2) - first window has 2 precursors, second has 2
 }
+\keyword{internal}

@@ -17,3 +17,4 @@ S3 object
 \description{
 Helper to create S3 objects with consistent structure.
 }
+\keyword{internal}

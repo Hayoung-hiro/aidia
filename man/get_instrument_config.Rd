@@ -19,3 +19,4 @@ Get specific instrument configuration
 config <- get_instrument_config("fusion_lumos")
 config$max_scan_rate
 }
+\keyword{internal}

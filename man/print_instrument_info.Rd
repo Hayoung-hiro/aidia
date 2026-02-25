@@ -15,3 +15,4 @@ Print instrument information
 \examples{
 print_instrument_info("fusion_lumos")
 }
+\keyword{internal}

@@ -30,3 +30,4 @@ p <- plot_fwhm_distribution(validated_data, optimization_plan)
 ggsave("fwhm_distribution.png", p, width = 10, height = 6)
 }
 }
+\keyword{internal}

@@ -15,3 +15,4 @@ List all available instruments
 \examples{
 list_available_instruments()
 }
+\keyword{internal}

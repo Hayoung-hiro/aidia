@@ -30,3 +30,4 @@ windows_list <- list(
 plot4c <- plot_mz_width_comparison_all_strategies(windows_list, validated_data)
 }
 }
+\keyword{internal}

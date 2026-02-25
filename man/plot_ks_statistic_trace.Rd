@@ -18,3 +18,4 @@ center along RT. Significant change points (where the m/z distribution
 changes abruptly) are highlighted in red; detected change point positions
 are marked with vertical lines.
 }
+\keyword{internal}

@@ -180,7 +180,7 @@ create_metrics_table <- function(optimized_windows, validated_data) {
 #' @param validated_data ValidatedData object from Stage 1
 #'
 #' @return grob object (from gridExtra::arrangeGrob)
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{
@@ -274,4 +274,3 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
   return(composite)
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [plot_impact_summary.R] Optimization impact summary loaded\n")

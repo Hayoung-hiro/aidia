@@ -24,7 +24,7 @@
 #' @param n_points Integer, number of points to calculate along curve (default: 50)
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 plot_satisfaction_curve <- function(optimization_plan, validated_data,
                                    cycle_time_range = c(0.5, 3.0),
                                    n_points = 50) {
@@ -227,4 +227,3 @@ plot_satisfaction_curve <- function(optimization_plan, validated_data,
   return(p)
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [plot_satisfaction.R] Satisfaction curve functions loaded\n")

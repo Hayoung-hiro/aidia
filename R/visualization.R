@@ -33,61 +33,6 @@
 
 
 # =============================================================================
-# Source Dependencies
-# =============================================================================
-
-# Source dependencies only when running outside package context
-if (!isNamespaceLoaded("aidia")) {
-  # Load common utilities and S3 classes
-  if (!exists("print_header")) {
-    if (file.exists("R/utils_common.R")) {
-      source("R/utils_common.R")
-    }
-  }
-
-  # Core plot modules (R/)
-  plot_modules <- c(
-    "R/theme_aidia.R",          # Theme must be loaded first
-    "R/plot_dppp.R",
-    "R/plot_density.R",
-    "R/plot_satisfaction.R",
-    "R/plot_impact_summary.R",
-    "R/plot_rt_quality.R",
-    "R/plot_window_gantt.R",
-    "R/plot_rt_changepoint.R",
-    "R/plot_fwhm_distribution.R",
-    "R/plot_strategy_table.R"
-  )
-
-  for (module in plot_modules) {
-    if (file.exists(module)) {
-      source(module)
-    }
-  }
-
-  # Export functions
-  if (file.exists("R/export_plots.R")) {
-    source("R/export_plots.R")
-  }
-
-  # Legacy plot modules (consolidated into R/)
-  external_modules <- c(
-    "R/plot_rt_histogram.R",
-    "R/plot_mz_excluded.R",
-    "R/plot_mz_width.R",
-    "R/plot_density_overlay.R",
-    "R/plot_window_width.R",
-    "R/plot_strategy_comparison.R"
-  )
-
-  for (module in external_modules) {
-    if (file.exists(module)) {
-      source(module)
-    }
-  }
-}
-
-# =============================================================================
 # Main Visualization Function
 # =============================================================================
 
@@ -180,13 +125,6 @@ generate_visualizations <- function(
     cat("  Running optimization with all 5 m/z strategies...\n")
     windows_list <- list()
     strategies <- default_strategies
-
-    # Load Stage 3 module for optimization
-    if (!exists("optimize_windows") && !isNamespaceLoaded("aidia")) {
-      if (file.exists("R/window_optimization.R")) {
-        source("R/window_optimization.R")
-      }
-    }
 
     # Generate windows for each strategy
     for (strategy in strategies) {
@@ -473,18 +411,3 @@ calculate_summary_statistics <- function(validated_data, optimization_plan, opti
   )
 }
 
-# =============================================================================
-# Module Load Message
-# =============================================================================
-
-if (!isNamespaceLoaded("aidia")) {
-  cat("OK Stage 4 (Visualization & Reporting) loaded successfully\n")
-  cat("   Version: 4.1 (Modularized architecture)\n")
-  cat("   Main function: generate_visualizations()\n")
-  cat("   Sourced modules:\n")
-  cat("     - R/plot_dppp.R\n")
-  cat("     - R/plot_density.R\n")
-  cat("     - R/plot_satisfaction.R\n")
-  cat("     - R/export_plots.R\n")
-  cat("   Dependencies: ggplot2, dplyr, tidyr, viridis, scales, gridExtra, grid\n")
-}

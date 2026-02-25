@@ -28,3 +28,4 @@ get_transient_time(15000, "orbitrap")  # Returns 32 ms
 get_transient_time(80000, "astral")    # Returns 2.5 ms (fixed)
 get_transient_time(30000, "tof")       # Returns NA
 }
+\keyword{internal}

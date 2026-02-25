@@ -438,4 +438,3 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   cat(sprintf("  OK PDF report saved: %s (%d pages)\n", basename(output_file), n_pages))
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [export_plots.R] Export functions loaded\n")

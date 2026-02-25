@@ -14,4 +14,4 @@ DEFAULT_OVERHEAD_FACTOR
 Overhead as fraction of transient time.
 Conservative estimate for stable operation.
 }
-\keyword{datasets}
+\keyword{internal}

@@ -81,3 +81,4 @@ calculate_ms2_scan_time(15000, 30)
 calculate_ms2_scan_time(80000, 3.0, analyzer = "astral")
 # t_scan = max(2.5, 3.0) + 2.0 = 5.0 ms -> 200 Hz
 }
+\keyword{internal}

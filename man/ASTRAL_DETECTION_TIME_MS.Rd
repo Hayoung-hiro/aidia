@@ -15,4 +15,4 @@ Fixed detection time for the Astral MR-TOF analyzer.
 Unlike Orbitrap, this doesn't change with resolution (fixed at 80K).
 The MR-TOF has ~2.5ms detection time in standard operation.
 }
-\keyword{datasets}
+\keyword{internal}

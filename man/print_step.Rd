@@ -14,3 +14,4 @@ print_step(step_num, description)
 \description{
 Prints a numbered step with consistent formatting.
 }
+\keyword{internal}

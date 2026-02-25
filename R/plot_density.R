@@ -22,7 +22,7 @@
 #' @param bins Number of bins for density calculation (default: 50)
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 plot_rt_mz_density_heatmap <- function(validated_data, bins = 50) {
 
   cat("  Generating RT x m/z Density Heatmap...\n")
@@ -67,7 +67,7 @@ plot_rt_mz_density_heatmap <- function(validated_data, bins = 50) {
 #' @param validated_data ValidatedData object from Stage 1
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 plot_mz_normalized_density <- function(optimized_windows, validated_data) {
 
   cat("  Generating m/z Normalized Density Profiles...\n")
@@ -162,4 +162,3 @@ plot_mz_normalized_density <- function(optimized_windows, validated_data) {
   return(p)
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [plot_density.R] Density visualization functions loaded\n")

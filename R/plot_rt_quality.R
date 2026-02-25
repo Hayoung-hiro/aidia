@@ -30,7 +30,7 @@
 #' @param optimization_plan OptimizationPlan object from Stage 2
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 plot_rt_bin_quality_heatmap <- function(optimized_windows, validated_data, optimization_plan) {
 
   cat("  Generating RT Bin Quality Heatmap...\n")
@@ -264,4 +264,3 @@ plot_rt_bin_quality_heatmap <- function(optimized_windows, validated_data, optim
   return(p)
 }
 
-if (!isNamespaceLoaded("aidia")) cat("  [plot_rt_quality.R] RT bin quality heatmap loaded\n")

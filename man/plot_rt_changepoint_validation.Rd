@@ -26,3 +26,4 @@ adaptive bin boundaries (red) and fixed-width reference boundaries (gray).
 Visually demonstrates how adaptive binning aligns with precursor density
 gradients compared to naive equal-width bins.
 }
+\keyword{internal}

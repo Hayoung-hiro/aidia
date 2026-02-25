@@ -289,11 +289,6 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
 #' @keywords internal
 apply_sg_smoothing_to_mz_ranges <- function(mz_ranges, smoothing_window,
                                              polynomial_order, precursor_data) {
-  # Load smoothing utilities if not already loaded
-  if (!exists("smooth_savgol") && !isNamespaceLoaded("aidia")) {
-    source("R/smoothing_utils.R")
-  }
-
   n_bins <- nrow(mz_ranges)
 
   # Adaptive smoothing window
@@ -473,16 +468,6 @@ optimize_mz_ranges_greedy_internal <- function(precursor_data, rt_stats,
   # Phase 2: Apply Savitzky-Golay smoothing (following dynamicDIA.py)
   # =========================================================================
   if (apply_smoothing && n_bins >= 3) {
-    # Load smoothing utilities if not already loaded
-    if (!exists("smooth_savgol") && !isNamespaceLoaded("aidia")) {
-      tryCatch({
-        source("R/smoothing_utils.R")
-      }, error = function(e) {
-        cat("     Warning: Could not load smoothing_utils.R, skipping smoothing\n")
-        apply_smoothing <- FALSE
-      })
-    }
-
     if (apply_smoothing && exists("smooth_savgol")) {
       # Adaptive window size based on number of bins
       adaptive_window <- min(smoothing_window, floor(n_bins * 0.7))
@@ -762,4 +747,3 @@ optimize_mz_ranges_kde_internal <- function(precursor_data, rt_stats,
 }
 
 
-if (!isNamespaceLoaded("aidia")) cat("  [mz_optimization.R] m/z optimization functions loaded\n")

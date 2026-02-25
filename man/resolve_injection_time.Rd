@@ -44,3 +44,4 @@ resolve_injection_time("auto", 7500, "orbitrap")
 # Explicit IT value -> returned unchanged
 resolve_injection_time(50, 30000, "orbitrap")  # Returns 50
 }
+\keyword{internal}

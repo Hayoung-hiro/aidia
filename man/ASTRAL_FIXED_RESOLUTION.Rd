@@ -14,4 +14,4 @@ ASTRAL_FIXED_RESOLUTION
 The Astral uses a Multi-Reflection TOF design with fixed resolution.
 Scan rate is determined by injection time, not resolution.
 }
-\keyword{datasets}
+\keyword{internal}

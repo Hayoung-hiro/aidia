@@ -26,7 +26,7 @@
 #' @param fixed_bin_width Numeric, reference fixed bin width in minutes (default: 5)
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 plot_rt_changepoint_validation <- function(validated_data,
                                            optimized_windows,
                                            fixed_bin_width = 5) {
@@ -130,7 +130,7 @@ plot_rt_changepoint_validation <- function(validated_data,
 #' @param optimized_windows OptimizedWindows object from Stage 3 (adaptive mode)
 #'
 #' @return ggplot object
-#' @export
+#' @keywords internal
 plot_ks_statistic_trace <- function(optimized_windows) {
 
   # --- Guard: adaptive_info must exist ---
@@ -244,6 +244,3 @@ plot_ks_statistic_trace <- function(optimized_windows) {
   return(p)
 }
 
-# Module Load Message -------------------------------------------------------
-
-if (!isNamespaceLoaded("aidia")) cat("  [plot_rt_changepoint.R] RT change point validation plots loaded\n")
