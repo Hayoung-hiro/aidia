@@ -7,6 +7,7 @@
 optimize_windows(
   validated_data,
   optimization_plan,
+  strategy_config = NULL,
   rt_bin_width_min = 5,
   mz_strategy = "quantile",
   window_mode = "density",
@@ -45,6 +46,11 @@ optimize_windows(
 
 \item{optimization_plan}{OptimizationPlan object from Stage 2}
 
+\item{strategy_config}{A strategy_config object created by one of:
+\code{\link[=greedy_config]{greedy_config()}}, \code{\link[=quantile_config]{quantile_config()}}, \code{\link[=coverage_config]{coverage_config()}},
+\code{\link[=outlier_config]{outlier_config()}}, \code{\link[=kde_config]{kde_config()}}. When provided, overrides
+mz_strategy and all strategy-specific parameters below.}
+
 \item{rt_bin_width_min}{Numeric, RT bin width in minutes (default: 5)
 \itemize{
 \item Recommended: 3-7 minutes for typical proteomics gradients
@@ -52,7 +58,8 @@ optimize_windows(
 \item Longer bins: Simpler, fewer total windows
 }}
 
-\item{mz_strategy}{Character, m/z optimization strategy (default: "quantile")
+\item{mz_strategy}{Character, m/z optimization strategy (default: "quantile").
+Ignored when strategy_config is provided.
 \itemize{
 \item "greedy": MacCoss Lab algorithm, maximize precursor count (recommended)
 \item "kde": Kernel Density Estimation, find density peak and expand
@@ -141,23 +148,16 @@ the specified number of windows, resulting in total_windows = n_bins x n_windows
 }
 \examples{
 \dontrun{
-# Basic usage
+# New way: strategy config objects (recommended)
 windows <- optimize_windows(
-  validated_data,
-  optimization_plan,
-  rt_bin_width_min = 5,
-  mz_strategy = "quantile",
-  window_mode = "density"
+  validated_data, optimization_plan,
+  strategy_config = greedy_config(apply_smoothing = TRUE)
 )
 
-# Conservative settings
+# Legacy way: flat parameters (still works)
 windows <- optimize_windows(
-  validated_data,
-  optimization_plan,
-  rt_bin_width_min = 3,
-  mz_strategy = "coverage",
-  target_coverage = 0.98,
-  window_mode = "density"
+  validated_data, optimization_plan,
+  mz_strategy = "quantile", window_mode = "density"
 )
 }
 }

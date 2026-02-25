@@ -37,7 +37,12 @@
 #'   - Recommended: 3-7 minutes for typical proteomics gradients
 #'   - Shorter bins: Better RT specificity, more bins to manage
 #'   - Longer bins: Simpler, fewer total windows
-#' @param mz_strategy Character, m/z optimization strategy (default: "quantile")
+#' @param strategy_config A strategy_config object created by one of:
+#'   [greedy_config()], [quantile_config()], [coverage_config()],
+#'   [outlier_config()], [kde_config()]. When provided, overrides
+#'   mz_strategy and all strategy-specific parameters below.
+#' @param mz_strategy Character, m/z optimization strategy (default: "quantile").
+#'   Ignored when strategy_config is provided.
 #'   - "greedy": MacCoss Lab algorithm, maximize precursor count (recommended)
 #'   - "kde": Kernel Density Estimation, find density peak and expand
 #'   - "quantile": Use percentiles (P5-P95), fast and robust
@@ -83,28 +88,22 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Basic usage
+#' # New way: strategy config objects (recommended)
 #' windows <- optimize_windows(
-#'   validated_data,
-#'   optimization_plan,
-#'   rt_bin_width_min = 5,
-#'   mz_strategy = "quantile",
-#'   window_mode = "density"
+#'   validated_data, optimization_plan,
+#'   strategy_config = greedy_config(apply_smoothing = TRUE)
 #' )
 #'
-#' # Conservative settings
+#' # Legacy way: flat parameters (still works)
 #' windows <- optimize_windows(
-#'   validated_data,
-#'   optimization_plan,
-#'   rt_bin_width_min = 3,
-#'   mz_strategy = "coverage",
-#'   target_coverage = 0.98,
-#'   window_mode = "density"
+#'   validated_data, optimization_plan,
+#'   mz_strategy = "quantile", window_mode = "density"
 #' )
 #' }
 optimize_windows <- function(
   validated_data,
   optimization_plan,
+  strategy_config = NULL,
   rt_bin_width_min = 5,
   mz_strategy = "quantile",
   window_mode = "density",
@@ -143,6 +142,33 @@ optimize_windows <- function(
   timer <- create_timer()
 
   print_header("Stage 3: Window Optimization", width = 55)
+
+  # ===================================================================
+  # Step 0: Unpack strategy_config if provided
+  # ===================================================================
+  if (!is.null(strategy_config)) {
+    if (!inherits(strategy_config, "strategy_config")) {
+      stop("strategy_config must be created by greedy_config(), quantile_config(), etc.")
+    }
+    sc <- as.list(strategy_config)
+    mz_strategy <- sc$strategy
+    # Unpack strategy-specific params, keeping non-strategy params from function args
+    if (!is.null(sc$quantile_lower)) quantile_lower <- sc$quantile_lower
+    if (!is.null(sc$quantile_upper)) quantile_upper <- sc$quantile_upper
+    if (!is.null(sc$quantile_apply_smoothing)) quantile_apply_smoothing <- sc$quantile_apply_smoothing
+    if (!is.null(sc$target_coverage)) target_coverage <- sc$target_coverage
+    if (!is.null(sc$coverage_mode)) coverage_mode <- sc$coverage_mode
+    if (!is.null(sc$outlier_threshold)) outlier_threshold <- sc$outlier_threshold
+    if (!is.null(sc$outlier_apply_smoothing)) outlier_apply_smoothing <- sc$outlier_apply_smoothing
+    if (!is.null(sc$mz_step)) mz_step <- sc$mz_step
+    if (!is.null(sc$greedy_apply_smoothing)) greedy_apply_smoothing <- sc$greedy_apply_smoothing
+    if (!is.null(sc$kde_density_threshold)) kde_density_threshold <- sc$kde_density_threshold
+    if (!is.null(sc$kde_min_coverage)) kde_min_coverage <- sc$kde_min_coverage
+    if (!is.null(sc$smoothing_window)) smoothing_window <- sc$smoothing_window
+    if (!is.null(sc$polynomial_order)) polynomial_order <- sc$polynomial_order
+    # n_windows_override: only set from greedy config
+    if ("n_windows_override" %in% names(sc)) n_windows_override <- sc$n_windows_override
+  }
 
   # ===================================================================
   # Step 1: Input Validation
