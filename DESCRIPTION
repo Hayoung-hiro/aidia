@@ -1,6 +1,6 @@
 Package: aidia
 Title: Adaptive Isolation for DIA - Your Aid for Window Optimization
-Version: 0.1.0
+Version: 0.2.0
 Authors@R:
     person("KBSI", "Proteomics", , "proteomics@kbsi.re.kr", role = c("aut", "cre"))
 Description: AIDIA (Adaptive Isolation for DIA) aids researchers in optimizing

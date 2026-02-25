@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**AIDIA v0.1.0** (Adaptive Isolation for DIA) - R package for optimizing Data-Independent Acquisition (DIA) isolation windows for mass spectrometry. Uses DIA-NN results to generate optimized RT-dependent isolation windows for **Thermo Fisher Orbitrap** instruments.
+**AIDIA v0.2.0** (Adaptive Isolation for DIA) - R package for optimizing Data-Independent Acquisition (DIA) isolation windows for mass spectrometry. Uses DIA-NN results to generate optimized RT-dependent isolation windows for **Thermo Fisher Orbitrap** instruments.
 
-**Status**: Development (All 4 pipeline stages complete, packaging in progress)
+**Status**: Development (4-stage pipeline complete, modular architecture)
 
 ### Instrument Focus
 
@@ -44,6 +44,9 @@ results <- run_complete_pipeline(
 ### Testing
 
 ```r
+# testthat unit tests (recommended — uses devtools::load_all() automatically)
+devtools::test()
+
 # Functional tests (require real data in data/ directory)
 source("tests/manual/test_stage1_real_data.R")
 source("tests/manual/test_stage2_real_data.R")
@@ -54,9 +57,6 @@ source("tests/manual/test_full_pipeline.R")     # End-to-end integration
 # Strategy-specific tests
 source("tests/manual/test_greedy_strategy.R")
 source("tests/manual/test_kde_strategy.R")
-
-# testthat unit tests
-testthat::test_dir("tests/testthat")
 ```
 
 ### Shiny Web App
@@ -80,19 +80,20 @@ Stage 1: Data Validation
   Input:  DIA-NN parquet/TSV
   Output: ValidatedData (5-6 essential columns)
   Main:   create_validated_dataset()
-  File:   R/data_validation.R (537 lines)
+  File:   R/data_validation.R
 
 Stage 2: Optimization Planning
   Input:  ValidatedData + experiment config
   Output: OptimizationPlan (DPPP diagnosis, window count, cycle time)
   Main:   plan_optimization()
-  File:   R/optimization_planning.R (1,006 lines)
+  File:   R/optimization_planning.R
 
-Stage 3: Window Optimization + Export  [MODULARIZED]
+Stage 3: Window Optimization + Export
   Input:  ValidatedData + OptimizationPlan
   Output: OptimizedWindows + 22-column CSV files
-  Main:   optimize_windows()
+  Main:   optimize_windows()  (accepts optional strategy_config)
   File:   R/window_optimization.R (orchestrator)
+          R/strategy_config.R (5 strategy constructors)
           R/mz_optimization.R (5 strategies)
           R/window_generation.R (3 modes)
           R/export_methods.R (Thermo CSV)
@@ -104,19 +105,31 @@ Stage 4: Visualization (Plots Only)
   Output: Plots + PDF report
   Main:   generate_visualizations()
   File:   R/visualization.R (orchestrator)
-          R/plot_*.R (13 modular plot files, including 7 legacy)
+          R/plot_*.R (13 modular plot files)
 ```
 
 **Design Principle**: Stage 3 handles all data export. Stage 4 is visualization-only.
 
+### Shared Utility Modules
+
+Extracted from the original monolithic `utils_common.R`:
+
+| Module | Contents |
+|--------|----------|
+| `R/dppp.R` | `PEAK_WIDTH_FACTOR`, `calculate_dppp()`, `ensure_fwhm_seconds()`, `estimate_window_count_preview()` |
+| `R/precursor_matching.R` | `count_precursors_in_windows()`, `count_precursors_in_2d_windows()` |
+| `R/validation_helpers.R` | `validate_input_type()`, `validate_numeric_range()`, `validate_positive_integer()` |
+| `R/strategy_config.R` | `greedy_config()`, `quantile_config()`, `coverage_config()`, `outlier_config()`, `kde_config()` |
+| `R/utils_common.R` | Progress/UI helpers, stats, data access, timing, output filenames, gradient heuristics |
+
 ### Shared API Layer
 
-Canonical functions that ALL entry points (main.R, inst/shiny_app/app.R) must use:
+Canonical functions that ALL entry points (main.R, Shiny app) must use:
 
 | Function | Location | Purpose |
 |----------|----------|---------|
-| `ensure_fwhm_seconds()` | `R/utils_common.R` | Auto-detect minutes vs seconds, convert |
-| `estimate_window_count_preview()` | `R/utils_common.R` | Quick window count from FWHM/DPPP/MS2 |
+| `ensure_fwhm_seconds()` | `R/dppp.R` | Auto-detect minutes vs seconds, convert |
+| `estimate_window_count_preview()` | `R/dppp.R` | Quick window count from FWHM/DPPP/MS2 |
 | `extract_gradient_name()` | `R/utils_common.R` | Parse gradient name from file path |
 | `estimate_cycle_time()` | `R/utils_common.R` | Estimate cycle time from gradient length |
 | `is_orbitrap_instrument()` | `R/instrument_utils.R` | Data-driven from JSON `analyzer_type` |
@@ -127,8 +140,26 @@ Canonical functions that ALL entry points (main.R, inst/shiny_app/app.R) must us
 
 ### S3 Class Hierarchy
 
-Defined in `R/s3_classes.R` (760 lines). Each stage produces a typed S3 object:
+Defined in `R/s3_classes.R` (766 lines). Each stage produces a typed S3 object:
 - `ValidatedData` → `OptimizationPlan` → `OptimizedWindows`
+
+### Shiny App Module Structure
+
+3-Step Wizard (Data → Setup → Results), decomposed into 7 files:
+
+```
+inst/shiny_app/
+  app.R                  (orchestrator: source + wire modules)
+  ui_step1_data.R        (Step 1: upload, data summary, DPPP preview)
+  ui_step2_setup.R       (Step 2: instrument, strategy, RT binning, expert)
+  ui_step3_results.R     (Step 3: before/after, window preview, downloads)
+  server_instrument.R    (cycle time reactive — returned to other modules)
+  server_data.R          (upload handler, DPPP preview, info boxes)
+  server_optimization.R  (run optimization, results display, summary tables)
+  server_downloads.R     (CSV + PDF download handlers)
+```
+
+Key design: `server_instrument()` returns the `cycle_time_result` reactive, which `server_data()` and `server_optimization()` receive as a parameter. No Shiny `NS()` namespacing — all `conditionalPanel` JS conditions preserved as-is.
 
 ---
 
@@ -149,7 +180,22 @@ cycle_time <- max(MS1_time, n_windows * MS2_time)
 cycle_time <- MS1_time + (n_windows * MS2_time)
 ```
 
-Resolution-to-transient time conversion is handled by `R/instrument_utils.R` (1,534 lines) with per-instrument lookup tables.
+Resolution-to-transient time conversion is handled by `R/instrument_utils.R` (1,299 lines) with per-instrument lookup tables.
+
+### Strategy Config Objects
+
+Instead of passing 15+ flat parameters to `optimize_windows()`, use typed config constructors:
+
+```r
+# New way (recommended)
+optimize_windows(data, plan, strategy_config = greedy_config(apply_smoothing = TRUE))
+optimize_windows(data, plan, strategy_config = kde_config(density_threshold = 0.05))
+
+# Legacy way (still works, full backward compatibility)
+optimize_windows(data, plan, mz_strategy = "quantile", quantile_lower = 0.05)
+```
+
+Constructors: `greedy_config()`, `quantile_config()`, `coverage_config()`, `outlier_config()`, `kde_config()`
 
 ### m/z Optimization Strategies (5 total)
 
@@ -216,11 +262,12 @@ Three methods in `R/replicate_utils.R`:
 1. Always use **geometric CV** for log-normal intensity data (arithmetic CV underestimates by ~14x)
 2. Run full pipeline test after any changes to ensure stage integration
 3. Stage 3 submodules are all in `R/` top level (no subdirectories — R packages require flat `R/`)
-4. Never inline FWHM conversion — use `ensure_fwhm_seconds()` from `R/utils_common.R`
-5. Never inline window count formula — use `estimate_window_count_preview()` from `R/utils_common.R`
+4. Never inline FWHM conversion — use `ensure_fwhm_seconds()` from `R/dppp.R`
+5. Never inline window count formula — use `estimate_window_count_preview()` from `R/dppp.R`
 6. All plots live in `R/plot_*.R` (flat in `R/`, no subdirectories)
-8. Config files: `inst/config/instruments.json` (use `system.file("config", "instruments.json", package = "aidia")`)
-9. Shiny app: `inst/shiny_app/` (launch via `aidia::run_aidia_app()`)
+7. Config files: `inst/config/instruments.json` (use `system.file("config", "instruments.json", package = "aidia")`)
+8. Shiny app: `inst/shiny_app/` — 7 module files, launch via `aidia::run_aidia_app()`
+9. Run `devtools::test()` (not `testthat::test_dir()`) for unit tests during development
 
 ---
 
@@ -243,7 +290,7 @@ optimize_mz_ranges_newstrategy_internal <- function(data, rt_bins, ...) {
 
 1. Add to `inst/config/instruments.json` with scan times, cycle calculation mode, and `analyzer_type`
 2. Add resolution/transient lookup table in `R/instrument_utils.R` (if Orbitrap)
-3. Add to Shiny `selectInput` choices in `inst/shiny_app/app.R`
+3. Add to Shiny `selectInput` choices in `inst/shiny_app/ui_step2_setup.R`
 4. Instrument classification (`is_orbitrap_instrument()` etc.) is automatic from JSON `analyzer_type`
 
 ### Adding New Plots
@@ -262,12 +309,20 @@ Core (Imports in DESCRIPTION):
 Optional (Suggests in DESCRIPTION):
 - `prospectr` (Savitzky-Golay), `yaml` (config)
 - `shiny` + `bs4Dash` + `shinyjs` + `shinybusy` + `DT` (web app)
-- `future` + `future.apply` (parallel processing)
 - `testthat`, `knitr`, `rmarkdown` (development, documentation)
 
 ---
 
 ## Version History
+
+**v0.2.0** (2026-02): Modular architecture refactoring
+- Exports reduced 149 → 61 (internal functions marked `@keywords internal`)
+- Removed source()-era scaffolding (`isNamespaceLoaded` guards, module `cat()` messages)
+- Removed `future`/`future.apply` parallel processing (sequential `lapply` only)
+- Split `utils_common.R` into cohesive modules: `dppp.R`, `precursor_matching.R`, `validation_helpers.R`
+- Added `strategy_config.R`: typed config constructors for `optimize_windows()` (backward compatible)
+- Decomposed Shiny app from monolithic 2,564-line `app.R` into 7 module files
+- 3-Step Wizard UI (Data → Setup → Results) with progressive disclosure
 
 **v0.1.0** (2026-02): R package packaging
 - Proper R package structure: DESCRIPTION, NAMESPACE, .Rbuildignore, inst/
