@@ -1,23 +1,13 @@
 # utils_common.R - Common Utility Functions
 #
-# Purpose: Centralize reusable functions to reduce code duplication
-# and improve maintainability across the DIA Window Optimizer pipeline.
+# Purpose: General-purpose utilities for progress reporting, statistics,
+# data access, unit conversion, timing, and output formatting.
 #
-# Version: 2.0 (Refactored)
-# Last Updated: 2025-10-25
+# Domain-specific modules extracted to dedicated files:
+#   - R/dppp.R: DPPP calculations, FWHM conversion, window count estimation
+#   - R/precursor_matching.R: Window-precursor counting and matching
+#   - R/validation_helpers.R: Input type/range/integer validation
 
-
-# =============================================================================
-# Constants
-# =============================================================================
-
-#' Peak Width Factor for DPPP Calculation
-#'
-#' Chromatographic peak width is approximately 1.7 times the FWHM.
-#' This is a standard constant used in DPPP (Data Points Per Peak) calculations.
-#'
-#' @export
-PEAK_WIDTH_FACTOR <- 1.7
 
 # =============================================================================
 # Progress & UI Functions
@@ -167,90 +157,6 @@ calculate_cv <- function(x, as_percentage = FALSE, na.rm = TRUE) {
 
 
 # =============================================================================
-# Input Validation Functions
-# =============================================================================
-
-#' Validate Input Object Type
-#'
-#' Checks if an object inherits from expected class(es) and provides
-#' informative error messages.
-#'
-#' @param obj Object to validate
-#' @param expected_class Character vector, expected class name(s)
-#' @param param_name Character, parameter name for error message
-#'
-#' @return NULL (invisible), throws error if validation fails
-#' @keywords internal
-validate_input_type <- function(obj, expected_class, param_name = "input") {
-  if (!any(sapply(expected_class, function(cls) inherits(obj, cls)))) {
-    stop(sprintf(
-      "%s must be of type %s, but got: %s",
-      param_name,
-      paste(expected_class, collapse = " or "),
-      paste(class(obj), collapse = ", ")
-    ))
-  }
-  invisible(NULL)
-}
-
-#' Validate Numeric Range
-#'
-#' Checks if a numeric value is within specified range.
-#'
-#' @param value Numeric, value to check
-#' @param min Numeric, minimum allowed value (inclusive, NULL = no min)
-#' @param max Numeric, maximum allowed value (inclusive, NULL = no max)
-#' @param param_name Character, parameter name for error message
-#'
-#' @return NULL (invisible), throws error if validation fails
-#' @keywords internal
-validate_numeric_range <- function(value, min = NULL, max = NULL,
-                                   param_name = "value") {
-  if (!is.numeric(value) || length(value) != 1) {
-    stop(sprintf("%s must be a single numeric value", param_name))
-  }
-
-  if (!is.null(min) && value < min) {
-    stop(sprintf("%s must be >= %.2f, got: %.2f", param_name, min, value))
-  }
-
-  if (!is.null(max) && value > max) {
-    stop(sprintf("%s must be <= %.2f, got: %.2f", param_name, max, value))
-  }
-
-  invisible(NULL)
-}
-
-#' Validate Positive Integer
-#'
-#' Checks if a value is a positive integer.
-#'
-#' @param value Numeric, value to check
-#' @param param_name Character, parameter name for error message
-#' @param allow_zero Logical, allow zero (default: FALSE)
-#'
-#' @return NULL (invisible), throws error if validation fails
-#' @keywords internal
-validate_positive_integer <- function(value, param_name = "value",
-                                      allow_zero = FALSE) {
-  if (!is.numeric(value) || length(value) != 1) {
-    stop(sprintf("%s must be a single numeric value", param_name))
-  }
-
-  if (value != floor(value)) {
-    stop(sprintf("%s must be an integer, got: %.2f", param_name, value))
-  }
-
-  min_val <- if (allow_zero) 0 else 1
-  if (value < min_val) {
-    stop(sprintf("%s must be >= %d, got: %d", param_name, min_val, value))
-  }
-
-  invisible(NULL)
-}
-
-
-# =============================================================================
 # Data Access Functions (Getters)
 # =============================================================================
 
@@ -297,227 +203,6 @@ get_fwhm_values <- function(validated_data, unit = "seconds") {
   } else {
     stop("unit must be 'seconds' or 'minutes'")
   }
-}
-
-
-# =============================================================================
-# DPPP Calculation Functions
-# =============================================================================
-
-#' Calculate DPPP (Data Points Per Peak)
-#'
-#' Computes DPPP using the standard formula:
-#' DPPP = (peak_width_factor x FWHM_seconds) / cycle_time_seconds
-#'
-#' @param fwhm_seconds Numeric vector, FWHM in seconds
-#' @param cycle_time_sec Numeric, cycle time in seconds
-#' @param peak_width_factor Numeric, peak width factor (default: 1.7)
-#'
-#' @return Numeric vector of DPPP values
-#' @export
-#'
-#' @examples
-#' fwhm <- c(10, 15, 20)  # seconds
-#' cycle_time <- 2  # seconds
-#' dppp <- calculate_dppp(fwhm, cycle_time)
-#' # Returns: c(8.5, 12.75, 17.0)
-calculate_dppp <- function(fwhm_seconds, cycle_time_sec,
-                          peak_width_factor = PEAK_WIDTH_FACTOR) {
-  validate_numeric_range(cycle_time_sec, min = 0, param_name = "cycle_time_sec")
-
-  if (cycle_time_sec == 0) {
-    stop("cycle_time_sec cannot be zero")
-  }
-
-  dppp <- (peak_width_factor * fwhm_seconds) / cycle_time_sec
-  return(dppp)
-}
-
-#' Calculate Satisfaction Ratio
-#'
-#' Computes the proportion of values meeting a target threshold.
-#'
-#' @param values Numeric vector
-#' @param target Numeric, target threshold
-#' @param tolerance Numeric, tolerance around target (default: 0.0)
-#' @param direction Character, "greater" or "within" (default: "greater")
-#'
-#' @return List with satisfaction_ratio, n_satisfied, n_total, threshold
-#' @export
-calculate_satisfaction_ratio <- function(values, target, tolerance = 0.0,
-                                        direction = "greater") {
-  threshold_lower <- target - tolerance
-  threshold_upper <- target + tolerance
-
-  if (direction == "greater") {
-    # Values must be >= threshold_lower
-    meets_target <- values >= threshold_lower
-  } else if (direction == "within") {
-    # Values must be within [threshold_lower, threshold_upper]
-    meets_target <- values >= threshold_lower & values <= threshold_upper
-  } else {
-    stop("direction must be 'greater' or 'within'")
-  }
-
-  satisfaction_ratio <- mean(meets_target, na.rm = TRUE)
-  n_satisfied <- sum(meets_target, na.rm = TRUE)
-  n_total <- length(values)
-
-  list(
-    satisfaction_ratio = satisfaction_ratio,
-    n_satisfied = n_satisfied,
-    n_total = n_total,
-    threshold_lower = threshold_lower,
-    threshold_upper = if (direction == "within") threshold_upper else NULL,
-    meets_target = meets_target
-  )
-}
-
-
-# =============================================================================
-# Window-Precursor Matching (Optimized)
-# =============================================================================
-
-#' Count Precursors in Windows (Vectorized)
-#'
-#' Efficiently counts precursors in each window using vectorized operations.
-#' This is 50-100x faster than nested loops.
-#'
-#' @param precursor_mz Numeric vector, precursor m/z values
-#' @param window_starts Numeric vector, window start m/z values
-#' @param window_ends Numeric vector, window end m/z values
-#'
-#' @return Integer vector, precursor count per window
-#' @keywords internal
-#'
-#' @examples
-#' precursors <- c(400.5, 450.2, 500.8, 550.3, 600.1)
-#' starts <- c(400, 500, 600)
-#' ends <- c(500, 600, 700)
-#' counts <- count_precursors_in_windows(precursors, starts, ends)
-#' # Returns: c(2, 2, 1)
-count_precursors_in_windows <- function(precursor_mz, window_starts,
-                                       window_ends) {
-  n_windows <- length(window_starts)
-
-  if (length(window_ends) != n_windows) {
-    stop("window_starts and window_ends must have same length")
-  }
-
-  # Use cut() for efficient binning
-  # Create breaks vector combining all boundaries
-  breaks <- c(window_starts, window_ends[n_windows])
-  breaks <- unique(sort(breaks))  # Remove duplicates and sort
-
-  # Assign each precursor to a window
-  assignments <- cut(precursor_mz,
-                     breaks = breaks,
-                     include.lowest = TRUE,
-                     right = FALSE,  # [start, end)
-                     labels = FALSE)
-
-  # Count precursors per window
-  counts <- as.vector(table(factor(assignments, levels = 1:n_windows)))
-
-  return(counts)
-}
-
-#' Count Precursors in 2D Windows (RT x m/z)
-#'
-#' Memory-efficient function to count precursors in each 2D window.
-#' Groups windows by RT segment and uses findInterval() on sorted m/z
-#' for O(n + m*log(n)) time and O(n + m) memory instead of O(n*m).
-#'
-#' @param precursor_rt Numeric vector, precursor retention times
-#' @param precursor_mz Numeric vector, precursor m/z values
-#' @param window_rt_start Numeric vector, window RT start values
-#' @param window_rt_end Numeric vector, window RT end values
-#' @param window_mz_start Numeric vector, window m/z start values
-#' @param window_mz_end Numeric vector, window m/z end values
-#'
-#' @return Integer vector with precursor counts for each window
-#' @keywords internal
-#'
-#' @examples
-#' rt <- c(10.1, 10.5, 20.2, 20.8)
-#' mz <- c(400.5, 450.2, 500.8, 550.3)
-#' win_rt_start <- c(10, 20)
-#' win_rt_end <- c(15, 25)
-#' win_mz_start <- c(400, 500)
-#' win_mz_end <- c(500, 600)
-#' counts <- count_precursors_in_2d_windows(rt, mz, win_rt_start, win_rt_end,
-#'                                           win_mz_start, win_mz_end)
-#' # Returns: c(2, 2) - first window has 2 precursors, second has 2
-count_precursors_in_2d_windows <- function(precursor_rt, precursor_mz,
-                                            window_rt_start, window_rt_end,
-                                            window_mz_start, window_mz_end) {
-  n_windows <- length(window_rt_start)
-  n_precursors <- length(precursor_rt)
-
-  # Validate inputs
-  if (length(window_rt_end) != n_windows ||
-      length(window_mz_start) != n_windows ||
-      length(window_mz_end) != n_windows) {
-    stop("All window vectors must have same length")
-  }
-
-  if (length(precursor_mz) != n_precursors) {
-    stop("precursor_rt and precursor_mz must have same length")
-  }
-
-  counts <- integer(n_windows)
-
-  # Group windows by unique RT segment to avoid redundant RT filtering
-  # Each RT segment shares the same rt_start/rt_end
-  rt_key <- paste(window_rt_start, window_rt_end, sep = "_")
-  unique_rt <- unique(data.frame(
-    rt_start = window_rt_start,
-    rt_end = window_rt_end,
-    key = rt_key,
-    stringsAsFactors = FALSE
-  ))
-
-  for (r in seq_len(nrow(unique_rt))) {
-    # Filter precursors in this RT segment once
-    rt_mask <- precursor_rt >= unique_rt$rt_start[r] &
-               precursor_rt <= unique_rt$rt_end[r]
-    mz_in_rt <- precursor_mz[rt_mask]
-
-    if (length(mz_in_rt) == 0) next
-
-    # Sort m/z for binary search
-    mz_sorted <- sort(mz_in_rt)
-
-    # Find which windows belong to this RT group
-    win_idx <- which(rt_key == unique_rt$key[r])
-
-    for (w in win_idx) {
-      # findInterval: count of values in [mz_start, mz_end)
-      # left = index of last value < mz_start
-      # right = index of last value <= mz_end (using mz_end as break)
-      left <- findInterval(window_mz_start[w], mz_sorted, left.open = TRUE)
-      right <- findInterval(window_mz_end[w], mz_sorted, left.open = FALSE)
-      counts[w] <- right - left
-    }
-  }
-
-  return(counts)
-}
-
-#' Find Windows Containing Precursor
-#'
-#' For each precursor, finds which windows contain it.
-#' Returns a list where each element corresponds to a precursor.
-#'
-#' @param precursor_mz Numeric, single precursor m/z value
-#' @param window_starts Numeric vector, window start m/z values
-#' @param window_ends Numeric vector, window end m/z values
-#'
-#' @return Integer vector, indices of windows containing this precursor
-#' @keywords internal
-find_windows_for_precursor <- function(precursor_mz, window_starts,
-                                       window_ends) {
-  which(precursor_mz >= window_starts & precursor_mz < window_ends)
 }
 
 
@@ -748,53 +433,10 @@ format_output_filename <- function(type,
   }
 }
 
-# =============================================================================
-# FWHM Unit Conversion
-# =============================================================================
-
-#' Ensure FWHM Values Are in Seconds
-#'
-#' Detects whether FWHM values are in minutes (median < 1) and converts
-#' to seconds if needed. Uses median-based heuristic: chromatographic FWHM
-#' is typically 5-30 seconds, so a median below 1 second is physically
-#' implausible and indicates minutes.
-#'
-#' @param fwhm_vector Numeric vector of FWHM values (may contain NAs)
-#'
-#' @return Numeric vector of FWHM values in seconds
-#' @export
-ensure_fwhm_seconds <- function(fwhm_vector) {
-  fwhm_clean <- fwhm_vector[!is.na(fwhm_vector)]
-  if (length(fwhm_clean) == 0) return(fwhm_vector)
-  if (median(fwhm_clean) < 1) {
-    return(fwhm_vector * 60)
-  }
-  return(fwhm_vector)
-}
-
 
 # =============================================================================
-# Preview / Estimation Helpers
+# Gradient / Cycle Time Heuristics
 # =============================================================================
-
-#' Estimate Window Count for Quick Preview
-#'
-#' Quick estimation of how many MS2 windows fit given FWHM, DPPP target,
-#' and MS2 scan time. Used by Shiny preview and quick_dppp_preview.
-#'
-#' @param fwhm_median_sec Numeric, median FWHM in seconds
-#' @param target_dppp Numeric, target data points per peak
-#' @param ms2_time_sec Numeric, MS2 scan time in seconds
-#' @param min_windows Integer, minimum window count (default: 10)
-#' @param max_windows Integer, maximum window count (default: 200)
-#'
-#' @return Integer, estimated window count clamped to \code{min_windows}:\code{max_windows} range
-#' @export
-estimate_window_count_preview <- function(fwhm_median_sec, target_dppp, ms2_time_sec,
-                                          min_windows = 10, max_windows = 200) {
-  n <- floor((1.7 * fwhm_median_sec) / (target_dppp * ms2_time_sec))
-  max(min_windows, min(max_windows, n))
-}
 
 #' Extract Gradient Name from File Path
 #'
@@ -844,5 +486,3 @@ estimate_cycle_time <- function(gradient_name) {
     return(2.0)  # Long gradient
   }
 }
-
-
