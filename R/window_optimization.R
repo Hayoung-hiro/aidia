@@ -92,8 +92,6 @@ if (!isNamespaceLoaded("aidia")) {
 #' @param coverage_mode Character, coverage strategy mode: "narrowest" or "centered"
 #' @param mz_range_min Numeric, fallback minimum m/z for empty RT bins (default: 400)
 #' @param mz_range_max Numeric, fallback maximum m/z for empty RT bins (default: 1200)
-#' @param use_parallel Logical, enable parallel processing via future (default: FALSE)
-#' @param n_cores Integer or NULL, number of cores (NULL = auto-detect)
 #' @param rt_binning_mode Character, RT binning mode: "fixed" or "adaptive" (default: "fixed")
 #' @param cpd_min_bin_width Numeric, minimum RT bin width in minutes for adaptive binning (default: 1.0)
 #' @param cpd_max_bin_width Numeric, maximum RT bin width in minutes for adaptive binning (default: 15.0)
@@ -156,8 +154,6 @@ optimize_windows <- function(
   outlier_apply_smoothing = FALSE,
   stagger_offset_pct = 0.5,
   coverage_mode = "narrowest",
-  use_parallel = FALSE,
-  n_cores = NULL,
   # RT binning parameters
   rt_binning_mode = "fixed",
   cpd_min_bin_width = 1.0,
@@ -222,18 +218,6 @@ optimize_windows <- function(
 
   print_success("Input validation passed")
 
-  # Resolve parallel settings
-  if (use_parallel) {
-    if (!requireNamespace("future", quietly = TRUE) ||
-        !requireNamespace("future.apply", quietly = TRUE)) {
-      print_warning("future/future.apply not installed. Falling back to sequential.")
-      use_parallel <- FALSE
-    } else {
-      if (is.null(n_cores)) n_cores <- max(1, parallel::detectCores() - 1)
-      n_cores <- min(max(1, n_cores), parallel::detectCores())
-    }
-  }
-
   # Extract key parameters
   # Use override if provided (for Greedy strategy with manual window count)
   if (!is.null(n_windows_override) && n_windows_override > 0) {
@@ -252,19 +236,6 @@ optimize_windows <- function(
   print_info(sprintf("m/z strategy: %s", mz_strategy))
   print_info(sprintf("Window mode: %s", window_mode))
   print_info(sprintf("RT binning mode: %s", rt_binning_mode))
-  if (use_parallel) {
-    print_info(sprintf("Parallel processing: enabled (cores: %d)", n_cores))
-  } else {
-    print_info("Parallel processing: disabled (sequential)")
-  }
-
-  # Set up future plan once for all parallel steps
-  if (use_parallel) {
-    current_plan <- future::plan()
-    future::plan(future::multisession, workers = n_cores)
-    on.exit(future::plan(current_plan), add = TRUE)
-  }
-
   # ===================================================================
   # Step 2: RT Binning
   # ===================================================================
@@ -316,9 +287,7 @@ optimize_windows <- function(
       outlier_apply_smoothing = outlier_apply_smoothing,
       coverage_mode = coverage_mode,
       mz_range_min = mz_range_min,
-      mz_range_max = mz_range_max,
-      use_parallel = use_parallel,
-      n_cores = n_cores
+      mz_range_max = mz_range_max
     )
 
     print_info(sprintf("Optimized m/z ranges for %d RT bins", nrow(mz_ranges)))
@@ -343,8 +312,6 @@ optimize_windows <- function(
     min_width_da = min_width_da,
     max_width_da = max_width_da,
     overlap_percentage = overlap_percentage,
-    use_parallel = use_parallel,
-    n_cores = n_cores,
     stagger_offset_pct = stagger_offset_pct,
     width_grid_step = width_grid_step # Renamed mz_step to width_grid_step for consistency
   )

@@ -14,8 +14,6 @@ generate_windows_internal(
   max_width_da,
   overlap_percentage,
   width_grid_step = 0.5,
-  use_parallel = FALSE,
-  n_cores = NULL,
   stagger_offset_pct = 0.5
 )
 }
@@ -37,10 +35,6 @@ generate_windows_internal(
 \item{overlap_percentage}{Overlap percentage between windows}
 
 \item{width_grid_step}{Grid step for width digitization in Da (default: 0.5)}
-
-\item{use_parallel}{Logical, whether to use parallel processing (default: FALSE)}
-
-\item{n_cores}{Integer, number of cores for parallel processing (NULL = auto)}
 
 \item{stagger_offset_pct}{Numeric, offset percentage for staggered mode (default: 0.5)}
 }

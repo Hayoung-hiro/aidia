@@ -28,8 +28,6 @@
 #' @param max_width_da Maximum window width in Da
 #' @param overlap_percentage Overlap percentage between windows
 #' @param width_grid_step Grid step for width digitization in Da (default: 0.5)
-#' @param use_parallel Logical, whether to use parallel processing (default: FALSE)
-#' @param n_cores Integer, number of cores for parallel processing (NULL = auto)
 #' @param stagger_offset_pct Numeric, offset percentage for staggered mode (default: 0.5)
 #'
 #' @return Data frame with window specifications
@@ -38,15 +36,9 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
                                      n_windows_per_bin, window_mode,
                                      min_width_da, max_width_da,
                                      overlap_percentage, width_grid_step = 0.5,
-                                     use_parallel = FALSE,
-                                     n_cores = NULL,
                                      stagger_offset_pct = 0.5) {
 
   n_bins <- nrow(rt_stats)
-
-  if (use_parallel) {
-    cat("  -> Parallel window generation (future plan set by orchestrator)\n")
-  }
 
   # Prepare indices for iteration
   bin_indices <- 1:n_bins
@@ -115,11 +107,7 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
   }
 
   # Execute processing (plan is set by orchestrator if parallel)
-  if (use_parallel) {
-    all_windows <- future.apply::future_lapply(bin_indices, process_func, future.seed = TRUE)
-  } else {
-    all_windows <- lapply(bin_indices, process_func)
-  }
+  all_windows <- lapply(bin_indices, process_func)
 
   # Combine all windows
   windows <- safe_bind_rows(all_windows)

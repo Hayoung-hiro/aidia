@@ -30,13 +30,10 @@ Imports:
     gridExtra (>= 2.3),
     grid,
     tools,
-    parallel,
     stats,
     utils,
     grDevices
 Suggests:
-    future (>= 1.30.0),
-    future.apply (>= 1.10.0),
     testthat (>= 3.0.0),
     shiny (>= 1.7.0),
     bs4Dash (>= 2.0.0),

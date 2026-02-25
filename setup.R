@@ -84,8 +84,6 @@ optional_packages <- list(
   # Processing
   prospectr  = "0.2.0",
   yaml       = "2.3.0",
-  future     = "1.30.0",
-  future.apply = "1.10.0",
   # Development
   testthat   = "3.0.0"
 )

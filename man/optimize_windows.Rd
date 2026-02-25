@@ -30,8 +30,6 @@ optimize_windows(
   outlier_apply_smoothing = FALSE,
   stagger_offset_pct = 0.5,
   coverage_mode = "narrowest",
-  use_parallel = FALSE,
-  n_cores = NULL,
   rt_binning_mode = "fixed",
   cpd_min_bin_width = 1,
   cpd_max_bin_width = 15,
@@ -108,10 +106,6 @@ optimize_windows(
 \item{stagger_offset_pct}{Numeric, stagger offset fraction 0-1 (default: 0.5)}
 
 \item{coverage_mode}{Character, coverage strategy mode: "narrowest" or "centered"}
-
-\item{use_parallel}{Logical, enable parallel processing via future (default: FALSE)}
-
-\item{n_cores}{Integer or NULL, number of cores (NULL = auto-detect)}
 
 \item{rt_binning_mode}{Character, RT binning mode: "fixed" or "adaptive" (default: "fixed")}
 

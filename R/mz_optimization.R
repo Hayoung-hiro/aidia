@@ -40,8 +40,6 @@
 #' @param coverage_mode Character: "narrowest" (default) or "centered"
 #' @param mz_range_min Numeric, fallback minimum m/z for empty bins (default: 400)
 #' @param mz_range_max Numeric, fallback maximum m/z for empty bins (default: 1200)
-#' @param use_parallel Logical, whether to use parallel processing (default: FALSE)
-#' @param n_cores Integer or NULL, number of cores (NULL = auto, set by orchestrator)
 #'
 #' @return Data frame with m/z ranges per RT segment
 #' @keywords internal
@@ -59,9 +57,7 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
                                        outlier_apply_smoothing = FALSE,
                                        coverage_mode = "narrowest",
                                        mz_range_min = 400,
-                                       mz_range_max = 1200,
-                                       use_parallel = FALSE,
-                                       n_cores = NULL) {
+                                       mz_range_max = 1200) {
 
   n_bins <- nrow(rt_stats)
 
@@ -134,11 +130,7 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
     cat("  -> Coverage mode: CENTERED (expand from median)\n")
   }
 
-  if (use_parallel) {
-    cat("  -> Parallel processing (future plan set by orchestrator)\n\n")
-  } else {
-    cat("  -> Sequential processing\n\n")
-  }
+  cat("  -> Sequential processing\n\n")
 
   # Prepare indices for iteration
   bin_indices <- 1:n_bins
@@ -255,11 +247,7 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
   }
 
   # Execute processing (plan is set by orchestrator if parallel)
-  if (use_parallel) {
-    mz_ranges <- future.apply::future_lapply(bin_indices, process_func, future.seed = TRUE)
-  } else {
-    mz_ranges <- lapply(bin_indices, process_func)
-  }
+  mz_ranges <- lapply(bin_indices, process_func)
 
   # Combine results
   result <- safe_bind_rows(mz_ranges)

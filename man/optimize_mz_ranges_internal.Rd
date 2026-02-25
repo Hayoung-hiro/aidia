@@ -24,9 +24,7 @@ optimize_mz_ranges_internal(
   outlier_apply_smoothing = FALSE,
   coverage_mode = "narrowest",
   mz_range_min = 400,
-  mz_range_max = 1200,
-  use_parallel = FALSE,
-  n_cores = NULL
+  mz_range_max = 1200
 )
 }
 \arguments{
@@ -53,10 +51,6 @@ optimize_mz_ranges_internal(
 \item{mz_range_min}{Numeric, fallback minimum m/z for empty bins (default: 400)}
 
 \item{mz_range_max}{Numeric, fallback maximum m/z for empty bins (default: 1200)}
-
-\item{use_parallel}{Logical, whether to use parallel processing (default: FALSE)}
-
-\item{n_cores}{Integer or NULL, number of cores (NULL = auto, set by orchestrator)}
 }
 \value{
 Data frame with m/z ranges per RT segment
