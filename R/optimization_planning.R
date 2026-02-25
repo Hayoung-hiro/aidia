@@ -50,62 +50,6 @@ estimate_cycle_time_from_gradient <- function(rt_values, verbose = TRUE) {
   cycle_time
 }
 
-#' Estimate Cycle Time from Gradient (V2 - FWHM-Aware)
-#'
-#' Improved auto-estimation that uses FWHM distribution when available.
-#' Falls back to heuristic method if FWHM not provided.
-#'
-#' @param rt_values Numeric vector of RT.Start values (in minutes)
-#' @param fwhm_seconds Numeric vector of FWHM values in seconds (optional)
-#' @param target_dppp Numeric, target DPPP for FWHM-based calculation (default: 7.0)
-#' @param satisfaction_target Numeric, target satisfaction ratio (default: 0.85)
-#' @param verbose Logical, whether to print estimation message (default: TRUE)
-#' @return Estimated cycle time in seconds
-#' @keywords internal
-estimate_cycle_time_from_gradient_v2 <- function(rt_values,
-                                                   fwhm_seconds = NULL,
-                                                   target_dppp = 7.0,
-                                                   satisfaction_target = 0.85,
-                                                   verbose = TRUE) {
-  gradient_length <- max(rt_values) - min(rt_values)
-
-  # Method 1: Original heuristic (fallback)
-  heuristic_estimate <- min(gradient_length / 15, 3.5)
-
-  # Method 2: FWHM-based (preferred if available)
-  if (!is.null(fwhm_seconds) && length(fwhm_seconds) >= 10) {
-    # Use critical percentile based on satisfaction target
-    critical_percentile <- 1 - satisfaction_target
-    fwhm_critical <- quantile(fwhm_seconds, critical_percentile, names = FALSE)
-
-    # DPPP formula: cycle_time = (1.7 * FWHM) / target_dppp
-    fwhm_estimate <- (PEAK_WIDTH_FACTOR * fwhm_critical) / target_dppp
-
-    # Use more conservative (smaller) estimate
-    cycle_time <- min(heuristic_estimate, fwhm_estimate)
-
-    if (verbose) {
-      cat(sprintf("  [i] Auto-estimated cycle time: %.3f sec\n", cycle_time))
-      cat(sprintf("       - Heuristic (gradient/15): %.3f sec\n", heuristic_estimate))
-      cat(sprintf("       - FWHM-based (DPPP %.1f): %.3f sec\n", target_dppp, fwhm_estimate))
-    }
-  } else {
-    cycle_time <- heuristic_estimate
-    if (verbose) {
-      cat(sprintf("  [i] Auto-estimated cycle time: %.3f sec (from %.1f min gradient)\n",
-                  cycle_time, gradient_length))
-      if (is.null(fwhm_seconds)) {
-        cat("       (FWHM not available, using heuristic)\n")
-      } else if (length(fwhm_seconds) < 10) {
-        cat(sprintf("       (Only %d FWHM values, need >=10 for FWHM-based estimate)\n",
-                    length(fwhm_seconds)))
-      }
-    }
-  }
-
-  cycle_time
-}
-
 # =============================================================================
 # Main Planning Function
 # =============================================================================

@@ -22,7 +22,7 @@ extract_dppp_inputs <- function(optimization_plan, validated_data) {
     target_dppp = optimization_plan$parameters$target_dppp,
     fwhm_data = validated_data$data %>%
       select(FWHM) %>%
-      mutate(FWHM_sec = FWHM * 60)
+      mutate(FWHM_sec = ensure_fwhm_seconds(FWHM))
   )
 }
 

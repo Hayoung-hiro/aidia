@@ -160,7 +160,7 @@ plot_rt_bin_quality_heatmap <- function(optimized_windows, validated_data, optim
           NA_real_
         } else {
           # Calculate DPPP for precursors in this bin
-          fwhm_sec <- bin_precursors$FWHM * 60  # Convert minutes to seconds
+          fwhm_sec <- ensure_fwhm_seconds(bin_precursors$FWHM)
           dppp_values <- calculate_dppp(fwhm_sec, cycle_time_sec)
 
           # Fraction meeting target

@@ -23,7 +23,7 @@
 #'
 #' @return Numeric, satisfaction ratio (0-1)
 calculate_satisfaction <- function(validated_data, cycle_time_sec, target_dppp) {
-  fwhm_sec <- validated_data$data$FWHM * 60  # Convert to seconds
+  fwhm_sec <- ensure_fwhm_seconds(validated_data$data$FWHM)
   dppp <- calculate_dppp(fwhm_sec, cycle_time_sec)
   satisfaction <- mean(dppp >= target_dppp, na.rm = TRUE)
   return(satisfaction)

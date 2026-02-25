@@ -38,7 +38,7 @@ plot_satisfaction_curve <- function(optimization_plan, validated_data,
   target_satisfaction <- optimization_plan$parameters$target_satisfaction * 100
 
   # Extract FWHM data
-  fwhm_sec <- validated_data$data$FWHM * 60  # Convert to seconds
+  fwhm_sec <- ensure_fwhm_seconds(validated_data$data$FWHM)
 
   # Calculate satisfaction across cycle time range
   cycle_times <- seq(cycle_time_range[1], cycle_time_range[2], length.out = n_points)

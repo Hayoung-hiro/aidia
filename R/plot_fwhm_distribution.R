@@ -32,7 +32,7 @@ plot_fwhm_distribution <- function(validated_data, optimization_plan = NULL) {
 
   # Extract FWHM in seconds (convert from minutes)
   data <- validated_data$data
-  fwhm_sec <- data$FWHM * 60
+  fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
 
   # Calculate statistics
   n_precursors <- length(fwhm_sec)

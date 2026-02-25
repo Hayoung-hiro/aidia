@@ -1113,13 +1113,8 @@ server <- function(input, output, session) {
     req(rv$validated_data)
 
     data <- rv$validated_data$data
-    fwhm_values <- data$FWHM
-    median_fwhm <- median(fwhm_values, na.rm = TRUE)
-    if (!is.na(median_fwhm) && median_fwhm < 1) {
-      median_fwhm_sec <- median_fwhm * 60
-    } else {
-      median_fwhm_sec <- median_fwhm
-    }
+    fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
+    median_fwhm_sec <- median(fwhm_sec, na.rm = TRUE)
 
     calc_result <- cycle_time_result()
     ct_text <- if (!is.null(calc_result)) sprintf("%.3f sec", calc_result$cycle_time_sec) else "N/A"
@@ -2256,14 +2251,8 @@ server <- function(input, output, session) {
 
     data <- rv$validated_data$data
 
-    # Convert FWHM to seconds if in minutes (same logic as quick_dppp_preview)
-    fwhm_values <- data$FWHM
-    median_fwhm <- median(fwhm_values, na.rm = TRUE)
-    if (!is.na(median_fwhm) && median_fwhm < 1) {
-      median_fwhm_sec <- median_fwhm * 60  # Convert min to sec
-    } else {
-      median_fwhm_sec <- median_fwhm
-    }
+    fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
+    median_fwhm_sec <- median(fwhm_sec, na.rm = TRUE)
 
     data.frame(
       Metric = c(
