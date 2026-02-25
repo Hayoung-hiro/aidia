@@ -1,6 +1,6 @@
 /* =============================================================================
    AIDIA - Adaptive Isolation for DIA (Custom Shiny Dashboard Styles)
-   Version: 1.0 (bs4Dash / AdminLTE3 / Bootstrap 4)
+   Version: 2.0 (bs4Dash / AdminLTE3 / Bootstrap 4 — 3-Step Wizard)
    ============================================================================= */
 
 /* --- CSS Variables for Theme --- */
@@ -549,34 +549,7 @@ body {
   color: #721c24;
 }
 
-/* --- Progressive Disclosure --- */
-
-/* Details/Summary in sidebar */
-.main-sidebar details summary {
-  color: #bdc3c7;
-  font-size: 12px;
-  cursor: pointer;
-  padding: 8px 15px;
-}
-.main-sidebar details summary:hover {
-  color: #1abc9c;
-}
-.main-sidebar details[open] summary {
-  color: #1abc9c;
-  border-bottom: 1px solid rgba(26,188,156,0.2);
-  margin-bottom: 8px;
-}
-
-/* More Options toggle link */
-#toggle_setup_more {
-  text-decoration: none;
-  transition: color 0.2s;
-}
-#toggle_setup_more:hover {
-  color: #16a085 !important;
-}
-
-/* Info/Warning banners in tabs */
+/* --- Info/Warning Banners --- */
 .tab-banner-info {
   background: rgba(52,152,219,0.08);
   padding: 10px 14px;
@@ -592,8 +565,140 @@ body {
   border-left: 3px solid #f39c12;
 }
 
-/* Nested boxes inside tabs — remove outer shadow for cleaner look */
+/* =============================================================================
+   WIZARD-SPECIFIC STYLES (3-Step: Data → Setup → Results)
+   ============================================================================= */
+
+/* --- Sidebar Step Indicators --- */
+.sidebar .nav-sidebar > .nav-item > .nav-link {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 12px 16px;
+  border-left: 3px solid transparent;
+  transition: all 0.25s ease;
+}
+
+.sidebar .nav-sidebar > .nav-item > .nav-link.active {
+  background-color: rgba(26, 188, 156, 0.12) !important;
+  border-left-color: var(--accent-color) !important;
+  color: #1abc9c !important;
+  font-weight: 600;
+}
+
+.sidebar .nav-sidebar > .nav-item > .nav-link .nav-icon {
+  margin-right: 8px;
+  font-size: 15px;
+}
+
+/* --- Upload Zone --- */
+.upload-zone {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+  background: #fafbfc;
+}
+
+.upload-zone:hover {
+  border-color: var(--accent-color);
+  background: rgba(26, 188, 156, 0.03);
+}
+
+.upload-zone .form-group {
+  margin-bottom: 0;
+}
+
+/* --- Wizard Navigation Bars --- */
+.wizard-nav {
+  padding: 20px 0;
+  margin-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.wizard-nav-right {
+  text-align: right;
+}
+
+.wizard-nav-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Disabled Continue button */
+.wizard-nav .btn[disabled],
+.wizard-nav .btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* --- Before/After Comparison Cards --- */
+/* Primary border accent for BEFORE card */
+.box.box-primary.box-solid {
+  border-left: 4px solid #3498db;
+}
+
+/* Success border accent for AFTER card */
+.box.box-success.box-solid {
+  border-left: 4px solid #27ae60;
+}
+
+/* Comparison card body typography */
+.equal-height-row .box-body {
+  font-size: 14px;
+}
+
+/* --- Results Status Callout --- */
+.callout.callout-success {
+  background-color: #d4edda !important;
+  border-color: #28a745 !important;
+  color: #155724;
+}
+
+.callout.callout-success h5 {
+  color: #155724 !important;
+  font-weight: 700;
+}
+
+/* --- Step Content Spacing --- */
+.tab-pane {
+  animation: fadeIn 0.3s ease;
+}
+
+/* Nested boxes inside wizard steps — subtle border */
 .tab-pane .box {
-  box-shadow: none;
-  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+/* Section labels (A, B, C, D, E) in Setup step */
+.tab-pane .box-header .box-title {
+  font-size: 15px;
+  letter-spacing: 0.3px;
+}
+
+/* --- Download Buttons in Results --- */
+.tab-pane .btn-block.btn-lg {
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+/* --- Collapsed Box Indicator --- */
+.box.collapsed-box > .box-header {
+  border-bottom: none;
+}
+
+.box.collapsed-box > .box-header .box-title {
+  color: var(--muted-text);
+}
+
+.box.collapsed-box > .box-header .box-title::after {
+  content: " (click to expand)";
+  font-size: 11px;
+  font-weight: 400;
+  color: #95a5a6;
+  font-style: italic;
 }

@@ -458,7 +458,8 @@ optimize_windows <- function(
         min_width_da = min_width_da,
         max_width_da = max_width_da,
         overlap_percentage = overlap_percentage,
-        width_grid_step = width_grid_step
+        width_grid_step = width_grid_step,
+        stagger_offset_pct = stagger_offset_pct
       ),
 
       # Metadata
