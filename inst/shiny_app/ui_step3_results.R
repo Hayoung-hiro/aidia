@@ -71,6 +71,34 @@ step3_results_ui <- function() {
         solidHeader = FALSE,
         width = 12,
 
+        # Sample/Project Naming (for output files)
+        fluidRow(
+          column(4,
+            textInput(
+              inputId = "sample_name",
+              label = "Sample/Project Name",
+              value = "",
+              placeholder = "e.g., HeLa_digest"
+            )
+          ),
+          column(4,
+            textInput(
+              inputId = "condition",
+              label = "Condition/Note",
+              value = "",
+              placeholder = "e.g., 60min_gradient"
+            )
+          ),
+          column(4,
+            div(style = "padding-top: 25px;",
+              helpText("Used in output file names. Leave blank for defaults.",
+                       style = "font-size: 11px; color: #7f8c8d;")
+            )
+          )
+        ),
+
+        hr(),
+
         fluidRow(
           column(6,
             downloadButton("download_csv", "Download CSV Method File",
@@ -92,7 +120,7 @@ step3_results_ui <- function() {
         icon("cogs", style = "font-size: 64px; color: #bdc3c7; margin-bottom: 20px;"),
         h4("Run optimization to see results",
            style = "color: #7f8c8d; font-weight: 400;"),
-        p("Configure your settings in the Setup step, then run optimization.",
+        p("Configure your settings in the Strategy step, then run optimization.",
           style = "color: #95a5a6; font-size: 13px;")
       )
     ),
@@ -100,7 +128,7 @@ step3_results_ui <- function() {
     # Navigation
     div(
       class = "wizard-nav wizard-nav-between",
-      actionButton("btn_to_setup_back", "Back to Setup",
+      actionButton("btn_to_setup_back", "Back to Strategy",
                    class = "btn-default btn-lg",
                    icon = icon("arrow-left")),
       actionButton("btn_new_analysis", "New Analysis",

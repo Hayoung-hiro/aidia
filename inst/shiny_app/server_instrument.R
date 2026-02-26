@@ -315,6 +315,46 @@ server_instrument <- function(input, output, session, rv) {
     }
   })
 
+  # --- Output: Expert Settings Cycle Time Feedback (compact, Step 2) ---
+  output$expert_cycle_time_feedback <- renderUI({
+    result <- cycle_time_result()
+    if (is.null(result)) return(NULL)
+
+    ms1_scans <- result$ms1$scans_per_cycle %||% 1
+    is_parallel <- ms1_scans == 0
+
+    eff_pct <- result$ms2$efficiency_pct
+    eff_color <- if (eff_pct >= 95) "#27ae60" else if (eff_pct >= 70) "#f39c12" else "#e74c3c"
+
+    breakdown <- if (is_parallel) {
+      sprintf("MS1: %.0fms (parallel) | MS2: %d x %.1fms",
+              result$ms1$scan_time_ms, result$window_count, result$ms2$scan_time_ms)
+    } else {
+      sprintf("MS1: %.0fms + MS2: %d x %.1fms",
+              result$ms1$scan_time_ms, result$window_count, result$ms2$scan_time_ms)
+    }
+
+    tags$div(
+      style = "background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #1abc9c;",
+      tags$div(
+        style = "display: flex; justify-content: space-between; align-items: center;",
+        tags$div(
+          tags$strong("Current Cycle Time: ", style = "color: #2c3e50;"),
+          tags$span(sprintf("%.3f sec", result$cycle_time_sec),
+                    style = "font-size: 16px; font-weight: 700; color: #1abc9c;")
+        ),
+        tags$span(
+          sprintf("%.0f%% Eff.", eff_pct),
+          style = sprintf("background: %s; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;", eff_color)
+        )
+      ),
+      tags$div(
+        style = "margin-top: 4px; font-size: 11px; color: #7f8c8d;",
+        breakdown
+      )
+    )
+  })
+
   # --- Output: Cycle Time Detail Table (Main Body) ---
   output$cycle_time_detail_table <- renderTable({
     result <- cycle_time_result()

@@ -22,11 +22,11 @@
 #'
 #' @export
 ESSENTIAL_COLUMNS <- c(
-  "Precursor.Id",   # Unique identifier (required for tracking)
-  "RT.Apex",        # Midpoint of RT.Start and RT.Stop (computed in Stage 1)
-  "Precursor.Mz",   # m/z value in Da (Stage 3, 4)
-  "FWHM",           # Full-width at half maximum in minutes (Stage 2, 4)
-  "Protein.Group"   # Protein group for identification (user-requested)
+  "Precursor.Id",      # Unique identifier (required for tracking)
+  "RT.Apex",           # Midpoint of RT.Start and RT.Stop (computed in Stage 1)
+  "Precursor.Mz",      # m/z value in Da (Stage 3, 4)
+  "FWHM",              # Full-width at half maximum in minutes (Stage 2, 4)
+  "Protein.Group"      # Protein group for identification (user-requested)
 )
 
 #' QC Columns Added After Replicate Consensus
@@ -36,6 +36,7 @@ ESSENTIAL_COLUMNS <- c(
 #'
 #' @export
 QC_COLUMNS <- c(
+  "Precursor.Charge",  # Charge state (visualization: FWHM by charge, optional)
   "Precursor.Quantity",  # Median intensity across replicates (for reference)
   "n_replicates",      # Number of replicates per precursor
   "RT_CV_pct",         # RT coefficient of variation (%)

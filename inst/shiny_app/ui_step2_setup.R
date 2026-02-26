@@ -1,109 +1,12 @@
-# ui_step2_setup.R - Step 2: SETUP (Instrument, Strategy, Parameters)
+# ui_step2_setup.R - Step 2: STRATEGY (DPPP Target, Strategy, Parameters)
 
 step2_setup_ui <- function() {
   tabItem(
     tabName = "setup",
 
-    # --- Section A: Instrument & Timing ---
+    # --- Section A: DPPP Target ---
     box(
-      title = "A. Instrument & Timing",
-      status = "primary",
-      solidHeader = TRUE,
-      width = 12,
-
-      fluidRow(
-        # Column 1: Instrument Selection
-        column(4,
-          selectInput(
-            inputId = "instrument",
-            label = "Instrument Preset",
-            choices = c(
-              # Thermo Orbitrap (verified)
-              "Thermo Astral Zoom (270 Hz)" = "astral_zoom",
-              "Thermo Astral (200 Hz)" = "astral",
-              "Thermo Q Exactive (12 Hz)" = "qexactive",
-              "Thermo Q Exactive HF-X (40 Hz)" = "qexactive_hfx",
-              "Thermo Exploris 480 (40 Hz)" = "exploris",
-              "Thermo Eclipse Tribrid (40 Hz)" = "eclipse",
-              "Thermo Fusion Lumos (20 Hz)" = "fusion_lumos"
-              # TODO: Add Bruker TimsTOF, SCIEX, Waters when verified
-            ),
-            selected = "astral_zoom"
-          )
-        ),
-
-        # Column 2: Window Count
-        column(4,
-          numericInput(
-            inputId = "current_window_count",
-            label = "MS2 Window Count",
-            value = 40,
-            min = 10,
-            max = 500,
-            step = 5
-          ),
-          helpText("Number of MS2/DIA isolation windows per cycle",
-                   style = "font-size: 11px; color: #7f8c8d;")
-        ),
-
-        # Column 3: Instrument-specific settings
-        column(4,
-          # MS1 Resolution (Orbitrap only)
-          conditionalPanel(
-            condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
-            selectInput(
-              inputId = "ms1_resolution",
-              label = "MS1 Resolution",
-              choices = c(
-                "15,000" = 15000,
-                "30,000" = 30000,
-                "60,000" = 60000,
-                "120,000" = 120000,
-                "240,000" = 240000,
-                "480,000" = 480000
-              ),
-              selected = 60000
-            ),
-
-            # MS2 Resolution (Orbitrap only)
-            selectInput(
-              inputId = "ms2_resolution",
-              label = "MS2 Resolution",
-              choices = c(
-                "7,500" = 7500,
-                "15,000" = 15000,
-                "30,000" = 30000,
-                "45,000" = 45000,
-                "60,000" = 60000,
-                "120,000" = 120000,
-                "240,000" = 240000
-              ),
-              selected = 15000
-            )
-          ),
-
-          # Astral MS2 IT slider (for Astral instruments)
-          conditionalPanel(
-            condition = "input.instrument == 'astral' || input.instrument == 'astral_zoom' || input.instrument == 'astral_sensitive'",
-            sliderInput(
-              inputId = "astral_ms2_it",
-              label = "Astral MS2 IT (ms)",
-              min = 2,
-              max = 40,
-              value = 3,
-              step = 0.5,
-              post = " ms"
-            ),
-            helpText("3ms: 200 Hz max speed | >3ms: Sensitivity mode",
-                     style = "font-size: 10px; color: #7f8c8d;")
-          )
-        )
-      )
-    ),
-
-    # --- Section B: DPPP Target ---
-    box(
-      title = "B. DPPP Target",
+      title = "A. DPPP Target",
       status = "warning",
       solidHeader = TRUE,
       width = 12,
@@ -156,9 +59,9 @@ step2_setup_ui <- function() {
       )
     ),
 
-    # --- Section C: Strategy & Parameters ---
+    # --- Section B: Strategy & Parameters ---
     box(
-      title = "C. Strategy & Parameters",
+      title = "B. Strategy & Parameters",
       status = "info",
       solidHeader = TRUE,
       width = 12,
@@ -227,20 +130,10 @@ step2_setup_ui <- function() {
           tags$small(
             icon("exchange-alt"), " ",
             tags$strong("Staggered mode:"),
-            " Fixed-width windows with alternating offset between odd/even RT bins. ",
-            "Even bins are shifted by a fraction of the window width, reducing boundary effects ",
+            " Fixed-width windows with 50% offset between odd/even RT bins. ",
+            "Even bins are shifted by half the window width, reducing boundary effects ",
             "where precursors near window edges in one bin are fully covered in adjacent bins.",
             style = "color: #2c3e50; line-height: 1.5;"
-          ),
-          div(style = "margin-top: 8px;",
-            sliderInput(
-              inputId = "stagger_offset_pct",
-              label = "Stagger Offset (%)",
-              min = 10, max = 90, value = 50, step = 10,
-              post = "%"
-            ),
-            helpText("50% = half-window shift (recommended). Lower = less overlap between bins.",
-                     style = "font-size: 10px; color: #7f8c8d;")
           )
         )
       ),
@@ -413,9 +306,9 @@ step2_setup_ui <- function() {
       )
     ),
 
-    # --- Section D: RT Binning (collapsed accordion) ---
+    # --- Section C: RT Binning (collapsed) ---
     box(
-      title = "D. RT Binning",
+      title = "C. RT Binning",
       status = "info",
       solidHeader = FALSE,
       width = 12,
@@ -479,9 +372,9 @@ step2_setup_ui <- function() {
       )
     ),
 
-    # --- Section E: Expert Settings (collapsed accordion + warning) ---
+    # --- Section D: Expert Settings (collapsed + warning) ---
     box(
-      title = "E. Expert Settings",
+      title = "D. Expert Settings",
       status = "warning",
       solidHeader = FALSE,
       width = 12,
@@ -496,6 +389,9 @@ step2_setup_ui <- function() {
           style = "color: #856404;"
         )
       ),
+
+      # Cycle time feedback (reactive to Expert setting changes)
+      uiOutput("expert_cycle_time_feedback"),
 
       fluidRow(
         # Column 1: Injection Time
@@ -559,7 +455,7 @@ step2_setup_ui <- function() {
           # Astral IT note
           conditionalPanel(
             condition = "input.instrument == 'astral' || input.instrument == 'astral_zoom' || input.instrument == 'astral_sensitive'",
-            helpText("Astral MS2 IT is configured in Instrument & Timing above.",
+            helpText("Astral MS2 IT is configured in the Data & Instrument tab.",
                      style = "font-size: 11px; color: #7f8c8d;")
           )
         ),
@@ -604,7 +500,7 @@ step2_setup_ui <- function() {
     # Navigation
     div(
       class = "wizard-nav wizard-nav-between",
-      actionButton("btn_to_data", "Back to Data",
+      actionButton("btn_to_data", "Back to Data & Instrument",
                    class = "btn-default btn-lg",
                    icon = icon("arrow-left")),
       actionButton("run_optimization", "Run Optimization",

@@ -5,7 +5,7 @@ server_downloads <- function(input, output, session, rv) {
   # --- Helper: Generate descriptive filename using pipeline convention ---
   shiny_output_filename <- function(type, ext) {
     params <- rv$optimized_windows$parameters
-    format_output_filename(
+    base_name <- format_output_filename(
       type = type,
       instrument_preset = input$instrument,
       strategy = input$mz_strategy,
@@ -14,6 +14,13 @@ server_downloads <- function(input, output, session, rv) {
       rt_bin_width_min = params$rt_bin_width_min %||% 5,
       ext = ext
     )
+
+    # Prepend sample/condition name if provided
+    parts <- c(trimws(input$sample_name %||% ""),
+               trimws(input$condition %||% ""))
+    prefix <- paste(parts[nchar(parts) > 0], collapse = "_")
+
+    if (nchar(prefix) > 0) paste0(prefix, "_", base_name) else base_name
   }
 
   # --- Download Handler: CSV Method File ---

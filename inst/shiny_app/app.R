@@ -1,16 +1,16 @@
 # =============================================================================
 # AIDIA - Adaptive Isolation for DIA (Shiny Web Application)
 # =============================================================================
-# Version: 2.1.0
+# Version: see DESCRIPTION (single source of truth)
 # Purpose: Web-based interface for DIA isolation window optimization
 # UI: 3-Step Wizard (Data -> Setup -> Results) with progressive disclosure
 # "Your Adaptive Aid for DIA Optimization"
 #
 # Structure:
 #   app.R              - Orchestrator (this file)
-#   ui_step1_data.R    - Step 1: Data upload & confirmation UI
-#   ui_step2_setup.R   - Step 2: Instrument, strategy, parameters UI
-#   ui_step3_results.R - Step 3: Results & downloads UI
+#   ui_step1_data.R    - Step 1: Data upload, instrument, DPPP preview UI
+#   ui_step2_setup.R   - Step 2: DPPP target, strategy, parameters UI
+#   ui_step3_results.R - Step 3: Results, naming & downloads UI
 #   server_instrument.R - Cycle time calculation & instrument displays
 #   server_data.R       - File upload, DPPP preview, data summary
 #   server_optimization.R - Run optimization, results display
@@ -63,19 +63,37 @@ ui <- dashboardPage(
     title = "AIDIA"
   ),
 
-  # --- Sidebar (Wizard Navigation + Cycle Time) ---
+  # --- Sidebar (Navigation + Data Summary + Cycle Time + Pipeline Status) ---
   sidebar = dashboardSidebar(
     width = 250,
+
+    # Logo placeholder (future: tags$img(src = "logo.png"))
+    div(
+      id = "logo_placeholder",
+      style = "text-align: center; padding: 10px 15px 5px 15px;",
+      span("AIDIA", style = "font-size: 18px; font-weight: 700; color: #1abc9c; letter-spacing: 1px;")
+    ),
 
     # Wizard step navigation
     sidebarMenu(
       id = "tabs",
-      menuItem("1. Data", tabName = "data", icon = icon("database")),
-      menuItem("2. Setup", tabName = "setup", icon = icon("sliders-h")),
+      menuItem("1. Data & Instrument", tabName = "data", icon = icon("database")),
+      menuItem("2. Strategy", tabName = "setup", icon = icon("sliders-h")),
       menuItem("3. Results", tabName = "results", icon = icon("chart-bar"))
     ),
 
     hr(),
+
+    # Data Summary (compact, shown after data load)
+    conditionalPanel(
+      condition = "output.data_loaded",
+      div(
+        style = "padding: 4px 15px 8px 15px;",
+        h5("Data Summary", style = "margin: 0 0 6px 0; color: #ecf0f1; font-size: 13px;"),
+        uiOutput("sidebar_data_summary")
+      ),
+      hr()
+    ),
 
     # Calculated Cycle Time Display (reactive feedback - always visible)
     div(
@@ -96,6 +114,15 @@ ui <- dashboardPage(
         style = "margin-top: 4px;",
         uiOutput("efficiency_badge")
       )
+    ),
+
+    hr(),
+
+    # Pipeline Status (compact, replaces Step 1 info boxes)
+    div(
+      style = "padding: 4px 15px;",
+      h5("Pipeline Status", style = "margin: 0 0 6px 0; color: #ecf0f1; font-size: 13px;"),
+      uiOutput("sidebar_pipeline_status")
     )
   ),
 
@@ -178,7 +205,7 @@ ui <- dashboardPage(
 
   # --- Footer ---
   footer = dashboardFooter(
-    left = "AIDIA v2.1.0",
+    left = paste0("AIDIA v", utils::packageVersion("aidia")),
     right = "Adaptive Isolation for DIA"
   ),
 

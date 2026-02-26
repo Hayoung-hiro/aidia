@@ -305,6 +305,102 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
     )
   })
 
+  # --- Output: Sidebar Data Summary (compact) ---
+  output$sidebar_data_summary <- renderUI({
+    req(rv$validated_data)
+    data <- rv$validated_data$data
+    fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
+
+    tags$div(
+      style = "font-size: 11px; color: #bdc3c7; line-height: 1.9;",
+      tags$div(sprintf("Precursors: %s", format(nrow(data), big.mark = ","))),
+      tags$div(sprintf("RT: %.1f - %.1f min", min(data$RT.Apex), max(data$RT.Apex))),
+      tags$div(sprintf("m/z: %.0f - %.0f Da", min(data$Precursor.Mz), max(data$Precursor.Mz))),
+      tags$div(sprintf("FWHM: %.2f sec (median)", median(fwhm_sec, na.rm = TRUE))),
+      tags$div(sprintf("FWHM IQR: %.2f - %.2f sec",
+                       quantile(fwhm_sec, 0.25, na.rm = TRUE),
+                       quantile(fwhm_sec, 0.75, na.rm = TRUE)))
+    )
+  })
+
+  # --- Output: Sidebar Pipeline Status (compact) ---
+  output$sidebar_pipeline_status <- renderUI({
+    data_ok <- rv$data_loaded
+    opt_ok <- rv$optimization_complete
+
+    data_text <- if (data_ok) "Loaded" else "Waiting"
+    data_color <- if (data_ok) "#27ae60" else "#7f8c8d"
+
+    opt_text <- if (opt_ok && !is.null(rv$optimized_windows)) {
+      sprintf("%d windows", nrow(rv$optimized_windows$windows))
+    } else "Pending"
+    opt_color <- if (opt_ok) "#27ae60" else "#7f8c8d"
+
+    export_text <- if (opt_ok) "Ready" else "Waiting"
+    export_color <- if (opt_ok) "#27ae60" else "#7f8c8d"
+
+    tags$div(
+      style = "font-size: 11px; line-height: 2.0;",
+      tags$div(style = sprintf("color: %s;", data_color),
+               tags$span(HTML("&#9679;"), style = "margin-right: 4px;"), "Data: ", data_text),
+      tags$div(style = sprintf("color: %s;", opt_color),
+               tags$span(HTML("&#9679;"), style = "margin-right: 4px;"), "Optimized: ", opt_text),
+      tags$div(style = sprintf("color: %s;", export_color),
+               tags$span(HTML("&#9679;"), style = "margin-right: 4px;"), "Export: ", export_text)
+    )
+  })
+
+  # --- Output: FWHM Distribution Ridgeline (by charge, top 3) ---
+  output$fwhm_ridgeline <- renderPlot({
+    req(rv$validated_data)
+    data <- rv$validated_data$data
+    fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
+
+    # Precursor.Charge is in QC_COLUMNS (kept if available, not required)
+    has_charge <- "Precursor.Charge" %in% colnames(data)
+    charge <- if (has_charge) as.integer(data$Precursor.Charge) else rep(NA_integer_, length(fwhm_sec))
+
+    plot_data <- data.frame(FWHM = fwhm_sec, Charge = charge)
+    plot_data <- plot_data[!is.na(plot_data$FWHM), ]
+
+    # Fallback to simple density if no charge data
+    if (!has_charge || all(is.na(plot_data$Charge))) {
+      plot_data$Charge <- factor("All")
+      return(
+        ggplot2::ggplot(plot_data, ggplot2::aes(x = FWHM, y = Charge, fill = Charge)) +
+          ggridges::geom_density_ridges(alpha = 0.7) +
+          ggplot2::labs(x = "FWHM (sec)", y = NULL) +
+          ggplot2::theme_minimal(base_size = 12) +
+          ggplot2::theme(
+            legend.position = "none",
+            panel.grid.minor = ggplot2::element_blank(),
+            plot.background = ggplot2::element_rect(fill = "transparent", color = NA),
+            panel.background = ggplot2::element_rect(fill = "transparent", color = NA)
+          )
+      )
+    }
+
+    plot_data <- plot_data[!is.na(plot_data$Charge), ]
+
+    # Top 3 charges by count
+    charge_counts <- sort(table(plot_data$Charge), decreasing = TRUE)
+    top_charges <- names(charge_counts)[seq_len(min(3, length(charge_counts)))]
+    plot_data <- plot_data[plot_data$Charge %in% as.integer(top_charges), ]
+    plot_data$Charge <- factor(plot_data$Charge, levels = sort(unique(plot_data$Charge)))
+
+    ggplot2::ggplot(plot_data, ggplot2::aes(x = FWHM, y = Charge, fill = Charge)) +
+      ggridges::geom_density_ridges(alpha = 0.7, scale = 1.2) +
+      viridis::scale_fill_viridis(discrete = TRUE, option = "D") +
+      ggplot2::labs(x = "FWHM (sec)", y = "Charge") +
+      ggplot2::theme_minimal(base_size = 12) +
+      ggplot2::theme(
+        legend.position = "none",
+        panel.grid.minor = ggplot2::element_blank(),
+        plot.background = ggplot2::element_rect(fill = "transparent", color = NA),
+        panel.background = ggplot2::element_rect(fill = "transparent", color = NA)
+      )
+  }, bg = "transparent")
+
   # --- Output: Data Summary Table ---
   output$data_summary <- renderTable({
     req(rv$validated_data)
