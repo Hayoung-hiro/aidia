@@ -129,11 +129,58 @@ step1_data_ui <- function() {
         )
       ),
 
-      helpText(
-        icon("info-circle"), " ",
-        "Injection Time, Acquisition settings available in ",
-        tags$strong("Strategy > Expert Settings"),
-        style = "font-size: 11px; color: #7f8c8d; margin-top: 4px;"
+      # --- Injection Time (Orbitrap only) ---
+      conditionalPanel(
+        condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
+        hr(style = "margin: 8px 0;"),
+        fluidRow(
+          column(4,
+            tags$label("MS1 Max IT", class = "control-label"),
+            div(
+              style = "display: flex; gap: 8px; align-items: center;",
+              checkboxInput("ms1_it_auto", "Auto", value = TRUE, width = "55px"),
+              conditionalPanel(
+                condition = "!input.ms1_it_auto",
+                div(
+                  style = "display: flex; align-items: center; gap: 4px;",
+                  numericInput("ms1_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
+                  span("ms", style = "color: #34495e; font-size: 12px; font-weight: 500;")
+                )
+              ),
+              conditionalPanel(
+                condition = "input.ms1_it_auto",
+                span(textOutput("ms1_it_auto_value", inline = TRUE),
+                     style = "color: #1abc9c; font-weight: 600; font-size: 12px;")
+              )
+            )
+          ),
+          column(4,
+            tags$label("MS2 Max IT", class = "control-label"),
+            div(
+              style = "display: flex; gap: 8px; align-items: center;",
+              checkboxInput("ms2_it_auto", "Auto", value = TRUE, width = "55px"),
+              conditionalPanel(
+                condition = "!input.ms2_it_auto",
+                div(
+                  style = "display: flex; align-items: center; gap: 4px;",
+                  numericInput("ms2_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
+                  span("ms", style = "color: #34495e; font-size: 12px; font-weight: 500;")
+                )
+              ),
+              conditionalPanel(
+                condition = "input.ms2_it_auto",
+                span(textOutput("ms2_it_auto_value", inline = TRUE),
+                     style = "color: #1abc9c; font-weight: 600; font-size: 12px;")
+              )
+            )
+          ),
+          column(4,
+            div(style = "padding-top: 20px;",
+              helpText("Auto = T_transient (Sweet Spot, 100% efficiency)",
+                       style = "font-size: 10px; color: #7f8c8d;")
+            )
+          )
+        )
       )
     ),
 

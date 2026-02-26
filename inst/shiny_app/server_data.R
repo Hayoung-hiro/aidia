@@ -369,6 +369,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
       return(
         ggplot2::ggplot(plot_data, ggplot2::aes(x = FWHM, y = Charge, fill = Charge)) +
           ggridges::geom_density_ridges(alpha = 0.7) +
+          ggplot2::coord_cartesian(xlim = c(0, 10)) +
           ggplot2::labs(x = "FWHM (sec)", y = NULL) +
           ggplot2::theme_minimal(base_size = 12) +
           ggplot2::theme(
@@ -391,6 +392,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
     ggplot2::ggplot(plot_data, ggplot2::aes(x = FWHM, y = Charge, fill = Charge)) +
       ggridges::geom_density_ridges(alpha = 0.7, scale = 1.2) +
       viridis::scale_fill_viridis(discrete = TRUE, option = "D") +
+      ggplot2::coord_cartesian(xlim = c(0, 10)) +
       ggplot2::labs(x = "FWHM (sec)", y = "Charge") +
       ggplot2::theme_minimal(base_size = 12) +
       ggplot2::theme(

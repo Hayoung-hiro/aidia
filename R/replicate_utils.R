@@ -145,56 +145,42 @@ calculate_consensus_dataset <- function(data, min_replicates = 1,
       )
   }
 
-  # Step 2: Calculate median values (preserve Protein.Group if present)
+  # Step 2: Calculate median values (preserve categorical columns if present)
   has_protein_group <- "Protein.Group" %in% colnames(data)
+  has_charge <- "Precursor.Charge" %in% colnames(data)
 
   # Check if RT.Apex is available (computed in Stage 1 before consensus)
   has_rt_apex <- "RT.Apex" %in% colnames(data)
 
-  if (has_intensity && has_protein_group) {
-    consensus_values <- data %>%
+  # Base consensus: always compute these
+  consensus_values <- data %>%
+    group_by(Precursor.Id) %>%
+    summarise(
+      RT.Start = median(RT.Start, na.rm = TRUE),
+      RT.Apex = if (has_rt_apex) median(RT.Apex, na.rm = TRUE) else median(RT.Start, na.rm = TRUE),
+      Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
+      FWHM = median(FWHM, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  # Add optional columns via join (avoids 4-way branch explosion)
+  if (has_intensity) {
+    intensity_vals <- data %>%
       group_by(Precursor.Id) %>%
-      summarise(
-        RT.Start = median(RT.Start, na.rm = TRUE),
-        RT.Apex = if (has_rt_apex) median(RT.Apex, na.rm = TRUE) else median(RT.Start, na.rm = TRUE),
-        Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
-        FWHM = median(FWHM, na.rm = TRUE),
-        Precursor.Quantity = median(Precursor.Quantity, na.rm = TRUE),
-        Protein.Group = first(Protein.Group),  # Keep first value (identical across replicates)
-        .groups = "drop"
-      )
-  } else if (has_intensity) {
-    consensus_values <- data %>%
+      summarise(Precursor.Quantity = median(Precursor.Quantity, na.rm = TRUE), .groups = "drop")
+    consensus_values <- left_join(consensus_values, intensity_vals, by = "Precursor.Id")
+  }
+  if (has_protein_group) {
+    protein_vals <- data %>%
       group_by(Precursor.Id) %>%
-      summarise(
-        RT.Start = median(RT.Start, na.rm = TRUE),
-        RT.Apex = if (has_rt_apex) median(RT.Apex, na.rm = TRUE) else median(RT.Start, na.rm = TRUE),
-        Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
-        FWHM = median(FWHM, na.rm = TRUE),
-        Precursor.Quantity = median(Precursor.Quantity, na.rm = TRUE),
-        .groups = "drop"
-      )
-  } else if (has_protein_group) {
-    consensus_values <- data %>%
+      summarise(Protein.Group = first(Protein.Group), .groups = "drop")
+    consensus_values <- left_join(consensus_values, protein_vals, by = "Precursor.Id")
+  }
+  if (has_charge) {
+    charge_vals <- data %>%
       group_by(Precursor.Id) %>%
-      summarise(
-        RT.Start = median(RT.Start, na.rm = TRUE),
-        RT.Apex = if (has_rt_apex) median(RT.Apex, na.rm = TRUE) else median(RT.Start, na.rm = TRUE),
-        Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
-        FWHM = median(FWHM, na.rm = TRUE),
-        Protein.Group = first(Protein.Group),  # Keep first value
-        .groups = "drop"
-      )
-  } else {
-    consensus_values <- data %>%
-      group_by(Precursor.Id) %>%
-      summarise(
-        RT.Start = median(RT.Start, na.rm = TRUE),
-        RT.Apex = if (has_rt_apex) median(RT.Apex, na.rm = TRUE) else median(RT.Start, na.rm = TRUE),
-        Precursor.Mz = median(Precursor.Mz, na.rm = TRUE),
-        FWHM = median(FWHM, na.rm = TRUE),
-        .groups = "drop"
-      )
+      summarise(Precursor.Charge = first(Precursor.Charge), .groups = "drop")
+    consensus_values <- left_join(consensus_values, charge_vals, by = "Precursor.Id")
   }
 
   # Step 3: Join consensus values with CV stats
