@@ -285,34 +285,42 @@ server_instrument <- function(input, output, session, rv) {
     )
   })
 
+  # Helper: compute overall efficiency (optimal / current cycle time)
+  compute_overall_efficiency <- function(result) {
+    if (is.null(result)) return(100)
+
+    current_ms <- result$cycle_time_ms
+    ms1_scans <- result$ms1$scans_per_cycle %||% 1
+    is_parallel <- result$instrument$cycle_calculation == "parallel"
+
+    ms1_trans <- result$ms1$transient_ms %||% 0
+    ms1_over <- result$ms1$overhead_ms %||% 0
+    ms2_trans <- result$ms2$transient_ms %||% 0
+    ms2_over <- result$ms2$overhead_ms %||% 0
+
+    ms1_opt <- if (ms1_trans > 0) ms1_trans + ms1_over else result$ms1$scan_time_ms
+    ms2_opt <- if (ms2_trans > 0) ms2_trans + ms2_over else result$ms2$scan_time_ms
+
+    optimal_ms <- if (is_parallel) {
+      max(ms1_scans * ms1_opt, result$window_count * ms2_opt)
+    } else {
+      ms1_scans * ms1_opt + result$window_count * ms2_opt
+    }
+
+    min((optimal_ms / current_ms) * 100, 100)
+  }
+
   output$efficiency_badge <- renderUI({
     result <- cycle_time_result()
-    if (is.null(result)) {
-      return(NULL)
-    }
+    if (is.null(result)) return(NULL)
 
-    efficiency_pct <- result$ms2$efficiency_pct
-    efficiency_mode <- result$ms2$efficiency_mode
+    efficiency_pct <- compute_overall_efficiency(result)
+    color <- if (efficiency_pct >= 95) "#27ae60" else if (efficiency_pct >= 70) "#f39c12" else "#e74c3c"
 
-    if (efficiency_mode == "auto" || efficiency_pct >= 95) {
-      # Optimal
-      tags$span(
-        style = "background: #27ae60; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;",
-        sprintf("%.0f%% Efficiency", efficiency_pct)
-      )
-    } else if (efficiency_pct >= 70) {
-      # Acceptable
-      tags$span(
-        style = "background: #f39c12; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;",
-        sprintf("%.0f%% Efficiency", efficiency_pct)
-      )
-    } else {
-      # Low efficiency
-      tags$span(
-        style = "background: #e74c3c; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;",
-        sprintf("%.0f%% Efficiency", efficiency_pct)
-      )
-    }
+    tags$span(
+      style = sprintf("background: %s; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;", color),
+      sprintf("%.0f%% Eff.", efficiency_pct)
+    )
   })
 
   # --- Output: Expert Settings Cycle Time Feedback (compact, Step 2) ---
@@ -323,7 +331,7 @@ server_instrument <- function(input, output, session, rv) {
     ms1_scans <- result$ms1$scans_per_cycle %||% 1
     is_parallel <- ms1_scans == 0
 
-    eff_pct <- result$ms2$efficiency_pct
+    eff_pct <- compute_overall_efficiency(result)
     eff_color <- if (eff_pct >= 95) "#27ae60" else if (eff_pct >= 70) "#f39c12" else "#e74c3c"
 
     breakdown <- if (is_parallel) {
@@ -463,49 +471,123 @@ server_instrument <- function(input, output, session, rv) {
     }
   })
 
-  # --- Output: Efficiency Detail ---
+  # --- Output: Efficiency Detail (Optimal vs Current comparison) ---
   output$efficiency_detail <- renderUI({
     result <- cycle_time_result()
-    if (is.null(result)) {
-      return(NULL)
+    if (is.null(result)) return(NULL)
+
+    # Current cycle time
+    current_ms <- result$cycle_time_ms
+    current_sec <- result$cycle_time_sec
+
+    # Compute optimal cycle time (Auto IT = transient for both MS1 and MS2)
+    ms1_scans <- result$ms1$scans_per_cycle %||% 1
+    is_parallel <- result$instrument$cycle_calculation == "parallel"
+
+    # Optimal scan times: transient + overhead (minimum achievable)
+    ms1_trans <- result$ms1$transient_ms %||% 0
+    ms1_over <- result$ms1$overhead_ms %||% 0
+    ms2_trans <- result$ms2$transient_ms %||% 0
+    ms2_over <- result$ms2$overhead_ms %||% 0
+
+    ms1_optimal_scan <- if (ms1_trans > 0) ms1_trans + ms1_over else result$ms1$scan_time_ms
+    ms2_optimal_scan <- if (ms2_trans > 0) ms2_trans + ms2_over else result$ms2$scan_time_ms
+
+    # Calculate optimal cycle time
+    if (is_parallel) {
+      ms1_total_opt <- ms1_scans * ms1_optimal_scan
+      ms2_total_opt <- result$window_count * ms2_optimal_scan
+      optimal_ms <- max(ms1_total_opt, ms2_total_opt)
+    } else {
+      optimal_ms <- ms1_scans * ms1_optimal_scan + result$window_count * ms2_optimal_scan
     }
 
-    efficiency_pct <- result$ms2$efficiency_pct
-    efficiency_mode <- result$ms2$efficiency_mode
-    limiting_factor <- result$ms2$limiting_factor
-    sweet_spot_it <- result$ms2$sweet_spot_it_ms
-    current_it <- result$ms2$injection_time_ms
-    transient <- result$ms2$transient_ms
+    optimal_sec <- optimal_ms / 1000
 
-    # Build message based on limiting factor
-    if (efficiency_mode == "auto" || efficiency_pct >= 95) {
+    # Efficiency = optimal / current (how much of cycle time is productive)
+    efficiency_pct <- min((optimal_ms / current_ms) * 100, 100)
+    slowdown <- current_ms / optimal_ms
+
+    # Color coding
+    if (efficiency_pct >= 95) {
       color <- "#27ae60"
       icon_class <- "check-circle"
-      message <- sprintf("Optimal! IT (%.0f ms) ~ T_transient (%.0f ms)", current_it, transient)
-      suggestion <- NULL
-    } else {
-      color <- if (efficiency_pct >= 70) "#f39c12" else "#e74c3c"
+    } else if (efficiency_pct >= 70) {
+      color <- "#f39c12"
       icon_class <- "exclamation-triangle"
-      message <- sprintf(
-        "IT (%.0f ms) > T_transient (%.0f ms) -> Injection Limited",
-        current_it, transient
-      )
-      suggestion <- sprintf(
-        "Tip: Use Auto IT (%.0f ms) for %.1f%% faster scans",
-        sweet_spot_it, (1 - efficiency_pct/100) * 100
-      )
+    } else {
+      color <- "#e74c3c"
+      icon_class <- "exclamation-triangle"
+    }
+
+    # Identify which component is limiting (MS1 or MS2 or both)
+    ms1_slowdown <- result$ms1$scan_time_ms / ms1_optimal_scan
+    ms2_slowdown <- result$ms2$scan_time_ms / ms2_optimal_scan
+    limiting <- if (ms1_slowdown > 1.05 && ms2_slowdown > 1.05) {
+      "MS1 & MS2"
+    } else if (ms1_slowdown > 1.05) {
+      "MS1"
+    } else if (ms2_slowdown > 1.05) {
+      "MS2"
+    } else {
+      NULL
     }
 
     tags$div(
-      style = sprintf("padding: 10px; border-radius: 6px; background: %s15; border-left: 3px solid %s;", color, color),
+      style = sprintf("padding: 12px; border-radius: 6px; background: %s15; border-left: 3px solid %s;", color, color),
+
+      # Header with efficiency
       tags$div(
-        style = "display: flex; align-items: center; gap: 8px;",
-        icon(icon_class, style = sprintf("color: %s;", color)),
-        tags$strong(sprintf("Efficiency: %.0f%%", efficiency_pct), style = sprintf("color: %s;", color))
+        style = "display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;",
+        tags$div(
+          style = "display: flex; align-items: center; gap: 8px;",
+          icon(icon_class, style = sprintf("color: %s; font-size: 16px;", color)),
+          tags$strong(sprintf("Efficiency: %.0f%%", efficiency_pct),
+                      style = sprintf("color: %s; font-size: 14px;", color))
+        ),
+        if (!is.null(limiting)) {
+          tags$span(sprintf("%s limited", limiting),
+                    style = "font-size: 11px; color: #7f8c8d; font-style: italic;")
+        }
       ),
-      tags$p(style = "margin: 6px 0 0 0; font-size: 12px; color: #34495e;", message),
-      if (!is.null(suggestion)) {
-        tags$p(style = "margin: 4px 0 0 0; font-size: 11px; color: #7f8c8d;", suggestion)
+
+      # Optimal vs Current comparison
+      tags$div(
+        style = "display: flex; gap: 16px; margin-bottom: 8px;",
+        tags$div(
+          style = "flex: 1; text-align: center; padding: 6px; background: rgba(39, 174, 96, 0.1); border-radius: 4px;",
+          tags$div(style = "font-size: 10px; color: #7f8c8d; text-transform: uppercase;", "Optimal (Auto IT)"),
+          tags$div(style = "font-size: 18px; font-weight: 700; color: #27ae60;",
+                   sprintf("%.3f sec", optimal_sec))
+        ),
+        tags$div(
+          style = sprintf("flex: 1; text-align: center; padding: 6px; background: %s15; border-radius: 4px;", color),
+          tags$div(style = "font-size: 10px; color: #7f8c8d; text-transform: uppercase;", "Current"),
+          tags$div(style = sprintf("font-size: 18px; font-weight: 700; color: %s;", color),
+                   sprintf("%.3f sec", current_sec))
+        )
+      ),
+
+      # Progress bar
+      tags$div(
+        style = "background: #e9ecef; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 6px;",
+        tags$div(
+          style = sprintf("width: %.1f%%; height: 100%%; background: %s; border-radius: 4px;",
+                          min(efficiency_pct, 100), color)
+        )
+      ),
+
+      # Slowdown message (only when not optimal)
+      if (slowdown > 1.05) {
+        tags$p(
+          style = "margin: 0; font-size: 12px; color: #34495e;",
+          sprintf("Current settings are %.1fx slower than optimal. Use Auto IT to recover speed.", slowdown)
+        )
+      } else {
+        tags$p(
+          style = "margin: 0; font-size: 12px; color: #27ae60;",
+          "Optimal! All injection times match transient times."
+        )
       }
     )
   })
