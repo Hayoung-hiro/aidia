@@ -214,8 +214,12 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         # KDE parameters
         kde_density_threshold = strategy_params$kde_density_threshold,
         kde_min_coverage = strategy_params$kde_min_coverage,
-        # Staggered window mode parameter (forbidden zone constant)
-        ptm_constant = as.numeric(input$ptm_constant %||% "0.25")
+        # Window placement optimization (forbidden zone constant, all modes)
+        ptm_constant = if (isTRUE(input$sample_matrix_type == "custom")) {
+          as.numeric(input$custom_ptm_constant %||% 0.25)
+        } else {
+          as.numeric(input$sample_matrix_type %||% "0.25")  # "0" = disabled
+        }
       )
       cat("[Shiny] optimize_windows() completed!\n")
 

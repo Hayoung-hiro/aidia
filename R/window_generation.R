@@ -84,6 +84,26 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
       )
     }
 
+    # Forbidden zone snapping for fixed/density modes
+    # (staggered already handles this internally via build_cycle)
+    if (window_mode != "staggered" && ptm_constant > 0) {
+      bin_windows_before_snap <- bin_windows
+      bin_windows <- snap_to_forbidden_zones(bin_windows, ptm_constant)
+
+      # Validate: no degenerate windows (negative/zero width)
+      if (any(bin_windows$window_width <= 0)) {
+        warning("Forbidden zone snap produced degenerate windows in RT bin ", i,
+                ". Reverting to unsnapped.")
+        bin_windows <- bin_windows_before_snap
+      }
+    }
+
+    # Warn if overlap and forbidden zone are both active
+    if (overlap_percentage > 0 && ptm_constant > 0 && window_mode != "staggered") {
+      warning("Overlap margins conflict with forbidden zone placement. ",
+              "Consider setting overlap_percentage = 0.")
+    }
+
     # Count precursors in each window (OPTIMIZED with vectorization)
     bin_windows$n_precursors <- count_precursors_in_windows(
       bin_data$Precursor.Mz,
@@ -452,6 +472,36 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
 calc_forbidden_edge <- function(nominal_mz, ptm_constant = 0.25) {
   optimal_increment <- 1.00045475
   round(ceiling(nominal_mz / optimal_increment) * optimal_increment + ptm_constant, 4)
+}
+
+#' Snap Window Boundaries to Forbidden Zones
+#'
+#' Post-processing step that snaps existing window boundaries to mass defect
+#' forbidden zones. After snapping mz_end values, ensures continuous coverage
+#' by setting each window's mz_start to the previous window's mz_end.
+#'
+#' @param windows Data frame with mz_start, mz_end, mz_center, window_width columns
+#' @param ptm_constant Forbidden zone constant (0.25 standard, 0.18 phospho)
+#'
+#' @return Data frame with snapped window boundaries
+#' @keywords internal
+snap_to_forbidden_zones <- function(windows, ptm_constant = 0.25) {
+  # Snap all boundaries to nearest forbidden zone
+  windows$mz_start <- vapply(windows$mz_start, calc_forbidden_edge,
+                              numeric(1), ptm_constant = ptm_constant)
+  windows$mz_end   <- vapply(windows$mz_end, calc_forbidden_edge,
+                              numeric(1), ptm_constant = ptm_constant)
+
+  # Continuous coverage: each window starts where previous ends
+  for (j in seq_along(windows$mz_start)[-1]) {
+    windows$mz_start[j] <- windows$mz_end[j - 1]
+  }
+
+  # Recalculate derived columns
+  windows$window_width <- windows$mz_end - windows$mz_start
+  windows$mz_center   <- (windows$mz_start + windows$mz_end) / 2
+
+  windows
 }
 
 #' Generate Staggered Windows (Internal)

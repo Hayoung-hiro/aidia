@@ -136,22 +136,48 @@ step2_setup_ui <- function() {
             "Window boundaries placed at mass defect forbidden zones for optimal quadrupole transmission.",
             style = "color: #2c3e50; line-height: 1.5;"
           )
-        ),
-        div(style = "padding: 0 14px; margin-bottom: 12px;",
-          fluidRow(
-            column(6,
-              selectInput(
-                inputId = "ptm_constant",
-                label = "Forbidden Zone Offset",
-                choices = c(
-                  "Standard Proteomics (0.25)" = "0.25",
-                  "Phosphoproteomics (0.18)" = "0.18"
-                ),
-                selected = "0.25"
+        )
+      ),
+
+      # --- Window Placement Optimization (all modes) ---
+      div(style = "background: rgba(44, 62, 80, 0.06); padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #2c3e50;",
+        fluidRow(
+          column(6,
+            selectInput(
+              inputId = "sample_matrix_type",
+              label = "Window Placement Optimization (Forbidden Zone)",
+              choices = c(
+                "None (Disabled)" = "0",
+                "Standard Proteomics (0.25)" = "0.25",
+                "Phosphoproteomics (0.18)" = "0.18",
+                "Custom" = "custom"
               ),
-              helpText("Mass defect constant for window boundary placement. ",
-                       "Use 0.18 for phospho-enriched samples.",
-                       style = "font-size: 10px; color: #7f8c8d;")
+              selected = "0.25"
+            )
+          ),
+          column(6,
+            div(style = "padding-top: 25px;",
+              helpText(
+                "Snaps window boundaries to mass defect forbidden zones where ",
+                "peptide precursors cannot exist. Prevents quadrupole edge ",
+                "transmission loss and isotope envelope splitting.",
+                style = "font-size: 10px; color: #7f8c8d; line-height: 1.4;"
+              )
+            )
+          )
+        ),
+        conditionalPanel(
+          condition = "input.sample_matrix_type == 'custom'",
+          fluidRow(
+            column(4,
+              numericInput(
+                inputId = "custom_ptm_constant",
+                label = "Custom Forbidden Zone Constant",
+                value = 0.25,
+                min = 0.01,
+                max = 0.99,
+                step = 0.01
+              )
             )
           )
         )
