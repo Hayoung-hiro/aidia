@@ -214,8 +214,8 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         # KDE parameters
         kde_density_threshold = strategy_params$kde_density_threshold,
         kde_min_coverage = strategy_params$kde_min_coverage,
-        # Staggered window mode parameter
-        stagger_offset_pct = (input$stagger_offset_pct %||% 50) / 100  # Convert % to 0-1
+        # Staggered window mode parameter (forbidden zone constant)
+        ptm_constant = as.numeric(input$ptm_constant %||% "0.25")
       )
       cat("[Shiny] optimize_windows() completed!\n")
 
@@ -323,17 +323,12 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         sprintf("%.1f - %.1f Da (ratio: %.1fx, SD: %.2f)", min_width, max_width, width_ratio, sd_width)
       )
     } else if (used_mode == "staggered") {
-      n_staggered <- if ("is_staggered" %in% colnames(windows)) {
-        sum(windows$is_staggered, na.rm = TRUE)
-      } else {
-        # Count even-bin windows
-        even_bins <- unique(windows$rt_segment_id[windows$rt_segment_id %% 2 == 0])
-        sum(windows$rt_segment_id %in% even_bins)
-      }
+      n_cycle1 <- if ("cycle" %in% colnames(windows)) sum(windows$cycle == 1L) else n_windows
+      n_cycle2 <- if ("cycle" %in% colnames(windows)) sum(windows$cycle == 2L) else 0
+      ptm_val <- params$ptm_constant %||% 0.25
       tags$div(
-        tags$strong("Staggered: "),
-        sprintf("%d/%d windows offset (%.0f%% offset)", n_staggered, n_windows,
-                (params$stagger_offset_pct %||% 0.5) * 100)
+        tags$strong("2-Cycle Interleaved: "),
+        sprintf("C1: %d + C2: %d windows (forbidden zone: %.2f)", n_cycle1, n_cycle2, ptm_val)
       )
     } else {
       tags$div(
@@ -548,8 +543,9 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     # Select key columns for preview (include is_staggered for staggered mode)
     preview_cols <- c("rt_segment_id", "mz_start", "mz_end",
                       "window_width", "n_precursors")
-    if (used_mode == "staggered" && "is_staggered" %in% colnames(windows)) {
-      preview_cols <- c(preview_cols, "is_staggered")
+    if (used_mode == "staggered") {
+      if ("cycle" %in% colnames(windows)) preview_cols <- c(preview_cols, "cycle")
+      if ("is_staggered" %in% colnames(windows)) preview_cols <- c(preview_cols, "is_staggered")
     }
 
     preview_data <- windows[, intersect(preview_cols, names(windows))]

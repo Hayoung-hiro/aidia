@@ -129,11 +129,30 @@ step2_setup_ui <- function() {
         div(style = "background: rgba(155, 89, 182, 0.08); padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #9b59b6;",
           tags$small(
             icon("exchange-alt"), " ",
-            tags$strong("Staggered mode:"),
-            " Fixed-width windows with 50% offset between odd/even RT bins. ",
-            "Even bins are shifted by half the window width, reducing boundary effects ",
-            "where precursors near window edges in one bin are fully covered in adjacent bins.",
+            tags$strong("Staggered mode (2-Cycle Interleaved):"),
+            " Two acquisition cycles with 50% m/z offset. ",
+            "Cycle 2 windows are shifted by half-width from Cycle 1. ",
+            "After demultiplexing (Skyline, DIA-NN), effective isolation = half nominal width. ",
+            "Window boundaries placed at mass defect forbidden zones for optimal quadrupole transmission.",
             style = "color: #2c3e50; line-height: 1.5;"
+          )
+        ),
+        div(style = "padding: 0 14px; margin-bottom: 12px;",
+          fluidRow(
+            column(6,
+              selectInput(
+                inputId = "ptm_constant",
+                label = "Forbidden Zone Offset",
+                choices = c(
+                  "Standard Proteomics (0.25)" = "0.25",
+                  "Phosphoproteomics (0.18)" = "0.18"
+                ),
+                selected = "0.25"
+              ),
+              helpText("Mass defect constant for window boundary placement. ",
+                       "Use 0.18 for phospho-enriched samples.",
+                       style = "font-size: 10px; color: #7f8c8d;")
+            )
           )
         )
       ),

@@ -67,7 +67,7 @@
 #' @param kde_min_coverage Numeric, KDE minimum coverage 0-1 (default: 0.80)
 #' @param quantile_apply_smoothing Logical, apply SG smoothing to quantile boundaries (default: FALSE)
 #' @param outlier_apply_smoothing Logical, apply SG smoothing to outlier boundaries (default: FALSE)
-#' @param stagger_offset_pct Numeric, stagger offset fraction 0-1 (default: 0.5)
+#' @param ptm_constant Numeric, forbidden zone offset for staggered mode (default: 0.25, use 0.18 for phospho)
 #' @param coverage_mode Character, coverage strategy mode: "narrowest" or "centered"
 #' @param mz_range_min Numeric, fallback minimum m/z for empty RT bins (default: 400)
 #' @param mz_range_max Numeric, fallback maximum m/z for empty RT bins (default: 1200)
@@ -125,7 +125,7 @@ optimize_windows <- function(
   kde_min_coverage = 0.80,
   quantile_apply_smoothing = FALSE,
   outlier_apply_smoothing = FALSE,
-  stagger_offset_pct = 0.5,
+  ptm_constant = 0.25,
   coverage_mode = "narrowest",
   # RT binning parameters
   rt_binning_mode = "fixed",
@@ -190,7 +190,7 @@ optimize_windows <- function(
   validate_numeric_range(overlap_percentage, min = 0, max = 50, param_name = "overlap_percentage")
   validate_numeric_range(mz_range_min, min = 0, param_name = "mz_range_min")
   validate_numeric_range(mz_range_max, min = mz_range_min, param_name = "mz_range_max")
-  validate_numeric_range(stagger_offset_pct, min = 0, max = 1, param_name = "stagger_offset_pct")
+  validate_numeric_range(ptm_constant, min = 0, max = 1, param_name = "ptm_constant")
 
   valid_strategies <- c("quantile", "coverage", "outlier", "greedy", "kde")
   if (!mz_strategy %in% valid_strategies) {
@@ -303,17 +303,32 @@ optimize_windows <- function(
   # ===================================================================
   print_step(4, "Window Generation")
 
+  # Decouple generation min_width from greedy's range calculation.
+  # Greedy sets mz_range = n_windows × min_width_da, so using the same
+
+  # value as the generation floor forces all windows to identical width
+  # (no room for density variation). Use half min_width (floor 1 Da)
+  # for density mode to allow adaptive widths within the greedy range.
+  gen_min_width_da <- if (mz_strategy == "greedy" && window_mode == "density") {
+    effective <- max(1.0, min_width_da * 0.5)
+    print_info(sprintf("Greedy+Density: generation min_width relaxed %.1f -> %.1f Da",
+                       min_width_da, effective))
+    effective
+  } else {
+    min_width_da
+  }
+
   windows <- generate_windows_internal(
     precursor_data = precursor_data,
     rt_stats = rt_stats,
     mz_ranges = mz_ranges,
     n_windows_per_bin = n_windows_per_bin,
     window_mode = window_mode,
-    min_width_da = min_width_da,
+    min_width_da = gen_min_width_da,
     max_width_da = max_width_da,
     overlap_percentage = overlap_percentage,
-    stagger_offset_pct = stagger_offset_pct,
-    width_grid_step = width_grid_step # Renamed mz_step to width_grid_step for consistency
+    ptm_constant = ptm_constant,
+    width_grid_step = width_grid_step
   )
 
   total_windows <- nrow(windows)
@@ -350,7 +365,14 @@ optimize_windows <- function(
   # After window generation, the actual window count per bin may differ from
   # the planned count due to width constraints, staggered mode, or fallbacks.
   # Re-calculate the effective cycle time and DPPP with the real window count.
-  actual_windows_per_bin <- total_windows / n_bins
+  # For staggered mode, total_windows includes both cycles.
+
+  # Cycle time is determined by windows per cycle (half of total for staggered).
+  if (window_mode == "staggered") {
+    actual_windows_per_bin <- total_windows / (n_bins * 2)
+  } else {
+    actual_windows_per_bin <- total_windows / n_bins
+  }
   instrument <- optimization_plan$instrument
 
   actual_cycle_time <- if (instrument$cycle_mode == "parallel") {
@@ -426,7 +448,7 @@ optimize_windows <- function(
         max_width_da = max_width_da,
         overlap_percentage = overlap_percentage,
         width_grid_step = width_grid_step,
-        stagger_offset_pct = stagger_offset_pct
+        ptm_constant = ptm_constant
       ),
 
       # Metadata

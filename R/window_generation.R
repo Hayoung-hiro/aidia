@@ -28,7 +28,7 @@
 #' @param max_width_da Maximum window width in Da
 #' @param overlap_percentage Overlap percentage between windows
 #' @param width_grid_step Grid step for width digitization in Da (default: 0.5)
-#' @param stagger_offset_pct Numeric, offset percentage for staggered mode (default: 0.5)
+#' @param ptm_constant Numeric, forbidden zone offset for staggered mode (default: 0.25, use 0.18 for phospho)
 #'
 #' @return Data frame with window specifications
 #' @keywords internal
@@ -36,7 +36,7 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
                                      n_windows_per_bin, window_mode,
                                      min_width_da, max_width_da,
                                      overlap_percentage, width_grid_step = 0.5,
-                                     stagger_offset_pct = 0.5) {
+                                     ptm_constant = 0.25) {
 
   n_bins <- nrow(rt_stats)
 
@@ -75,7 +75,7 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
       bin_windows <- generate_staggered_windows_internal(
         mz_min, mz_max, n_windows_per_bin, min_width_da, max_width_da,
         rt_bin_index = i,
-        stagger_fraction = stagger_offset_pct
+        ptm_constant = ptm_constant
       )
     } else {  # density (variable)
       bin_windows <- generate_variable_windows_internal(
@@ -111,6 +111,13 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
 
   # Combine all windows
   windows <- safe_bind_rows(all_windows)
+
+  # For staggered mode, sort C1 before C2 within each RT bin
+  # (required for Thermo Loop Control N to cycle correctly)
+  if (window_mode == "staggered" && "cycle" %in% colnames(windows)) {
+    windows <- windows %>%
+      arrange(rt_segment_id, cycle, mz_start)
+  }
 
   # Reorder columns
   windows <- windows %>%
@@ -428,93 +435,92 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
 }
 
 # =============================================================================
-# Staggered Window Mode
+# Staggered Window Mode (2-Cycle Interleaved + Forbidden Zone)
 # =============================================================================
+
+#' Calculate Forbidden Zone Edge (Mass Defect)
+#'
+#' Calculates the nearest forbidden zone m/z boundary using mass defect.
+#' Peptide precursors cannot exist at these m/z values due to the mass defect
+#' of amino acids, making them ideal for quadrupole isolation window boundaries.
+#'
+#' @param nominal_mz Nominal m/z value to shift to forbidden zone
+#' @param ptm_constant Constant for forbidden zone offset (0.25 standard, 0.18 phospho)
+#'
+#' @return Numeric, forbidden zone edge m/z value
+#' @keywords internal
+calc_forbidden_edge <- function(nominal_mz, ptm_constant = 0.25) {
+  optimal_increment <- 1.00045475
+  round(ceiling(nominal_mz / optimal_increment) * optimal_increment + ptm_constant, 4)
+}
 
 #' Generate Staggered Windows (Internal)
 #'
-#' Creates fixed-width windows with staggered (offset) placement across RT bins.
-#' Odd RT bins use normal placement, even RT bins are shifted by half window width.
-#' This reduces edge effects by ensuring precursors near boundaries are fully
-#' covered in adjacent RT bins.
+#' Creates two interleaved acquisition cycles with 50% offset for demultiplexing.
+#' Window boundaries are placed at mass defect-based forbidden zones where
+#' peptide precursors cannot exist, maximizing quadrupole transmission efficiency.
 #'
-#' @param mz_min Minimum m/z
-#' @param mz_max Maximum m/z
-#' @param n_windows Target number of windows
-#' @param min_width_da Minimum window width
-#' @param max_width_da Maximum window width
+#' After computational demultiplexing (e.g., Skyline, SpectronautDIA),
+#' the effective isolation width is halved without reducing scan speed.
+#'
+#' IMPORTANT: Staggered windows must NOT use margins (±0.5 m/z) as this
+#' complicates the demultiplexing model.
+#'
+#' @param mz_min Minimum m/z for this RT bin
+#' @param mz_max Maximum m/z for this RT bin
+#' @param n_windows Target number of windows PER CYCLE
+#' @param min_width_da Minimum window width in Da
+#' @param max_width_da Maximum window width in Da
 #' @param rt_bin_index Current RT bin index (1-based)
-#' @param stagger_fraction Fraction of window width to offset (default: 0.5 = half)
+#' @param ptm_constant Forbidden zone constant (0.25 standard, 0.18 phospho)
 #'
-#' @return Data frame with window specifications
+#' @return Data frame with window specifications including `cycle` column (1 or 2)
 #' @keywords internal
 generate_staggered_windows_internal <- function(mz_min, mz_max, n_windows,
                                                  min_width_da, max_width_da,
                                                  rt_bin_index,
-                                                 stagger_fraction = 0.5) {
+                                                 ptm_constant = 0.25) {
 
   mz_range <- mz_max - mz_min
-  ideal_width <- mz_range / n_windows
 
-  # Apply width constraints (same as fixed mode)
-  # When ideal_width < min: use min_width, floor() gives fewer windows that fit
-  # When ideal_width > max: use max_width, ceiling() ensures full coverage
-  if (ideal_width < min_width_da) {
-    actual_width <- min_width_da
-    actual_count <- floor(mz_range / actual_width)
-  } else if (ideal_width > max_width_da) {
-    actual_width <- max_width_da
-    actual_count <- ceiling(mz_range / actual_width)
-  } else {
-    actual_width <- ideal_width
-    actual_count <- n_windows
+  # Use n_windows directly (do NOT recalculate) to guarantee consistent
+
+  # window count across all RT bins — required for Loop Control N.
+  nominal_width <- mz_range / n_windows
+
+  # --- Helper: build one cycle of exactly n_windows forbidden-zone windows ---
+  build_cycle <- function(start_offset) {
+    starts_nom <- mz_min + start_offset + (0:(n_windows - 1)) * nominal_width
+    ends_nom   <- starts_nom + nominal_width
+
+    starts <- vapply(starts_nom, calc_forbidden_edge, numeric(1),
+                     ptm_constant = ptm_constant)
+    ends   <- vapply(ends_nom,   calc_forbidden_edge, numeric(1),
+                     ptm_constant = ptm_constant)
+
+    # Ensure continuous coverage: each window starts where previous ends
+    for (j in seq_along(starts)[-1]) {
+      starts[j] <- ends[j - 1]
+    }
+
+    tibble(
+      mz_start     = starts,
+      mz_end       = ends,
+      mz_center    = (starts + ends) / 2,
+      window_width = ends - starts
+    )
   }
 
-  actual_count <- max(1, actual_count)
+  # --- Cycle 1: Base windows ---
+  cycle1 <- build_cycle(start_offset = 0) %>%
+    mutate(cycle = 1L, is_staggered = FALSE)
 
-  # Calculate stagger offset for even RT bins
-  # Odd bins (1, 3, 5...): no offset
-  # Even bins (2, 4, 6...): offset by stagger_fraction * window_width
-  is_even_bin <- (rt_bin_index %% 2 == 0)
-  half_window_offset <- actual_width * stagger_fraction
-  stagger_offset <- if (is_even_bin) half_window_offset else 0
+  # --- Cycle 2: 50% offset windows ---
+  cycle2 <- build_cycle(start_offset = nominal_width / 2) %>%
+    mutate(cycle = 2L, is_staggered = TRUE)
 
-  # Generate window boundaries with stagger offset
-  if (is_even_bin) {
-    # Even bins: start earlier, may need extra window at the end
-    start_mz <- mz_min - stagger_offset
-
-    # Generate windows
-    mz_starts <- start_mz + (0:(actual_count)) * actual_width
-    mz_ends <- mz_starts + actual_width
-
-    # Filter to only include windows that overlap with [mz_min, mz_max]
-    valid_mask <- (mz_ends > mz_min) & (mz_starts < mz_max)
-    mz_starts <- mz_starts[valid_mask]
-    mz_ends <- mz_ends[valid_mask]
-
-    # Clip to mz_min/mz_max boundaries
-    mz_starts <- pmax(mz_starts, mz_min)
-    mz_ends <- pmin(mz_ends, mz_max)
-  } else {
-    # Odd bins: normal placement (same as fixed)
-    mz_starts <- mz_min + (0:(actual_count - 1)) * actual_width
-    mz_ends <- pmin(mz_min + (1:actual_count) * actual_width, mz_max)
-  }
-
-  # Create windows tibble
-  windows <- tibble(
-    mz_start = mz_starts,
-    mz_end = mz_ends,
-    mz_center = (mz_start + mz_end) / 2,
-    window_width = mz_end - mz_start,
-    is_staggered = is_even_bin
-  )
-
-  # Remove windows that are too narrow (edge artifacts from clipping)
-  edge_min_width <- min_width_da * 0.5
-  windows <- windows %>%
-    filter(window_width >= edge_min_width)
+  # --- Combine both cycles ---
+  windows <- bind_rows(cycle1, cycle2)
 
   return(windows)
 }

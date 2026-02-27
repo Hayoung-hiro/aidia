@@ -49,16 +49,41 @@ export_windows_to_csv <- function(optimized_windows, output_file,
 
   windows <- optimized_windows$windows
   precursor_data <- get_precursor_data(validated_data)
+  is_staggered <- "cycle" %in% colnames(windows)
 
   # Calculate N_Precursors for each window
   cat("  Calculating precursors per window...\n")
   windows_with_counts <- calculate_precursors_per_window(windows, precursor_data)
 
-  # Create 22-column extended format (Thermo Orbitrap compatible)
+  # --- Staggered: Compound naming + Loop Count ---
+  if (is_staggered) {
+    windows_with_counts <- windows_with_counts %>%
+      group_by(rt_segment_id, cycle) %>%
+      mutate(.win_seq = row_number()) %>%
+      ungroup() %>%
+      mutate(.compound = sprintf("C%d_RT%d_W%02d", cycle, rt_segment_id, .win_seq))
+
+    # Calculate Loop Count (windows per cycle per bin — should be constant)
+    loop_count <- windows_with_counts %>%
+      filter(cycle == 1L) %>%
+      count(rt_segment_id) %>%
+      pull(n)
+    loop_n <- unique(loop_count)
+    if (length(loop_n) > 1) {
+      warning(sprintf("Staggered window count varies across RT bins (%s). Loop Control may misalign.",
+                      paste(loop_n, collapse = ", ")))
+    }
+    loop_n <- loop_n[1]
+  } else {
+    windows_with_counts$.compound <- ""
+    loop_n <- NULL
+  }
+
+  # Create extended format (Thermo Orbitrap compatible)
   method_file <- windows_with_counts %>%
     mutate(
-      # Empty columns (Thermo format compatibility)
-      Compound = "",
+      # Thermo format columns
+      Compound = .compound,
       Formula = "",
       Adduct = "(no adduct)",
 
@@ -94,23 +119,41 @@ export_windows_to_csv <- function(optimized_windows, output_file,
       Generation_Method = optimized_windows$parameters$mz_strategy,
       Window_Type = optimized_windows$parameters$window_mode,
 
-      # Column 22: Recommended cycle time (rounded to 3 decimals)
+      # Cycle time
       Recommended_Cycle_Time_Sec = round(recommended_cycle_time, 3)
-    ) %>%
-    select(Compound, Formula, Adduct, `m/z`, z,
-           `t start (min)`, `t stop (min)`,
-           `Isolation Window (m/z)`, `Normalized AGC Target (%)`,
-           `Start (m/z)`, `End (m/z)`,
-           Window_ID, RT_Segment_ID, RT_Center, RT_Width,
-           N_Precursors, Overlap_Prev, Overlap_Next,
-           Instrument, Generation_Method, Window_Type,
-           Recommended_Cycle_Time_Sec)
+    )
 
-  # Write CSV file (no header comments for extended format)
+  # Column selection: base 22 + Cycle for staggered
+  base_cols <- c("Compound", "Formula", "Adduct", "m/z", "z",
+                 "t start (min)", "t stop (min)",
+                 "Isolation Window (m/z)", "Normalized AGC Target (%)",
+                 "Start (m/z)", "End (m/z)",
+                 "Window_ID", "RT_Segment_ID", "RT_Center", "RT_Width",
+                 "N_Precursors", "Overlap_Prev", "Overlap_Next",
+                 "Instrument", "Generation_Method", "Window_Type",
+                 "Recommended_Cycle_Time_Sec")
+
+  if (is_staggered) {
+    method_file$Cycle <- windows_with_counts$cycle
+    base_cols <- c(base_cols, "Cycle")
+  }
+
+  method_file <- method_file %>% select(all_of(base_cols))
+
+  # Write CSV file
   write.csv(method_file, output_file, row.names = FALSE, quote = TRUE)
 
-  cat(sprintf("OK Method file exported: %s (%d windows, 22 columns)\n",
-              output_file, nrow(method_file)))
+  n_cols <- ncol(method_file)
+  cat(sprintf("OK Method file exported: %s (%d windows, %d columns)\n",
+              output_file, nrow(method_file), n_cols))
+
+  # Staggered: print Loop Control guidance
+  if (is_staggered && !is.null(loop_n)) {
+    n_bins <- length(unique(windows$rt_segment_id))
+    cat(sprintf("   Staggered DIA: Set Loop Control N = %d (windows per RT bin per cycle)\n", loop_n))
+    cat(sprintf("   Layout: %d RT bins x %d windows/cycle x 2 cycles, C1-first ordering\n",
+                n_bins, loop_n))
+  }
   invisible(NULL)
 }
 

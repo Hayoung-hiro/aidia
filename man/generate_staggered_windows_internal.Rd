@@ -11,31 +11,37 @@ generate_staggered_windows_internal(
   min_width_da,
   max_width_da,
   rt_bin_index,
-  stagger_fraction = 0.5
+  ptm_constant = 0.25
 )
 }
 \arguments{
-\item{mz_min}{Minimum m/z}
+\item{mz_min}{Minimum m/z for this RT bin}
 
-\item{mz_max}{Maximum m/z}
+\item{mz_max}{Maximum m/z for this RT bin}
 
-\item{n_windows}{Target number of windows}
+\item{n_windows}{Target number of windows PER CYCLE}
 
-\item{min_width_da}{Minimum window width}
+\item{min_width_da}{Minimum window width in Da}
 
-\item{max_width_da}{Maximum window width}
+\item{max_width_da}{Maximum window width in Da}
 
 \item{rt_bin_index}{Current RT bin index (1-based)}
 
-\item{stagger_fraction}{Fraction of window width to offset (default: 0.5 = half)}
+\item{ptm_constant}{Forbidden zone constant (0.25 standard, 0.18 phospho)}
 }
 \value{
-Data frame with window specifications
+Data frame with window specifications including \code{cycle} column (1 or 2)
 }
 \description{
-Creates fixed-width windows with staggered (offset) placement across RT bins.
-Odd RT bins use normal placement, even RT bins are shifted by half window width.
-This reduces edge effects by ensuring precursors near boundaries are fully
-covered in adjacent RT bins.
+Creates two interleaved acquisition cycles with 50\% offset for demultiplexing.
+Window boundaries are placed at mass defect-based forbidden zones where
+peptide precursors cannot exist, maximizing quadrupole transmission efficiency.
+}
+\details{
+After computational demultiplexing (e.g., Skyline, SpectronautDIA),
+the effective isolation width is halved without reducing scan speed.
+
+IMPORTANT: Staggered windows must NOT use margins (±0.5 m/z) as this
+complicates the demultiplexing model.
 }
 \keyword{internal}

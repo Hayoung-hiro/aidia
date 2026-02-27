@@ -20,7 +20,7 @@ test_that("Staggered mode respects offset", {
     optimization_plan,
     rt_bin_width_min = 5,
     window_mode = "staggered",
-    stagger_offset_pct = 0.25
+    ptm_constant = 0.25
   )
 
   expect_true(nrow(res$windows) > 0)
