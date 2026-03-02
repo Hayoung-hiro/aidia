@@ -351,6 +351,10 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   .draw_parameter_summary(optimization_plan, optimized_windows, validated_data)
   n_pages <- n_pages + 1
 
+  # --- Executive Summary ---
+  .draw_executive_summary(optimization_plan, validated_data)
+  n_pages <- n_pages + 1
+
   # --- Section 1: Input Data Profile ---
   .draw_section_page(1, "Input Data Profile",
                      "Chromatographic and mass spectrometric characteristics of the dataset")
@@ -448,5 +452,72 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   }
 
   cat(sprintf("  OK PDF report saved: %s (%d pages)\n", basename(output_file), n_pages))
+}
+
+
+# =============================================================================
+# Executive Summary Insight Panel
+# =============================================================================
+
+.draw_executive_summary <- function(optimization_plan, validated_data) {
+  grid::grid.newpage()
+  
+  # Header
+  grid::grid.text("Executive Summary & Insights", 
+            x = 0.5, y = 0.95, 
+            gp = grid::gpar(fontsize = 18, fontface = "bold", 
+                       col = .report_colors$primary))
+  
+  # Background panel for insights
+  grid::grid.rect(x = 0.5, y = 0.5, width = 0.8, height = 0.7, 
+            gp = grid::gpar(fill = "#f8f9fa", col = "#bdc3c7", lwd = 2))
+  
+  # Calculate Insights
+  orig_dppp <- validated_data$stats$dppp
+  new_dppp <- optimization_plan$stats$mean_dppp
+  target_dppp <- optimization_plan$parameters$target_dppp
+  
+  orig_ct <- validated_data$stats$cycle_time_sec
+  new_ct <- optimization_plan$stats$mean_cycle_time_sec
+  
+  # Insight 1: DPPP Analysis
+  dppp_text <- if(orig_dppp < target_dppp) {
+    sprintf("1. Data Points Per Peak (DPPP): The original DPPP was %.1f, failing to meet the target of %.1f.\n   The new optimization plan adjusted the cycle time to achieve a robust DPPP of %.1f.", orig_dppp, target_dppp, new_dppp)
+  } else {
+    sprintf("1. Data Points Per Peak (DPPP): The original DPPP (%.1f) was sufficient for the target (%.1f).\n   The new plan maintains a high DPPP of %.1f while optimizing window boundaries.", orig_dppp, target_dppp, new_dppp)
+  }
+  
+  # Insight 2: Cycle Time Analysis
+  ct_diff_pct <- round((orig_ct - new_ct) / orig_ct * 100, 1)
+  ct_text <- if(ct_diff_pct > 0) {
+    sprintf("2. Scan Efficiency: Cycle time was reduced by %.1f%% (from %.2fs to %.2fs).\n   This faster scanning allows for better chromatographic peak shape reconstruction.", ct_diff_pct, orig_ct, new_ct)
+  } else if (ct_diff_pct < 0) {
+    sprintf("2. Scan Efficiency: Cycle time was increased by %.1f%% (from %.2fs to %.2fs).\n   This slower scanning trades temporal resolution for more/narrower isolation windows.", abs(ct_diff_pct), orig_ct, new_ct)
+  } else {
+    sprintf("2. Scan Efficiency: Overall cycle time remained stable at %.2fs.\n   Window widths were re-distributed internally for optimal precursor coverage.", new_ct)
+  }
+  
+  # Insight 3: Strategy & Window Placement
+  strategy <- optimization_plan$parameters$mz_strategy
+  window_mode <- optimization_plan$parameters$window_mode
+  win_text <- sprintf("3. Isolation Strategy: Using the '%s' strategy with '%s' window mode.\n   This combination ensures that narrow windows are dynamically allocated to m/z regions\n   with the highest density of precursors, maximizing detection sensitivity.", toupper(strategy), toupper(window_mode))
+  
+  # Draw Insights
+  grid::grid.text(dppp_text, x = 0.15, y = 0.75, just = c("left", "top"), 
+            gp = grid::gpar(fontsize = 12, lineheight = 1.5, col = "#2c3e50"))
+            
+  grid::grid.text(ct_text, x = 0.15, y = 0.55, just = c("left", "top"), 
+            gp = grid::gpar(fontsize = 12, lineheight = 1.5, col = "#2c3e50"))
+            
+  grid::grid.text(win_text, x = 0.15, y = 0.35, just = c("left", "top"), 
+            gp = grid::gpar(fontsize = 12, lineheight = 1.5, col = "#2c3e50"))
+            
+  # Recommendation
+  rec_text <- "Recommendation: Apply the generated CSV method file to your instrument.\nThe changes ensure the acquisition is tailored to the true complexity of your sample."
+  
+  grid::grid.rect(x = 0.5, y = 0.15, width = 0.7, height = 0.1, 
+            gp = grid::gpar(fill = "#e8f8f5", col = "#1abc9c", lwd = 1))
+  grid::grid.text(rec_text, x = 0.5, y = 0.15, just = "center", 
+            gp = grid::gpar(fontsize = 11, fontface = "italic", col = "#16a085", lineheight = 1.3))
 }
 

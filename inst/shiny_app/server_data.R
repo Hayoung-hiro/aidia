@@ -26,6 +26,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
       cat("[Shiny] create_validated_dataset() completed!\n")
 
       rv$data_loaded <- TRUE
+    shinyjs::enable(selector = "a[data-value=\047setup\047]")
       rv$optimization_complete <- FALSE
       rv$optimized_windows <- NULL
 

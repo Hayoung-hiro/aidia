@@ -21,7 +21,8 @@
 library(shiny)
 library(bs4Dash)
 library(shinybusy)      # Progress indicators
-library(shinyjs)        # Progressive disclosure (toggle/hide)
+library(shinyjs)
+library(shinyBS)        # Tooltips and popovers        # Progressive disclosure (toggle/hide)
 library(DT)             # Interactive tables
 
 # --- Configuration ---
@@ -218,6 +219,11 @@ ui <- dashboardPage(
 # =============================================================================
 
 server <- function(input, output, session) {
+
+  # Disable tabs initially
+  shinyjs::disable(selector = "a[data-value=\047setup\047]")
+  shinyjs::disable(selector = "a[data-value=\047results\047]")
+
 
   # --- Reactive Values (shared across all modules) ---
   rv <- reactiveValues(

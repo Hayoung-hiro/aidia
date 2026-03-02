@@ -16,6 +16,15 @@ step3_results_ui <- function() {
         uiOutput("results_status_text")
       ),
 
+      # --- Optimization Summary Dashboard ---
+      fluidRow(
+        class = "equal-height-row",
+        valueBoxOutput("summary_box_cycle_time", width = 4),
+        valueBoxOutput("summary_box_dppp", width = 4),
+        valueBoxOutput("summary_box_windows", width = 4)
+      ),
+      br(),
+
       # Before/After Comparison Cards
       fluidRow(
         class = "equal-height-row",

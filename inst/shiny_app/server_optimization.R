@@ -227,6 +227,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       cat("[Shiny] optimize_windows() completed!\n")
 
       rv$optimization_complete <- TRUE
+      shinyjs::enable(selector = "a[data-value=\047results\047]")
 
       removeNotification("opt_progress")
       showNotification(
@@ -569,3 +570,77 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       DT::formatRound(columns = c("mz_start", "mz_end", "window_width"), digits = 2)
   })
 }
+
+  # --- ValueBox Rendering for Results Summary Dashboard ---
+  output$summary_box_cycle_time <- renderValueBox({
+    req(rv$optimization_complete, rv$optimization_plan, rv$validated_data)
+    
+    orig_ct <- rv$validated_data$stats$cycle_time_sec
+    new_ct <- rv$optimization_plan$stats$mean_cycle_time_sec
+    
+    if(is.null(orig_ct) || is.na(orig_ct) || orig_ct == 0) orig_ct <- new_ct # Fallback
+    
+    diff_pct <- round((orig_ct - new_ct) / orig_ct * 100, 1)
+    
+    subtitle <- "Cycle Time"
+    icon_name <- "clock"
+    color <- "info"
+    
+    if(diff_pct > 5) {
+      subtitle <- paste0("Cycle Time (-", diff_pct, "%)")
+      color <- "success"
+    } else if(diff_pct < -5) {
+      subtitle <- paste0("Cycle Time (+", abs(diff_pct), "%)")
+      color <- "warning"
+    }
+    
+    valueBox(
+      value = paste0(round(new_ct, 2), " s"),
+      subtitle = subtitle,
+      icon = icon(icon_name),
+      color = color
+    )
+  })
+
+  output$summary_box_dppp <- renderValueBox({
+    req(rv$optimization_complete, rv$optimization_plan, rv$validated_data)
+    
+    orig_dppp <- rv$validated_data$stats$dppp
+    new_dppp <- rv$optimization_plan$stats$mean_dppp
+    
+    if(is.null(orig_dppp) || is.na(orig_dppp)) orig_dppp <- new_dppp # Fallback
+    
+    diff_val <- round(new_dppp - orig_dppp, 1)
+    
+    subtitle <- "Mean DPPP"
+    icon_name <- "chart-line"
+    color <- "info"
+    
+    if(diff_val >= 0.5) {
+      subtitle <- paste0("Mean DPPP (+", diff_val, ")")
+      color <- "success"
+    } else if(diff_val <= -0.5) {
+      subtitle <- paste0("Mean DPPP (", diff_val, ")")
+      color <- "warning"
+    }
+    
+    valueBox(
+      value = round(new_dppp, 1),
+      subtitle = subtitle,
+      icon = icon(icon_name),
+      color = color
+    )
+  })
+
+  output$summary_box_windows <- renderValueBox({
+    req(rv$optimization_complete, rv$optimization_plan)
+    
+    n_windows <- rv$optimization_plan$stats$n_windows
+    
+    valueBox(
+      value = n_windows,
+      subtitle = "Total Isolation Windows",
+      icon = icon("layer-group"),
+      color = "primary"
+    )
+  })
