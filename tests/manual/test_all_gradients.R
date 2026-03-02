@@ -126,6 +126,6 @@ if (passed == length(datasets)) {
   cat("   Total combinations: 4 strategies × 3 gradients = 12 tests\n")
   cat("   Output: output/pipeline_test/{30min,60min,90min}/\n")
   cat("     - optimization_report.pdf (24 plots)\n")
-  cat("     - method_{strategy}.csv × 4 (22 columns each)\n")
+  cat("     - method_{strategy}.csv × 4 (16 columns each)\n")
   cat("     - 24 × *.png files\n\n")
 }

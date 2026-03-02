@@ -138,13 +138,10 @@ if (file.exists(output_file)) {
 
   # 2. Window Count Check
   cat("✅ 2. Window Count Calculation\n")
-  cycle_time <- unique(csv_data$Recommended_Cycle_Time_Sec)
-  cat("   - Recommended cycle time:", cycle_time, "sec\n")
   cat("   - Total windows generated:", nrow(csv_data), "\n\n")
 
   # 3. m/z Strategy Check
   cat("✅ 3. m/z Range Optimization\n")
-  cat("   - Strategy used:", unique(csv_data$Generation_Method), "\n")
   cat("   - m/z range:",
       sprintf("%.1f - %.1f Da",
               min(csv_data$`Start (m/z)`),
@@ -152,7 +149,6 @@ if (file.exists(output_file)) {
 
   # 4. Window Generation Check
   cat("✅ 4. Window Generation\n")
-  cat("   - Mode:", unique(csv_data$Window_Type), "\n")
   cat("   - RT bins:", length(unique(csv_data$RT_Segment_ID)), "\n\n")
 
   # 5. Window Width Statistics
@@ -168,19 +164,12 @@ if (file.exists(output_file)) {
   # 6. CSV Output Format
   cat("✅ 6. CSV Output Format\n")
   cat("   - File:", output_file, "\n")
-  cat("   - Columns:", ncol(csv_data), "/ 22 expected\n")
-  cat("   - Instrument:", unique(csv_data$Instrument), "\n")
-
-  # Check cycle time precision
-  cycle_time_check <- all(csv_data$Recommended_Cycle_Time_Sec ==
-                          round(csv_data$Recommended_Cycle_Time_Sec, 1))
-  cat("   - Cycle time precision:",
-      ifelse(cycle_time_check, "✅ 1 decimal", "❌ NOT 1 decimal"), "\n\n")
+  cat("   - Columns:", ncol(csv_data), "/ 16 expected\n\n")
 
   # Sample output
   cat("Sample Windows (first 5):\n")
   sample_cols <- c("Window_ID", "Start (m/z)", "End (m/z)",
-                   "RT_Segment_ID", "Recommended_Cycle_Time_Sec")
+                   "RT_Segment_ID", "N_Precursors")
   print(head(csv_data[, sample_cols], 5))
 
   cat("\n╔════════════════════════════════════════════════════════════╗\n")

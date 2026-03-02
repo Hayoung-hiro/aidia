@@ -9,7 +9,8 @@ generate_fixed_windows_internal(
   mz_max,
   n_windows,
   min_width_da,
-  max_width_da
+  max_width_da,
+  fz_offset = 0
 )
 }
 \arguments{
@@ -22,11 +23,16 @@ generate_fixed_windows_internal(
 \item{min_width_da}{Minimum window width}
 
 \item{max_width_da}{Maximum window width}
+
+\item{fz_offset}{Forbidden zone constant (0 to disable)}
 }
 \value{
 Data frame with window specifications
 }
 \description{
 Creates equal-width windows across the m/z range.
+When fz_offset > 0, uses boundary-array-first architecture:
+integer boundaries are FZ-transformed and assembled as adjacent pairs,
+guaranteeing continuity by construction.
 }
 \keyword{internal}

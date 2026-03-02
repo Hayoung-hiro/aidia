@@ -14,7 +14,7 @@ generate_windows_internal(
   max_width_da,
   overlap_percentage,
   width_grid_step = 0.5,
-  ptm_constant = 0.25
+  fz_offset = 0.25
 )
 }
 \arguments{
@@ -36,7 +36,7 @@ generate_windows_internal(
 
 \item{width_grid_step}{Grid step for width digitization in Da (default: 0.5)}
 
-\item{ptm_constant}{Numeric, forbidden zone offset for staggered mode (default: 0.25, use 0.18 for phospho)}
+\item{fz_offset}{Numeric, forbidden zone offset for staggered mode (default: 0.25, use 0.18 for phospho)}
 }
 \value{
 Data frame with window specifications

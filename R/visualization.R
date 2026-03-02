@@ -220,6 +220,37 @@ generate_visualizations <- function(
   }
 
   # ===================================================================
+  # Plot 12-14: Window Verification (Tiling, Alignment, FZ Zoom)
+  # ===================================================================
+
+  # Plot 12: Tiling Coverage Map
+  if (exists("plot_tiling_coverage_map")) {
+    cat("  Generating Plot 12: Tiling Coverage Map (Window Verification)...\n")
+    plots$`plot12_tiling_coverage_map` <- plot_tiling_coverage_map(
+      optimized_windows, validated_data
+    )
+  }
+
+  # Plot 13: Alignment Density
+  if (exists("plot_alignment_density")) {
+    cat("  Generating Plot 13: Alignment Density (Precursor-Window Alignment)...\n")
+    plots$`plot13_alignment_density` <- plot_alignment_density(
+      optimized_windows, validated_data
+    )
+  }
+
+  # Plot 14: FZ Zoom-in (conditional: only when forbidden zone active)
+  if (exists("plot_fz_zoom")) {
+    fz_offset <- optimized_windows$parameters$fz_offset %||% 0
+    if (fz_offset > 0) {
+      cat("  Generating Plot 14: Forbidden Zone Zoom-in...\n")
+      plots$`plot14_fz_zoom` <- plot_fz_zoom(
+        optimized_windows, fz_offset = fz_offset
+      )
+    }
+  }
+
+  # ===================================================================
   # Plot 7: Window Width Distribution by RT Segment (Multi-Strategy)
   # ===================================================================
 

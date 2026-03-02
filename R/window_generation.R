@@ -28,7 +28,7 @@
 #' @param max_width_da Maximum window width in Da
 #' @param overlap_percentage Overlap percentage between windows
 #' @param width_grid_step Grid step for width digitization in Da (default: 0.5)
-#' @param ptm_constant Numeric, forbidden zone offset for staggered mode (default: 0.25, use 0.18 for phospho)
+#' @param fz_offset Numeric, forbidden zone offset for staggered mode (default: 0.25, use 0.18 for phospho)
 #'
 #' @return Data frame with window specifications
 #' @keywords internal
@@ -36,7 +36,7 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
                                      n_windows_per_bin, window_mode,
                                      min_width_da, max_width_da,
                                      overlap_percentage, width_grid_step = 0.5,
-                                     ptm_constant = 0.25) {
+                                     fz_offset = 0.25) {
 
   n_bins <- nrow(rt_stats)
 
@@ -67,39 +67,28 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
     }
 
     # Generate windows based on mode
+    # All generators handle FZ internally via boundary-array-first architecture
     if (window_mode == "fixed") {
       bin_windows <- generate_fixed_windows_internal(
-        mz_min, mz_max, n_windows_per_bin, min_width_da, max_width_da
+        mz_min, mz_max, n_windows_per_bin, min_width_da, max_width_da,
+        fz_offset = fz_offset
       )
     } else if (window_mode == "staggered") {
       bin_windows <- generate_staggered_windows_internal(
         mz_min, mz_max, n_windows_per_bin, min_width_da, max_width_da,
         rt_bin_index = i,
-        ptm_constant = ptm_constant
+        fz_offset = fz_offset
       )
     } else {  # density (variable)
       bin_windows <- generate_variable_windows_internal(
         bin_data$Precursor.Mz, mz_min, mz_max, n_windows_per_bin,
-        min_width_da, max_width_da, width_grid_step = width_grid_step
+        min_width_da, max_width_da, width_grid_step = width_grid_step,
+        fz_offset = fz_offset
       )
     }
 
-    # Forbidden zone snapping for fixed/density modes
-    # (staggered already handles this internally via build_cycle)
-    if (window_mode != "staggered" && ptm_constant > 0) {
-      bin_windows_before_snap <- bin_windows
-      bin_windows <- snap_to_forbidden_zones(bin_windows, ptm_constant)
-
-      # Validate: no degenerate windows (negative/zero width)
-      if (any(bin_windows$window_width <= 0)) {
-        warning("Forbidden zone snap produced degenerate windows in RT bin ", i,
-                ". Reverting to unsnapped.")
-        bin_windows <- bin_windows_before_snap
-      }
-    }
-
     # Warn if overlap and forbidden zone are both active
-    if (overlap_percentage > 0 && ptm_constant > 0 && window_mode != "staggered") {
+    if (overlap_percentage > 0 && fz_offset > 0 && window_mode != "staggered") {
       warning("Overlap margins conflict with forbidden zone placement. ",
               "Consider setting overlap_percentage = 0.")
     }
@@ -155,17 +144,22 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
 #' Generate Fixed Windows (Internal)
 #'
 #' Creates equal-width windows across the m/z range.
+#' When fz_offset > 0, uses boundary-array-first architecture:
+#' integer boundaries are FZ-transformed and assembled as adjacent pairs,
+#' guaranteeing continuity by construction.
 #'
 #' @param mz_min Minimum m/z
 #' @param mz_max Maximum m/z
 #' @param n_windows Target number of windows
 #' @param min_width_da Minimum window width
 #' @param max_width_da Maximum window width
+#' @param fz_offset Forbidden zone constant (0 to disable)
 #'
 #' @return Data frame with window specifications
 #' @keywords internal
 generate_fixed_windows_internal <- function(mz_min, mz_max, n_windows,
-                                           min_width_da, max_width_da) {
+                                           min_width_da, max_width_da,
+                                           fz_offset = 0) {
 
   mz_range <- mz_max - mz_min
   ideal_width <- mz_range / n_windows
@@ -184,13 +178,23 @@ generate_fixed_windows_internal <- function(mz_min, mz_max, n_windows,
 
   actual_count <- max(1, actual_count)
 
-  # Generate window boundaries
-  windows <- tibble(
-    mz_start = mz_min + (0:(actual_count - 1)) * actual_width,
-    mz_end = pmin(mz_min + (1:actual_count) * actual_width, mz_max),
-    mz_center = (mz_start + mz_end) / 2,
-    window_width = mz_end - mz_start
-  )
+  # Generate boundaries
+  boundaries <- seq(mz_min, mz_max, length.out = actual_count + 1)
+
+  if (fz_offset > 0) {
+    # Boundary-array-first: integerize -> FZ transform -> assemble
+    boundaries <- integerize_boundaries(boundaries, mz_min, mz_max)
+    boundaries <- transform_boundaries_to_fz(boundaries, fz_offset)
+    windows <- assemble_windows_from_boundaries(boundaries)
+  } else {
+    # Original float-boundary path (no FZ)
+    windows <- tibble(
+      mz_start = boundaries[-length(boundaries)],
+      mz_end = boundaries[-1],
+      mz_center = (mz_start + mz_end) / 2,
+      window_width = mz_end - mz_start
+    )
+  }
 
   return(windows)
 }
@@ -233,7 +237,8 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
                                                max_width_da,
                                                max_iterations = 20,
                                                max_change_ratio = 0.5,
-                                               width_grid_step = 0.5) {
+                                               width_grid_step = 0.5,
+                                               fz_offset = 0) {
 
   # Filter precursors within range
   precursor_mz <- precursor_mz[precursor_mz >= mz_min & precursor_mz <= mz_max]
@@ -246,7 +251,8 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
       n_precursors, n_windows * 2, n_windows
     ))
     return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
-                                           min_width_da, max_width_da))
+                                           min_width_da, max_width_da,
+                                           fz_offset = fz_offset))
   }
 
   # Validate that n_windows is feasible
@@ -256,7 +262,8 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   if (max_possible_windows < 1) {
     # Range too small for even 1 window at min_width
     return(generate_fixed_windows_internal(mz_min, mz_max, 1,
-                                           min_width_da, max_width_da))
+                                           min_width_da, max_width_da,
+                                           fz_offset = fz_offset))
   }
 
   actual_n_windows <- min(n_windows, max_possible_windows)
@@ -428,27 +435,54 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   }
 
   # =========================================================================
-  # Phase 4: Create final windows with validation
+  # Phase 4: Forbidden zone transform (if active) or direct assembly
   # =========================================================================
 
-  windows <- tibble(
-    mz_start = boundaries[-length(boundaries)],
-    mz_end = boundaries[-1],
-    window_width = mz_end - mz_start,
-    mz_center = (mz_start + mz_end) / 2
-  )
+  if (fz_offset > 0) {
+    # Boundary-array-first: integerize -> FZ transform -> assemble
+    boundaries <- integerize_boundaries(boundaries, mz_min, mz_max)
 
-  # Final validation - should always pass if algorithm is correct
-  if (any(windows$window_width < min_width_da * 0.99)) {
-    # Fallback to fixed if constraints violated (shouldn't happen)
-    warning("Variable window generation violated min_width constraint. Falling back to fixed mode.")
-    return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
-                                           min_width_da, max_width_da))
-  }
+    # Re-validate width constraints after integer rounding
+    int_widths <- diff(boundaries)
+    if (any(int_widths < min_width_da * 0.9) || any(int_widths > max_width_da * 1.1)) {
+      warning("Variable+FZ: integer rounding violated width constraints. Falling back to fixed+FZ.")
+      return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
+                                             min_width_da, max_width_da,
+                                             fz_offset = fz_offset))
+    }
 
-  if (any(windows$window_width > max_width_da * 1.01)) {
-    # Allow slight overshoot due to floating point
-    windows$window_width <- pmin(windows$window_width, max_width_da)
+    boundaries <- transform_boundaries_to_fz(boundaries, fz_offset)
+
+    # Re-validate width constraints after FZ transform
+    fz_widths <- diff(boundaries)
+    if (any(fz_widths < min_width_da * 0.9) || any(fz_widths > max_width_da * 1.1)) {
+      warning("Variable+FZ: FZ transform violated width constraints. Falling back to fixed+FZ.")
+      return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
+                                             min_width_da, max_width_da,
+                                             fz_offset = fz_offset))
+    }
+
+    windows <- assemble_windows_from_boundaries(boundaries)
+  } else {
+    # Original float-boundary path (no FZ)
+    windows <- tibble(
+      mz_start = boundaries[-length(boundaries)],
+      mz_end = boundaries[-1],
+      window_width = mz_end - mz_start,
+      mz_center = (mz_start + mz_end) / 2
+    )
+
+    # Final validation - should always pass if algorithm is correct
+    if (any(windows$window_width < min_width_da * 0.99)) {
+      warning("Variable window generation violated min_width constraint. Falling back to fixed mode.")
+      return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
+                                             min_width_da, max_width_da))
+    }
+
+    if (any(windows$window_width > max_width_da * 1.01)) {
+      # Allow slight overshoot due to floating point
+      windows$window_width <- pmin(windows$window_width, max_width_da)
+    }
   }
 
   return(windows)
@@ -465,43 +499,71 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
 #' of amino acids, making them ideal for quadrupole isolation window boundaries.
 #'
 #' @param nominal_mz Nominal m/z value to shift to forbidden zone
-#' @param ptm_constant Constant for forbidden zone offset (0.25 standard, 0.18 phospho)
+#' @param fz_offset Constant for forbidden zone offset (0.25 standard, 0.18 phospho)
 #'
 #' @return Numeric, forbidden zone edge m/z value
 #' @keywords internal
-calc_forbidden_edge <- function(nominal_mz, ptm_constant = 0.25) {
+calc_forbidden_edge <- function(nominal_mz, fz_offset = 0.25) {
   optimal_increment <- 1.00045475
-  round(ceiling(nominal_mz / optimal_increment) * optimal_increment + ptm_constant, 4)
+  round(ceiling(nominal_mz / optimal_increment) * optimal_increment + fz_offset, 4)
 }
 
-#' Snap Window Boundaries to Forbidden Zones
+#' Integerize Boundary Array
 #'
-#' Post-processing step that snaps existing window boundaries to mass defect
-#' forbidden zones. After snapping mz_end values, ensures continuous coverage
-#' by setting each window's mz_start to the previous window's mz_end.
+#' Rounds all boundaries to nearest integer, ensuring the first boundary
+#' covers mz_min (floor) and the last covers mz_max (ceiling).
+#' Integer boundaries guarantee deterministic FZ transform behavior
+#' because ceil(N / 1.00045475) = N for all integers (inc > 1).
 #'
-#' @param windows Data frame with mz_start, mz_end, mz_center, window_width columns
-#' @param ptm_constant Forbidden zone constant (0.25 standard, 0.18 phospho)
+#' @param boundaries Numeric vector of N+1 boundary positions
+#' @param mz_min Minimum m/z to cover
+#' @param mz_max Maximum m/z to cover
 #'
-#' @return Data frame with snapped window boundaries
+#' @return Integer vector of length N+1
 #' @keywords internal
-snap_to_forbidden_zones <- function(windows, ptm_constant = 0.25) {
-  # Snap all boundaries to nearest forbidden zone
-  windows$mz_start <- vapply(windows$mz_start, calc_forbidden_edge,
-                              numeric(1), ptm_constant = ptm_constant)
-  windows$mz_end   <- vapply(windows$mz_end, calc_forbidden_edge,
-                              numeric(1), ptm_constant = ptm_constant)
+integerize_boundaries <- function(boundaries, mz_min, mz_max) {
+  boundaries <- round(boundaries)
+  boundaries[1] <- floor(mz_min)
+  boundaries[length(boundaries)] <- ceiling(mz_max)
+  as.integer(boundaries)
+}
 
-  # Continuous coverage: each window starts where previous ends
-  for (j in seq_along(windows$mz_start)[-1]) {
-    windows$mz_start[j] <- windows$mz_end[j - 1]
-  }
+#' Transform Boundary Array to Forbidden Zones
+#'
+#' Applies calc_forbidden_edge() to an entire boundary array at once.
+#' Each boundary is shifted to the nearest mass defect forbidden zone
+#' where peptide precursors cannot exist.
+#'
+#' @param boundaries Numeric vector of N+1 boundary positions
+#' @param fz_offset Forbidden zone constant (0.25 standard, 0.18 phospho)
+#'
+#' @return Numeric vector of FZ-transformed boundaries
+#' @keywords internal
+transform_boundaries_to_fz <- function(boundaries, fz_offset = 0.25) {
+  vapply(boundaries, calc_forbidden_edge, numeric(1), fz_offset = fz_offset)
+}
 
-  # Recalculate derived columns
-  windows$window_width <- windows$mz_end - windows$mz_start
-  windows$mz_center   <- (windows$mz_start + windows$mz_end) / 2
-
-  windows
+#' Assemble Windows from Boundary Array
+#'
+#' Creates a window tibble from an N+1 boundary array by pairing
+#' adjacent elements: window[i] = (array[i], array[i+1]).
+#' Continuity is guaranteed by construction — mz_start[j] == mz_end[j-1]
+#' because both reference the same array element.
+#'
+#' @param boundaries Numeric vector of N+1 boundary positions
+#'
+#' @return Tibble with mz_start, mz_end, mz_center, window_width columns
+#' @keywords internal
+assemble_windows_from_boundaries <- function(boundaries) {
+  n <- length(boundaries) - 1
+  mz_start <- boundaries[1:n]
+  mz_end <- boundaries[2:(n + 1)]
+  tibble(
+    mz_start = mz_start,
+    mz_end = mz_end,
+    mz_center = (mz_start + mz_end) / 2,
+    window_width = mz_end - mz_start
+  )
 }
 
 #' Generate Staggered Windows (Internal)
@@ -522,43 +584,40 @@ snap_to_forbidden_zones <- function(windows, ptm_constant = 0.25) {
 #' @param min_width_da Minimum window width in Da
 #' @param max_width_da Maximum window width in Da
 #' @param rt_bin_index Current RT bin index (1-based)
-#' @param ptm_constant Forbidden zone constant (0.25 standard, 0.18 phospho)
+#' @param fz_offset Forbidden zone constant (0.25 standard, 0.18 phospho)
 #'
 #' @return Data frame with window specifications including `cycle` column (1 or 2)
 #' @keywords internal
 generate_staggered_windows_internal <- function(mz_min, mz_max, n_windows,
                                                  min_width_da, max_width_da,
                                                  rt_bin_index,
-                                                 ptm_constant = 0.25) {
+                                                 fz_offset = 0.25) {
 
   mz_range <- mz_max - mz_min
 
   # Use n_windows directly (do NOT recalculate) to guarantee consistent
-
   # window count across all RT bins — required for Loop Control N.
   nominal_width <- mz_range / n_windows
 
-  # --- Helper: build one cycle of exactly n_windows forbidden-zone windows ---
+  # --- Helper: build one cycle using boundary-array-first architecture ---
+  # Generates N+1 integer boundaries, FZ-transforms, assembles as adjacent pairs.
+  # Continuity is guaranteed by construction (no chaining loop needed).
   build_cycle <- function(start_offset) {
-    starts_nom <- mz_min + start_offset + (0:(n_windows - 1)) * nominal_width
-    ends_nom   <- starts_nom + nominal_width
+    # Generate N+1 boundary positions with offset
+    boundaries <- seq(mz_min + start_offset,
+                      mz_min + start_offset + n_windows * nominal_width,
+                      length.out = n_windows + 1)
 
-    starts <- vapply(starts_nom, calc_forbidden_edge, numeric(1),
-                     ptm_constant = ptm_constant)
-    ends   <- vapply(ends_nom,   calc_forbidden_edge, numeric(1),
-                     ptm_constant = ptm_constant)
+    # Integerize for deterministic FZ transform
+    boundaries <- integerize_boundaries(boundaries,
+                                        mz_min + start_offset,
+                                        mz_min + start_offset + n_windows * nominal_width)
 
-    # Ensure continuous coverage: each window starts where previous ends
-    for (j in seq_along(starts)[-1]) {
-      starts[j] <- ends[j - 1]
-    }
+    # Apply forbidden zone transform
+    boundaries <- transform_boundaries_to_fz(boundaries, fz_offset)
 
-    tibble(
-      mz_start     = starts,
-      mz_end       = ends,
-      mz_center    = (starts + ends) / 2,
-      window_width = ends - starts
-    )
+    # Assemble windows from adjacent boundary pairs
+    assemble_windows_from_boundaries(boundaries)
   }
 
   # --- Cycle 1: Base windows ---
@@ -566,7 +625,9 @@ generate_staggered_windows_internal <- function(mz_min, mz_max, n_windows,
     mutate(cycle = 1L, is_staggered = FALSE)
 
   # --- Cycle 2: 50% offset windows ---
-  cycle2 <- build_cycle(start_offset = nominal_width / 2) %>%
+  # Round offset to ensure integer boundaries
+  offset <- round(nominal_width / 2)
+  cycle2 <- build_cycle(start_offset = offset) %>%
     mutate(cycle = 2L, is_staggered = TRUE)
 
   # --- Combine both cycles ---

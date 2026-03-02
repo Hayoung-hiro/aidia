@@ -2,7 +2,7 @@
 % Please edit documentation in R/export_methods.R
 \name{export_windows_to_csv}
 \alias{export_windows_to_csv}
-\title{Export Windows to CSV for Instrument Upload (Extended Format)}
+\title{Export Windows to CSV for Instrument Upload}
 \usage{
 export_windows_to_csv(
   optimized_windows,
@@ -33,6 +33,6 @@ export_windows_to_csv(
 NULL (invisible), writes CSV file
 }
 \description{
-Creates instrument-ready CSV file with 22-column extended format
+Creates instrument-ready CSV file with 16-column format (17 for staggered)
 compatible with Thermo Orbitrap instruments.
 }

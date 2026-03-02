@@ -214,11 +214,11 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         # KDE parameters
         kde_density_threshold = strategy_params$kde_density_threshold,
         kde_min_coverage = strategy_params$kde_min_coverage,
-        # Window placement optimization (forbidden zone constant, all modes)
-        ptm_constant = if (isTRUE(input$sample_matrix_type == "custom")) {
-          as.numeric(input$custom_ptm_constant %||% 0.25)
+        # Forbidden zone placement optimization (all modes, default: recommended ON)
+        fz_offset = if (isTRUE(input$fz_offset_preset == "custom")) {
+          as.numeric(input$custom_fz_offset %||% 0.25)
         } else {
-          as.numeric(input$sample_matrix_type %||% "0.25")  # "0" = disabled
+          as.numeric(input$fz_offset_preset %||% "0.25")  # "0" = disabled
         }
       )
       cat("[Shiny] optimize_windows() completed!\n")
@@ -329,10 +329,10 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     } else if (used_mode == "staggered") {
       n_cycle1 <- if ("cycle" %in% colnames(windows)) sum(windows$cycle == 1L) else n_windows
       n_cycle2 <- if ("cycle" %in% colnames(windows)) sum(windows$cycle == 2L) else 0
-      ptm_val <- params$ptm_constant %||% 0.25
+      fz_val <- params$fz_offset %||% 0.25
       tags$div(
         tags$strong("2-Cycle Interleaved: "),
-        sprintf("C1: %d + C2: %d windows (forbidden zone: %.2f)", n_cycle1, n_cycle2, ptm_val)
+        sprintf("C1: %d + C2: %d windows (forbidden zone: %.4f)", n_cycle1, n_cycle2, fz_val)
       )
     } else {
       tags$div(

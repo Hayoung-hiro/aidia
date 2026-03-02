@@ -4,12 +4,12 @@
 \alias{calc_forbidden_edge}
 \title{Calculate Forbidden Zone Edge (Mass Defect)}
 \usage{
-calc_forbidden_edge(nominal_mz, ptm_constant = 0.25)
+calc_forbidden_edge(nominal_mz, fz_offset = 0.25)
 }
 \arguments{
 \item{nominal_mz}{Nominal m/z value to shift to forbidden zone}
 
-\item{ptm_constant}{Constant for forbidden zone offset (0.25 standard, 0.18 phospho)}
+\item{fz_offset}{Constant for forbidden zone offset (0.25 standard, 0.18 phospho)}
 }
 \value{
 Numeric, forbidden zone edge m/z value

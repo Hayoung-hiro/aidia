@@ -67,7 +67,7 @@
 #' @param kde_min_coverage Numeric, KDE minimum coverage 0-1 (default: 0.80)
 #' @param quantile_apply_smoothing Logical, apply SG smoothing to quantile boundaries (default: FALSE)
 #' @param outlier_apply_smoothing Logical, apply SG smoothing to outlier boundaries (default: FALSE)
-#' @param ptm_constant Numeric, forbidden zone offset for staggered mode (default: 0.25, use 0.18 for phospho)
+#' @param fz_offset Numeric, forbidden zone offset for staggered mode (default: 0.25, use 0.18 for phospho)
 #' @param coverage_mode Character, coverage strategy mode: "narrowest" or "centered"
 #' @param mz_range_min Numeric, fallback minimum m/z for empty RT bins (default: 400)
 #' @param mz_range_max Numeric, fallback maximum m/z for empty RT bins (default: 1200)
@@ -125,7 +125,7 @@ optimize_windows <- function(
   kde_min_coverage = 0.80,
   quantile_apply_smoothing = FALSE,
   outlier_apply_smoothing = FALSE,
-  ptm_constant = 0.25,
+  fz_offset = 0.25,
   coverage_mode = "narrowest",
   # RT binning parameters
   rt_binning_mode = "fixed",
@@ -190,7 +190,7 @@ optimize_windows <- function(
   validate_numeric_range(overlap_percentage, min = 0, max = 50, param_name = "overlap_percentage")
   validate_numeric_range(mz_range_min, min = 0, param_name = "mz_range_min")
   validate_numeric_range(mz_range_max, min = mz_range_min, param_name = "mz_range_max")
-  validate_numeric_range(ptm_constant, min = 0, max = 1, param_name = "ptm_constant")
+  validate_numeric_range(fz_offset, min = 0, max = 1, param_name = "fz_offset")
 
   valid_strategies <- c("quantile", "coverage", "outlier", "greedy", "kde")
   if (!mz_strategy %in% valid_strategies) {
@@ -327,7 +327,7 @@ optimize_windows <- function(
     min_width_da = gen_min_width_da,
     max_width_da = max_width_da,
     overlap_percentage = overlap_percentage,
-    ptm_constant = ptm_constant,
+    fz_offset = fz_offset,
     width_grid_step = width_grid_step
   )
 
@@ -448,7 +448,7 @@ optimize_windows <- function(
         max_width_da = max_width_da,
         overlap_percentage = overlap_percentage,
         width_grid_step = width_grid_step,
-        ptm_constant = ptm_constant
+        fz_offset = fz_offset
       ),
 
       # Metadata

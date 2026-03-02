@@ -195,7 +195,7 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
       "Target Satisfaction",
       "m/z Strategy",
       "Window Mode",
-      "Width Grid Step (Da)",
+      "FZ Offset (Da)",
       "RT Binning Mode",
       "RT Bin Width (min)",
       "Precursors",
@@ -215,7 +215,7 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
       sprintf("%.0f%%", (optimization_plan$parameters$target_satisfaction %||% 0.7) * 100),
       params$mz_strategy,
       params$window_mode,
-      as.character(params$width_grid_step %||% 0.5),
+      as.character(params$fz_offset %||% 0.25),
       params$rt_binning_mode %||% "fixed",
       as.character(params$rt_bin_width_min %||% 5),
       format(validated_data$metadata$n_precursors, big.mark = ","),
@@ -398,6 +398,18 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
     "plot8c_strategy_width_cdf"
   ))
   n_pages <- n_pages + n
+
+  # --- Section 5: Window Verification ---
+  verification_keys <- c("plot12_tiling_coverage_map",
+                         "plot13_alignment_density",
+                         "plot14_fz_zoom")
+  if (any(verification_keys %in% names(plots))) {
+    .draw_section_page(5, "Window Verification",
+                       "Tiling coverage, precursor alignment, and forbidden zone validation")
+    n_pages <- n_pages + 1
+    n <- .emit_section_plots(plots, verification_keys)
+    n_pages <- n_pages + n
+  }
 
   # --- Appendix A: Detailed Per-Strategy Analysis ---
   # Only emit if any per-strategy plots exist

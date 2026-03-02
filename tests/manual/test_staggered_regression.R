@@ -97,13 +97,13 @@ tryCatch({
   add_result("1b. Fixed: no 'is_staggered' column", !has_stag,
              if (has_stag) "UNEXPECTED: is_staggered column present" else "")
 
-  # 1c: Export CSV → 22 columns
+  # 1c: Export CSV → 16 columns
   csv_path <- file.path(tmp_dir, "test_fixed.csv")
   export_windows_to_csv(res_fixed, csv_path, mock_data, mock_plan)
   csv_data <- read.csv(csv_path, check.names = FALSE)
 
   ncols <- ncol(csv_data)
-  add_result("1c. Fixed CSV: 22 columns", ncols == 22,
+  add_result("1c. Fixed CSV: 16 columns", ncols == 16,
              sprintf("got %d", ncols))
 
   # 1d: Compound field is empty "" (read.csv converts all-empty to NA)
@@ -144,13 +144,13 @@ tryCatch({
   add_result("2b. Density: no 'is_staggered' column", !has_stag,
              if (has_stag) "UNEXPECTED: is_staggered column present" else "")
 
-  # 2c: Export CSV → 22 columns
+  # 2c: Export CSV → 16 columns
   csv_path <- file.path(tmp_dir, "test_density.csv")
   export_windows_to_csv(res_density, csv_path, mock_data, mock_plan)
   csv_data <- read.csv(csv_path, check.names = FALSE)
 
   ncols <- ncol(csv_data)
-  add_result("2c. Density CSV: 22 columns", ncols == 22,
+  add_result("2c. Density CSV: 16 columns", ncols == 16,
              sprintf("got %d", ncols))
 
   # 2d: Compound field is empty "" (read.csv converts all-empty to NA)
@@ -184,7 +184,7 @@ tryCatch({
       mock_data, mock_plan,
       mz_strategy   = "quantile",
       window_mode   = "staggered",
-      ptm_constant  = 0.25
+      fz_offset  = 0.25
     )
   })
 
@@ -208,7 +208,7 @@ tryCatch({
     add_result("3b. Staggered: both cycles, equal count", FALSE, "no cycle column")
   }
 
-  # 3c: Export CSV → 23 columns (22 base + Cycle)
+  # 3c: Export CSV → 17 columns (16 base + Cycle)
   csv_path <- file.path(tmp_dir, "test_staggered.csv")
   staggered_csv_output <- capture.output({
     export_windows_to_csv(res_staggered, csv_path, mock_data, mock_plan)
@@ -216,7 +216,7 @@ tryCatch({
   csv_data <- read.csv(csv_path, check.names = FALSE)
 
   ncols <- ncol(csv_data)
-  add_result("3c. Staggered CSV: 23 columns", ncols == 23,
+  add_result("3c. Staggered CSV: 17 columns", ncols == 17,
              sprintf("got %d", ncols))
 
   # 3d: Cycle column present in CSV

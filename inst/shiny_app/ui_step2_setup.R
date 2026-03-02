@@ -144,13 +144,13 @@ step2_setup_ui <- function() {
         fluidRow(
           column(6,
             selectInput(
-              inputId = "sample_matrix_type",
-              label = "Window Placement Optimization (Forbidden Zone)",
+              inputId = "fz_offset_preset",
+              label = "Forbidden Zone Placement (Recommended)",
               choices = c(
-                "None (Disabled)" = "0",
-                "Standard Proteomics (0.25)" = "0.25",
+                "Standard Proteomics (0.25) - Recommended" = "0.25",
                 "Phosphoproteomics (0.18)" = "0.18",
-                "Custom" = "custom"
+                "Custom" = "custom",
+                "None (Disabled)" = "0"
               ),
               selected = "0.25"
             )
@@ -160,23 +160,24 @@ step2_setup_ui <- function() {
               helpText(
                 "Snaps window boundaries to mass defect forbidden zones where ",
                 "peptide precursors cannot exist. Prevents quadrupole edge ",
-                "transmission loss and isotope envelope splitting.",
+                "transmission loss and isotope envelope splitting. ",
+                "Enabled by default for optimal transmission efficiency.",
                 style = "font-size: 10px; color: #7f8c8d; line-height: 1.4;"
               )
             )
           )
         ),
         conditionalPanel(
-          condition = "input.sample_matrix_type == 'custom'",
+          condition = "input.fz_offset_preset == 'custom'",
           fluidRow(
             column(4,
               numericInput(
-                inputId = "custom_ptm_constant",
-                label = "Custom Forbidden Zone Constant",
-                value = 0.25,
-                min = 0.01,
-                max = 0.99,
-                step = 0.01
+                inputId = "custom_fz_offset",
+                label = "Custom Forbidden Zone Offset",
+                value = 0.2500,
+                min = 0.0001,
+                max = 0.9999,
+                step = 0.0001
               )
             )
           )

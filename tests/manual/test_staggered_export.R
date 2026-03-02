@@ -1,7 +1,7 @@
 # test_staggered_export.R - Staggered Window Mode + CSV Export Test
 #
 # Purpose: Verify staggered window generation (cycle 1 & 2) and
-#          22-column Thermo CSV export with mock data (~500 precursors)
+#          16-column Thermo CSV export with mock data (~500 precursors)
 #
 # Usage: Rscript tests/manual/test_staggered_export.R
 
@@ -80,10 +80,10 @@ if (!is.null(plan) && inherits(plan, "OptimizationPlan")) {
 }
 
 # ============================================================================
-# Step 3: Run optimize_windows() with staggered mode + ptm_constant
+# Step 3: Run optimize_windows() with staggered mode + fz_offset
 # ============================================================================
 
-cat("\n--- Step 3: Run optimize_windows(window_mode='staggered', ptm_constant=0.25) ---\n")
+cat("\n--- Step 3: Run optimize_windows(window_mode='staggered', fz_offset=0.25) ---\n")
 
 opt_result <- tryCatch({
   optimize_windows(
@@ -91,7 +91,7 @@ opt_result <- tryCatch({
     optimization_plan = plan,
     mz_strategy       = "quantile",
     window_mode       = "staggered",
-    ptm_constant      = 0.25
+    fz_offset      = 0.25
   )
 }, error = function(e) {
   fail(sprintf("optimize_windows() error: %s", e$message))
@@ -182,12 +182,12 @@ if (is.null(opt_result)) {
 
     csv_data <- read.csv(csv_path, stringsAsFactors = FALSE)
 
-    # ---- Check 5a: 22 columns (base) or 23 columns (staggered: +Cycle) ----
+    # ---- Check 5a: 16 columns (base) or 17 columns (staggered: +Cycle) ----
     n_cols <- ncol(csv_data)
-    expected_cols <- if ("Cycle" %in% colnames(csv_data)) 23 else 22
+    expected_cols <- if ("Cycle" %in% colnames(csv_data)) 17 else 16
     if (n_cols == expected_cols) {
       pass(sprintf("CSV has %d columns (%s format)",
-                   n_cols, if (expected_cols == 23) "staggered 23-col" else "Thermo 22-col"))
+                   n_cols, if (expected_cols == 17) "staggered 17-col" else "Thermo 16-col"))
     } else {
       fail(sprintf("CSV has %d columns, expected %d. Columns: %s",
                    n_cols, expected_cols, paste(colnames(csv_data), collapse = ", ")))

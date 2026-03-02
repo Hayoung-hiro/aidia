@@ -12,12 +12,42 @@
 
 
 # =============================================================================
+# Loop N Helper (shared by export + visualization)
+# =============================================================================
+
+#' Calculate Loop N for Staggered DIA
+#'
+#' Determines the number of windows per cycle per RT bin (Loop Control N)
+#' from a staggered windows data frame. Returns NULL for non-staggered windows.
+#'
+#' @param windows Data frame with columns: cycle, rt_segment_id
+#'
+#' @return Integer Loop N value, or NULL if not staggered
+#' @keywords internal
+calculate_loop_n <- function(windows) {
+  if (!"cycle" %in% colnames(windows)) return(NULL)
+
+  loop_count <- windows %>%
+    filter(cycle == 1L) %>%
+    count(rt_segment_id) %>%
+    pull(n)
+  loop_n <- unique(loop_count)
+
+  if (length(loop_n) > 1) {
+    warning(sprintf("Staggered window count varies across RT bins (%s). Loop Control may misalign.",
+                    paste(loop_n, collapse = ", ")))
+  }
+  loop_n[1]
+}
+
+
+# =============================================================================
 # Single Strategy CSV Export
 # =============================================================================
 
-#' Export Windows to CSV for Instrument Upload (Extended Format)
+#' Export Windows to CSV for Instrument Upload
 #'
-#' Creates instrument-ready CSV file with 22-column extended format
+#' Creates instrument-ready CSV file with 16-column format (17 for staggered)
 #' compatible with Thermo Orbitrap instruments.
 #'
 #' @param optimized_windows OptimizedWindows object
@@ -40,13 +70,6 @@ export_windows_to_csv <- function(optimized_windows, output_file,
   validate_input_type(optimized_windows, "OptimizedWindows", "optimized_windows")
   validate_input_type(validated_data, "ValidatedData", "validated_data")
 
-  # Extract recommended cycle time
-  recommended_cycle_time <- if (!is.null(optimization_plan)) {
-    optimization_plan$required_cycle_time_sec
-  } else {
-    NA_real_
-  }
-
   windows <- optimized_windows$windows
   precursor_data <- get_precursor_data(validated_data)
   is_staggered <- "cycle" %in% colnames(windows)
@@ -63,17 +86,7 @@ export_windows_to_csv <- function(optimized_windows, output_file,
       ungroup() %>%
       mutate(.compound = sprintf("C%d_RT%d_W%02d", cycle, rt_segment_id, .win_seq))
 
-    # Calculate Loop Count (windows per cycle per bin — should be constant)
-    loop_count <- windows_with_counts %>%
-      filter(cycle == 1L) %>%
-      count(rt_segment_id) %>%
-      pull(n)
-    loop_n <- unique(loop_count)
-    if (length(loop_n) > 1) {
-      warning(sprintf("Staggered window count varies across RT bins (%s). Loop Control may misalign.",
-                      paste(loop_n, collapse = ", ")))
-    }
-    loop_n <- loop_n[1]
+    loop_n <- calculate_loop_n(windows_with_counts)
   } else {
     windows_with_counts$.compound <- ""
     loop_n <- NULL
@@ -88,50 +101,30 @@ export_windows_to_csv <- function(optimized_windows, output_file,
       Adduct = "(no adduct)",
 
       # Core columns
-      `m/z` = round(mz_center, 1),
+      `m/z` = round(mz_center, 4),
       z = 0,
       `t start (min)` = round(rt_start, 1),
       `t stop (min)` = round(rt_end, 1),
-      `Isolation Window (m/z)` = round(mz_end - mz_start, 1),
+      `Isolation Window (m/z)` = round(mz_end - mz_start, 4),
       `Normalized AGC Target (%)` = normalized_agc_target,
-      `Start (m/z)` = round(mz_start, 1),
-      `End (m/z)` = round(mz_end, 1),
+      `Start (m/z)` = round(mz_start, 4),
+      `End (m/z)` = round(mz_end, 4),
 
       # Metadata columns
       Window_ID = row_number(),
       RT_Segment_ID = rt_segment_id,
       RT_Center = round((rt_start + rt_end) / 2, 1),
       RT_Width = round(rt_end - rt_start, 1),
-      N_Precursors = n_precursors,
-      Overlap_Prev = {
-        prev_ends <- c(mz_start[1], head(mz_end, -1))
-        overlap <- prev_ends - mz_start
-        pmax(0, round(overlap, 1))
-      },
-      Overlap_Next = {
-        next_starts <- c(tail(mz_start, -1), tail(mz_end, 1))
-        overlap <- mz_end - next_starts
-        pmax(0, round(overlap, 1))
-      },
-
-      # Configuration
-      Instrument = instrument_type,
-      Generation_Method = optimized_windows$parameters$mz_strategy,
-      Window_Type = optimized_windows$parameters$window_mode,
-
-      # Cycle time
-      Recommended_Cycle_Time_Sec = round(recommended_cycle_time, 3)
+      N_Precursors = n_precursors
     )
 
-  # Column selection: base 22 + Cycle for staggered
+  # Column selection: base 16 + Cycle for staggered
   base_cols <- c("Compound", "Formula", "Adduct", "m/z", "z",
                  "t start (min)", "t stop (min)",
                  "Isolation Window (m/z)", "Normalized AGC Target (%)",
                  "Start (m/z)", "End (m/z)",
                  "Window_ID", "RT_Segment_ID", "RT_Center", "RT_Width",
-                 "N_Precursors", "Overlap_Prev", "Overlap_Next",
-                 "Instrument", "Generation_Method", "Window_Type",
-                 "Recommended_Cycle_Time_Sec")
+                 "N_Precursors")
 
   if (is_staggered) {
     method_file$Cycle <- windows_with_counts$cycle

@@ -11,7 +11,7 @@ generate_staggered_windows_internal(
   min_width_da,
   max_width_da,
   rt_bin_index,
-  ptm_constant = 0.25
+  fz_offset = 0.25
 )
 }
 \arguments{
@@ -27,7 +27,7 @@ generate_staggered_windows_internal(
 
 \item{rt_bin_index}{Current RT bin index (1-based)}
 
-\item{ptm_constant}{Forbidden zone constant (0.25 standard, 0.18 phospho)}
+\item{fz_offset}{Forbidden zone constant (0.25 standard, 0.18 phospho)}
 }
 \value{
 Data frame with window specifications including \code{cycle} column (1 or 2)

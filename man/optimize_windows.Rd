@@ -29,7 +29,7 @@ optimize_windows(
   kde_min_coverage = 0.8,
   quantile_apply_smoothing = FALSE,
   outlier_apply_smoothing = FALSE,
-  ptm_constant = 0.25,
+  fz_offset = 0.25,
   coverage_mode = "narrowest",
   rt_binning_mode = "fixed",
   cpd_min_bin_width = 1,
@@ -110,7 +110,7 @@ Ignored when strategy_config is provided.
 
 \item{outlier_apply_smoothing}{Logical, apply SG smoothing to outlier boundaries (default: FALSE)}
 
-\item{ptm_constant}{Numeric, forbidden zone offset for staggered mode (default: 0.25, use 0.18 for phospho)}
+\item{fz_offset}{Numeric, forbidden zone offset for staggered mode (default: 0.25, use 0.18 for phospho)}
 
 \item{coverage_mode}{Character, coverage strategy mode: "narrowest" or "centered"}
 

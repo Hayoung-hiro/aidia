@@ -13,7 +13,8 @@ generate_variable_windows_internal(
   max_width_da,
   max_iterations = 20,
   max_change_ratio = 0.5,
-  width_grid_step = 0.5
+  width_grid_step = 0.5,
+  fz_offset = 0
 )
 }
 \arguments{

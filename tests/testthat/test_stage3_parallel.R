@@ -1,7 +1,8 @@
 context("Stage 3: Window Modes and Edge Cases")
 
-test_that("Staggered mode respects offset", {
+test_that("Staggered mode respects offset and boundary-array integrity", {
   # Mock Data
+  set.seed(123)
   validated_data <- list(data = tibble::tibble(
     Precursor.Mz = runif(100, 400, 1000),
     RT.Apex = runif(100, 0, 20),
@@ -20,10 +21,43 @@ test_that("Staggered mode respects offset", {
     optimization_plan,
     rt_bin_width_min = 5,
     window_mode = "staggered",
-    ptm_constant = 0.25
+    fz_offset = 0.25
   )
 
-  expect_true(nrow(res$windows) > 0)
+  wins <- res$windows
+  expect_true(nrow(wins) > 0)
+
+  # Staggered must have cycle column with values {1, 2}
+  expect_true("cycle" %in% colnames(wins))
+  expect_true(all(wins$cycle %in% c(1L, 2L)))
+
+  # All windows must have positive width
+  expect_true(all(wins$window_width > 0))
+
+  # 100% boundaries at FZ when fz_offset > 0
+  optimal_increment <- 1.00045475
+  ptm_c <- 0.25
+  is_at_fz <- function(mz_val) {
+    shifted <- mz_val - ptm_c
+    remainder <- shifted %% optimal_increment
+    remainder < 0.01 || (optimal_increment - remainder) < 0.01
+  }
+  all_boundaries <- c(wins$mz_start, wins$mz_end)
+  at_fz <- vapply(all_boundaries, is_at_fz, logical(1))
+  expect_equal(mean(at_fz), 1.0)
+
+  # Boundary-array integrity: mz_start[j] == mz_end[j-1] within each RT bin + cycle
+  for (rt_id in unique(wins$rt_segment_id)) {
+    for (cyc in c(1L, 2L)) {
+      cyc_w <- wins[wins$rt_segment_id == rt_id & wins$cycle == cyc, ]
+      cyc_w <- cyc_w[order(cyc_w$mz_start), ]
+      if (nrow(cyc_w) > 1) {
+        for (j in 2:nrow(cyc_w)) {
+          expect_identical(cyc_w$mz_start[j], cyc_w$mz_end[j - 1])
+        }
+      }
+    }
+  }
 })
 
 test_that("Centered coverage strategy runs", {
