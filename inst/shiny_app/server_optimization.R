@@ -29,6 +29,9 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     # Show processing notification
     showNotification("Running optimization...", id = "opt_progress", duration = NULL, type = "message")
 
+    # Reset flag so FALSE -> TRUE transition triggers observeEvent in app.R
+    rv$optimization_complete <- FALSE
+
     tryCatch({
       cat("\n[Shiny] Starting optimization...\n")
       cat("[Shiny] Instrument:", input$instrument, "\n")

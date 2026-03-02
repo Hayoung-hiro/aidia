@@ -144,9 +144,9 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
 #' Generate Fixed Windows (Internal)
 #'
 #' Creates equal-width windows across the m/z range.
-#' When fz_offset > 0, uses boundary-array-first architecture:
-#' integer boundaries are FZ-transformed and assembled as adjacent pairs,
-#' guaranteeing continuity by construction.
+#' Uses boundary-array-first architecture: boundaries are always integerized
+#' for clean edges, then optionally FZ-transformed when fz_offset > 0.
+#' Continuity is guaranteed by construction (adjacent boundary pairs).
 #'
 #' @param mz_min Minimum m/z
 #' @param mz_max Maximum m/z
@@ -181,20 +181,16 @@ generate_fixed_windows_internal <- function(mz_min, mz_max, n_windows,
   # Generate boundaries
   boundaries <- seq(mz_min, mz_max, length.out = actual_count + 1)
 
+  # Always integerize for clean boundaries
+  boundaries <- integerize_boundaries(boundaries, mz_min, mz_max)
+
+  # Conditionally apply forbidden zone transform
   if (fz_offset > 0) {
-    # Boundary-array-first: integerize -> FZ transform -> assemble
-    boundaries <- integerize_boundaries(boundaries, mz_min, mz_max)
     boundaries <- transform_boundaries_to_fz(boundaries, fz_offset)
-    windows <- assemble_windows_from_boundaries(boundaries)
-  } else {
-    # Original float-boundary path (no FZ)
-    windows <- tibble(
-      mz_start = boundaries[-length(boundaries)],
-      mz_end = boundaries[-1],
-      mz_center = (mz_start + mz_end) / 2,
-      window_width = mz_end - mz_start
-    )
   }
+
+  # Assemble windows from boundary array (continuity guaranteed by construction)
+  windows <- assemble_windows_from_boundaries(boundaries)
 
   return(windows)
 }
@@ -438,19 +434,20 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   # Phase 4: Forbidden zone transform (if active) or direct assembly
   # =========================================================================
 
+  # Always integerize for clean boundaries
+  boundaries <- integerize_boundaries(boundaries, mz_min, mz_max)
+
+  # Validate width constraints after integer rounding
+  int_widths <- diff(boundaries)
+  if (any(int_widths < min_width_da * 0.9) || any(int_widths > max_width_da * 1.1)) {
+    warning("Variable mode: integer rounding violated width constraints. Falling back to fixed mode.")
+    return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
+                                           min_width_da, max_width_da,
+                                           fz_offset = fz_offset))
+  }
+
+  # Conditionally apply forbidden zone transform
   if (fz_offset > 0) {
-    # Boundary-array-first: integerize -> FZ transform -> assemble
-    boundaries <- integerize_boundaries(boundaries, mz_min, mz_max)
-
-    # Re-validate width constraints after integer rounding
-    int_widths <- diff(boundaries)
-    if (any(int_widths < min_width_da * 0.9) || any(int_widths > max_width_da * 1.1)) {
-      warning("Variable+FZ: integer rounding violated width constraints. Falling back to fixed+FZ.")
-      return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
-                                             min_width_da, max_width_da,
-                                             fz_offset = fz_offset))
-    }
-
     boundaries <- transform_boundaries_to_fz(boundaries, fz_offset)
 
     # Re-validate width constraints after FZ transform
@@ -461,29 +458,10 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
                                              min_width_da, max_width_da,
                                              fz_offset = fz_offset))
     }
-
-    windows <- assemble_windows_from_boundaries(boundaries)
-  } else {
-    # Original float-boundary path (no FZ)
-    windows <- tibble(
-      mz_start = boundaries[-length(boundaries)],
-      mz_end = boundaries[-1],
-      window_width = mz_end - mz_start,
-      mz_center = (mz_start + mz_end) / 2
-    )
-
-    # Final validation - should always pass if algorithm is correct
-    if (any(windows$window_width < min_width_da * 0.99)) {
-      warning("Variable window generation violated min_width constraint. Falling back to fixed mode.")
-      return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
-                                             min_width_da, max_width_da))
-    }
-
-    if (any(windows$window_width > max_width_da * 1.01)) {
-      # Allow slight overshoot due to floating point
-      windows$window_width <- pmin(windows$window_width, max_width_da)
-    }
   }
+
+  # Assemble windows from boundary array (continuity guaranteed by construction)
+  windows <- assemble_windows_from_boundaries(boundaries)
 
   return(windows)
 }
@@ -512,8 +490,9 @@ calc_forbidden_edge <- function(nominal_mz, fz_offset = 0.25) {
 #'
 #' Rounds all boundaries to nearest integer, ensuring the first boundary
 #' covers mz_min (floor) and the last covers mz_max (ceiling).
-#' Integer boundaries guarantee deterministic FZ transform behavior
-#' because ceil(N / 1.00045475) = N for all integers (inc > 1).
+#' Always applied regardless of FZ setting to produce clean integer
+#' boundaries. When FZ is active, integer inputs also guarantee
+#' deterministic FZ transform (ceil(N / 1.00045475) = N for integers).
 #'
 #' @param boundaries Numeric vector of N+1 boundary positions
 #' @param mz_min Minimum m/z to cover
