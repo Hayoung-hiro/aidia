@@ -1,40 +1,158 @@
 /* =============================================================================
-   AIDIA - Adaptive Isolation for DIA (Custom Shiny Dashboard Styles)
-   Styles for bs4Dash / AdminLTE3 / Bootstrap 4 — 3-Step Wizard
+   AIDIA — Adaptive Isolation for DIA (Custom Dashboard Styles)
+   Theme: Monochrome + Teal Accent | Light/Dark Mode Toggle
+   Framework: bs4Dash / AdminLTE3 / Bootstrap 4 — 3-Step Wizard
    ============================================================================= */
 
-/* --- CSS Variables for Theme --- */
+/* ==========================================================================
+   1. CSS VARIABLES — Semantic Token System
+   ========================================================================== */
+
 :root {
-  --primary-color: #2c3e50;
-  --secondary-color: #3498db;
-  --accent-color: #1abc9c;
-  --success-color: #27ae60;
-  --warning-color: #f39c12;
-  --danger-color: #e74c3c;
-  --info-color: var(--secondary-color);  /* Same as secondary */
-  --light-bg: #f8f9fa;
-  --dark-text: #2c3e50;
-  --muted-text: #7f8c8d;
-  --border-color: #dee2e6;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
-  --shadow-lg: 0 10px 25px rgba(0,0,0,0.15);
+  /* Surfaces */
+  --surface-page: #f4f6f9;
+  --surface-card: #ffffff;
+  --surface-raised: #f8f9fa;
+  --surface-sunken: #eef0f3;
+
+  /* Text */
+  --text-primary: #2c3e50;
+  --text-secondary: #34495e;
+  --text-muted: #7f8c8d;
+  --text-on-accent: #ffffff;
+
+  /* Borders */
+  --border-default: #dee2e6;
+  --border-subtle: rgba(0, 0, 0, 0.06);
+
+  /* Accent (Teal) */
+  --accent: #1abc9c;
+  --accent-hover: #16a085;
+  --accent-subtle: rgba(26, 188, 156, 0.12);
+  --accent-muted: rgba(26, 188, 156, 0.06);
+
+  /* Semantic */
+  --semantic-success: #27ae60;
+  --semantic-success-bg: rgba(39, 174, 96, 0.1);
+  --semantic-warning: #f39c12;
+  --semantic-warning-bg: rgba(243, 156, 18, 0.1);
+  --semantic-danger: #e74c3c;
+  --semantic-danger-bg: rgba(231, 76, 60, 0.1);
+  --semantic-info: #3498db;
+  --semantic-info-bg: rgba(52, 152, 219, 0.1);
+
+  /* Box Headers — unified flat style */
+  --box-header-bg: #2c3e50;
+  --box-header-text: #ffffff;
+  --box-header-border: var(--accent);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+
+  /* Radii */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
 }
 
-/* --- General Overrides --- */
-body {
-  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
-  background-color: var(--light-bg);
+/* Dark Mode Token Overrides — neutral gray palette (not navy) */
+body.dark-mode {
+  --surface-page: #1e1e22;
+  --surface-card: #27272b;
+  --surface-raised: #2e2e33;
+  --surface-sunken: #1a1a1e;
+
+  --text-primary: #e4e4e7;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+
+  --border-default: #3f3f46;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+
+  --accent-subtle: rgba(26, 188, 156, 0.15);
+  --accent-muted: rgba(26, 188, 156, 0.08);
+
+  --semantic-success-bg: rgba(39, 174, 96, 0.15);
+  --semantic-warning-bg: rgba(243, 156, 18, 0.15);
+  --semantic-danger-bg: rgba(231, 76, 60, 0.15);
+  --semantic-info-bg: rgba(52, 152, 219, 0.15);
+
+  --box-header-bg: #2e2e33;
+  --box-header-text: #e4e4e7;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.4);
 }
 
-/* --- Dashboard Header (AdminLTE3) --- */
-/* AdminLTE3 uses .brand-link instead of .logo */
+/* ==========================================================================
+   2. GENERAL OVERRIDES
+   ========================================================================== */
+
+body {
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+  background-color: var(--surface-page);
+  font-size: 14px;
+}
+
+/* --- Typography Hierarchy --- */
+/* Level 1: Section titles inside boxes (h5) */
+.box-body h5,
+.card-body h5 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+/* Level 2: Body text */
+.box-body,
+.card-body {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+/* Level 3: Descriptions / help text — minimum 13px */
+.help-block,
+.form-text,
+.mode-description,
+.strategy-section .help-block,
+.algo-info,
+small {
+  font-size: 13px !important;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* Level 4: Form labels */
+.control-label,
+label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Prominent form labels — for core parameters (DPPP, Strategy, Mode) */
+.label-prominent > .control-label,
+.label-prominent > .form-group > .control-label,
+.label-prominent > label,
+.label-prominent > .form-group > label {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  margin-bottom: 6px;
+}
+
+/* ==========================================================================
+   3. DASHBOARD HEADER (AdminLTE3)
+   ========================================================================== */
+
 .main-header .brand-link,
 .main-header .navbar-brand {
-  background-color: var(--primary-color) !important;
+  background-color: #2c3e50 !important;
   font-weight: 600;
   font-size: 18px;
   letter-spacing: 0.5px;
@@ -42,46 +160,90 @@ body {
 }
 
 .main-header .navbar {
-  background-color: var(--primary-color) !important;
+  background-color: #2c3e50 !important;
 }
 
-/* Sidebar toggle in AdminLTE3 */
-.main-header .nav-link[data-widget="pushmenu"] {
+/* Dark mode toggle (visible when dark=NULL or dark=TRUE) */
+.main-header .nav-link[data-widget="dark-mode"] {
   color: white !important;
 }
-
-.main-header .nav-link[data-widget="pushmenu"]:hover {
-  background-color: rgba(255,255,255,0.1) !important;
+.main-header .nav-link[data-widget="dark-mode"]:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-/* --- Sidebar (AdminLTE3) --- */
+/* ==========================================================================
+   4. SIDEBAR (AdminLTE3)
+   ========================================================================== */
+
 .main-sidebar {
   background-color: #2c3e50 !important;
 }
 
-/* AdminLTE3 uses .nav-sidebar instead of .sidebar-menu */
 .sidebar .nav-sidebar > .nav-item > .nav-link {
   color: #ecf0f1 !important;
   border-left: 3px solid transparent;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 12px 16px;
 }
 
 .sidebar .nav-sidebar > .nav-item.menu-open > .nav-link,
-.sidebar .nav-sidebar > .nav-item > .nav-link:hover,
-.sidebar .nav-sidebar > .nav-item > .nav-link.active {
-  background-color: rgba(255,255,255,0.05) !important;
-  border-left-color: var(--accent-color);
+.sidebar .nav-sidebar > .nav-item > .nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-left-color: var(--accent);
 }
 
-/* Section Headers in Sidebar */
-.main-sidebar h4 {
-  color: var(--accent-color) !important;
-  font-size: 12px;
+.sidebar .nav-sidebar > .nav-item > .nav-link.active {
+  background-color: rgba(26, 188, 156, 0.12) !important;
+  border-left-color: var(--accent) !important;
+  color: #1abc9c !important;
+  font-weight: 600;
+}
+
+.sidebar .nav-sidebar > .nav-item > .nav-link .nav-icon {
+  margin-right: 8px;
+  font-size: 15px;
+}
+
+/* Sidebar section heading (reusable class) */
+.sidebar-heading {
+  color: #ecf0f1 !important;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0 0 6px 0;
+}
+
+/* Sidebar dividers */
+.main-sidebar hr {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Sidebar metric card (cycle time display) */
+.sidebar-metric-card {
+  background: #1a252f;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 10px 15px;
+  border-left: 4px solid var(--accent);
+}
+
+.sidebar-metric-card .metric-value {
+  font-size: 24px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  padding: 15px 15px 8px;
-  margin: 0;
+  color: var(--accent);
+}
+
+.sidebar-metric-card .metric-unit {
+  font-size: 14px;
+  color: #95a5a6;
+  margin-left: 4px;
+}
+
+.sidebar-metric-card .metric-detail {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #7f8c8d;
 }
 
 /* Input Labels in Sidebar */
@@ -92,7 +254,7 @@ body {
   margin-bottom: 6px;
 }
 
-/* Select Inputs */
+/* Select Inputs in Sidebar */
 .main-sidebar .form-control {
   background-color: #34495e;
   border: 1px solid #4a6785;
@@ -102,25 +264,16 @@ body {
 }
 
 .main-sidebar .form-control:focus {
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 2px rgba(26,188,156,0.2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(26, 188, 156, 0.2);
 }
 
-/* Sliders */
-.main-sidebar .irs--shiny .irs-bar {
-  background: var(--accent-color);
-}
+/* Sliders in Sidebar */
+.main-sidebar .irs--shiny .irs-bar { background: var(--accent); }
+.main-sidebar .irs--shiny .irs-handle { background: var(--accent); border-color: var(--accent); }
+.main-sidebar .irs--shiny .irs-single { background: var(--accent); }
 
-.main-sidebar .irs--shiny .irs-handle {
-  background: var(--accent-color);
-  border-color: var(--accent-color);
-}
-
-.main-sidebar .irs--shiny .irs-single {
-  background: var(--accent-color);
-}
-
-/* Help Text */
+/* Help Text in Sidebar */
 .main-sidebar .help-block {
   color: #7f8c8d !important;
   font-size: 11px;
@@ -128,27 +281,98 @@ body {
   line-height: 1.4;
 }
 
-/* Checkbox styling */
+/* Checkbox styling in Sidebar */
 .main-sidebar .checkbox label {
   color: #bdc3c7;
   font-size: 13px;
 }
 
-/* --- Main Content Area --- */
+/* ==========================================================================
+   5. MAIN CONTENT AREA — Layout Tightened
+   ========================================================================== */
+
 .content-wrapper {
-  background-color: #f4f6f9 !important;
+  background-color: var(--surface-page) !important;
 }
 
 .content {
-  padding: 20px;
+  padding: 12px 16px;
 }
 
-/* --- Info Boxes (AdminLTE3) --- */
-.info-box {
-  min-height: 85px;
+/* --- Cards/Boxes (AdminLTE3 / bs4Dash) --- */
+.box,
+.card {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   border: none;
+  margin-bottom: 12px;
+  background-color: var(--surface-card);
+}
+
+/* Base header style (non-solid) */
+.box-header,
+.card-header {
+  border-bottom: 1px solid var(--border-default);
+  padding: 10px 16px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.box-title,
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.box-body,
+.card-body {
+  padding: 12px 16px;
+}
+
+/* Unified solid headers — flat dark bg (replaces 6 gradient rules) */
+.box.box-primary > .box-header,
+.box.box-success > .box-header,
+.box.box-warning > .box-header,
+.box.box-info > .box-header,
+.box.box-danger > .box-header,
+.box.box-secondary > .box-header,
+.card.card-primary > .card-header,
+.card.card-success > .card-header,
+.card.card-warning > .card-header,
+.card.card-info > .card-header,
+.card.card-danger > .card-header,
+.card.card-secondary > .card-header {
+  background: var(--box-header-bg) !important;
+  border-bottom: 2px solid var(--box-header-border);
+}
+
+/* White text on dark solid headers */
+.box.box-primary > .box-header .box-title,
+.box.box-success > .box-header .box-title,
+.box.box-warning > .box-header .box-title,
+.box.box-info > .box-header .box-title,
+.box.box-danger > .box-header .box-title,
+.box.box-secondary > .box-header .box-title,
+.card.card-primary > .card-header .card-title,
+.card.card-success > .card-header .card-title,
+.card.card-warning > .card-header .card-title,
+.card.card-info > .card-header .card-title,
+.card.card-danger > .card-header .card-title,
+.card.card-secondary > .card-header .card-title {
+  color: var(--box-header-text);
+}
+
+/* ==========================================================================
+   6. INFO BOXES (AdminLTE3)
+   ========================================================================== */
+
+.info-box {
+  min-height: 72px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: none;
+  background-color: var(--surface-card);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -167,13 +391,13 @@ body {
 }
 
 .info-box-content {
-  padding: 12px 15px;
+  padding: 10px 14px;
 }
 
 .info-box-text {
   font-size: 13px;
   font-weight: 500;
-  color: var(--muted-text);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -181,113 +405,79 @@ body {
 .info-box-number {
   font-size: 22px;
   font-weight: 600;
-  color: var(--dark-text);
+  color: var(--text-primary);
 }
 
-/* Info box colors */
+/* Info box icon colors — accent for primary, semantic for status */
 .info-box .bg-aqua,
-.info-box .bg-info { background-color: var(--info-color) !important; }
+.info-box .bg-info { background-color: var(--accent) !important; }
 .info-box .bg-green,
-.info-box .bg-success { background-color: var(--success-color) !important; }
+.info-box .bg-success { background-color: var(--semantic-success) !important; }
 .info-box .bg-yellow,
-.info-box .bg-warning { background-color: var(--warning-color) !important; }
+.info-box .bg-warning { background-color: var(--semantic-warning) !important; }
 .info-box .bg-red,
-.info-box .bg-danger { background-color: var(--danger-color) !important; }
+.info-box .bg-danger { background-color: var(--semantic-danger) !important; }
 .info-box .bg-purple { background-color: #9b59b6 !important; }
 .info-box .bg-blue,
-.info-box .bg-primary { background-color: var(--secondary-color) !important; }
+.info-box .bg-primary { background-color: var(--accent) !important; }
 
-/* --- Cards/Boxes (AdminLTE3 uses .card, but bs4Dash keeps .box) --- */
-.box,
-.card {
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  border: none;
-  margin-bottom: 20px;
-}
+/* ==========================================================================
+   7. BUTTONS — Flat (no gradients)
+   ========================================================================== */
 
-.box-header,
-.card-header {
-  border-bottom: 1px solid var(--border-color);
-  padding: 15px 20px;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-}
-
-.box-title,
-.card-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: white;
-  margin: 0;
-}
-
-.box-body,
-.card-body {
-  padding: 20px;
-}
-
-/* Box Status Colors (bs4Dash maintains .box classes) */
-.box.box-primary > .box-header,
-.card.card-primary > .card-header {
-  background: linear-gradient(135deg, #3498db, #2980b9);
-}
-
-.box.box-success > .box-header,
-.card.card-success > .card-header {
-  background: linear-gradient(135deg, #27ae60, #1e8449);
-}
-
-.box.box-warning > .box-header,
-.card.card-warning > .card-header {
-  background: linear-gradient(135deg, #f39c12, #d68910);
-}
-
-.box.box-info > .box-header,
-.card.card-info > .card-header {
-  background: linear-gradient(135deg, #17a2b8, #138496);
-}
-
-.box.box-danger > .box-header,
-.card.card-danger > .card-header {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
-}
-
-/* --- Buttons (Bootstrap 4) --- */
 .btn {
   border-radius: var(--radius-sm);
   font-weight: 500;
   transition: all 0.2s ease;
+}
+
+/* Solid buttons: no border */
+.btn-primary,
+.btn-success,
+.btn-info,
+.btn-warning,
+.btn-danger,
+.btn-default {
   border: none;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--secondary-color), #2980b9);
-  box-shadow: 0 2px 4px rgba(52,152,219,0.3);
+  background: var(--accent);
+  box-shadow: 0 2px 4px rgba(26, 188, 156, 0.3);
 }
-
-.btn-primary:hover {
-  background: linear-gradient(135deg, #2980b9, #1f618d);
-  box-shadow: 0 4px 8px rgba(52,152,219,0.4);
-  transform: translateY(-1px);
+.btn-primary:hover,
+.btn-primary:focus {
+  background: var(--accent-hover);
+  box-shadow: 0 4px 8px rgba(26, 188, 156, 0.4);
 }
 
 .btn-success {
-  background: linear-gradient(135deg, var(--success-color), #1e8449);
-  box-shadow: 0 2px 4px rgba(39,174,96,0.3);
+  background: var(--semantic-success);
+  box-shadow: 0 2px 4px rgba(39, 174, 96, 0.3);
 }
-
-.btn-success:hover {
-  background: linear-gradient(135deg, #1e8449, #196f3d);
-  box-shadow: 0 4px 8px rgba(39,174,96,0.4);
+.btn-success:hover,
+.btn-success:focus {
+  background: #1e8449;
+  box-shadow: 0 4px 8px rgba(39, 174, 96, 0.4);
 }
 
 .btn-info {
-  background: linear-gradient(135deg, #17a2b8, #138496);
-  box-shadow: 0 2px 4px rgba(23,162,184,0.3);
+  background: var(--semantic-info);
+  box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
+}
+.btn-info:hover,
+.btn-info:focus {
+  background: #2980b9;
 }
 
-.btn-info:hover {
-  background: linear-gradient(135deg, #138496, #0f6674);
+.btn-warning {
+  background: var(--semantic-warning);
+  color: white;
+}
+.btn-warning:hover,
+.btn-warning:focus {
+  background: #d68910;
+  color: white;
 }
 
 .btn-lg {
@@ -295,50 +485,37 @@ body {
   font-size: 15px;
 }
 
-/* Run Optimization Button - Special Styling */
+/* Run Optimization Button — accent flat, visually distinct */
 #run_optimization {
-  background: linear-gradient(135deg, var(--accent-color), #16a085) !important;
+  background: var(--accent) !important;
   border: none;
   font-weight: 600;
   letter-spacing: 0.5px;
-  box-shadow: 0 4px 12px rgba(26,188,156,0.35);
+  box-shadow: 0 4px 12px rgba(26, 188, 156, 0.35);
 }
-
 #run_optimization:hover {
-  background: linear-gradient(135deg, #16a085, #1abc9c) !important;
-  box-shadow: 0 6px 16px rgba(26,188,156,0.45);
-  transform: translateY(-2px);
+  background: var(--accent-hover) !important;
+  box-shadow: 0 6px 16px rgba(26, 188, 156, 0.45);
 }
 
-/* Preset Buttons - General */
+/* Small preset buttons */
 .btn-sm {
   font-size: 11px;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
 }
 
-/* DPPP Preset Buttons - Sidebar */
-.main-sidebar .btn-info {
-  background: linear-gradient(135deg, #17a2b8, #138496) !important;
-}
+/* ==========================================================================
+   8. NAV TABS — Accent Underline
+   ========================================================================== */
 
-.main-sidebar .btn-warning {
-  background: linear-gradient(135deg, #f39c12, #d68910) !important;
-  color: white !important;
-}
-
-.main-sidebar .btn-success {
-  background: linear-gradient(135deg, #27ae60, #1e8449) !important;
-}
-
-/* --- Bootstrap 4 Nav Tabs (for tabsetPanel in body) --- */
 .nav-tabs {
-  border-bottom: 2px solid var(--border-color);
-  margin-bottom: 20px;
+  border-bottom: 2px solid var(--border-default);
+  margin-bottom: 16px;
 }
 
 .nav-tabs .nav-link {
-  color: var(--muted-text);
+  color: var(--text-muted);
   font-weight: 500;
   border: none;
   border-bottom: 2px solid transparent;
@@ -348,33 +525,37 @@ body {
 
 .nav-tabs .nav-link:hover {
   border-color: transparent;
-  color: var(--secondary-color);
+  color: var(--accent);
 }
 
 .nav-tabs .nav-link.active {
-  color: var(--secondary-color);
+  color: var(--accent);
   background-color: transparent;
-  border-color: transparent transparent var(--secondary-color);
+  border-color: transparent transparent var(--accent);
   font-weight: 600;
 }
 
 .tab-content {
-  padding: 15px 0;
+  padding: 12px 0;
 }
 
 .tab-pane {
   animation: fadeIn 0.3s ease;
 }
 
-/* --- Tables (Bootstrap 4) --- */
+/* ==========================================================================
+   9. TABLES
+   ========================================================================== */
+
 .table {
   font-size: 13px;
+  color: var(--text-primary);
 }
 
 .table > thead > tr > th {
-  background-color: #f8f9fa;
-  border-bottom: 2px solid var(--border-color);
-  color: var(--dark-text);
+  background-color: var(--surface-raised);
+  border-bottom: 2px solid var(--border-default);
+  color: var(--text-primary);
   font-weight: 600;
   text-transform: uppercase;
   font-size: 11px;
@@ -385,96 +566,222 @@ body {
 .table > tbody > tr > td {
   padding: 10px 12px;
   vertical-align: middle;
-  border-color: #eee;
+  border-color: var(--border-default);
+  color: var(--text-primary);
 }
 
 .table > tbody > tr:hover {
-  background-color: rgba(52,152,219,0.05);
+  background-color: var(--accent-muted);
 }
 
 /* --- DataTables --- */
 .dataTables_wrapper {
   font-size: 13px;
+  color: var(--text-primary);
 }
 
 .dataTables_filter input {
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-default);
   padding: 6px 12px;
+  background-color: var(--surface-card);
+  color: var(--text-primary);
 }
 
 .dataTables_length select {
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-default);
+  background-color: var(--surface-card);
+  color: var(--text-primary);
 }
 
-/* --- Progress Indicator --- */
+/* ==========================================================================
+   10. PROGRESS INDICATOR
+   ========================================================================== */
+
 .shiny-busy-spinner {
   position: fixed !important;
   z-index: 9999 !important;
 }
 
-/* --- DPPP Quick Preview Section --- */
-.dppp-preview-card h5 {
-  color: var(--dark-text);
-  font-size: 14px;
+/* ==========================================================================
+   11. DPPP PREVIEW
+   ========================================================================== */
+
+.dppp-preview-card h5,
+/* Section titles within boxes (e.g., DPPP preview columns) */
+.section-title {
+  font-size: 15px !important;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--accent-subtle);
+}
+
+/* Larger section titles when space allows (full-width boxes) */
+.col-sm-6 .section-title,
+.col-sm-12 .section-title,
+.col-md-6 .section-title,
+.col-md-12 .section-title {
+  font-size: 16px !important;
+}
+.section-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+/* DPPP preview columns — force vertical stacking (no box wrapper) */
+.dppp-preview-section > [class*='col-'] {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.dppp-preview-section .section-title {
+  flex-shrink: 0;
+  width: 100%;
+}
+
+/* Legacy h5 in preview sections */
+.dppp-preview-section h5 {
+  color: var(--text-primary);
+  font-size: 15px;
   font-weight: 600;
   margin-bottom: 10px;
 }
 
-/* Recommendation Box */
+/* ==========================================================================
+   12. STATUS BOXES — Recommendation / Warning / Error
+   ========================================================================== */
+
 .recommendation-box {
-  background: linear-gradient(135deg, #e8f8f5, #d1f2eb);
-  border-left: 4px solid var(--accent-color);
+  background: var(--accent-subtle);
+  border-left: 4px solid var(--accent);
   padding: 12px 15px;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   margin-top: 10px;
 }
-
 .recommendation-box strong {
-  color: var(--primary-color);
+  color: var(--text-primary);
 }
 
-/* Warning Box */
 .warning-box {
-  background: linear-gradient(135deg, #fef9e7, #fcf3cf);
-  border-left: 4px solid var(--warning-color);
+  background: var(--semantic-warning-bg);
+  border-left: 4px solid var(--semantic-warning);
   padding: 12px 15px;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
-/* Error Box */
 .error-box {
-  background: linear-gradient(135deg, #fdedec, #fadbd8);
-  border-left: 4px solid var(--danger-color);
+  background: var(--semantic-danger-bg);
+  border-left: 4px solid var(--semantic-danger);
   padding: 12px 15px;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
-/* --- Download Buttons --- */
+/* ==========================================================================
+   13. DOWNLOAD SECTION
+   ========================================================================== */
+
 .btn-block {
   margin-bottom: 8px;
 }
 
 .download-section {
   padding: 15px;
-  background-color: #f8f9fa;
+  background-color: var(--surface-raised);
   border-radius: var(--radius-md);
 }
 
-/* --- Responsive Adjustments (Desktop Only) --- */
+/* ==========================================================================
+   14. RESPONSIVE — Tighter Desktop
+   ========================================================================== */
+
 @media (min-width: 992px) {
   .content {
-    padding: 25px;
+    padding: 16px 20px;
   }
-
   .box-body,
   .card-body {
-    padding: 25px;
+    padding: 16px 20px;
   }
 }
 
-/* --- Animations --- */
+/* =============================================================================
+   15. SIDEBAR ALWAYS VISIBLE — Override ALL AdminLTE3 collapse mechanisms
+   ============================================================================= */
+
+/* Force sidebar visible at all screen sizes */
+.main-sidebar {
+  margin-left: 0 !important;
+  transform: none !important;
+  display: block !important;
+  visibility: visible !important;
+  width: 250px !important;
+  overflow: visible !important;
+}
+.main-sidebar::before {
+  margin-left: 0 !important;
+}
+
+/* Override mobile media query (<992px) */
+@media (max-width: 991.98px) {
+  .main-sidebar,
+  .main-sidebar::before {
+    margin-left: 0 !important;
+    transform: none !important;
+  }
+  .content-wrapper,
+  .main-footer,
+  .main-header .navbar {
+    margin-left: 250px !important;
+  }
+}
+
+/* Override body.sidebar-collapse */
+body.sidebar-collapse .main-sidebar,
+body.sidebar-collapse .main-sidebar::before {
+  margin-left: 0 !important;
+  width: 250px !important;
+  transform: none !important;
+  overflow: visible !important;
+}
+body.sidebar-collapse .content-wrapper,
+body.sidebar-collapse .main-footer,
+body.sidebar-collapse .main-header .navbar {
+  margin-left: 250px !important;
+}
+
+/* Override body.sidebar-closed */
+body.sidebar-closed .main-sidebar {
+  margin-left: 0 !important;
+  transform: none !important;
+}
+
+/* Override body.sidebar-mini variants */
+body.sidebar-mini.sidebar-collapse .main-sidebar {
+  width: 250px !important;
+  overflow: visible !important;
+}
+body.sidebar-mini.sidebar-collapse .main-sidebar .nav-sidebar .nav-link p {
+  display: inline !important;
+}
+
+/* Disable collapse transition */
+.main-sidebar {
+  transition: none !important;
+}
+
+/* Hide the pushmenu toggle button (sidebar collapse disabled) */
+.nav-link[data-widget="pushmenu"] {
+  display: none !important;
+}
+
+/* ==========================================================================
+   16. ANIMATIONS
+   ========================================================================== */
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -485,14 +792,17 @@ body {
   animation: fadeIn 0.3s ease;
 }
 
-/* --- Scrollbar Styling --- */
+/* ==========================================================================
+   17. SCROLLBAR — Light + Dark
+   ========================================================================== */
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--surface-raised);
   border-radius: 4px;
 }
 
@@ -505,20 +815,39 @@ body {
   background: #a8a8a8;
 }
 
-/* --- Utility Classes --- */
-.text-accent { color: var(--accent-color); }
-.text-success { color: var(--success-color); }
-.text-warning { color: var(--warning-color); }
-.text-danger { color: var(--danger-color); }
-.text-muted { color: var(--muted-text); }
+body.dark-mode ::-webkit-scrollbar-track {
+  background: var(--surface-sunken);
+}
+body.dark-mode ::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+}
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
 
-.bg-light { background-color: var(--light-bg); }
+/* ==========================================================================
+   18. TEXT UTILITY CLASSES
+   ========================================================================== */
+
+.text-accent { color: var(--accent) !important; }
+.text-semantic-success { color: var(--semantic-success) !important; }
+.text-semantic-warning { color: var(--semantic-warning) !important; }
+.text-semantic-danger { color: var(--semantic-danger) !important; }
+.text-semantic-info { color: var(--semantic-info) !important; }
+.text-muted { color: var(--text-muted) !important; }
+.text-primary { color: var(--text-primary) !important; }
+.text-secondary { color: var(--text-secondary) !important; }
+
+.bg-light { background-color: var(--surface-raised) !important; }
 
 .mt-0 { margin-top: 0 !important; }
 .mb-0 { margin-bottom: 0 !important; }
 .py-2 { padding-top: 8px !important; padding-bottom: 8px !important; }
 
-/* --- Status Badges --- */
+/* ==========================================================================
+   19. STATUS BADGES
+   ========================================================================== */
+
 .status-badge {
   display: inline-block;
   padding: 4px 10px;
@@ -530,89 +859,292 @@ body {
 }
 
 .status-badge.ready {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: var(--semantic-success-bg);
+  color: var(--semantic-success);
 }
 
 .status-badge.pending {
-  background-color: #fff3cd;
-  color: #856404;
+  background-color: var(--semantic-warning-bg);
+  color: var(--semantic-warning);
 }
 
 .status-badge.processing {
-  background-color: #cce5ff;
-  color: #004085;
+  background-color: var(--semantic-info-bg);
+  color: var(--semantic-info);
 }
 
 .status-badge.error {
-  background-color: #f8d7da;
-  color: #721c24;
+  background-color: var(--semantic-danger-bg);
+  color: var(--semantic-danger);
 }
 
-/* --- Info/Warning Banners --- */
+/* ==========================================================================
+   20. INFO / WARNING BANNERS
+   ========================================================================== */
+
 .tab-banner-info {
-  background: rgba(52,152,219,0.08);
+  background: var(--semantic-info-bg);
   padding: 10px 14px;
   border-radius: 6px;
   margin-bottom: 12px;
-  border-left: 3px solid #3498db;
+  border-left: 3px solid var(--semantic-info);
+  color: var(--text-primary);
 }
+
 .tab-banner-warning {
-  background: rgba(243,156,18,0.08);
+  background: var(--semantic-warning-bg);
   padding: 10px 14px;
   border-radius: 6px;
   margin-bottom: 12px;
-  border-left: 3px solid #f39c12;
+  border-left: 3px solid var(--semantic-warning);
+  color: var(--text-primary);
 }
 
 /* =============================================================================
-   WIZARD-SPECIFIC STYLES (3-Step: Data → Setup → Results)
+   WIZARD-SPECIFIC STYLES (3-Step: Data -> Setup -> Results)
    ============================================================================= */
 
-/* --- Sidebar Step Indicators --- */
-.sidebar .nav-sidebar > .nav-item > .nav-link {
-  font-size: 14px;
-  font-weight: 500;
-  padding: 12px 16px;
-  border-left: 3px solid transparent;
-  transition: all 0.25s ease;
+/* ==========================================================================
+   20B. INSTRUMENT ROW — Flex layout with auto-collapsing empty columns
+   ========================================================================== */
+
+/* Flex row: columns expand when siblings collapse */
+.instrument-row {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 0;
+}
+.instrument-row > [class*='col-'] {
+  flex: 1 1 auto;
+  max-width: none;
 }
 
-.sidebar .nav-sidebar > .nav-item > .nav-link.active {
-  background-color: rgba(26, 188, 156, 0.12) !important;
-  border-left-color: var(--accent-color) !important;
-  color: #1abc9c !important;
-  font-weight: 600;
+/* Collapse columns whose only child is a hidden conditionalPanel */
+.instrument-row > .instrument-col-conditional:has(> [data-display-if][style*="display: none"]:only-child) {
+  display: none !important;
+  padding: 0;
+  flex: 0 0 0;
 }
 
-.sidebar .nav-sidebar > .nav-item > .nav-link .nav-icon {
-  margin-right: 8px;
-  font-size: 15px;
+/* Give instrument preset a wider minimum */
+.instrument-row > [class*='col-']:first-child {
+  flex: 1.3 1 0;
+  min-width: 200px;
 }
 
-/* --- Upload Zone --- */
+/* ==========================================================================
+   21. UPLOAD ZONE — Accent themed
+   ========================================================================== */
+
 .upload-zone {
-  border: 2px dashed var(--border-color);
+  border: 2px dashed var(--border-default);
   border-radius: var(--radius-md);
-  padding: 8px 16px;
+  padding: 12px 16px;
   transition: border-color 0.3s ease, background-color 0.3s ease;
-  background: #fafbfc;
+  background: var(--surface-raised);
 }
 
 .upload-zone:hover {
-  border-color: var(--accent-color);
-  background: rgba(26, 188, 156, 0.03);
+  border-color: var(--accent);
+  background: var(--accent-muted);
 }
 
 .upload-zone .form-group {
   margin-bottom: 0;
 }
 
-/* --- Wizard Navigation Bars --- */
-.wizard-nav {
-  padding: 20px 0;
+/* Hide fileInput label when set to NULL */
+.upload-zone .control-label {
+  display: none;
+}
+
+/* Unified input-group styling — consistent rounded corners */
+.upload-zone .input-group {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Browse button — accent themed */
+.upload-zone .btn.btn-default.btn-file,
+.upload-zone .input-group-btn .btn,
+.upload-zone .input-group-prepend .btn,
+.upload-zone .custom-file-label::after {
+  background: var(--accent) !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 20px;
+  border-radius: var(--radius-md) 0 0 var(--radius-md) !important;
+  transition: background 0.2s ease;
+}
+
+.upload-zone .btn.btn-default.btn-file:hover,
+.upload-zone .input-group-btn .btn:hover,
+.upload-zone .input-group-prepend .btn:hover {
+  background: var(--accent-hover) !important;
+}
+
+/* File path display */
+.upload-zone .form-control,
+.upload-zone .custom-file-label {
+  border: none !important;
+  background: var(--surface-card);
+  font-size: 13px;
+  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
+}
+
+/* Upload progress bar — thicker for visibility */
+.upload-zone .progress {
+  height: 10px;
   margin-top: 10px;
-  border-top: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-sunken);
+}
+
+.upload-zone .progress-bar {
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+/* Upload complete file info */
+.upload-zone .shiny-file-input-progress {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Upload icon */
+.upload-icon {
+  font-size: 28px;
+  color: var(--accent);
+  opacity: 0.7;
+}
+
+/* =============================================================================
+   22. DPPP PRESET BUTTONS — Custom toggle
+   (Preserved: functional multi-color serves UX purpose)
+   ============================================================================= */
+
+/* Base: strip ALL Bootstrap button styling */
+.dppp-preset-btn {
+  background: transparent !important;
+  border-radius: var(--radius-sm) !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Default (OFF) states — colored outline */
+.dppp-btn-id {
+  color: #17a2b8 !important;
+  border: 2px solid #17a2b8 !important;
+}
+.dppp-btn-bal {
+  color: #d68910 !important;
+  border: 2px solid #d68910 !important;
+}
+.dppp-btn-quant {
+  color: #1e8449 !important;
+  border: 2px solid #1e8449 !important;
+}
+
+/* Hover (OFF) — subtle background */
+.dppp-btn-id:hover:not(.dppp-active) { background: rgba(23, 162, 184, 0.1) !important; }
+.dppp-btn-bal:hover:not(.dppp-active) { background: rgba(214, 137, 16, 0.1) !important; }
+.dppp-btn-quant:hover:not(.dppp-active) { background: rgba(30, 132, 73, 0.1) !important; }
+
+/* Active (ON) states — filled solid (no gradient) */
+.dppp-btn-id.dppp-active {
+  background: #17a2b8 !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+.dppp-btn-bal.dppp-active {
+  background: #d68910 !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+.dppp-btn-quant.dppp-active {
+  background: #1e8449 !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+
+/* Kill ALL Bootstrap pseudo-states on DPPP buttons */
+.dppp-preset-btn:hover,
+.dppp-preset-btn:focus,
+.dppp-preset-btn:active,
+.dppp-preset-btn.focus,
+.dppp-preset-btn.active,
+.dppp-preset-btn:not(:disabled):not(.disabled):active,
+.dppp-preset-btn:not(:disabled):not(.disabled).active {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* OFF + :focus/:active — keep outline look */
+.dppp-btn-id:focus:not(.dppp-active),
+.dppp-btn-id:active:not(.dppp-active),
+.dppp-btn-id:not(:disabled):not(.disabled):active:not(.dppp-active) {
+  color: #17a2b8 !important;
+  border: 2px solid #17a2b8 !important;
+  background: rgba(23, 162, 184, 0.15) !important;
+}
+.dppp-btn-bal:focus:not(.dppp-active),
+.dppp-btn-bal:active:not(.dppp-active),
+.dppp-btn-bal:not(:disabled):not(.disabled):active:not(.dppp-active) {
+  color: #d68910 !important;
+  border: 2px solid #d68910 !important;
+  background: rgba(214, 137, 16, 0.15) !important;
+}
+.dppp-btn-quant:focus:not(.dppp-active),
+.dppp-btn-quant:active:not(.dppp-active),
+.dppp-btn-quant:not(:disabled):not(.disabled):active:not(.dppp-active) {
+  color: #1e8449 !important;
+  border: 2px solid #1e8449 !important;
+  background: rgba(30, 132, 73, 0.15) !important;
+}
+
+/* ON + :hover/:focus/:active — slightly darker filled */
+.dppp-btn-id.dppp-active:hover,
+.dppp-btn-id.dppp-active:focus,
+.dppp-btn-id.dppp-active:active,
+.dppp-btn-id.dppp-active:not(:disabled):not(.disabled):active {
+  background: #138496 !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+.dppp-btn-bal.dppp-active:hover,
+.dppp-btn-bal.dppp-active:focus,
+.dppp-btn-bal.dppp-active:active,
+.dppp-btn-bal.dppp-active:not(:disabled):not(.disabled):active {
+  background: #b87308 !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+.dppp-btn-quant.dppp-active:hover,
+.dppp-btn-quant.dppp-active:focus,
+.dppp-btn-quant.dppp-active:active,
+.dppp-btn-quant.dppp-active:not(:disabled):not(.disabled):active {
+  background: #196f3d !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+
+/* ==========================================================================
+   23. WIZARD NAVIGATION
+   ========================================================================== */
+
+.wizard-nav {
+  padding: 12px 0;
+  margin-top: 10px;
+  border-top: 1px solid var(--border-default);
 }
 
 .wizard-nav-right {
@@ -633,43 +1165,45 @@ body {
   pointer-events: none;
 }
 
-/* --- Before/After Comparison Cards --- */
-/* Primary border accent for BEFORE card */
+/* ==========================================================================
+   24. BEFORE / AFTER COMPARISON CARDS
+   ========================================================================== */
+
 .box.box-primary.box-solid {
-  border-left: 4px solid #3498db;
+  border-left: 4px solid var(--semantic-info);
 }
 
-/* Success border accent for AFTER card */
 .box.box-success.box-solid {
-  border-left: 4px solid #27ae60;
+  border-left: 4px solid var(--semantic-success);
 }
 
-/* Comparison card body typography */
 .equal-height-row .box-body {
   font-size: 14px;
 }
 
-/* --- Results Status Callout --- */
+/* ==========================================================================
+   25. RESULTS STATUS CALLOUT
+   ========================================================================== */
+
 .callout.callout-success {
-  background-color: #d4edda !important;
-  border-color: #28a745 !important;
-  color: #155724;
+  background-color: var(--semantic-success-bg) !important;
+  border-color: var(--semantic-success) !important;
+  color: var(--text-primary);
 }
 
 .callout.callout-success h5 {
-  color: #155724 !important;
+  color: var(--semantic-success) !important;
   font-weight: 700;
 }
 
-/* --- Step Content Spacing --- */
-.tab-pane {
-  animation: fadeIn 0.3s ease;
-}
+/* ==========================================================================
+   26. STEP CONTENT SPACING
+   ========================================================================== */
 
-/* Nested boxes inside wizard steps — subtle border */
+/* Nested boxes inside wizard steps */
 .tab-pane .box {
   box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(0,0,0,0.06);
+  border: 1px solid var(--border-subtle);
 }
 
 /* Section labels (A, B, C, D, E) in Setup step */
@@ -678,7 +1212,7 @@ body {
   letter-spacing: 0.3px;
 }
 
-/* --- Download Buttons in Results --- */
+/* Download buttons in results */
 .tab-pane .btn-block.btn-lg {
   padding: 14px 24px;
   font-size: 15px;
@@ -686,19 +1220,476 @@ body {
   letter-spacing: 0.3px;
 }
 
-/* --- Collapsed Box Indicator --- */
+/* ==========================================================================
+   27. COLLAPSED BOX INDICATOR
+   ========================================================================== */
+
 .box.collapsed-box > .box-header {
   border-bottom: none;
 }
 
 .box.collapsed-box > .box-header .box-title {
-  color: var(--muted-text);
+  color: var(--text-muted);
 }
 
 .box.collapsed-box > .box-header .box-title::after {
   content: " (click to expand)";
   font-size: 11px;
   font-weight: 400;
-  color: #95a5a6;
+  color: var(--text-muted);
   font-style: italic;
+}
+
+/* ==========================================================================
+   28. EQUAL HEIGHT ROW (moved from inline <style>)
+   ========================================================================== */
+
+.equal-height-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-left: -6px;
+  margin-right: -6px;
+}
+.equal-height-row > [class*='col-'] {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+.equal-height-row > [class*='col-'] > .box {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.equal-height-row > [class*='col-'] > .box > .box-body {
+  flex: 1;
+}
+
+/* ==========================================================================
+   29. FORM CONTROLS — Content Area (dark mode aware)
+   ========================================================================== */
+
+.content-wrapper .form-control {
+  color: var(--text-primary);
+  background-color: var(--surface-card);
+  border-color: var(--border-default);
+}
+
+.content-wrapper .form-control:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(26, 188, 156, 0.25) !important;
+}
+
+.content-wrapper input[type='number'] {
+  text-align: center;
+  font-size: 14px !important;
+  padding: 4px 8px;
+}
+
+/* Help text (dark mode aware) */
+.content-wrapper .help-block,
+.content-wrapper .form-text {
+  color: var(--text-muted) !important;
+}
+
+/* Checkbox labels in content area */
+.content-wrapper .checkbox label,
+.content-wrapper .form-check-label {
+  color: var(--text-primary);
+}
+
+/* =============================================================================
+   30. UTILITY PANEL CLASSES (for renderUI — dark mode safe)
+   ============================================================================= */
+
+/* Neutral raised panel */
+.panel-raised {
+  background: var(--surface-raised);
+  padding: 10px 14px;
+  border-radius: 6px;
+}
+
+/* Accent-tinted panel with left border */
+.panel-accent {
+  background: var(--accent-muted);
+  border-left: 3px solid var(--accent);
+  padding: 10px 14px;
+  border-radius: 0 6px 6px 0;
+}
+
+/* Green status (pass) panel */
+.status-pass {
+  background: var(--semantic-success-bg);
+  border-left: 3px solid var(--semantic-success);
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+.status-pass .status-text {
+  color: var(--semantic-success);
+  font-weight: 600;
+}
+
+/* Red status (fail) panel */
+.status-fail {
+  background: var(--semantic-danger-bg);
+  border-left: 3px solid var(--semantic-danger);
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+.status-fail .status-text {
+  color: var(--semantic-danger);
+  font-weight: 600;
+}
+
+/* Warning status panel */
+.status-warn {
+  background: var(--semantic-warning-bg);
+  border-left: 3px solid var(--semantic-warning);
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+/* Inline badges */
+.badge-dark {
+  background: var(--text-primary);
+  color: var(--text-on-accent);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+  display: inline-block;
+}
+
+.badge-accent {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+  display: inline-block;
+}
+
+.badge-success {
+  background: var(--semantic-success);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+  display: inline-block;
+}
+
+.badge-danger {
+  background: var(--semantic-danger);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+  display: inline-block;
+}
+
+/* Window mode description card (unified — one mode visible at a time) */
+.mode-description {
+  background: var(--accent-muted);
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  border-left: 3px solid var(--accent);
+}
+.mode-description small {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Strategy parameter section (unified appearance) */
+.strategy-section {
+  background: var(--surface-raised);
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 5px;
+  border-left: 3px solid var(--accent);
+}
+
+/* Strategy section heading — accent variant of .section-title */
+.strategy-heading {
+  color: var(--accent);
+  border-bottom-color: var(--accent-subtle);
+}
+
+/* Algorithm info card inside strategy sections */
+.strategy-section .algo-info {
+  background: var(--surface-card);
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  border-left: 3px solid var(--accent);
+}
+.strategy-section .algo-info small {
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Results status bar (compact inline header) */
+.results-status-bar {
+  background: var(--semantic-success-bg);
+  border-left: 3px solid var(--semantic-success);
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+.results-status-bar .shiny-text-output {
+  display: inline;
+}
+
+/* Summary list (Before/After compact) */
+.summary-list {
+  font-size: 13px;
+  line-height: 1.8;
+}
+.summary-list strong {
+  color: var(--text-primary);
+}
+
+/* Placeholder (empty state) section */
+.placeholder-section {
+  text-align: center;
+  padding: 60px 20px;
+}
+.placeholder-section .placeholder-icon {
+  font-size: 64px;
+  color: var(--text-muted);
+  opacity: 0.4;
+  margin-bottom: 20px;
+  display: block;
+}
+.placeholder-section h4 {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.placeholder-section p {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Unit label (e.g., "ms", "sec") */
+.unit-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Efficiency badge (sidebar, compact) */
+.efficiency-badge {
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  display: inline-block;
+}
+/* Badge variants for pass/fail (override panel .status-pass/.status-fail) */
+.efficiency-badge.status-pass {
+  background: var(--semantic-success);
+  border-left: none;
+}
+.efficiency-badge.status-fail {
+  background: var(--semantic-danger);
+  border-left: none;
+}
+
+/* m/z range display card */
+.mz-range-display {
+  background: var(--accent-subtle);
+  padding: 10px;
+  border-radius: 6px;
+  margin: 8px 0;
+  border: 1px solid var(--border-default);
+}
+
+/* Cycle time bar colors (keep as fixed for visual consistency) */
+.ct-bar-ms1 { background: var(--semantic-info); }
+.ct-bar-ms2 { background: var(--accent); }
+
+/* Indicator states for auto windows info */
+.indicator-success {
+  background: var(--semantic-success-bg);
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin: 4px 0;
+}
+.indicator-success .indicator-text {
+  color: var(--semantic-success);
+  font-weight: 600;
+}
+
+.indicator-info {
+  background: var(--semantic-info-bg);
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin: 4px 0;
+}
+.indicator-info .indicator-text {
+  color: var(--semantic-info);
+  font-weight: 600;
+}
+
+.indicator-muted {
+  background: var(--surface-raised);
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin: 4px 0;
+}
+.indicator-muted .indicator-text {
+  color: var(--text-muted);
+}
+
+/* Pipeline status dots */
+.pipeline-active { color: var(--semantic-success) !important; }
+.pipeline-pending { color: var(--text-muted) !important; }
+
+/* =============================================================================
+   31. DARK MODE — Element Overrides
+   (For elements not fully covered by CSS variables)
+   ============================================================================= */
+
+/* Content wrapper */
+body.dark-mode .content-wrapper {
+  background-color: var(--surface-page) !important;
+}
+
+/* Boxes and cards */
+body.dark-mode .box,
+body.dark-mode .card {
+  background-color: var(--surface-card) !important;
+  border-color: var(--border-default);
+}
+
+/* Box headers */
+body.dark-mode .box-header,
+body.dark-mode .card-header {
+  border-bottom-color: var(--border-default);
+}
+
+/* Box body text */
+body.dark-mode .box-body,
+body.dark-mode .card-body {
+  color: var(--text-primary);
+}
+
+/* Info boxes */
+body.dark-mode .info-box {
+  background-color: var(--surface-card) !important;
+}
+
+/* Value boxes (keep colored bg, ensure white text) */
+body.dark-mode .small-box {
+  color: white;
+}
+
+/* Form controls in main content */
+body.dark-mode .content-wrapper .form-control {
+  background-color: var(--surface-raised) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-default) !important;
+}
+
+body.dark-mode .content-wrapper select.form-control {
+  background-color: var(--surface-raised) !important;
+}
+
+/* IRS (slider) overrides for content area */
+body.dark-mode .content-wrapper .irs--shiny .irs-grid-text {
+  color: var(--text-muted);
+}
+body.dark-mode .content-wrapper .irs--shiny .irs-min,
+body.dark-mode .content-wrapper .irs--shiny .irs-max {
+  color: var(--text-muted);
+  background: var(--surface-raised);
+}
+
+/* Upload zone */
+body.dark-mode .upload-zone {
+  border-color: var(--border-default);
+  background: var(--surface-raised);
+}
+body.dark-mode .upload-zone:hover {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+body.dark-mode .upload-zone .form-control {
+  background: var(--surface-card) !important;
+  color: var(--text-primary) !important;
+}
+
+/* DataTables dark mode */
+body.dark-mode .dataTables_wrapper .dataTables_info,
+body.dark-mode .dataTables_wrapper .dataTables_paginate {
+  color: var(--text-muted);
+}
+body.dark-mode .dataTables_wrapper .dataTables_paginate .paginate_button {
+  color: var(--text-primary) !important;
+}
+body.dark-mode .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+  background: var(--accent) !important;
+  color: white !important;
+  border-color: var(--accent) !important;
+}
+
+/* Callouts */
+body.dark-mode .callout {
+  color: var(--text-primary);
+}
+
+/* Notification styling */
+body.dark-mode .shiny-notification {
+  background-color: var(--surface-card);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+/* Modal dark mode */
+body.dark-mode .modal-content {
+  background-color: var(--surface-card);
+  color: var(--text-primary);
+}
+
+/* Footer */
+body.dark-mode .main-footer {
+  background-color: var(--surface-card) !important;
+  color: var(--text-muted) !important;
+  border-top-color: var(--border-default) !important;
+}
+
+/* Sidebar (always dark regardless of mode) — override AdminLTE3 dark mode defaults */
+body.dark-mode .main-sidebar {
+  background-color: #2c3e50 !important;
+}
+
+/* Sidebar metric card unaffected by mode toggle */
+body.dark-mode .sidebar-metric-card {
+  background: #1a1a1e;
+}
+
+/* Wizard nav border */
+body.dark-mode .wizard-nav {
+  border-top-color: var(--border-default);
+}
+
+/* Tab borders */
+body.dark-mode .nav-tabs {
+  border-bottom-color: var(--border-default);
+}
+
+/* Help text links */
+body.dark-mode a {
+  color: var(--accent);
+}
+body.dark-mode a:hover {
+  color: var(--accent-hover);
 }

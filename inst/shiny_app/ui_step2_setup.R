@@ -5,14 +5,15 @@ step2_setup_ui <- function() {
     tabName = "setup",
 
     # --- Section A: DPPP Target ---
+    fluidRow(
     box(
       title = "A. DPPP Target",
-      status = "warning",
+      status = "primary",
       solidHeader = TRUE,
       width = 12,
 
       fluidRow(
-        column(4,
+        column(4, class = "label-prominent",
           numericInput(
             inputId = "target_dppp",
             label = "Target DPPP",
@@ -22,18 +23,18 @@ step2_setup_ui <- function() {
             step = 0.5
           ),
 
-          # Quick DPPP Presets
+          # Quick DPPP Presets (outline by default, filled on click)
           div(
             style = "display: flex; gap: 4px; margin-top: -5px;",
-            actionButton("preset_id", "ID", class = "btn-sm btn-info",
-                         style = "flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600;"),
-            actionButton("preset_balanced", "Bal", class = "btn-sm btn-warning",
-                         style = "flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600;"),
-            actionButton("preset_quant", "Quant", class = "btn-sm btn-success",
-                         style = "flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600;")
+            actionButton("preset_id", "ID (1.5)", class = "btn-sm dppp-preset-btn dppp-btn-id",
+                         style = "flex: 1; padding: 6px 0; font-size: 11px;"),
+            actionButton("preset_balanced", "Bal (4.0)", class = "btn-sm dppp-preset-btn dppp-btn-bal",
+                         style = "flex: 1; padding: 6px 0; font-size: 11px;"),
+            actionButton("preset_quant", "Quant (7.0)", class = "btn-sm dppp-preset-btn dppp-btn-quant",
+                         style = "flex: 1; padding: 6px 0; font-size: 11px;")
           )
         ),
-        column(4,
+        column(4, class = "label-prominent",
           # Satisfaction Target
           sliderInput(
             inputId = "target_satisfaction",
@@ -47,19 +48,23 @@ step2_setup_ui <- function() {
         ),
         column(4,
           div(
-            style = "padding-top: 25px;",
-            helpText(
-              tags$strong("DPPP"), " = 1.7 x FWHM / cycle_time",
+            style = "padding-top: 15px;",
+            # DPPP Formula card (prominent, readable)
+            tags$div(
+              class = "panel-accent", style = "font-size: 14px; line-height: 1.8;",
+              tags$strong("DPPP"), " = 1.7 \u00d7 FWHM / cycle_time",
               tags$br(),
-              "ID: 1.5 | Balanced: 4.0 | Quant: 7.0",
-              style = "font-size: 12px; color: #7f8c8d; line-height: 1.6;"
-            )
+              tags$span(class = "text-muted", "ID: 1.5 | Balanced: 4.0 | Quant: 7.0")
+            ),
+            # Window count preview (reactive, shown when data + instrument configured)
+            uiOutput("dppp_window_count_preview")
           )
         )
       )
-    ),
+    )),
 
     # --- Section B: Strategy & Parameters ---
+    fluidRow(
     box(
       title = "B. Strategy & Parameters",
       status = "info",
@@ -68,7 +73,7 @@ step2_setup_ui <- function() {
 
       fluidRow(
         # m/z Optimization Strategy
-        column(6,
+        column(6, class = "label-prominent",
           selectInput(
             inputId = "mz_strategy",
             label = "m/z Range Strategy",
@@ -84,7 +89,7 @@ step2_setup_ui <- function() {
         ),
 
         # Window Mode Selection
-        column(6,
+        column(6, class = "label-prominent",
           selectInput(
             inputId = "window_mode",
             label = "Window Width Mode",
@@ -101,85 +106,45 @@ step2_setup_ui <- function() {
       # --- Window Mode descriptions (conditionalPanel per mode) ---
       conditionalPanel(
         condition = "input.window_mode == 'density'",
-        div(style = "background: rgba(26, 188, 156, 0.08); padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #1abc9c;",
+        div(class = "mode-description",
           tags$small(
             icon("chart-area"), " ",
             tags$strong("Density mode:"),
             " Adaptive window widths based on precursor density. ",
             "Windows are narrower in dense m/z regions, wider in sparse regions. ",
-            "Best for maximizing precursor coverage per window.",
-            style = "color: #2c3e50; line-height: 1.5;"
+            "Best for maximizing precursor coverage per window."
           )
         )
       ),
       conditionalPanel(
         condition = "input.window_mode == 'fixed'",
-        div(style = "background: rgba(52, 152, 219, 0.08); padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #3498db;",
+        div(class = "mode-description",
           tags$small(
             icon("th"), " ",
             tags$strong("Fixed mode:"),
             " Equal-width windows across the entire m/z range. ",
-            "Simple and predictable. Best when precursor density is relatively uniform.",
-            style = "color: #2c3e50; line-height: 1.5;"
+            "Simple and predictable. Best when precursor density is relatively uniform."
           )
         )
       ),
       conditionalPanel(
         condition = "input.window_mode == 'staggered'",
-        div(style = "background: rgba(155, 89, 182, 0.08); padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #9b59b6;",
+        div(class = "mode-description",
           tags$small(
             icon("exchange-alt"), " ",
             tags$strong("Staggered mode (2-Cycle Interleaved):"),
             " Two acquisition cycles with 50% m/z offset. ",
             "Cycle 2 windows are shifted by half-width from Cycle 1. ",
             "After demultiplexing (Skyline, DIA-NN), effective isolation = half nominal width. ",
-            "Window boundaries placed at mass defect forbidden zones for optimal quadrupole transmission.",
-            style = "color: #2c3e50; line-height: 1.5;"
-          )
-        )
-      ),
-
-      # --- Window Placement Optimization (all modes) ---
-      div(style = "background: rgba(44, 62, 80, 0.06); padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #2c3e50;",
-        fluidRow(
-          column(6,
-            selectInput(
-              inputId = "fz_offset_preset",
-              label = "Forbidden Zone Placement (Recommended)",
-              choices = c(
-                "Standard Proteomics (0.25) - Recommended" = "0.25",
-                "Phosphoproteomics (0.18)" = "0.18",
-                "Custom" = "custom",
-                "None (Disabled)" = "0"
-              ),
-              selected = "0.25"
-            )
+            "Window boundaries placed at mass defect forbidden zones for optimal quadrupole transmission."
           ),
-          column(6,
-            div(style = "padding-top: 25px;",
-              helpText(
-                "Snaps window boundaries to mass defect forbidden zones where ",
-                "peptide precursors cannot exist. Prevents quadrupole edge ",
-                "transmission loss and isotope envelope splitting. ",
-                "Enabled by default for optimal transmission efficiency.",
-                style = "font-size: 10px; color: #7f8c8d; line-height: 1.4;"
-              )
-            )
-          )
-        ),
-        conditionalPanel(
-          condition = "input.fz_offset_preset == 'custom'",
-          fluidRow(
-            column(4,
-              numericInput(
-                inputId = "custom_fz_offset",
-                label = "Custom Forbidden Zone Offset",
-                value = 0.2500,
-                min = 0.0001,
-                max = 0.9999,
-                step = 0.0001
-              )
-            )
+          tags$div(
+            class = "panel-accent", style = "margin-top: 8px;",
+            icon("sync-alt"),
+            tags$strong(" Thermo Loop Control N"),
+            " = windows per RT bin per cycle. ",
+            tags$strong("Set this value in Xcalibur method editor."),
+            " Calculated automatically after optimization."
           )
         )
       ),
@@ -189,17 +154,16 @@ step2_setup_ui <- function() {
       # Greedy Strategy Parameters
       conditionalPanel(
         condition = "input.mz_strategy == 'greedy'",
-        div(style = "background: rgba(241, 196, 15, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-          h5("Greedy Parameters (MacCoss Lab)", style = "margin: 0 0 8px 0; color: #f39c12;"),
+        div(class = "strategy-section",
+          tags$h4("Greedy Parameters (MacCoss Lab)", class = "section-title strategy-heading"),
 
           # Info box explaining the algorithm
-          div(style = "background: rgba(255,255,255,0.5); padding: 8px; border-radius: 4px; margin-bottom: 10px; border-left: 3px solid #f39c12;",
+          div(class = "algo-info",
             tags$small(
               tags$strong("How Greedy works:"), tags$br(),
               "1. Fixed m/z range = Windows x Min Width", tags$br(),
               "2. Slides along m/z axis to find optimal position", tags$br(),
-              "3. Maximizes precursor count within fixed range",
-              style = "color: #7f8c8d; line-height: 1.4;"
+              "3. Maximizes precursor count within fixed range"
             )
           ),
 
@@ -225,11 +189,11 @@ step2_setup_ui <- function() {
           # m/z Range Preview (most important info)
           uiOutput("greedy_mz_range_display"),
 
-          hr(style = "margin: 10px 0; border-color: rgba(243, 156, 18, 0.3);"),
+          hr(style = "margin: 10px 0; border-color: var(--border-subtle);"),
 
           # Sliding Step - clarify it's for search precision
           tags$label("Search Precision", class = "control-label",
-                     style = "font-size: 12px; color: #7f8c8d;"),
+                     style = "font-size: 12px;"),
           sliderInput(
             inputId = "greedy_mz_step",
             label = NULL,
@@ -237,9 +201,9 @@ step2_setup_ui <- function() {
             post = " Da step"
           ),
           helpText("Smaller step = more precise search but slower. Does NOT affect m/z range width.",
-                   style = "font-size: 10px; color: #95a5a6; font-style: italic;"),
+                   style = "font-size: 10px; font-style: italic;"),
 
-          hr(style = "margin: 10px 0; border-color: rgba(243, 156, 18, 0.3);"),
+          hr(style = "margin: 10px 0; border-color: var(--border-subtle);"),
 
           # Post-Smoothing (following dynamicDIA.py)
           checkboxInput(
@@ -248,15 +212,15 @@ step2_setup_ui <- function() {
             value = TRUE
           ),
           helpText("Smooths m/z boundaries across RT bins to prevent abrupt jumps (dynamicDIA method).",
-                   style = "font-size: 10px; color: #7f8c8d;")
+                   style = "font-size: 10px;")
         )
       ),
 
       # Quantile Strategy Parameters
       conditionalPanel(
         condition = "input.mz_strategy == 'quantile'",
-        div(style = "background: rgba(52, 152, 219, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-          h5("Quantile Parameters", style = "margin: 0 0 8px 0; color: #3498db;"),
+        div(class = "strategy-section",
+          tags$h4("Quantile Parameters", class = "section-title strategy-heading"),
           sliderInput(
             inputId = "quantile_lower",
             label = "Lower Percentile",
@@ -273,30 +237,30 @@ step2_setup_ui <- function() {
             value = FALSE
           ),
           helpText("P5-P95 covers 90% of precursors. SG smoothing prevents abrupt m/z jumps.",
-                   style = "font-size: 10px; color: #7f8c8d;")
+                   style = "font-size: 10px;")
         )
       ),
 
       # Coverage Strategy Parameters
       conditionalPanel(
         condition = "input.mz_strategy == 'coverage'",
-        div(style = "background: rgba(46, 204, 113, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-          h5("Coverage Parameters", style = "margin: 0 0 8px 0; color: #27ae60;"),
+        div(class = "strategy-section",
+          tags$h4("Coverage Parameters", class = "section-title strategy-heading"),
           sliderInput(
             inputId = "target_coverage",
             label = "Target Coverage (%)",
             min = 70, max = 99, value = 90, step = 1, post = "%"
           ),
           helpText("Find minimum m/z range achieving this coverage",
-                   style = "font-size: 10px; color: #7f8c8d;")
+                   style = "font-size: 10px;")
         )
       ),
 
       # Outlier Strategy Parameters
       conditionalPanel(
         condition = "input.mz_strategy == 'outlier'",
-        div(style = "background: rgba(155, 89, 182, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-          h5("Outlier Parameters", style = "margin: 0 0 8px 0; color: #9b59b6;"),
+        div(class = "strategy-section",
+          tags$h4("Outlier Parameters", class = "section-title strategy-heading"),
           sliderInput(
             inputId = "outlier_threshold",
             label = "Threshold (x SD)",
@@ -308,29 +272,29 @@ step2_setup_ui <- function() {
             value = FALSE
           ),
           helpText("Mean +/- NxSD range. SG smoothing prevents abrupt m/z jumps.",
-                   style = "font-size: 10px; color: #7f8c8d;")
+                   style = "font-size: 10px;")
         )
       ),
 
       # KDE Strategy Parameters
       conditionalPanel(
         condition = "input.mz_strategy == 'kde'",
-        div(style = "background: rgba(231, 76, 60, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-          h5("KDE Parameters (Density Peak)", style = "margin: 0 0 8px 0; color: #e74c3c;"),
+        div(class = "strategy-section",
+          tags$h4("KDE Parameters (Density Peak)", class = "section-title strategy-heading"),
           sliderInput(
             inputId = "kde_density_threshold",
             label = "Density Threshold (%)",
             min = 5, max = 30, value = 10, step = 5
           ),
           helpText("Boundary at N% of peak density. Lower = wider range.",
-                   style = "font-size: 10px; color: #7f8c8d;"),
+                   style = "font-size: 10px;"),
           sliderInput(
             inputId = "kde_min_coverage",
             label = "Minimum Coverage (%)",
             min = 60, max = 95, value = 80, step = 5
           ),
           helpText("Expand range to ensure at least N% precursor coverage.",
-                   style = "font-size: 10px; color: #7f8c8d;")
+                   style = "font-size: 10px;")
         )
       ),
 
@@ -347,19 +311,66 @@ step2_setup_ui <- function() {
             step = 0.5
           ),
           helpText("Minimum window width (2 Da typical for narrow-DIA)",
-                   style = "font-size: 11px; color: #7f8c8d;")
+                   style = "font-size: 11px;")
+        )
+      ),
+
+      # --- Window Placement Optimization (all modes, at end of strategy section) ---
+      hr(),
+      div(class = "panel-raised", style = "margin-bottom: 12px; border-left: 3px solid var(--text-primary);",
+        fluidRow(
+          column(6,
+            selectInput(
+              inputId = "fz_offset_preset",
+              label = "Forbidden Zone Placement (Recommended)",
+              choices = c(
+                "Standard Proteomics (0.25) - Recommended" = "0.25",
+                "Phosphoproteomics (0.18)" = "0.18",
+                "Custom" = "custom",
+                "None (Disabled)" = "0"
+              ),
+              selected = "0.25"
+            )
+          ),
+          column(6,
+            div(style = "padding-top: 25px;",
+              helpText(
+                "Snaps window boundaries to mass defect forbidden zones where ",
+                "peptide precursors cannot exist. Prevents quadrupole edge ",
+                "transmission loss and isotope envelope splitting. ",
+                "Enabled by default for optimal transmission efficiency.",
+                style = "font-size: 10px; line-height: 1.4;"
+              )
+            )
+          )
+        ),
+        conditionalPanel(
+          condition = "input.fz_offset_preset == 'custom'",
+          fluidRow(
+            column(4,
+              numericInput(
+                inputId = "custom_fz_offset",
+                label = "Custom Forbidden Zone Offset",
+                value = 0.2500,
+                min = 0.0001,
+                max = 0.9999,
+                step = 0.0001
+              )
+            )
+          )
         )
       )
-    ),
+    )),
 
     # --- Section C: RT Binning (collapsed) ---
+    fluidRow(
     box(
       title = "C. RT Binning",
-      status = "info",
+      status = "warning",
       solidHeader = FALSE,
       width = 12,
       collapsible = TRUE,
-      collapsed = TRUE,
+      collapsed = FALSE,
 
       selectInput(
         inputId = "rt_binning_mode",
@@ -372,7 +383,7 @@ step2_setup_ui <- function() {
         selected = "fixed"
       ),
       helpText("Fixed: auto-calculated bin width. Adaptive: KS-test detects m/z distribution shifts.",
-               style = "font-size: 11px; color: #7f8c8d;"),
+               style = "font-size: 11px;"),
 
       # Manual bin width slider (Custom mode only)
       conditionalPanel(
@@ -387,14 +398,14 @@ step2_setup_ui <- function() {
           post = " min"
         ),
         helpText("Controls RT segment grouping. Smaller = more segments.",
-                 style = "font-size: 11px; color: #7f8c8d;")
+                 style = "font-size: 11px;")
       ),
 
       # Adaptive KS parameters (Adaptive mode only)
       conditionalPanel(
         condition = "input.rt_binning_mode == 'adaptive'",
-        div(style = "background: rgba(26, 188, 156, 0.1); padding: 10px; margin: 5px 0; border-radius: 5px;",
-          h5("Adaptive Parameters", style = "margin: 0 0 8px 0; color: #1abc9c;"),
+        div(class = "strategy-section",
+          tags$h4("Adaptive Parameters", class = "section-title strategy-heading"),
           sliderInput(
             inputId = "cpd_significance",
             label = "Change Point Significance",
@@ -406,7 +417,7 @@ step2_setup_ui <- function() {
             min = 0.5, max = 5.0, value = 1.0, step = 0.5
           ),
           helpText("Lower significance = fewer, more confident change points.",
-                   style = "font-size: 10px; color: #7f8c8d;")
+                   style = "font-size: 10px;")
         )
       ),
 
@@ -414,14 +425,15 @@ step2_setup_ui <- function() {
       conditionalPanel(
         condition = "input.rt_binning_mode == 'fixed'",
         helpText("Fixed mode uses auto-calculated bin width. No additional parameters needed.",
-                 style = "font-size: 11px; color: #7f8c8d;")
+                 style = "font-size: 11px;")
       )
-    ),
+    )),
 
     # --- Section D: Expert Settings (collapsed + warning) ---
+    fluidRow(
     box(
       title = "D. Expert Settings",
-      status = "warning",
+      status = "secondary",
       solidHeader = FALSE,
       width = 12,
       collapsible = TRUE,
@@ -431,15 +443,14 @@ step2_setup_ui <- function() {
       div(class = "tab-banner-warning",
         tags$small(
           icon("exclamation-triangle"), " ",
-          "Expert settings. Modify only if you understand instrument scan timing.",
-          style = "color: #856404;"
+          "Expert settings. Modify only if you understand instrument scan timing."
         )
       ),
 
       fluidRow(
         # Column 1: Acquisition
         column(4,
-          h5("Acquisition", style = "color: #2c3e50; font-weight: 600;"),
+          tags$h4("Acquisition", class = "section-title"),
 
           # MS1 Scans per Cycle
           numericInput(
@@ -451,12 +462,12 @@ step2_setup_ui <- function() {
             step = 1
           ),
           helpText("1 for standard DIA, 0 for parallel (Astral), 3-4 for Boxcar",
-                   style = "font-size: 11px; color: #7f8c8d;")
+                   style = "font-size: 11px;")
         ),
 
         # Column 2: Edge Handling
         column(4,
-          h5("Edge Handling", style = "color: #2c3e50; font-weight: 600;"),
+          tags$h4("Edge Handling", class = "section-title"),
 
           numericInput(
             inputId = "edge_void_buffer",
@@ -468,11 +479,11 @@ step2_setup_ui <- function() {
             label = "Wash Merge Threshold (precursors)",
             value = 30, min = 0, max = 200, step = 10
           ),
-          helpText("Void buffer extends first bin start. Wash merge combines sparse last bin.",
-                   style = "font-size: 10px; color: #7f8c8d;")
+          helpText("Void buffer extends first bin start (typical: 0.3-1.0 min depending on column length/ID). Wash merge combines sparse last bin.",
+                   style = "font-size: 10px;")
         )
       )
-    ),
+    )),
 
     # Navigation
     div(

@@ -194,37 +194,56 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
     )
   }, striped = TRUE, hover = TRUE, spacing = "s")
 
-  output$dppp_preview_table <- renderTable({
+  output$dppp_preview_table <- renderUI({
     preview <- dppp_preview_reactive()
     req(preview)
 
-    # Explicitly depend on target_dppp to ensure reactivity
     target_dppp <- input$target_dppp
     target_satisfaction <- input$target_satisfaction
-
-    # Get current cycle time for highlighting
-    calc_ct <- cycle_time_result()
-    current_ct <- if (!is.null(calc_ct)) calc_ct$cycle_time_sec else NA
-
-    # Get DPPP data from preview (recalculated with current target_dppp)
     dppp_data <- preview$dppp_preview
 
-    # Build display data with Status based on current target
-    # Status shows "v Meet" if DPPP >= target, "x Below" if not
-    display_df <- data.frame(
-      `Cycle Time` = sprintf("%.1f sec", dppp_data$cycle_time_sec),
-      `DPPP` = sprintf("%.1f", dppp_data$dppp_median),
-      `Satisfaction` = sprintf("%.0f%%", dppp_data$satisfaction_pct),
-      `Status` = ifelse(
-        dppp_data$satisfaction_pct >= target_satisfaction,
-        sprintf("v >=%d%%", target_satisfaction),
-        sprintf("x <%d%%", target_satisfaction)
-      ),
-      check.names = FALSE
-    )
+    # Build rows with conditional highlighting
+    rows <- lapply(seq_len(nrow(dppp_data)), function(i) {
+      meets <- dppp_data$dppp_median[i] >= target_dppp &&
+               dppp_data$satisfaction_pct[i] >= target_satisfaction
 
-    display_df
-  }, striped = TRUE, hover = TRUE, spacing = "s")
+      row_style <- if (meets) {
+        "background-color: rgba(39, 174, 96, 0.12); font-weight: 600;"
+      } else {
+        ""
+      }
+
+      status_cell <- if (meets) {
+        tags$td(class = "text-semantic-success", style = "font-weight: 700;",
+                icon("check-circle"), " PASS")
+      } else {
+        tags$td(class = "text-muted", "Below")
+      }
+
+      tags$tr(
+        style = row_style,
+        tags$td(sprintf("%.1f sec", dppp_data$cycle_time_sec[i])),
+        tags$td(sprintf("%.1f", dppp_data$dppp_median[i])),
+        tags$td(sprintf("%.0f%%", dppp_data$satisfaction_pct[i])),
+        status_cell
+      )
+    })
+
+    tags$table(
+      class = "table table-sm",
+      style = "font-size: 13px;",
+      tags$thead(
+        tags$tr(
+          class = "panel-raised", style = "font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;",
+          tags$th("Cycle Time"),
+          tags$th("DPPP"),
+          tags$th("Satisfaction"),
+          tags$th("Status")
+        )
+      ),
+      tags$tbody(rows)
+    )
+  })
 
   output$dppp_recommendation <- renderUI({
     preview <- dppp_preview_reactive()
@@ -243,7 +262,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
       return(tags$div(
         class = "recommendation-box",
         tags$p("Recommendation not available - FWHM data may be missing.",
-               style = "color: #e74c3c;")
+               class = "text-semantic-danger")
       ))
     }
 
@@ -251,31 +270,31 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
     meets_target <- !is.null(current_ct) && current_ct <= rec_ct
 
     tags$div(
-      style = "padding: 10px; border-radius: 6px; background: #f8f9fa;",
+      class = "panel-raised", style = "padding: 10px;",
 
       # Main recommendation
       tags$div(
         style = "display: flex; align-items: center; gap: 8px; margin-bottom: 8px;",
-        icon("lightbulb", style = "color: #f39c12; font-size: 18px;"),
-        tags$strong("Target Requirements", style = "color: #2c3e50;")
+        icon("lightbulb", class = "text-semantic-warning", style = "font-size: 18px;"),
+        tags$strong("Target Requirements")
       ),
       tags$p(
-        style = "margin: 0 0 8px 0; font-size: 13px; color: #34495e;",
+        style = "margin: 0 0 8px 0; font-size: 13px;",
         sprintf("For DPPP >= %.1f with %d%% satisfaction:", target, satisfaction)
       ),
       tags$p(
         style = "margin: 0 0 12px 0; font-size: 14px;",
         "Required cycle time <= ",
-        tags$strong(sprintf("%.2f sec", rec_ct), style = "color: #16a085; font-size: 16px;")
+        tags$strong(sprintf("%.2f sec", rec_ct), class = "text-accent", style = "font-size: 16px;")
       ),
 
       # Current status
       if (!is.null(current_ct)) {
         if (meets_target) {
           tags$div(
-            style = "padding: 8px; background: #d4edda; border-radius: 4px; border-left: 3px solid #28a745;",
+            class = "status-pass",
             tags$span(
-              style = "color: #155724; font-weight: 600;",
+              class = "status-text",
               sprintf("Your current cycle time (%.2f sec) MEETS the requirement!", current_ct)
             )
           )
@@ -285,24 +304,47 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
           reduction_pct <- (reduction_needed / current_ct) * 100
 
           tags$div(
-            style = "padding: 8px; background: #f8d7da; border-radius: 4px; border-left: 3px solid #dc3545;",
+            class = "status-fail",
             tags$span(
-              style = "color: #721c24; font-weight: 600;",
+              class = "status-text",
               sprintf("Current: %.2f sec -> Need: <=%.2f sec", current_ct, rec_ct)
             ),
             tags$br(),
             tags$span(
-              style = "color: #721c24; font-size: 12px;",
+              class = "status-text", style = "font-size: 12px;",
               sprintf("Reduce cycle time by %.1f sec (%.0f%% reduction needed)", reduction_needed, reduction_pct)
             ),
             tags$br(),
             tags$span(
-              style = "color: #856404; font-size: 11px; font-style: italic;",
+              class = "text-muted", style = "font-size: 11px; font-style: italic;",
               "Tip: Use fewer windows, faster scan rate, or lower target DPPP"
             )
           )
         }
       }
+    )
+  })
+
+  # --- Output: Window Count Preview in DPPP Target Section (Step 2) ---
+  output$dppp_window_count_preview <- renderUI({
+    req(rv$validated_data)
+    calc_ct <- cycle_time_result()
+    req(calc_ct)
+
+    fwhm_sec <- ensure_fwhm_seconds(rv$validated_data$data$FWHM)
+    median_fwhm <- median(fwhm_sec, na.rm = TRUE)
+    target <- input$target_dppp
+    req(target)
+    ms2_sec <- calc_ct$ms2$scan_time_ms / 1000
+
+    est_windows <- estimate_window_count_preview(median_fwhm, target, ms2_sec)
+
+    tags$div(
+      class = "panel-accent", style = "margin-top: 10px;",
+      tags$span(style = "font-size: 13px;", "Estimated windows: "),
+      tags$strong(class = "text-accent", style = "font-size: 16px;", est_windows),
+      tags$span(class = "text-muted", style = "font-size: 12px;",
+                sprintf(" (at DPPP %.1f, CT %.2fs)", target, calc_ct$cycle_time_sec))
     )
   })
 
@@ -313,7 +355,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
     fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
 
     tags$div(
-      style = "font-size: 11px; color: #bdc3c7; line-height: 1.9;",
+      class = "text-muted", style = "font-size: 11px; line-height: 1.9;",
       tags$div(sprintf("Precursors: %s", format(nrow(data), big.mark = ","))),
       tags$div(sprintf("RT: %.1f - %.1f min", min(data$RT.Apex), max(data$RT.Apex))),
       tags$div(sprintf("m/z: %.0f - %.0f Da", min(data$Precursor.Mz), max(data$Precursor.Mz))),
@@ -330,23 +372,23 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
     opt_ok <- rv$optimization_complete
 
     data_text <- if (data_ok) "Loaded" else "Waiting"
-    data_color <- if (data_ok) "#27ae60" else "#7f8c8d"
+    data_class <- if (data_ok) "pipeline-active" else "pipeline-pending"
 
     opt_text <- if (opt_ok && !is.null(rv$optimized_windows)) {
       sprintf("%d windows", nrow(rv$optimized_windows$windows))
     } else "Pending"
-    opt_color <- if (opt_ok) "#27ae60" else "#7f8c8d"
+    opt_class <- if (opt_ok) "pipeline-active" else "pipeline-pending"
 
     export_text <- if (opt_ok) "Ready" else "Waiting"
-    export_color <- if (opt_ok) "#27ae60" else "#7f8c8d"
+    export_class <- if (opt_ok) "pipeline-active" else "pipeline-pending"
 
     tags$div(
       style = "font-size: 11px; line-height: 2.0;",
-      tags$div(style = sprintf("color: %s;", data_color),
+      tags$div(class = data_class,
                tags$span(HTML("&#9679;"), style = "margin-right: 4px;"), "Data: ", data_text),
-      tags$div(style = sprintf("color: %s;", opt_color),
+      tags$div(class = opt_class,
                tags$span(HTML("&#9679;"), style = "margin-right: 4px;"), "Optimized: ", opt_text),
-      tags$div(style = sprintf("color: %s;", export_color),
+      tags$div(class = export_class,
                tags$span(HTML("&#9679;"), style = "margin-right: 4px;"), "Export: ", export_text)
     )
   })

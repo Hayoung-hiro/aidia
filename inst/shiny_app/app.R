@@ -71,7 +71,7 @@ ui <- dashboardPage(
     div(
       id = "logo_placeholder",
       style = "text-align: center; padding: 10px 15px 5px 15px;",
-      span("AIDIA", style = "font-size: 18px; font-weight: 700; color: #1abc9c; letter-spacing: 1px;")
+      span("AIDIA", class = "text-accent", style = "font-size: 18px; font-weight: 700; letter-spacing: 1px;")
     ),
 
     # Wizard step navigation
@@ -89,7 +89,7 @@ ui <- dashboardPage(
       condition = "output.data_loaded",
       div(
         style = "padding: 4px 15px 8px 15px;",
-        h5("Data Summary", style = "margin: 0 0 6px 0; color: #ecf0f1; font-size: 13px;"),
+        h5("Data Summary", class = "sidebar-heading"),
         uiOutput("sidebar_data_summary")
       ),
       hr()
@@ -98,16 +98,16 @@ ui <- dashboardPage(
     # Calculated Cycle Time Display (reactive feedback - always visible)
     div(
       id = "cycle_time_display",
-      style = "background: linear-gradient(135deg, #1a252f 0%, #2c3e50 100%); border-radius: 8px; padding: 12px; margin: 10px 15px; border-left: 4px solid #1abc9c;",
-      h5("Calculated Cycle Time", style = "margin: 0 0 8px 0; color: #ecf0f1; font-size: 13px;"),
+      class = "sidebar-metric-card",
+      h5("Calculated Cycle Time", class = "sidebar-heading"),
       div(
         style = "display: flex; justify-content: space-between; align-items: baseline;",
         span(textOutput("calculated_cycle_time", inline = TRUE),
-             style = "font-size: 24px; font-weight: 700; color: #1abc9c;"),
-        span("sec", style = "font-size: 14px; color: #95a5a6; margin-left: 4px;")
+             class = "metric-value"),
+        span("sec", class = "metric-unit")
       ),
       div(
-        style = "margin-top: 8px; font-size: 11px; color: #7f8c8d;",
+        class = "metric-detail",
         textOutput("cycle_time_breakdown", inline = TRUE)
       ),
       div(
@@ -121,7 +121,7 @@ ui <- dashboardPage(
     # Pipeline Status (compact, replaces Step 1 info boxes)
     div(
       style = "padding: 4px 15px;",
-      h5("Pipeline Status", style = "margin: 0 0 6px 0; color: #ecf0f1; font-size: 13px;"),
+      h5("Pipeline Status", class = "sidebar-heading"),
       uiOutput("sidebar_pipeline_status")
     )
   ),
@@ -140,50 +140,45 @@ ui <- dashboardPage(
         rel = "stylesheet",
         href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       ),
-      tags$style(HTML("
-        body { font-family: 'Inter', 'Segoe UI', sans-serif; }
+      # Client-side JS: sidebar collapse prevention + DPPP button sync
+      tags$script(HTML("
+        $(document).ready(function() {
+          // --- Sidebar: prevent AdminLTE3 collapse ---
+          $(document).on('collapsed.lte.pushmenu', function() {
+            setTimeout(function() {
+              $('body').removeClass('sidebar-collapse sidebar-closed sidebar-mini-md');
+              $('.main-sidebar').removeAttr('style');
+            }, 50);
+          });
+          $('body').removeClass('sidebar-collapse sidebar-closed');
 
-        /* Equal height row for boxes */
-        .equal-height-row {
-          display: flex;
-          flex-wrap: wrap;
-        }
-        .equal-height-row > [class*='col-'] {
-          display: flex;
-          margin-bottom: 15px;
-        }
-        .equal-height-row > [class*='col-'] > .box {
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-        }
-        .equal-height-row > [class*='col-'] > .box > .box-body {
-          flex: 1;
-        }
+          // --- DPPP Preset Button sync (pure client-side, no server round-trip) ---
+          function syncDpppButtons(val) {
+            val = parseFloat(val);
+            $('.dppp-preset-btn').removeClass('dppp-active');
+            if (val === 1.5) $('#preset_id').addClass('dppp-active');
+            else if (val === 4.0) $('#preset_balanced').addClass('dppp-active');
+            else if (val === 7.0) $('#preset_quant').addClass('dppp-active');
+          }
 
-        /* DPPP Preview section styling */
-        .dppp-preview-section h5 {
-          margin-bottom: 10px;
-          color: #2c3e50;
-          font-weight: 600;
-        }
+          // Immediate toggle on button click (zero round-trip)
+          $(document).on('click', '#preset_id', function() { syncDpppButtons(1.5); });
+          $(document).on('click', '#preset_balanced', function() { syncDpppButtons(4.0); });
+          $(document).on('click', '#preset_quant', function() { syncDpppButtons(7.0); });
 
-        /* Info box consistency */
-        .info-box {
-          min-height: 90px;
-        }
+          // Sync when user manually types/changes target DPPP value
+          $(document).on('change', '#target_dppp', function() {
+            syncDpppButtons($(this).val());
+          });
 
-        /* Body form controls - improved visibility */
-        .content-wrapper .form-control:focus {
-          border-color: #1abc9c !important;
-          box-shadow: 0 0 0 2px rgba(26, 188, 156, 0.25) !important;
-        }
-        .content-wrapper input[type='number'] {
-          text-align: center;
-          font-size: 14px !important;
-          padding: 4px 8px;
-        }
-      "))
+          // Initial sync on page load (default = 7.0 -> Quant active)
+          setTimeout(function() {
+            var initVal = $('#target_dppp').val();
+            if (initVal) syncDpppButtons(initVal);
+          }, 300);
+        });
+      ")),
+      # All styles moved to custom.css (equal-height-row, DPPP preview, form controls)
     ),
 
     # Progress Indicator with accent color
@@ -209,7 +204,7 @@ ui <- dashboardPage(
     right = "Adaptive Isolation for DIA"
   ),
 
-  dark = FALSE,
+  dark = NULL,
   title = "AIDIA - Adaptive Isolation for DIA"
 )
 

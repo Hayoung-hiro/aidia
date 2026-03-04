@@ -5,40 +5,44 @@ step1_data_ui <- function() {
   tabItem(
     tabName = "data",
 
-    # --- Upload Zone ---
-    box(
-      title = "Upload Data",
-      status = "primary",
-      solidHeader = TRUE,
-      width = 12,
+    # --- Row 1: Upload + Instrument side-by-side (2x1 layout, equal height) ---
+    fluidRow(
+      class = "equal-height-row",
+      box(
+        title = "Upload Data",
+        status = "primary",
+        solidHeader = TRUE,
+        width = 4,
 
-      fluidRow(
-        column(12,
-          div(
-            class = "upload-zone",
-            fileInput(
-              inputId = "parquet_file",
-              label = "Upload DIA-NN Parquet File",
-              accept = c(".parquet"),
-              placeholder = "DIA-NN report..."
-            )
+        div(
+          style = "text-align: center; margin-bottom: 12px;",
+          icon("cloud-upload-alt", class = "upload-icon"),
+          tags$p("DIA-NN Parquet Report", class = "text-muted", style = "margin: 4px 0 0 0;")
+        ),
+        div(
+          class = "upload-zone",
+          fileInput(
+            inputId = "parquet_file",
+            label = NULL,
+            accept = c(".parquet"),
+            placeholder = "No file selected..."
           )
-        )
+        ),
+        helpText("Browse or drag to upload DIA-NN report",
+                 style = "font-size: 11px; text-align: center;")
       ),
-      helpText("Browse to select file. Configure instrument settings below, then review data.",
-               style = "font-size: 11px; color: #7f8c8d;")
-    ),
 
-    # --- Instrument & Timing (always visible, independent of data upload) ---
-    box(
-      title = "Instrument & Timing",
-      status = "primary",
-      solidHeader = TRUE,
-      width = 12,
+      # --- Instrument & Timing (always visible, independent of data upload) ---
+      box(
+        title = "Instrument & Timing",
+        status = "warning",
+        solidHeader = TRUE,
+        width = 8,
 
       fluidRow(
+        class = "instrument-row",
         # Column 1: Instrument Selection
-        column(3,
+        column(4,
           selectInput(
             inputId = "instrument",
             label = "Instrument Preset",
@@ -58,7 +62,7 @@ step1_data_ui <- function() {
         ),
 
         # Column 2: MS1 Resolution (Orbitrap only)
-        column(3,
+        column(3, class = "instrument-col-conditional",
           conditionalPanel(
             condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
             selectInput(
@@ -110,12 +114,12 @@ step1_data_ui <- function() {
               post = " ms"
             ),
             helpText("3ms: 200 Hz max speed | >3ms: Sensitivity mode",
-                     style = "font-size: 10px; color: #7f8c8d;")
+                     style = "font-size: 10px;")
           )
         ),
 
         # Column 4: Window Count
-        column(3,
+        column(2,
           numericInput(
             inputId = "current_window_count",
             label = "MS2 Window Count",
@@ -125,7 +129,7 @@ step1_data_ui <- function() {
             step = 5
           ),
           helpText("Isolation windows per cycle",
-                   style = "font-size: 11px; color: #7f8c8d;")
+                   style = "font-size: 11px;")
         )
       ),
 
@@ -144,13 +148,13 @@ step1_data_ui <- function() {
                 div(
                   style = "display: flex; align-items: center; gap: 4px;",
                   numericInput("ms1_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
-                  span("ms", style = "color: #34495e; font-size: 12px; font-weight: 500;")
+                  span("ms", class = "unit-label")
                 )
               ),
               conditionalPanel(
                 condition = "input.ms1_it_auto",
                 span(textOutput("ms1_it_auto_value", inline = TRUE),
-                     style = "color: #1abc9c; font-weight: 600; font-size: 12px;")
+                     class = "text-accent", style = "font-weight: 600; font-size: 12px;")
               )
             )
           ),
@@ -164,78 +168,80 @@ step1_data_ui <- function() {
                 div(
                   style = "display: flex; align-items: center; gap: 4px;",
                   numericInput("ms2_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
-                  span("ms", style = "color: #34495e; font-size: 12px; font-weight: 500;")
+                  span("ms", class = "unit-label")
                 )
               ),
               conditionalPanel(
                 condition = "input.ms2_it_auto",
                 span(textOutput("ms2_it_auto_value", inline = TRUE),
-                     style = "color: #1abc9c; font-weight: 600; font-size: 12px;")
+                     class = "text-accent", style = "font-weight: 600; font-size: 12px;")
               )
             )
           ),
           column(4,
             div(style = "padding-top: 20px;",
               helpText("Auto = T_transient (Sweet Spot, 100% efficiency)",
-                       style = "font-size: 10px; color: #7f8c8d;")
+                       style = "font-size: 10px;")
             )
           )
         )
       )
-    ),
+    )   # end Instrument box
+    ),  # end fluidRow (Upload + Instrument)
 
     # --- Shown after data upload ---
     conditionalPanel(
       condition = "output.data_loaded",
 
-      # Cycle Time Calculation
-      box(
-        title = "Cycle Time Calculation",
-        status = "info",
-        solidHeader = TRUE,
-        width = 12,
+      # DPPP Quick Preview (FIRST — overview before details)
+      fluidRow(
+        box(
+          title = "DPPP Quick Preview",
+          status = "info",
+          solidHeader = TRUE,
+          width = 12,
+          collapsible = TRUE,
 
-        h5("Based on Your Experiment Settings", style = "margin-top: 0; color: #2c3e50;"),
-        fluidRow(
-          column(6, tableOutput("cycle_time_detail_table")),
-          column(6,
-            h5("Cycle Time Breakdown"),
-            uiOutput("cycle_time_visual"),
-            hr(style = "margin: 10px 0;"),
-            uiOutput("efficiency_detail")
+          fluidRow(
+            class = "equal-height-row dppp-preview-section",
+            column(4,
+              tags$h4("Peak Width (FWHM) Distribution", class = "section-title"),
+              plotOutput("fwhm_ridgeline", height = "240px")
+            ),
+            column(4,
+              tags$h4("DPPP at Different Cycle Times", class = "section-title"),
+              tags$p(
+                class = "section-subtitle",
+                "Target: DPPP >= ",
+                textOutput("current_target_dppp", inline = TRUE)
+              ),
+              uiOutput("dppp_preview_table")
+            ),
+            column(4,
+              tags$h4("Recommendation", class = "section-title"),
+              uiOutput("dppp_recommendation")
+            )
           )
         )
       ),
 
-      # DPPP Quick Preview
-      box(
-        title = "DPPP Quick Preview",
-        status = "warning",
-        solidHeader = TRUE,
-        width = 12,
-        collapsible = TRUE,
+      # Cycle Time Calculation (SECOND — details after overview)
+      fluidRow(
+        box(
+          title = "Cycle Time Calculation",
+          status = "success",
+          solidHeader = TRUE,
+          width = 12,
 
-        fluidRow(
-          class = "equal-height-row dppp-preview-section",
-          column(4,
-            # FWHM Distribution (ridgeline by charge, top 3)
-            h5("Peak Width (FWHM) Distribution", style = "margin-top: 0;"),
-            plotOutput("fwhm_ridgeline", height = "220px")
-          ),
-          column(4,
-            # DPPP at Different Cycle Times
-            h5("DPPP at Different Cycle Times"),
-            helpText(
-              "Target: DPPP >= ",
-              textOutput("current_target_dppp", inline = TRUE),
-              style = "font-size: 11px; color: #7f8c8d; margin-bottom: 8px;"
-            ),
-            tableOutput("dppp_preview_table")
-          ),
-          column(4,
-            # Recommendation
-            h5("Recommendation"),
-            uiOutput("dppp_recommendation")
+          tags$h4("Based on Your Experiment Settings", class = "section-title"),
+          fluidRow(
+            column(6, tableOutput("cycle_time_detail_table")),
+            column(6,
+              tags$h4("Cycle Time Breakdown", class = "section-title"),
+              uiOutput("cycle_time_visual"),
+              hr(style = "margin: 10px 0;"),
+              uiOutput("efficiency_detail")
+            )
           )
         )
       )
@@ -245,12 +251,10 @@ step1_data_ui <- function() {
     conditionalPanel(
       condition = "!output.data_loaded",
       div(
-        style = "text-align: center; padding: 60px 20px;",
-        icon("cloud-upload-alt", style = "font-size: 64px; color: #bdc3c7; margin-bottom: 20px;"),
-        h4("Upload a DIA-NN parquet file to begin",
-           style = "color: #7f8c8d; font-weight: 400;"),
-        p("Supported format: .parquet (DIA-NN report output)",
-          style = "color: #95a5a6; font-size: 13px;")
+        class = "placeholder-section",
+        icon("cloud-upload-alt", class = "placeholder-icon"),
+        h4("Upload a DIA-NN parquet file to begin"),
+        p("Supported format: .parquet (DIA-NN report output)")
       )
     ),
 

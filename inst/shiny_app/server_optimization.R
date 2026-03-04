@@ -3,6 +3,8 @@
 server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
   # --- DPPP Preset Buttons ---
+  # Preset clicks only update the numeric value; visual sync is handled
+  # by the single target_dppp observer below via sendCustomMessage.
   observeEvent(input$preset_id, {
     updateNumericInput(session, "target_dppp", value = 1.5)
   })
@@ -12,6 +14,9 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   observeEvent(input$preset_quant, {
     updateNumericInput(session, "target_dppp", value = 7.0)
   })
+
+  # DPPP button visual sync is handled purely client-side in app.R
+  # (no server round-trip needed for CSS class toggles)
 
   # --- Toggle: "More Options" in Setup tab (legacy handler, harmless) ---
   observeEvent(input$toggle_setup_more, {
@@ -252,10 +257,9 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     n_windows <- nrow(rv$optimized_windows$windows)
     n_rt_bins <- length(unique(rv$optimized_windows$windows$rt_segment_id))
     strategy <- rv$optimized_windows$parameters$mz_strategy %||% "unknown"
-    tags$p(
-      sprintf("%s windows across %d RT bins (strategy: %s)",
-              format(n_windows, big.mark = ","), n_rt_bins, strategy),
-      style = "margin: 0; font-size: 14px;"
+    tags$span(
+      sprintf("%s windows | %d RT bins | %s strategy",
+              format(n_windows, big.mark = ","), n_rt_bins, strategy)
     )
   })
 
@@ -278,13 +282,13 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     }
 
     tags$div(
-      style = "font-size: 14px; line-height: 2.2;",
+      class = "summary-list",
       tags$div(tags$strong("Precursors: "), format(nrow(data), big.mark = ",")),
-      tags$div(tags$strong("RT Range: "),
+      tags$div(tags$strong("RT: "),
                sprintf("%.1f - %.1f min", min(data$RT.Apex, na.rm = TRUE), max(data$RT.Apex, na.rm = TRUE))),
-      tags$div(tags$strong("m/z Range: "),
-               sprintf("%.1f - %.1f Da", min(data$Precursor.Mz, na.rm = TRUE), max(data$Precursor.Mz, na.rm = TRUE))),
-      tags$div(tags$strong("Median FWHM: "), sprintf("%.2f sec", median_fwhm_sec)),
+      tags$div(tags$strong("m/z: "),
+               sprintf("%.0f - %.0f Da", min(data$Precursor.Mz, na.rm = TRUE), max(data$Precursor.Mz, na.rm = TRUE))),
+      tags$div(tags$strong("FWHM: "), sprintf("%.2f sec", median_fwhm_sec)),
       tags$div(tags$strong("Cycle Time: "), ct_text),
       tags$div(tags$strong("Est. DPPP: "), dppp_text)
     )
@@ -309,17 +313,14 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     coverage <- stats$coverage_percentage
 
     # Window mode badge
-    mode_colors <- list(
-      density = "#1abc9c", fixed = "#3498db", staggered = "#9b59b6"
+    mode_badge_classes <- list(
+      density = "badge-accent", fixed = "badge-dark", staggered = "badge-dark"
     )
     mode_labels <- list(
       density = "Density (Variable)", fixed = "Fixed (Equal)", staggered = "Staggered (Offset)"
     )
     mode_badge <- tags$span(
-      style = sprintf(
-        "background: %s; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 12px;",
-        mode_colors[[used_mode]] %||% "#95a5a6"
-      ),
+      class = mode_badge_classes[[used_mode]] %||% "badge-dark",
       mode_labels[[used_mode]] %||% used_mode
     )
 
@@ -334,9 +335,21 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       n_cycle1 <- if ("cycle" %in% colnames(windows)) sum(windows$cycle == 1L) else n_windows
       n_cycle2 <- if ("cycle" %in% colnames(windows)) sum(windows$cycle == 2L) else 0
       fz_val <- params$fz_offset %||% 0.25
+      loop_n_val <- tryCatch(calculate_loop_n(windows), error = function(e) NULL)
       tags$div(
-        tags$strong("2-Cycle Interleaved: "),
-        sprintf("C1: %d + C2: %d windows (forbidden zone: %.4f)", n_cycle1, n_cycle2, fz_val)
+        tags$div(
+          tags$strong("2-Cycle Interleaved: "),
+          sprintf("C1: %d + C2: %d windows (forbidden zone: %.4f)", n_cycle1, n_cycle2, fz_val)
+        ),
+        if (!is.null(loop_n_val)) {
+          tags$div(
+            class = "panel-accent", style = "margin-top: 6px; font-weight: 600;",
+            icon("sync-alt"),
+            sprintf(" Loop Control N = %d", loop_n_val),
+            tags$span(class = "text-muted", style = "font-weight: 400; margin-left: 8px;",
+                      "(set in Xcalibur method)")
+          )
+        }
       )
     } else {
       tags$div(
@@ -347,17 +360,17 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
     # DPPP verification badge
     dppp_line <- if (!is.null(dppp_v)) {
-      badge_style <- if (abs(dppp_v$deviation_pct) <= 5) {
-        "background: #27ae60; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 12px;"
+      badge_class <- if (abs(dppp_v$deviation_pct) <= 5) {
+        "efficiency-badge status-pass"
       } else {
-        "background: #e74c3c; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 12px;"
+        "efficiency-badge status-fail"
       }
       badge_text <- if (abs(dppp_v$deviation_pct) <= 5) "PASS" else "WARNING"
 
       tags$div(
         tags$strong("Actual DPPP: "),
         sprintf("%.1f ", dppp_v$actual_dppp_median),
-        tags$span(badge_text, style = badge_style)
+        tags$span(badge_text, class = badge_class)
       )
     } else {
       NULL
@@ -370,11 +383,11 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     }
 
     tags$div(
-      style = "font-size: 14px; line-height: 2.2;",
+      class = "summary-list",
       tags$div(tags$strong("Windows: "), format(n_windows, big.mark = ",")),
       tags$div(tags$strong("RT Bins: "), n_rt_bins),
       tags$div(tags$strong("Mode: "), mode_badge),
-      tags$div(tags$strong("Mean Width: "), sprintf("%.1f Da", mean_width)),
+      tags$div(tags$strong("Width: "), sprintf("%.1f Da", mean_width)),
       width_detail,
       tags$div(tags$strong("Coverage: "), sprintf("%.1f%%", coverage)),
       actual_ct_line,
@@ -494,42 +507,57 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       tags$div(
         style = "margin-bottom: 10px;",
         tags$span(
-          style = "background: #2c3e50; color: white; padding: 4px 10px; border-radius: 4px; font-weight: 600; font-size: 12px;",
+          class = "badge-dark",
           strategy_label
         ),
         tags$span(
-          style = "background: #16a085; color: white; padding: 4px 10px; border-radius: 4px; font-weight: 600; font-size: 12px; margin-left: 4px;",
+          class = "badge-accent",
+          style = "margin-left: 4px;",
           params$window_mode %||% "density"
-        )
+        ),
+        # Loop N badge for staggered mode
+        if ((params$window_mode %||% "density") == "staggered") {
+          loop_n_val <- tryCatch(calculate_loop_n(windows), error = function(e) NULL)
+          if (!is.null(loop_n_val)) {
+            tags$span(
+              class = "badge-accent",
+              style = "margin-left: 4px;",
+              sprintf("Loop N = %d", loop_n_val)
+            )
+          }
+        }
       ),
 
       # m/z range
       tags$div(
-        style = "padding: 8px; background: #f8f9fa; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #3498db;",
+        class = "panel-accent",
+        style = "margin-bottom: 8px;",
         tags$div(
-          style = "font-weight: 600; color: #2c3e50;",
+          style = "font-weight: 600;",
           sprintf("m/z Range: %.1f - %.1f Da (%.0f Da span)", mz_min, mz_max, mz_span)
         ),
         tags$div(
-          style = "color: #7f8c8d; font-size: 12px; margin-top: 4px;",
+          class = "text-muted",
+          style = "font-size: 12px; margin-top: 4px;",
           sprintf("%.0f windows/bin | %d RT bins", windows_per_bin, n_rt_bins)
         )
       ),
 
       # Width distribution
       tags$div(
-        style = "padding: 8px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #1abc9c;",
+        class = "panel-accent",
         tags$div(
-          style = "font-weight: 600; color: #2c3e50;",
+          style = "font-weight: 600;",
           "Window Width Distribution"
         ),
         tags$div(
-          style = "margin-top: 4px; color: #34495e;",
+          style = "margin-top: 4px;",
           sprintf("Min: %.1f Da | Mean: %.1f Da | Max: %.1f Da", min_width, mean_width, max_width)
         ),
         if (params$window_mode == "density") {
           tags$div(
-            style = "color: #7f8c8d; font-size: 11px; margin-top: 4px; font-style: italic;",
+            class = "text-muted",
+            style = "font-size: 11px; margin-top: 4px; font-style: italic;",
             sprintf("Variable width ratio: %.1fx (max/min)", max_width / max(min_width, 0.1))
           )
         }
@@ -563,7 +591,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       ),
       rownames = FALSE
     ) %>%
-      DT::formatRound(columns = c("mz_start", "mz_end", "window_width"), digits = 2)
+      DT::formatRound(columns = c("mz_start", "mz_end", "window_width"), digits = 4)
   })
 
   # --- ValueBox Rendering for Results Summary Dashboard ---
@@ -575,8 +603,13 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     new_ct <- m$new_ct
 
     if (is.null(orig_ct) || is.na(orig_ct) || orig_ct == 0) orig_ct <- new_ct  # Fallback
+    if (is.null(new_ct) || is.na(new_ct)) new_ct <- orig_ct  # Guard NA
 
-    diff_pct <- round((orig_ct - new_ct) / orig_ct * 100, 1)
+    diff_pct <- if (!is.na(orig_ct) && orig_ct != 0) {
+      round((orig_ct - new_ct) / orig_ct * 100, 1)
+    } else {
+      0
+    }
 
     subtitle <- "Cycle Time"
     icon_name <- "clock"

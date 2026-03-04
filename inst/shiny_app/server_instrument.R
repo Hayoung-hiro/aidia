@@ -177,32 +177,32 @@ server_instrument <- function(input, output, session, rv) {
     if (!is.null(plan_windows)) {
       # Optimization plan available
       tags$div(
-        style = "background: rgba(39, 174, 96, 0.15); padding: 6px 8px; border-radius: 4px; margin: 4px 0;",
+        class = "indicator-success",
         tags$span(
-          style = "color: #27ae60; font-weight: 600;",
+          class = "indicator-text",
           sprintf("Auto: %d windows", plan_windows)
         ),
         tags$br(),
-        tags$small("(from optimization plan)", style = "color: #7f8c8d;")
+        tags$small("(from optimization plan)", class = "text-muted")
       )
     } else if (!is.null(dppp_windows)) {
       # Estimated from DPPP calculation
       tags$div(
-        style = "background: rgba(52, 152, 219, 0.15); padding: 6px 8px; border-radius: 4px; margin: 4px 0;",
+        class = "indicator-info",
         tags$span(
-          style = "color: #3498db; font-weight: 600;",
+          class = "indicator-text",
           sprintf("Estimated: %d windows", dppp_windows)
         ),
         tags$br(),
         tags$small(sprintf("(for DPPP %.1f with current settings)", input$target_dppp),
-                   style = "color: #7f8c8d;")
+                   class = "text-muted")
       )
     } else {
       # No data available yet
       tags$div(
-        style = "background: rgba(149, 165, 166, 0.15); padding: 6px 8px; border-radius: 4px; margin: 4px 0;",
+        class = "indicator-muted",
         tags$span(
-          style = "color: #7f8c8d;",
+          class = "indicator-text",
           "Upload data to see recommended windows"
         )
       )
@@ -238,27 +238,31 @@ server_instrument <- function(input, output, session, rv) {
 
     # Determine if this is a reasonable range (typical precursor spread is 400-1200 m/z)
     range_status <- if (mz_range < 100) {
-      list(color = "#e74c3c", icon = "!", msg = "Very narrow - may miss many precursors")
+      list(icon = "!", msg = "Very narrow - may miss many precursors")
     } else if (mz_range < 200) {
-      list(color = "#f39c12", icon = "~", msg = "Narrow range - check coverage")
+      list(icon = "~", msg = "Narrow range - check coverage")
     } else if (mz_range > 600) {
-      list(color = "#3498db", icon = "o", msg = "Wide range - good coverage expected")
+      list(icon = "o", msg = "Wide range - good coverage expected")
     } else {
-      list(color = "#27ae60", icon = "v", msg = "Typical range for DIA")
+      list(icon = "v", msg = "Typical range for DIA")
     }
 
+    status_class <- if (mz_range < 100) "text-semantic-danger" else if (mz_range < 200) "text-semantic-warning" else "text-semantic-success"
+
     tags$div(
-      style = "background: rgba(241, 196, 15, 0.25); padding: 10px; border-radius: 6px; margin: 8px 0; border: 1px solid rgba(241, 196, 15, 0.4);",
+      class = "mz-range-display",
 
       # Main value
       tags$div(
         style = "display: flex; justify-content: space-between; align-items: baseline;",
         tags$span(
-          style = "font-size: 18px; font-weight: 700; color: #d35400;",
+          class = "text-accent",
+          style = "font-size: 18px; font-weight: 700;",
           sprintf("%.0f Da", mz_range)
         ),
         tags$span(
-          style = "font-size: 12px; color: #7f8c8d;",
+          class = "text-muted",
+          style = "font-size: 12px;",
           "Fixed m/z Range"
         )
       ),
@@ -267,19 +271,22 @@ server_instrument <- function(input, output, session, rv) {
       tags$div(
         style = "margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(211, 84, 0, 0.3);",
         tags$span(
-          style = "font-size: 12px; color: #8e44ad;",
+          class = "text-accent",
+          style = "font-size: 12px;",
           sprintf("%d windows", n_windows)
         ),
-        tags$span(style = "color: #7f8c8d; margin: 0 4px;", "x"),
+        tags$span(class = "text-muted", style = "margin: 0 4px;", "x"),
         tags$span(
-          style = "font-size: 12px; color: #16a085;",
+          class = "text-accent",
+          style = "font-size: 12px;",
           sprintf("%.1f Da (min width)", min_width)
         )
       ),
 
       # Status indicator
       tags$div(
-        style = sprintf("margin-top: 6px; font-size: 11px; color: %s;", range_status$color),
+        class = status_class,
+        style = "margin-top: 6px; font-size: 11px;",
         sprintf("%s %s", range_status$icon, range_status$msg)
       )
     )
@@ -292,7 +299,7 @@ server_instrument <- function(input, output, session, rv) {
   # Returns a list with all derived values for reuse across render functions
   compute_overall_efficiency <- function(result) {
     if (is.null(result)) return(list(efficiency_pct = 100, optimal_ms = 0,
-      optimal_sec = 0, slowdown = 1, color = "#27ae60", icon_class = "check-circle",
+      optimal_sec = 0, slowdown = 1, color = "var(--semantic-success)", icon_class = "check-circle",
       limiting = NULL, ms1_optimal_scan = 0, ms2_optimal_scan = 0))
 
     current_ms <- result$cycle_time_ms
@@ -318,11 +325,11 @@ server_instrument <- function(input, output, session, rv) {
 
     # Color coding
     if (efficiency_pct >= 95) {
-      color <- "#27ae60"; icon_class <- "check-circle"
+      color <- "var(--semantic-success)"; icon_class <- "check-circle"
     } else if (efficiency_pct >= 70) {
-      color <- "#f39c12"; icon_class <- "exclamation-triangle"
+      color <- "var(--semantic-warning)"; icon_class <- "exclamation-triangle"
     } else {
-      color <- "#e74c3c"; icon_class <- "exclamation-triangle"
+      color <- "var(--semantic-danger)"; icon_class <- "exclamation-triangle"
     }
 
     # Identify limiting component
@@ -351,7 +358,8 @@ server_instrument <- function(input, output, session, rv) {
     eff <- compute_overall_efficiency(result)
 
     tags$span(
-      style = sprintf("background: %s; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;", eff$color),
+      class = "efficiency-badge",
+      style = sprintf("background: %s;", eff$color),
       sprintf("%.0f%% Eff.", eff$efficiency_pct)
     )
   })
@@ -377,21 +385,25 @@ server_instrument <- function(input, output, session, rv) {
     }
 
     tags$div(
-      style = "background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #1abc9c;",
+      class = "panel-accent",
+      style = "margin-bottom: 12px;",
       tags$div(
         style = "display: flex; justify-content: space-between; align-items: center;",
         tags$div(
-          tags$strong("Current Cycle Time: ", style = "color: #2c3e50;"),
+          tags$strong("Current Cycle Time: "),
           tags$span(sprintf("%.3f sec", result$cycle_time_sec),
-                    style = "font-size: 16px; font-weight: 700; color: #1abc9c;")
+                    class = "text-accent",
+                    style = "font-size: 16px; font-weight: 700;")
         ),
         tags$span(
           sprintf("%.0f%% Eff.", eff_pct),
-          style = sprintf("background: %s; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;", eff_color)
+          class = "efficiency-badge",
+          style = sprintf("background: %s;", eff_color)
         )
       ),
       tags$div(
-        style = "margin-top: 4px; font-size: 11px; color: #7f8c8d;",
+        class = "text-muted",
+        style = "margin-top: 4px; font-size: 11px;",
         breakdown
       )
     )
@@ -454,7 +466,7 @@ server_instrument <- function(input, output, session, rv) {
   output$cycle_time_visual <- renderUI({
     result <- cycle_time_result()
     if (is.null(result)) {
-      return(tags$p("Configure instrument settings to see breakdown.", style = "color: #999;"))
+      return(tags$p("Configure instrument settings to see breakdown.", class = "text-muted"))
     }
 
     total_ms <- result$cycle_time_ms
@@ -468,13 +480,14 @@ server_instrument <- function(input, output, session, rv) {
     if (is_parallel) {
       tags$div(
         tags$p(
-          style = "font-size: 12px; color: #7f8c8d; margin-bottom: 8px;",
+          class = "text-muted",
+          style = "font-size: 12px; margin-bottom: 8px;",
           "Parallel Mode: MS1 acquired during MS2 scans"
         ),
         tags$div(
-          style = "background: #3498db; height: 24px; border-radius: 4px; position: relative; overflow: hidden;",
+          class = "ct-bar-ms1", style = "height: 24px; border-radius: 4px; position: relative; overflow: hidden;",
           tags$div(
-            style = sprintf("position: absolute; left: 0; top: 0; height: 100%%; width: 100%%; background: #1abc9c;"),
+            class = "ct-bar-ms2", style = "position: absolute; left: 0; top: 0; height: 100%; width: 100%;",
             tags$span(
               style = "position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: white; font-size: 11px; font-weight: 600;",
               sprintf("MS2: %.0f ms (100%%)", result$ms2_total_time_ms)
@@ -485,18 +498,19 @@ server_instrument <- function(input, output, session, rv) {
     } else {
       tags$div(
         tags$p(
-          style = "font-size: 12px; color: #7f8c8d; margin-bottom: 8px;",
+          class = "text-muted",
+          style = "font-size: 12px; margin-bottom: 8px;",
           "Sequential Mode: MS1 -> MS2"
         ),
         tags$div(
           style = "display: flex; height: 24px; border-radius: 4px; overflow: hidden;",
           tags$div(
-            style = sprintf("width: %.1f%%; background: #3498db; display: flex; align-items: center; justify-content: center;", ms1_pct),
+            class = "ct-bar-ms1", style = sprintf("width: %.1f%%; display: flex; align-items: center; justify-content: center;", ms1_pct),
             tags$span(style = "color: white; font-size: 10px; font-weight: 600;",
                       sprintf("MS1 %.0fms", ms1_total_ms))
           ),
           tags$div(
-            style = sprintf("width: %.1f%%; background: #1abc9c; display: flex; align-items: center; justify-content: center;", ms2_pct),
+            class = "ct-bar-ms2", style = sprintf("width: %.1f%%; display: flex; align-items: center; justify-content: center;", ms2_pct),
             tags$span(style = "color: white; font-size: 10px; font-weight: 600;",
                       sprintf("MS2 %.0fms", result$ms2_total_time_ms))
           )
@@ -535,7 +549,8 @@ server_instrument <- function(input, output, session, rv) {
         ),
         if (!is.null(limiting)) {
           tags$span(sprintf("%s limited", limiting),
-                    style = "font-size: 11px; color: #7f8c8d; font-style: italic;")
+                    class = "text-muted",
+                    style = "font-size: 11px; font-style: italic;")
         }
       ),
 
@@ -544,13 +559,13 @@ server_instrument <- function(input, output, session, rv) {
         style = "display: flex; gap: 16px; margin-bottom: 8px;",
         tags$div(
           style = "flex: 1; text-align: center; padding: 6px; background: rgba(39, 174, 96, 0.1); border-radius: 4px;",
-          tags$div(style = "font-size: 10px; color: #7f8c8d; text-transform: uppercase;", "Optimal (Auto IT)"),
-          tags$div(style = "font-size: 18px; font-weight: 700; color: #27ae60;",
+          tags$div(class = "text-muted", style = "font-size: 10px; text-transform: uppercase;", "Optimal (Auto IT)"),
+          tags$div(class = "text-semantic-success", style = "font-size: 18px; font-weight: 700;",
                    sprintf("%.3f sec", optimal_sec))
         ),
         tags$div(
           style = sprintf("flex: 1; text-align: center; padding: 6px; background: %s15; border-radius: 4px;", color),
-          tags$div(style = "font-size: 10px; color: #7f8c8d; text-transform: uppercase;", "Current"),
+          tags$div(class = "text-muted", style = "font-size: 10px; text-transform: uppercase;", "Current"),
           tags$div(style = sprintf("font-size: 18px; font-weight: 700; color: %s;", color),
                    sprintf("%.3f sec", current_sec))
         )
@@ -558,7 +573,7 @@ server_instrument <- function(input, output, session, rv) {
 
       # Progress bar
       tags$div(
-        style = "background: #e9ecef; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 6px;",
+        style = "background: var(--surface-sunken); height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 6px;",
         tags$div(
           style = sprintf("width: %.1f%%; height: 100%%; background: %s; border-radius: 4px;",
                           min(efficiency_pct, 100), color)
@@ -568,12 +583,14 @@ server_instrument <- function(input, output, session, rv) {
       # Slowdown message (only when not optimal)
       if (slowdown > SLOWDOWN_THRESHOLD) {
         tags$p(
-          style = "margin: 0; font-size: 12px; color: #34495e;",
+          class = "text-secondary",
+          style = "margin: 0; font-size: 12px;",
           sprintf("Current settings are %.1fx slower than optimal. Use Auto IT to recover speed.", slowdown)
         )
       } else {
         tags$p(
-          style = "margin: 0; font-size: 12px; color: #27ae60;",
+          class = "text-semantic-success",
+          style = "margin: 0; font-size: 12px;",
           "Optimal! All injection times match transient times."
         )
       }

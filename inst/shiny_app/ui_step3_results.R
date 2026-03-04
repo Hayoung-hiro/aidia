@@ -8,114 +8,102 @@ step3_results_ui <- function() {
     conditionalPanel(
       condition = "output.optimization_complete",
 
-      # Status callout
-      bs4Callout(
-        title = "Optimization Complete",
-        status = "success",
-        width = 12,
-        uiOutput("results_status_text")
+      # --- Row 1: Status bar (compact, replaces full callout) ---
+      div(
+        class = "results-status-bar",
+        icon("check-circle", class = "text-semantic-success"),
+        tags$strong(" Optimization Complete"),
+        tags$span(class = "text-muted", style = "margin-left: 12px;",
+                  uiOutput("results_status_text", inline = TRUE))
       ),
 
-      # --- Optimization Summary Dashboard ---
+      # --- Row 2: Summary KPIs ---
       fluidRow(
         class = "equal-height-row",
         valueBoxOutput("summary_box_cycle_time", width = 4),
         valueBoxOutput("summary_box_dppp", width = 4),
         valueBoxOutput("summary_box_windows", width = 4)
       ),
-      br(),
 
-      # Before/After Comparison Cards
+      # --- Row 3: Before/After + m/z Summary (3-column layout) ---
       fluidRow(
         class = "equal-height-row",
         box(
           title = "BEFORE (Input Data)",
           status = "primary",
           solidHeader = TRUE,
-          width = 6,
+          width = 4,
           uiOutput("before_summary")
         ),
         box(
           title = "AFTER (Optimized)",
           status = "success",
           solidHeader = TRUE,
-          width = 6,
+          width = 4,
           uiOutput("after_summary")
-        )
-      ),
-
-      # Detailed Results
-      box(
-        title = "Detailed Results",
-        status = "info",
-        solidHeader = FALSE,
-        width = 12,
-        collapsible = TRUE,
-
-        fluidRow(
-          column(6, tableOutput("optimization_summary")),
-          column(6,
-            h5("m/z Range Summary", style = "margin-top: 0; color: #2c3e50; font-weight: 600;"),
-            uiOutput("mz_range_summary")
-          )
-        )
-      ),
-
-      # Window Preview
-      box(
-        title = "Window Preview",
-        status = "info",
-        solidHeader = TRUE,
-        width = 12,
-        collapsible = TRUE,
-        collapsed = TRUE,
-
-        DT::dataTableOutput("window_preview")
-      ),
-
-      # Downloads
-      box(
-        title = "Downloads",
-        status = "success",
-        solidHeader = FALSE,
-        width = 12,
-
-        # Sample/Project Naming (for output files)
-        fluidRow(
-          column(4,
-            textInput(
-              inputId = "sample_name",
-              label = "Sample/Project Name",
-              value = "",
-              placeholder = "e.g., HeLa_digest"
-            )
-          ),
-          column(4,
-            textInput(
-              inputId = "condition",
-              label = "Condition/Note",
-              value = "",
-              placeholder = "e.g., 60min_gradient"
-            )
-          ),
-          column(4,
-            div(style = "padding-top: 25px;",
-              helpText("Used in output file names. Leave blank for defaults.",
-                       style = "font-size: 11px; color: #7f8c8d;")
-            )
-          )
         ),
+        box(
+          title = "m/z Range Summary",
+          status = "info",
+          solidHeader = TRUE,
+          width = 4,
+          uiOutput("mz_range_summary")
+        )
+      ),
 
-        hr(),
+      # --- Row 4: Detailed Table + Window Preview (collapsed) ---
+      fluidRow(
+        box(
+          title = "Detailed Results",
+          status = "secondary",
+          solidHeader = FALSE,
+          width = 12,
+          collapsible = TRUE,
+          collapsed = TRUE,
+          tableOutput("optimization_summary")
+        )
+      ),
+      fluidRow(
+        box(
+          title = "Window Preview",
+          status = "secondary",
+          solidHeader = FALSE,
+          width = 12,
+          collapsible = TRUE,
+          collapsed = TRUE,
+          DT::dataTableOutput("window_preview")
+        )
+      ),
 
-        fluidRow(
-          column(6,
-            downloadButton("download_csv", "Download CSV Method File",
-                           class = "btn-success btn-lg btn-block")
-          ),
-          column(6,
-            downloadButton("download_pdf", "Download PDF Report",
-                           class = "btn-info btn-lg btn-block")
+      # --- Row 5: Downloads (compact single row) ---
+      fluidRow(
+        box(
+          title = "Downloads",
+          status = "success",
+          solidHeader = TRUE,
+          width = 12,
+
+          fluidRow(
+            column(3,
+              textInput("sample_name", "Sample/Project Name",
+                        value = "", placeholder = "e.g., HeLa_digest")
+            ),
+            column(3,
+              textInput("condition", "Condition/Note",
+                        value = "", placeholder = "e.g., 60min_gradient")
+            ),
+            column(3,
+              div(style = "padding-top: 25px;",
+                downloadButton("download_csv", "CSV Method File",
+                               class = "btn-success btn-block")
+              )
+            ),
+            column(3,
+              div(style = "padding-top: 25px;",
+                downloadButton("download_pdf", "PDF Report",
+                               class = "btn-info btn-block")
+              )
+            )
           )
         )
       )
@@ -125,12 +113,10 @@ step3_results_ui <- function() {
     conditionalPanel(
       condition = "!output.optimization_complete",
       div(
-        style = "text-align: center; padding: 60px 20px;",
-        icon("cogs", style = "font-size: 64px; color: #bdc3c7; margin-bottom: 20px;"),
-        h4("Run optimization to see results",
-           style = "color: #7f8c8d; font-weight: 400;"),
-        p("Configure your settings in the Strategy step, then run optimization.",
-          style = "color: #95a5a6; font-size: 13px;")
+        class = "placeholder-section",
+        icon("cogs", class = "placeholder-icon"),
+        h4("Run optimization to see results"),
+        p("Configure your settings in the Strategy step, then run optimization.")
       )
     ),
 

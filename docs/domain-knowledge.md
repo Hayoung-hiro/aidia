@@ -219,3 +219,121 @@ Where `PEAK_WIDTH_FACTOR = 1.7` (captures ~94% of Gaussian peak area at ±1.7σ)
 **Never inline the DPPP formula.** Always use `calculate_dppp()` from `R/dppp.R`.
 Similarly, use `ensure_fwhm_seconds()` for FWHM unit conversion and
 `estimate_window_count_preview()` for quick window count estimation.
+
+---
+
+## Frontend Design System — Shiny UI (bs4Dash)
+
+### Overview
+
+AIDIA's Shiny app uses bs4Dash (AdminLTE3 / Bootstrap 4) with a custom CSS design system
+in `inst/shiny_app/www/custom.css`. The design follows a monochrome + teal accent palette
+with semantic CSS variables for light/dark mode support.
+
+### Design Token System
+
+All colors are defined as CSS variables in `:root` and overridden in `body.dark-mode`.
+**Never use hardcoded hex colors in R server files** — always reference CSS classes or variables.
+
+| Token Category | Examples | Usage |
+|---------------|----------|-------|
+| **Surfaces** | `--surface-page`, `--surface-card`, `--surface-raised`, `--surface-sunken` | Background colors for page, boxes, elevated/recessed panels |
+| **Text** | `--text-primary`, `--text-secondary`, `--text-muted` | Three-level text hierarchy |
+| **Borders** | `--border-default`, `--border-subtle` | Structural vs decorative borders |
+| **Accent** | `--accent` (#1abc9c), `--accent-hover`, `--accent-subtle`, `--accent-muted` | Teal accent + variants |
+| **Semantic** | `--semantic-success/warning/danger/info` + `*-bg` | Status colors + translucent backgrounds |
+| **Box Headers** | `--box-header-bg`, `--box-header-text`, `--box-header-border` | Unified flat box headers |
+
+### Typography Hierarchy (4 Levels)
+
+Defined in custom.css, enforced via `!important` to override inline styles:
+
+| Level | Element / Class | Size | Weight | Color | Use For |
+|-------|----------------|:----:|:------:|-------|---------|
+| **1** | `.section-title` (h4) | 15px (16px in wide cols) | 700 | `--text-primary` | Box section headings (e.g., "Peak Width Distribution") |
+| **2** | `h5` inside `.box-body` | 16px | 600 | `--text-primary` | Sub-section headings (handled by CSS rule) |
+| **3** | `.box-body` body text | 14px | 400 | `--text-primary` | Normal content text |
+| **4** | `.help-block`, `small`, `.form-text` | 13px | 400 | `--text-muted` | Descriptions, captions, helper text |
+
+**Rules**:
+- Use `tags$h4(..., class = "section-title")` for prominent section headings within boxes
+- Use `tags$h4(..., class = "section-title strategy-heading")` for accent-colored strategy headings
+- The CSS `!important` on `.help-block` overrides any inline `font-size` on `helpText()` calls
+- Never set `font-size` below 13px — this is the readability floor
+- Form labels (`.control-label`) are 13px semi-bold (Level 4, but emphasized)
+
+### CSS Utility Classes (for renderUI)
+
+These classes are theme-safe (respond to dark mode) and should replace inline styles:
+
+| Class | Purpose | Key Properties |
+|-------|---------|---------------|
+| `.panel-raised` | Neutral elevated panel | `background: --surface-raised`, rounded, padding |
+| `.panel-accent` | Accent-tinted panel with left border | `background: --accent-muted`, `border-left: 3px solid --accent` |
+| `.status-pass` | Green status panel | `background: --semantic-success-bg`, `border-left: 3px solid --semantic-success` |
+| `.status-fail` | Red status panel | `background: --semantic-danger-bg`, `border-left: 3px solid --semantic-danger` |
+| `.badge-dark` | Dark inline badge | `background: --text-primary`, white text |
+| `.badge-accent` | Accent inline badge | `background: --accent`, white text |
+| `.text-accent` | Teal text | `color: var(--accent)` |
+| `.text-semantic-success/warning/danger/info` | Semantic text colors | Status-colored text |
+| `.text-muted` | Muted gray text | `color: var(--text-muted)` |
+| `.summary-list` | Results summary list | 13px, `line-height: 1.8` |
+| `.mode-description` | Window mode description card | Raised background, rounded, small text |
+| `.strategy-section` | Strategy parameter wrapper | Left border accent, padding |
+| `.placeholder-section` | Empty state placeholder | Centered, large icon, muted text |
+| `.results-status-bar` | Compact status bar (Step 3) | Accent-subtle bg, rounded, flex layout |
+
+### Dark Mode Implementation
+
+- `dark = NULL` in `dashboardPage()` → light default, toggle visible in navbar
+- `body.dark-mode` class is toggled by AdminLTE3 — all CSS tokens auto-switch
+- **Known limitation**: ggplot2 plots render server-side with fixed colors; they do not adapt to dark mode
+- Server-rendered `style` attributes using `sprintf("color: var(--semantic-success)")` work correctly in both modes
+
+### Layout Rules
+
+| Property | Value | Context |
+|----------|-------|---------|
+| `.content` padding | 12px 16px (16px 20px desktop) | Main content area |
+| `.box-body` padding | 12px 16px (16px 20px desktop) | Box inner content |
+| `.box` margin-bottom | 12px | Between boxes |
+| `.equal-height-row` child gap | 6px | Between side-by-side boxes |
+| `.wizard-nav` padding | 12px 0 | Navigation buttons at bottom |
+
+### Verification Checklist
+
+When modifying the Shiny UI, verify these items:
+
+**Visual Consistency**:
+- [ ] All text ≥ 13px (readability floor enforced by CSS `!important`)
+- [ ] No hardcoded hex colors in R files — use CSS classes/variables
+- [ ] Section headings use `.section-title` class (not raw `h5` with inline styles)
+- [ ] Help text uses `helpText()` (which renders as `.help-block`, auto-styled by CSS)
+- [ ] Box headers are flat (no gradients) — unified `--box-header-bg`
+
+**Dark Mode**:
+- [ ] Toggle works (navbar button switches `body.dark-mode`)
+- [ ] All text readable on dark backgrounds
+- [ ] No white-on-white or dark-on-dark contrast issues
+- [ ] Server-rendered panels use CSS classes, not inline `background: #xxx`
+
+**Layout**:
+- [ ] Upload + Instrument row width matches DPPP Preview width (both `width = 12` equiv)
+- [ ] `equal-height-row` children align vertically with 6px gutters
+- [ ] Collapsed boxes (C: RT Binning, D: Expert) expand/collapse properly
+- [ ] Navigation buttons ("Continue"/"Back") are visible and aligned
+
+**Functionality**:
+- [ ] `conditionalPanel` show/hide works for all instrument-dependent controls
+- [ ] DPPP preset buttons toggle correctly (client-side JS sync)
+- [ ] Strategy-specific parameter panels appear/disappear
+- [ ] Upload → DPPP preview → optimization → results flow works end-to-end
+- [ ] CSV and PDF downloads generate correctly
+
+### Anti-Patterns to Avoid
+
+1. **Inline `style="color: #xxx"` in R files** — breaks dark mode. Use CSS classes.
+2. **`font-size` below 13px** — unreadable. The CSS `!important` floor prevents this, but don't fight it.
+3. **Gradient headers** — removed. All box headers use flat `--box-header-bg`.
+4. **`dark = FALSE`** — removes the dark mode toggle entirely. Use `dark = NULL` for optional toggle.
+5. **Duplicating server output in UI templates** — e.g., `textOutput("x")` that already includes context text, then adding more text around it in the UI. Check server render functions before wrapping.
