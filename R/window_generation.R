@@ -40,6 +40,12 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
 
   n_bins <- nrow(rt_stats)
 
+  # Warn once if overlap and forbidden zone are both active (invariant across bins)
+  if (overlap_percentage > 0 && fz_offset > 0 && window_mode != "staggered") {
+    warning("Overlap margins conflict with forbidden zone placement. ",
+            "Consider setting overlap_percentage = 0.")
+  }
+
   # Prepare indices for iteration
   bin_indices <- 1:n_bins
 
@@ -85,12 +91,6 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
         min_width_da, max_width_da, width_grid_step = width_grid_step,
         fz_offset = fz_offset
       )
-    }
-
-    # Warn if overlap and forbidden zone are both active
-    if (overlap_percentage > 0 && fz_offset > 0 && window_mode != "staggered") {
-      warning("Overlap margins conflict with forbidden zone placement. ",
-              "Consider setting overlap_percentage = 0.")
     }
 
     # Count precursors in each window (OPTIMIZED with vectorization)
@@ -481,9 +481,13 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
 #'
 #' @return Numeric, forbidden zone edge m/z value
 #' @keywords internal
+# Average mass defect of amino acid residues (Da).
+# Peptide precursors cannot exist at multiples of this increment,
+# making these m/z positions ideal for isolation window boundaries.
+OPTIMAL_INCREMENT <- 1.00045475
+
 calc_forbidden_edge <- function(nominal_mz, fz_offset = 0.25) {
-  optimal_increment <- 1.00045475
-  round(ceiling(nominal_mz / optimal_increment) * optimal_increment + fz_offset, 4)
+  round(ceiling(nominal_mz / OPTIMAL_INCREMENT) * OPTIMAL_INCREMENT + fz_offset, 4)
 }
 
 #' Integerize Boundary Array
@@ -519,7 +523,8 @@ integerize_boundaries <- function(boundaries, mz_min, mz_max) {
 #' @return Numeric vector of FZ-transformed boundaries
 #' @keywords internal
 transform_boundaries_to_fz <- function(boundaries, fz_offset = 0.25) {
-  vapply(boundaries, calc_forbidden_edge, numeric(1), fz_offset = fz_offset)
+  # Vectorized: calc_forbidden_edge already works on vectors
+  round(ceiling(boundaries / OPTIMAL_INCREMENT) * OPTIMAL_INCREMENT + fz_offset, 4)
 }
 
 #' Assemble Windows from Boundary Array

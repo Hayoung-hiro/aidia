@@ -38,9 +38,8 @@ plot_alignment_density <- function(optimized_windows,
   is_staggered <- "cycle" %in% colnames(windows)
 
   # Select representative RT segment
-  all_segments <- sort(unique(windows$rt_segment_id))
   if (is.null(rt_segment_id)) {
-    rt_segment_id <- all_segments[ceiling(length(all_segments) / 2)]
+    rt_segment_id <- select_median_rt_segment(windows)
   }
 
   seg_windows <- windows %>% filter(rt_segment_id == !!rt_segment_id)

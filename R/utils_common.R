@@ -310,6 +310,22 @@ create_insufficient_data_plot <- function(title,
 }
 
 
+#' Select Median RT Segment
+#'
+#' Picks the middle RT segment from a windows data frame. Used by verification
+#' plots (tiling coverage, alignment density, FZ zoom) to show a representative
+#' segment without requiring user selection.
+#'
+#' @param windows Data frame with rt_segment_id column
+#'
+#' @return Integer, the median rt_segment_id
+#' @keywords internal
+select_median_rt_segment <- function(windows) {
+  all_segments <- sort(unique(windows$rt_segment_id))
+  all_segments[ceiling(length(all_segments) / 2)]
+}
+
+
 # =============================================================================
 # Data Manipulation Utilities
 # =============================================================================
@@ -431,6 +447,35 @@ format_output_filename <- function(type,
   } else {
     sprintf("%s_%s_%s_%s_%s.%s", type, inst, win, rt, date, ext)
   }
+}
+
+
+# =============================================================================
+# S3 Metrics Extraction
+# =============================================================================
+
+#' Extract Before/After Metrics from Optimization Results
+#'
+#' Centralized accessor for DPPP, cycle time, strategy, and window mode
+#' from OptimizationPlan and OptimizedWindows S3 objects. Provides consistent
+#' null handling across PDF reports and Shiny ValueBoxes.
+#'
+#' @param optimization_plan OptimizationPlan object from Stage 2
+#' @param optimized_windows OptimizedWindows object from Stage 3
+#'
+#' @return Named list with orig_dppp, new_dppp, target_dppp, orig_ct, new_ct,
+#'   strategy, and window_mode
+#' @keywords internal
+extract_before_after_metrics <- function(optimization_plan, optimized_windows) {
+  list(
+    orig_dppp   = optimization_plan$diagnosis$current_dppp_mean %||% NA_real_,
+    new_dppp    = optimized_windows$dppp_verification$actual_dppp_median %||% NA_real_,
+    target_dppp = optimization_plan$parameters$target_dppp %||% NA_real_,
+    orig_ct     = optimization_plan$diagnosis$current_cycle_time_sec %||% NA_real_,
+    new_ct      = optimized_windows$actual_cycle_time_sec %||% NA_real_,
+    strategy    = optimized_windows$parameters$mz_strategy %||% "unknown",
+    window_mode = optimized_windows$parameters$window_mode %||% "unknown"
+  )
 }
 
 

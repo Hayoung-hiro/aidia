@@ -271,7 +271,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
     # Estimate DPPP
     dppp_text <- if (!is.null(calc_result) && !is.na(median_fwhm_sec)) {
-      est_dppp <- (1.7 * median_fwhm_sec) / calc_result$cycle_time_sec
+      est_dppp <- calculate_dppp(median_fwhm_sec, calc_result$cycle_time_sec)
       sprintf("~%.1f", est_dppp)
     } else {
       "N/A"
@@ -485,11 +485,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     mean_width <- mean(windows$window_width, na.rm = TRUE)
 
     # Strategy label
-    strategy_label <- if (exists("format_strategy_label")) {
-      format_strategy_label(params$mz_strategy)
-    } else {
-      toupper(params$mz_strategy)
-    }
+    strategy_label <- format_strategy_label(params$mz_strategy)
 
     tags$div(
       style = "font-size: 13px;",
@@ -574,8 +570,9 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   output$summary_box_cycle_time <- renderValueBox({
     req(rv$optimization_complete, rv$optimization_plan, rv$optimized_windows)
 
-    orig_ct <- rv$optimization_plan$diagnosis$current_cycle_time_sec
-    new_ct <- rv$optimization_plan$actual_cycle_time_sec
+    m <- extract_before_after_metrics(rv$optimization_plan, rv$optimized_windows)
+    orig_ct <- m$orig_ct
+    new_ct <- m$new_ct
 
     if (is.null(orig_ct) || is.na(orig_ct) || orig_ct == 0) orig_ct <- new_ct  # Fallback
 
@@ -604,22 +601,23 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   output$summary_box_dppp <- renderValueBox({
     req(rv$optimization_complete, rv$optimization_plan, rv$optimized_windows)
 
-    orig_dppp <- rv$optimization_plan$diagnosis$current_dppp_mean
-    new_dppp <- rv$optimized_windows$dppp_verification$actual_dppp_median
+    m <- extract_before_after_metrics(rv$optimization_plan, rv$optimized_windows)
+    orig_dppp <- m$orig_dppp
+    new_dppp <- m$new_dppp
 
     if (is.null(orig_dppp) || is.na(orig_dppp)) orig_dppp <- new_dppp  # Fallback
 
     diff_val <- round(new_dppp - orig_dppp, 1)
 
-    subtitle <- "Mean DPPP"
+    subtitle <- "DPPP (Median)"
     icon_name <- "chart-line"
     color <- "info"
 
     if (diff_val >= 0.5) {
-      subtitle <- paste0("Mean DPPP (+", diff_val, ")")
+      subtitle <- paste0("DPPP (Median) (+", diff_val, ")")
       color <- "success"
     } else if (diff_val <= -0.5) {
-      subtitle <- paste0("Mean DPPP (", diff_val, ")")
+      subtitle <- paste0("DPPP (Median) (", diff_val, ")")
       color <- "warning"
     }
 

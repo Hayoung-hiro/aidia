@@ -60,14 +60,7 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
 # PDF Report Helpers
 # =============================================================================
 
-# AIDIA colors (duplicated here for standalone sourcing; matches theme_aidia.R)
-.report_colors <- list(
-  primary   = "#2C3E50",
-  secondary = "#7F8C8D",
-  accent    = "#E74C3C",
-  success   = "#27AE60",
-  grid      = "#ECF0F1"
-)
+# Colors: use aidia_colors from theme_aidia.R (shared package namespace)
 
 #' Draw Cover Page
 #' @keywords internal
@@ -77,26 +70,26 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
   # Background accent bar at top
   grid::grid.rect(x = 0, y = 1, width = 1, height = 0.08,
             just = c("left", "top"),
-            gp = grid::gpar(fill = .report_colors$primary, col = NA))
+            gp = grid::gpar(fill = aidia_colors$primary, col = NA))
 
   # Title
   grid::grid.text("AIDIA",
             x = 0.5, y = 0.72,
             gp = grid::gpar(fontsize = 42, fontface = "bold",
-                       col = .report_colors$primary))
+                       col = aidia_colors$primary))
   grid::grid.text("Adaptive Isolation for DIA",
             x = 0.5, y = 0.65,
-            gp = grid::gpar(fontsize = 16, col = .report_colors$secondary))
+            gp = grid::gpar(fontsize = 16, col = aidia_colors$secondary))
 
   # Divider line
   grid::grid.lines(x = c(0.3, 0.7), y = c(0.60, 0.60),
-             gp = grid::gpar(col = .report_colors$accent, lwd = 2))
+             gp = grid::gpar(col = aidia_colors$accent, lwd = 2))
 
   # Subtitle
   grid::grid.text("Window Optimization Report",
             x = 0.5, y = 0.55,
             gp = grid::gpar(fontsize = 20, fontface = "bold",
-                       col = .report_colors$primary))
+                       col = aidia_colors$primary))
 
   # Key metrics (centered block)
   instrument <- optimization_plan$instrument$preset %||% "custom"
@@ -116,19 +109,19 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
   for (i in seq_along(metrics)) {
     grid::grid.text(metrics[i],
               x = 0.5, y = 0.44 - (i - 1) * 0.05,
-              gp = grid::gpar(fontsize = 13, col = .report_colors$primary))
+              gp = grid::gpar(fontsize = 13, col = aidia_colors$primary))
   }
 
   # Timestamp at bottom
   grid::grid.text(sprintf("Generated: %s", format(Sys.time(), "%Y-%m-%d %H:%M")),
             x = 0.5, y = 0.15,
-            gp = grid::gpar(fontsize = 11, col = .report_colors$secondary,
+            gp = grid::gpar(fontsize = 11, col = aidia_colors$secondary,
                        fontface = "italic"))
 
   # Bottom bar
   grid::grid.rect(x = 0, y = 0, width = 1, height = 0.04,
             just = c("left", "bottom"),
-            gp = grid::gpar(fill = .report_colors$primary, col = NA))
+            gp = grid::gpar(fill = aidia_colors$primary, col = NA))
 }
 
 #' Draw Section Divider Page
@@ -139,7 +132,7 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
   # Left accent bar
   grid::grid.rect(x = 0, y = 0, width = 0.02, height = 1,
             just = c("left", "bottom"),
-            gp = grid::gpar(fill = .report_colors$accent, col = NA))
+            gp = grid::gpar(fill = aidia_colors$accent, col = NA))
 
   # Section number (large, supports numeric or string like "A", "B")
   section_label <- if (is.numeric(section_number)) {
@@ -151,21 +144,21 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
             x = 0.12, y = 0.55,
             just = "left",
             gp = grid::gpar(fontsize = 60, fontface = "bold",
-                       col = .report_colors$grid))
+                       col = aidia_colors$grid))
 
   # Section title
   grid::grid.text(section_title,
             x = 0.12, y = 0.45,
             just = "left",
             gp = grid::gpar(fontsize = 22, fontface = "bold",
-                       col = .report_colors$primary))
+                       col = aidia_colors$primary))
 
   # Subtitle
   if (!is.null(section_subtitle)) {
     grid::grid.text(section_subtitle,
               x = 0.12, y = 0.38,
               just = "left",
-              gp = grid::gpar(fontsize = 12, col = .report_colors$secondary,
+              gp = grid::gpar(fontsize = 12, col = aidia_colors$secondary,
                          fontface = "italic"))
   }
 }
@@ -179,7 +172,7 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
   grid::grid.text("Configuration Summary",
             x = 0.5, y = 0.95,
             gp = grid::gpar(fontsize = 18, fontface = "bold",
-                       col = .report_colors$primary))
+                       col = aidia_colors$primary))
 
   # Build parameter table
   params <- optimized_windows$parameters
@@ -238,18 +231,18 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
     rows = NULL,
     theme = gridExtra::ttheme_minimal(
       core = list(
-        fg_params = list(fontsize = 10, col = .report_colors$primary,
+        fg_params = list(fontsize = 10, col = aidia_colors$primary,
                           hjust = 0, x = 0.05),
         bg_params = list(
-          fill = c(rep(c("white", .report_colors$grid),
+          fill = c(rep(c("white", aidia_colors$grid),
                        length.out = nrow(param_data))),
-          col = .report_colors$grid, lwd = 0.5
+          col = aidia_colors$grid, lwd = 0.5
         )
       ),
       colhead = list(
         fg_params = list(fontsize = 11, col = "white", fontface = "bold",
                           hjust = 0, x = 0.05),
-        bg_params = list(fill = .report_colors$primary, col = "white", lwd = 1)
+        bg_params = list(fill = aidia_colors$primary, col = "white", lwd = 1)
       )
     )
   )
@@ -278,7 +271,7 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
     grid::grid.newpage()
     grid::grid.text(sprintf("Error rendering plot: %s", e$message),
               x = 0.5, y = 0.5,
-              gp = grid::gpar(fontsize = 12, col = .report_colors$accent))
+              gp = grid::gpar(fontsize = 12, col = aidia_colors$accent))
   })
 }
 
@@ -466,22 +459,23 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   grid::grid.text("Executive Summary & Insights",
             x = 0.5, y = 0.95,
             gp = grid::gpar(fontsize = 18, fontface = "bold",
-                       col = .report_colors$primary))
+                       col = aidia_colors$primary))
 
   # Background panel for insights
   grid::grid.rect(x = 0.5, y = 0.5, width = 0.8, height = 0.7,
             gp = grid::gpar(fill = "#f8f9fa", col = "#bdc3c7", lwd = 2))
 
-  # Calculate Insights
-  orig_dppp <- optimization_plan$diagnosis$current_dppp_mean %||% NA_real_
-  new_dppp  <- optimized_windows$dppp_verification$actual_dppp_median %||% NA_real_
-  target_dppp <- optimization_plan$parameters$target_dppp %||% NA_real_
+  # Extract metrics via shared accessor
+  m <- extract_before_after_metrics(optimization_plan, optimized_windows)
+  orig_dppp   <- m$orig_dppp
+  new_dppp    <- m$new_dppp
+  target_dppp <- m$target_dppp
 
-  orig_ct <- optimization_plan$diagnosis$current_cycle_time_sec %||% NA_real_
-  new_ct  <- optimization_plan$actual_cycle_time_sec %||% NA_real_
+  orig_ct     <- m$orig_ct
+  new_ct      <- m$new_ct
 
-  strategy    <- optimized_windows$parameters$mz_strategy %||% "unknown"
-  window_mode <- optimized_windows$parameters$window_mode %||% "unknown"
+  strategy    <- m$strategy
+  window_mode <- m$window_mode
 
   # Insight 1: DPPP Analysis
   dppp_text <- if (!is.na(orig_dppp) && !is.na(new_dppp) && orig_dppp < target_dppp) {
@@ -509,17 +503,17 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   }
 
   # Insight 3: Strategy & Window Placement
-  win_text <- sprintf("3. Isolation Strategy: Using the '%s' strategy with '%s' window mode.\n   This combination ensures that narrow windows are dynamically allocated to m/z regions\n   with the highest density of precursors, maximizing detection sensitivity.", toupper(strategy), toupper(window_mode))
+  win_text <- sprintf("3. Isolation Strategy: Using the '%s' strategy with '%s' window mode.\n   This combination ensures that narrow windows are dynamically allocated to m/z regions\n   with the highest density of precursors, maximizing detection sensitivity.", format_strategy_label(strategy), tools::toTitleCase(window_mode))
   
   # Draw Insights
   grid::grid.text(dppp_text, x = 0.15, y = 0.75, just = c("left", "top"), 
-            gp = grid::gpar(fontsize = 12, lineheight = 1.5, col = "#2c3e50"))
+            gp = grid::gpar(fontsize = 12, lineheight = 1.5, col = aidia_colors$primary))
             
   grid::grid.text(ct_text, x = 0.15, y = 0.55, just = c("left", "top"), 
-            gp = grid::gpar(fontsize = 12, lineheight = 1.5, col = "#2c3e50"))
+            gp = grid::gpar(fontsize = 12, lineheight = 1.5, col = aidia_colors$primary))
             
   grid::grid.text(win_text, x = 0.15, y = 0.35, just = c("left", "top"), 
-            gp = grid::gpar(fontsize = 12, lineheight = 1.5, col = "#2c3e50"))
+            gp = grid::gpar(fontsize = 12, lineheight = 1.5, col = aidia_colors$primary))
             
   # Recommendation
   rec_text <- "Recommendation: Apply the generated CSV method file to your instrument.\nThe changes ensure the acquisition is tailored to the true complexity of your sample."

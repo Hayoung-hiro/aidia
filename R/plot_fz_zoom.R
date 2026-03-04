@@ -50,8 +50,7 @@ plot_fz_zoom <- function(optimized_windows,
   }
 
   # Select a representative RT segment (median)
-  all_segments <- sort(unique(c1_windows$rt_segment_id))
-  median_seg <- all_segments[ceiling(length(all_segments) / 2)]
+  median_seg <- select_median_rt_segment(c1_windows)
   seg_windows <- c1_windows %>% filter(rt_segment_id == median_seg)
 
   # Internal boundaries = end of window i = start of window i+1
@@ -121,7 +120,7 @@ plot_fz_zoom <- function(optimized_windows,
     geom_rect(
       data = fz_band_df,
       aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-      fill = "#E8E8E8", alpha = 0.5
+      fill = aidia_colors$grid, alpha = 0.5
     ) +
     # Isotope envelope
     geom_area(

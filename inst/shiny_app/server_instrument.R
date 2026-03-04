@@ -285,9 +285,15 @@ server_instrument <- function(input, output, session, rv) {
     )
   })
 
+  # Threshold for considering a component "slowed down" (5% tolerance)
+  SLOWDOWN_THRESHOLD <- 1.05
+
   # Helper: compute overall efficiency (optimal / current cycle time)
+  # Returns a list with all derived values for reuse across render functions
   compute_overall_efficiency <- function(result) {
-    if (is.null(result)) return(100)
+    if (is.null(result)) return(list(efficiency_pct = 100, optimal_ms = 0,
+      optimal_sec = 0, slowdown = 1, color = "#27ae60", icon_class = "check-circle",
+      limiting = NULL, ms1_optimal_scan = 0, ms2_optimal_scan = 0))
 
     current_ms <- result$cycle_time_ms
     ms1_scans <- result$ms1$scans_per_cycle %||% 1
@@ -298,28 +304,55 @@ server_instrument <- function(input, output, session, rv) {
     ms2_trans <- result$ms2$transient_ms %||% 0
     ms2_over <- result$ms2$overhead_ms %||% 0
 
-    ms1_opt <- if (ms1_trans > 0) ms1_trans + ms1_over else result$ms1$scan_time_ms
-    ms2_opt <- if (ms2_trans > 0) ms2_trans + ms2_over else result$ms2$scan_time_ms
+    ms1_optimal_scan <- if (ms1_trans > 0) ms1_trans + ms1_over else result$ms1$scan_time_ms
+    ms2_optimal_scan <- if (ms2_trans > 0) ms2_trans + ms2_over else result$ms2$scan_time_ms
 
     optimal_ms <- if (is_parallel) {
-      max(ms1_scans * ms1_opt, result$window_count * ms2_opt)
+      max(ms1_scans * ms1_optimal_scan, result$window_count * ms2_optimal_scan)
     } else {
-      ms1_scans * ms1_opt + result$window_count * ms2_opt
+      ms1_scans * ms1_optimal_scan + result$window_count * ms2_optimal_scan
     }
 
-    min((optimal_ms / current_ms) * 100, 100)
+    efficiency_pct <- min((optimal_ms / current_ms) * 100, 100)
+    slowdown <- current_ms / optimal_ms
+
+    # Color coding
+    if (efficiency_pct >= 95) {
+      color <- "#27ae60"; icon_class <- "check-circle"
+    } else if (efficiency_pct >= 70) {
+      color <- "#f39c12"; icon_class <- "exclamation-triangle"
+    } else {
+      color <- "#e74c3c"; icon_class <- "exclamation-triangle"
+    }
+
+    # Identify limiting component
+    ms1_slowdown <- result$ms1$scan_time_ms / ms1_optimal_scan
+    ms2_slowdown <- result$ms2$scan_time_ms / ms2_optimal_scan
+    limiting <- if (ms1_slowdown > SLOWDOWN_THRESHOLD && ms2_slowdown > SLOWDOWN_THRESHOLD) {
+      "MS1 & MS2"
+    } else if (ms1_slowdown > SLOWDOWN_THRESHOLD) {
+      "MS1"
+    } else if (ms2_slowdown > SLOWDOWN_THRESHOLD) {
+      "MS2"
+    } else {
+      NULL
+    }
+
+    list(efficiency_pct = efficiency_pct, optimal_ms = optimal_ms,
+         optimal_sec = optimal_ms / 1000, slowdown = slowdown,
+         color = color, icon_class = icon_class, limiting = limiting,
+         ms1_optimal_scan = ms1_optimal_scan, ms2_optimal_scan = ms2_optimal_scan)
   }
 
   output$efficiency_badge <- renderUI({
     result <- cycle_time_result()
     if (is.null(result)) return(NULL)
 
-    efficiency_pct <- compute_overall_efficiency(result)
-    color <- if (efficiency_pct >= 95) "#27ae60" else if (efficiency_pct >= 70) "#f39c12" else "#e74c3c"
+    eff <- compute_overall_efficiency(result)
 
     tags$span(
-      style = sprintf("background: %s; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;", color),
-      sprintf("%.0f%% Eff.", efficiency_pct)
+      style = sprintf("background: %s; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;", eff$color),
+      sprintf("%.0f%% Eff.", eff$efficiency_pct)
     )
   })
 
@@ -331,8 +364,9 @@ server_instrument <- function(input, output, session, rv) {
     ms1_scans <- result$ms1$scans_per_cycle %||% 1
     is_parallel <- ms1_scans == 0
 
-    eff_pct <- compute_overall_efficiency(result)
-    eff_color <- if (eff_pct >= 95) "#27ae60" else if (eff_pct >= 70) "#f39c12" else "#e74c3c"
+    eff <- compute_overall_efficiency(result)
+    eff_pct <- eff$efficiency_pct
+    eff_color <- eff$color
 
     breakdown <- if (is_parallel) {
       sprintf("MS1: %.0fms (parallel) | MS2: %d x %.1fms",
@@ -476,62 +510,16 @@ server_instrument <- function(input, output, session, rv) {
     result <- cycle_time_result()
     if (is.null(result)) return(NULL)
 
-    # Current cycle time
-    current_ms <- result$cycle_time_ms
     current_sec <- result$cycle_time_sec
 
-    # Compute optimal cycle time (Auto IT = transient for both MS1 and MS2)
-    ms1_scans <- result$ms1$scans_per_cycle %||% 1
-    is_parallel <- result$instrument$cycle_calculation == "parallel"
-
-    # Optimal scan times: transient + overhead (minimum achievable)
-    ms1_trans <- result$ms1$transient_ms %||% 0
-    ms1_over <- result$ms1$overhead_ms %||% 0
-    ms2_trans <- result$ms2$transient_ms %||% 0
-    ms2_over <- result$ms2$overhead_ms %||% 0
-
-    ms1_optimal_scan <- if (ms1_trans > 0) ms1_trans + ms1_over else result$ms1$scan_time_ms
-    ms2_optimal_scan <- if (ms2_trans > 0) ms2_trans + ms2_over else result$ms2$scan_time_ms
-
-    # Calculate optimal cycle time
-    if (is_parallel) {
-      ms1_total_opt <- ms1_scans * ms1_optimal_scan
-      ms2_total_opt <- result$window_count * ms2_optimal_scan
-      optimal_ms <- max(ms1_total_opt, ms2_total_opt)
-    } else {
-      optimal_ms <- ms1_scans * ms1_optimal_scan + result$window_count * ms2_optimal_scan
-    }
-
-    optimal_sec <- optimal_ms / 1000
-
-    # Efficiency = optimal / current (how much of cycle time is productive)
-    efficiency_pct <- min((optimal_ms / current_ms) * 100, 100)
-    slowdown <- current_ms / optimal_ms
-
-    # Color coding
-    if (efficiency_pct >= 95) {
-      color <- "#27ae60"
-      icon_class <- "check-circle"
-    } else if (efficiency_pct >= 70) {
-      color <- "#f39c12"
-      icon_class <- "exclamation-triangle"
-    } else {
-      color <- "#e74c3c"
-      icon_class <- "exclamation-triangle"
-    }
-
-    # Identify which component is limiting (MS1 or MS2 or both)
-    ms1_slowdown <- result$ms1$scan_time_ms / ms1_optimal_scan
-    ms2_slowdown <- result$ms2$scan_time_ms / ms2_optimal_scan
-    limiting <- if (ms1_slowdown > 1.05 && ms2_slowdown > 1.05) {
-      "MS1 & MS2"
-    } else if (ms1_slowdown > 1.05) {
-      "MS1"
-    } else if (ms2_slowdown > 1.05) {
-      "MS2"
-    } else {
-      NULL
-    }
+    # Reuse shared efficiency computation
+    eff <- compute_overall_efficiency(result)
+    efficiency_pct <- eff$efficiency_pct
+    optimal_sec <- eff$optimal_sec
+    slowdown <- eff$slowdown
+    color <- eff$color
+    icon_class <- eff$icon_class
+    limiting <- eff$limiting
 
     tags$div(
       style = sprintf("padding: 12px; border-radius: 6px; background: %s15; border-left: 3px solid %s;", color, color),
@@ -578,7 +566,7 @@ server_instrument <- function(input, output, session, rv) {
       ),
 
       # Slowdown message (only when not optimal)
-      if (slowdown > 1.05) {
+      if (slowdown > SLOWDOWN_THRESHOLD) {
         tags$p(
           style = "margin: 0; font-size: 12px; color: #34495e;",
           sprintf("Current settings are %.1fx slower than optimal. Use Auto IT to recover speed.", slowdown)
