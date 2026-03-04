@@ -352,7 +352,7 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   n_pages <- n_pages + 1
 
   # --- Executive Summary ---
-  .draw_executive_summary(optimization_plan, validated_data)
+  .draw_executive_summary(optimization_plan, optimized_windows)
   n_pages <- n_pages + 1
 
   # --- Section 1: Input Data Profile ---
@@ -459,47 +459,56 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
 # Executive Summary Insight Panel
 # =============================================================================
 
-.draw_executive_summary <- function(optimization_plan, validated_data) {
+.draw_executive_summary <- function(optimization_plan, optimized_windows) {
   grid::grid.newpage()
-  
+
   # Header
-  grid::grid.text("Executive Summary & Insights", 
-            x = 0.5, y = 0.95, 
-            gp = grid::gpar(fontsize = 18, fontface = "bold", 
+  grid::grid.text("Executive Summary & Insights",
+            x = 0.5, y = 0.95,
+            gp = grid::gpar(fontsize = 18, fontface = "bold",
                        col = .report_colors$primary))
-  
+
   # Background panel for insights
-  grid::grid.rect(x = 0.5, y = 0.5, width = 0.8, height = 0.7, 
+  grid::grid.rect(x = 0.5, y = 0.5, width = 0.8, height = 0.7,
             gp = grid::gpar(fill = "#f8f9fa", col = "#bdc3c7", lwd = 2))
-  
+
   # Calculate Insights
-  orig_dppp <- validated_data$stats$dppp
-  new_dppp <- optimization_plan$stats$mean_dppp
-  target_dppp <- optimization_plan$parameters$target_dppp
-  
-  orig_ct <- validated_data$stats$cycle_time_sec
-  new_ct <- optimization_plan$stats$mean_cycle_time_sec
-  
+  orig_dppp <- optimization_plan$diagnosis$current_dppp_mean %||% NA_real_
+  new_dppp  <- optimized_windows$dppp_verification$actual_dppp_median %||% NA_real_
+  target_dppp <- optimization_plan$parameters$target_dppp %||% NA_real_
+
+  orig_ct <- optimization_plan$diagnosis$current_cycle_time_sec %||% NA_real_
+  new_ct  <- optimization_plan$actual_cycle_time_sec %||% NA_real_
+
+  strategy    <- optimized_windows$parameters$mz_strategy %||% "unknown"
+  window_mode <- optimized_windows$parameters$window_mode %||% "unknown"
+
   # Insight 1: DPPP Analysis
-  dppp_text <- if(orig_dppp < target_dppp) {
+  dppp_text <- if (!is.na(orig_dppp) && !is.na(new_dppp) && orig_dppp < target_dppp) {
     sprintf("1. Data Points Per Peak (DPPP): The original DPPP was %.1f, failing to meet the target of %.1f.\n   The new optimization plan adjusted the cycle time to achieve a robust DPPP of %.1f.", orig_dppp, target_dppp, new_dppp)
-  } else {
+  } else if (!is.na(orig_dppp) && !is.na(new_dppp)) {
     sprintf("1. Data Points Per Peak (DPPP): The original DPPP (%.1f) was sufficient for the target (%.1f).\n   The new plan maintains a high DPPP of %.1f while optimizing window boundaries.", orig_dppp, target_dppp, new_dppp)
-  }
-  
-  # Insight 2: Cycle Time Analysis
-  ct_diff_pct <- round((orig_ct - new_ct) / orig_ct * 100, 1)
-  ct_text <- if(ct_diff_pct > 0) {
-    sprintf("2. Scan Efficiency: Cycle time was reduced by %.1f%% (from %.2fs to %.2fs).\n   This faster scanning allows for better chromatographic peak shape reconstruction.", ct_diff_pct, orig_ct, new_ct)
-  } else if (ct_diff_pct < 0) {
-    sprintf("2. Scan Efficiency: Cycle time was increased by %.1f%% (from %.2fs to %.2fs).\n   This slower scanning trades temporal resolution for more/narrower isolation windows.", abs(ct_diff_pct), orig_ct, new_ct)
   } else {
-    sprintf("2. Scan Efficiency: Overall cycle time remained stable at %.2fs.\n   Window widths were re-distributed internally for optimal precursor coverage.", new_ct)
+    sprintf("1. Data Points Per Peak (DPPP): Target DPPP is %.1f.\n   DPPP metrics were not available for comparison.", target_dppp)
   }
-  
+
+  # Insight 2: Cycle Time Analysis
+  ct_text <- if (!is.na(orig_ct) && !is.na(new_ct) && orig_ct > 0) {
+    ct_diff_pct <- round((orig_ct - new_ct) / orig_ct * 100, 1)
+    if (ct_diff_pct > 0) {
+      sprintf("2. Scan Efficiency: Cycle time was reduced by %.1f%% (from %.2fs to %.2fs).\n   This faster scanning allows for better chromatographic peak shape reconstruction.", ct_diff_pct, orig_ct, new_ct)
+    } else if (ct_diff_pct < 0) {
+      sprintf("2. Scan Efficiency: Cycle time was increased by %.1f%% (from %.2fs to %.2fs).\n   This slower scanning trades temporal resolution for more/narrower isolation windows.", abs(ct_diff_pct), orig_ct, new_ct)
+    } else {
+      sprintf("2. Scan Efficiency: Overall cycle time remained stable at %.2fs.\n   Window widths were re-distributed internally for optimal precursor coverage.", new_ct)
+    }
+  } else if (!is.na(new_ct)) {
+    sprintf("2. Scan Efficiency: Optimized cycle time is %.2fs.", new_ct)
+  } else {
+    "2. Scan Efficiency: Cycle time metrics were not available for comparison."
+  }
+
   # Insight 3: Strategy & Window Placement
-  strategy <- optimization_plan$parameters$mz_strategy
-  window_mode <- optimization_plan$parameters$window_mode
   win_text <- sprintf("3. Isolation Strategy: Using the '%s' strategy with '%s' window mode.\n   This combination ensures that narrow windows are dynamically allocated to m/z regions\n   with the highest density of precursors, maximizing detection sensitivity.", toupper(strategy), toupper(window_mode))
   
   # Draw Insights

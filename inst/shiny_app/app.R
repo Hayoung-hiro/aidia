@@ -21,8 +21,7 @@
 library(shiny)
 library(bs4Dash)
 library(shinybusy)      # Progress indicators
-library(shinyjs)
-library(shinyBS)        # Tooltips and popovers        # Progressive disclosure (toggle/hide)
+library(shinyjs)        # Progressive disclosure (toggle/hide)
 library(DT)             # Interactive tables
 
 # --- Configuration ---

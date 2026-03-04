@@ -569,31 +569,30 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     ) %>%
       DT::formatRound(columns = c("mz_start", "mz_end", "window_width"), digits = 2)
   })
-}
 
   # --- ValueBox Rendering for Results Summary Dashboard ---
   output$summary_box_cycle_time <- renderValueBox({
-    req(rv$optimization_complete, rv$optimization_plan, rv$validated_data)
-    
-    orig_ct <- rv$validated_data$stats$cycle_time_sec
-    new_ct <- rv$optimization_plan$stats$mean_cycle_time_sec
-    
-    if(is.null(orig_ct) || is.na(orig_ct) || orig_ct == 0) orig_ct <- new_ct # Fallback
-    
+    req(rv$optimization_complete, rv$optimization_plan, rv$optimized_windows)
+
+    orig_ct <- rv$optimization_plan$diagnosis$current_cycle_time_sec
+    new_ct <- rv$optimization_plan$actual_cycle_time_sec
+
+    if (is.null(orig_ct) || is.na(orig_ct) || orig_ct == 0) orig_ct <- new_ct  # Fallback
+
     diff_pct <- round((orig_ct - new_ct) / orig_ct * 100, 1)
-    
+
     subtitle <- "Cycle Time"
     icon_name <- "clock"
     color <- "info"
-    
-    if(diff_pct > 5) {
+
+    if (diff_pct > 5) {
       subtitle <- paste0("Cycle Time (-", diff_pct, "%)")
       color <- "success"
-    } else if(diff_pct < -5) {
+    } else if (diff_pct < -5) {
       subtitle <- paste0("Cycle Time (+", abs(diff_pct), "%)")
       color <- "warning"
     }
-    
+
     valueBox(
       value = paste0(round(new_ct, 2), " s"),
       subtitle = subtitle,
@@ -603,27 +602,27 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   })
 
   output$summary_box_dppp <- renderValueBox({
-    req(rv$optimization_complete, rv$optimization_plan, rv$validated_data)
-    
-    orig_dppp <- rv$validated_data$stats$dppp
-    new_dppp <- rv$optimization_plan$stats$mean_dppp
-    
-    if(is.null(orig_dppp) || is.na(orig_dppp)) orig_dppp <- new_dppp # Fallback
-    
+    req(rv$optimization_complete, rv$optimization_plan, rv$optimized_windows)
+
+    orig_dppp <- rv$optimization_plan$diagnosis$current_dppp_mean
+    new_dppp <- rv$optimized_windows$dppp_verification$actual_dppp_median
+
+    if (is.null(orig_dppp) || is.na(orig_dppp)) orig_dppp <- new_dppp  # Fallback
+
     diff_val <- round(new_dppp - orig_dppp, 1)
-    
+
     subtitle <- "Mean DPPP"
     icon_name <- "chart-line"
     color <- "info"
-    
-    if(diff_val >= 0.5) {
+
+    if (diff_val >= 0.5) {
       subtitle <- paste0("Mean DPPP (+", diff_val, ")")
       color <- "success"
-    } else if(diff_val <= -0.5) {
+    } else if (diff_val <= -0.5) {
       subtitle <- paste0("Mean DPPP (", diff_val, ")")
       color <- "warning"
     }
-    
+
     valueBox(
       value = round(new_dppp, 1),
       subtitle = subtitle,
@@ -633,14 +632,17 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   })
 
   output$summary_box_windows <- renderValueBox({
-    req(rv$optimization_complete, rv$optimization_plan)
-    
-    n_windows <- rv$optimization_plan$stats$n_windows
-    
+    req(rv$optimization_complete, rv$optimization_plan, rv$optimized_windows)
+
+    n_per_bin <- rv$optimization_plan$window_count_per_bin
+    n_total <- nrow(rv$optimized_windows$windows) %||%
+      rv$optimized_windows$statistics$total_windows
+
     valueBox(
-      value = n_windows,
-      subtitle = "Total Isolation Windows",
+      value = n_per_bin,
+      subtitle = sprintf("%d per bin (%d total)", n_per_bin, n_total),
       icon = icon("layer-group"),
       color = "primary"
     )
   })
+}

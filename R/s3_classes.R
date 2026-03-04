@@ -222,7 +222,8 @@ validate_OptimizationPlan <- function(x) {
   }
 
   # Check diagnosis fields
-  required_diag <- c("current_cycle_time_sec", "current_satisfaction_ratio")
+  required_diag <- c("current_cycle_time_sec", "current_satisfaction_ratio",
+                      "current_dppp_mean")
   missing_diag <- setdiff(required_diag, names(x$diagnosis))
   if (length(missing_diag) > 0) {
     stop(sprintf("OptimizationPlan$diagnosis missing: %s",
