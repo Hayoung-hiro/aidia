@@ -92,7 +92,8 @@ plot_alignment_density <- function(optimized_windows,
 
   # Width statistics for annotation
   seg_windows <- seg_windows %>%
-    mutate(width = mz_end - mz_start)
+    mutate(width = mz_end - mz_start,
+           mz_center = (mz_start + mz_end) / 2)
   min_width_row <- seg_windows %>% slice_min(width, n = 1, with_ties = FALSE)
   max_width_row <- seg_windows %>% slice_max(width, n = 1, with_ties = FALSE)
 

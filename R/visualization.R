@@ -82,10 +82,8 @@ generate_visualizations <- function(
   plots <- list()
 
   # Plot 0: FWHM Distribution (Fundamental Input)
-  if (exists("plot_fwhm_distribution")) {
-    cat("  Generating Plot 0: FWHM Distribution (Fundamental Input)...\n")
-    plots$`plot0_fwhm_distribution` <- plot_fwhm_distribution(validated_data, optimization_plan)
-  }
+  cat("  Generating Plot 0: FWHM Distribution (Fundamental Input)...\n")
+  plots$`plot0_fwhm_distribution` <- plot_fwhm_distribution(validated_data, optimization_plan)
 
   # Plot 1: DPPP Comparison - Both versions
   cat("  Generating Plot 1A: DPPP Comparison (Simple)...\n")
@@ -98,14 +96,10 @@ generate_visualizations <- function(
   cat("  Generating Plot 2: RT x m/z Density Heatmap...\n")
   plots$`plot2_rt_mz_density_heatmap` <- plot_rt_mz_density_heatmap(validated_data)
 
-  # Plot 2B: RT Histogram (supplementary)
-  if (exists("plot_rt_histogram")) {
-    cat("  Generating Plot 2B: RT Histogram...\n")
-    plots$`plot2b_rt_histogram_continuous` <- plot_rt_histogram(validated_data)
-    if (exists("plot_rt_histogram_binned")) {
-      plots$`plot2b_rt_histogram_5min` <- plot_rt_histogram_binned(validated_data, bin_width_min = 5)
-    }
-  }
+  # Plot 2B: RT Histogram (supplementary — kept for individual export, removed from PDF)
+  cat("  Generating Plot 2B: RT Histogram...\n")
+  plots$`plot2b_rt_histogram_continuous` <- plot_rt_histogram(validated_data)
+  plots$`plot2b_rt_histogram_5min` <- plot_rt_histogram_binned(validated_data, bin_width_min = 5)
 
   # Plot 3: m/z Density Overlay by RT Segment
   cat("  Generating Plot 3: m/z Density Overlay...\n")
@@ -152,34 +146,25 @@ generate_visualizations <- function(
   }
 
   # Plot 4A-4D: Individual strategy m/z excluded regions
-  if (exists("plot_mz_distribution_with_exclusions")) {
-    for (strategy in strategies) {
-      plot_name <- sprintf("plot4_%s_mz_excluded", strategy)
-      cat(sprintf("  Generating Plot 4 (%s): m/z Excluded Regions...\n", toupper(strategy)))
-      plots[[plot_name]] <- plot_mz_distribution_with_exclusions(
-        windows_list[[strategy]], validated_data, max_bins_to_show = 6
-      )
-    }
+  for (strategy in strategies) {
+    plot_name <- sprintf("plot4_%s_mz_excluded", strategy)
+    cat(sprintf("  Generating Plot 4 (%s): m/z Excluded Regions...\n", toupper(strategy)))
+    plots[[plot_name]] <- plot_mz_distribution_with_exclusions(
+      windows_list[[strategy]], validated_data, max_bins_to_show = 6
+    )
   }
 
   # Plot 4E: All-strategy width comparison
-  if (exists("plot_mz_width_comparison_all_strategies")) {
-    cat("  Generating Plot 4E: Width Comparison (All Strategies)...\n")
-    plots$`plot4e_mz_width_all_strategies` <- plot_mz_width_comparison_all_strategies(
-      windows_list, validated_data
-    )
-  }
+  cat("  Generating Plot 4E: Width Comparison (All Strategies)...\n")
+  plots$`plot4e_mz_width_all_strategies` <- plot_mz_width_comparison_all_strategies(
+    windows_list, validated_data
+  )
 
   # Plot 5: Coverage Map 2x2 Grid (multi-strategy comparison)
-  if (exists("plot_density_with_mz_ranges_grid")) {
-    cat("  Generating Plot 5: Coverage Map 2x2 Grid (All Strategies)...\n")
-    plots$`plot5_coverage_map_2x2` <- plot_density_with_mz_ranges_grid(
-      windows_list, validated_data
-    )
-  } else if (exists("plot_density_with_mz_range")) {
-    cat("  Generating Plot 5: Coverage Map (Single Strategy - fallback)...\n")
-    plots$`plot5_coverage_map_single` <- plot_density_with_mz_range(optimized_windows, validated_data)
-  }
+  cat("  Generating Plot 5: Coverage Map 2x2 Grid (All Strategies)...\n")
+  plots$`plot5_coverage_map_2x2` <- plot_density_with_mz_ranges_grid(
+    windows_list, validated_data
+  )
 
   # Plot 6: Satisfaction Curve
   cat("  Generating Plot 6: Satisfaction vs Cycle Time Curve...\n")
@@ -189,34 +174,28 @@ generate_visualizations <- function(
   cat("  Generating Plot 6B: Optimization Impact Summary...\n")
   plots$`plot6b_impact_summary` <- plot_optimization_impact(optimization_plan, optimized_windows, validated_data)
 
-  # Plot 9: RT Bin Quality Heatmap
-  if (exists("plot_rt_bin_quality_heatmap")) {
-    cat("  Generating Plot 9: RT Bin Quality Heatmap...\n")
-    plots$`plot9_rt_bin_quality_heatmap` <- plot_rt_bin_quality_heatmap(
-      optimized_windows, validated_data, optimization_plan
-    )
-  }
+  # Plot 9: RT Bin Quality Heatmap (kept for individual export, removed from PDF)
+  cat("  Generating Plot 9: RT Bin Quality Heatmap...\n")
+  plots$`plot9_rt_bin_quality_heatmap` <- plot_rt_bin_quality_heatmap(
+    optimized_windows, validated_data, optimization_plan
+  )
 
   # Plot 10: Isolation Window Gantt Chart
-  if (exists("plot_isolation_window_gantt")) {
-    cat("  Generating Plot 10: Isolation Window Gantt Chart...\n")
-    plots$`plot10_isolation_window_gantt` <- plot_isolation_window_gantt(
-      optimized_windows, validated_data, show_precursors = TRUE
-    )
-  }
+  cat("  Generating Plot 10: Isolation Window Gantt Chart...\n")
+  plots$`plot10_isolation_window_gantt` <- plot_isolation_window_gantt(
+    optimized_windows, validated_data, show_precursors = TRUE
+  )
 
   # Plot 11: RT Change Point Validation (only when adaptive RT binning used)
-  if (exists("plot_rt_changepoint_validation")) {
-    rt_binning_mode <- optimized_windows$rt_binning$rt_binning_mode %||% "fixed"
-    if (rt_binning_mode == "adaptive") {
-      cat("  Generating Plot 11: RT Change Point Validation...\n")
-      plots$`plot11_rt_changepoint_validation` <- plot_rt_changepoint_validation(
-        validated_data, optimized_windows
-      )
+  rt_binning_mode <- optimized_windows$rt_binning$rt_binning_mode %||% "fixed"
+  if (rt_binning_mode == "adaptive") {
+    cat("  Generating Plot 11: RT Change Point Validation...\n")
+    plots$`plot11_rt_changepoint_validation` <- plot_rt_changepoint_validation(
+      validated_data, optimized_windows
+    )
 
-      cat("  Generating Plot 11B: KS Statistic Trace...\n")
-      plots$`plot11b_ks_statistic_trace` <- plot_ks_statistic_trace(optimized_windows)
-    }
+    cat("  Generating Plot 11B: KS Statistic Trace...\n")
+    plots$`plot11b_ks_statistic_trace` <- plot_ks_statistic_trace(optimized_windows)
   }
 
   # ===================================================================
@@ -224,84 +203,109 @@ generate_visualizations <- function(
   # ===================================================================
 
   # Plot 12: Tiling Coverage Map
-  if (exists("plot_tiling_coverage_map")) {
-    cat("  Generating Plot 12: Tiling Coverage Map (Window Verification)...\n")
-    plots$`plot12_tiling_coverage_map` <- plot_tiling_coverage_map(
-      optimized_windows, validated_data
-    )
-  }
+  cat("  Generating Plot 12: Tiling Coverage Map (Window Verification)...\n")
+  plots$`plot12_tiling_coverage_map` <- plot_tiling_coverage_map(
+    optimized_windows, validated_data
+  )
 
   # Plot 13: Alignment Density
-  if (exists("plot_alignment_density")) {
-    cat("  Generating Plot 13: Alignment Density (Precursor-Window Alignment)...\n")
-    plots$`plot13_alignment_density` <- plot_alignment_density(
-      optimized_windows, validated_data
-    )
-  }
+  cat("  Generating Plot 13: Alignment Density (Precursor-Window Alignment)...\n")
+  plots$`plot13_alignment_density` <- plot_alignment_density(
+    optimized_windows, validated_data
+  )
 
   # Plot 14: FZ Zoom-in (conditional: only when forbidden zone active)
-  if (exists("plot_fz_zoom")) {
-    fz_offset <- optimized_windows$parameters$fz_offset %||% 0
-    if (fz_offset > 0) {
-      cat("  Generating Plot 14: Forbidden Zone Zoom-in...\n")
-      plots$`plot14_fz_zoom` <- plot_fz_zoom(
-        optimized_windows, fz_offset = fz_offset
-      )
-    }
+  fz_offset <- optimized_windows$parameters$fz_offset %||% 0
+  if (fz_offset > 0) {
+    cat("  Generating Plot 14: Forbidden Zone Zoom-in...\n")
+    plots$`plot14_fz_zoom` <- plot_fz_zoom(
+      optimized_windows, validated_data, fz_offset = fz_offset
+    )
   }
 
   # ===================================================================
   # Plot 7: Window Width Distribution by RT Segment (Multi-Strategy)
   # ===================================================================
 
-  if (exists("plot_window_width_distribution") && exists("plot_cumulative_window_count")) {
-    cat("\n  Preparing Plot 7 & 7B: Window Width Analysis (Multi-Strategy)...\n")
+  cat("\n  Preparing Plot 7 & 7B: Window Width Analysis (Multi-Strategy)...\n")
 
-    for (strategy in strategies) {
-      # Plot 7: Density + Window Width overlay
-      plot7_name <- sprintf("plot7_%s_window_width_distribution", strategy)
-      cat(sprintf("  Generating Plot 7 (%s): Density + Width Overlay...\n", toupper(strategy)))
-      plots[[plot7_name]] <- plot_window_width_distribution(
-        windows_list[[strategy]], validated_data, max_segments_to_show = 6
-      )
+  for (strategy in strategies) {
+    # Plot 7: Density + Window Width overlay
+    plot7_name <- sprintf("plot7_%s_window_width_distribution", strategy)
+    cat(sprintf("  Generating Plot 7 (%s): Density + Width Overlay...\n", toupper(strategy)))
+    plots[[plot7_name]] <- plot_window_width_distribution(
+      windows_list[[strategy]], validated_data, max_segments_to_show = 6
+    )
 
-      # Plot 7B: Window Index + Width bars
-      plot7b_name <- sprintf("plot7b_%s_window_index_width", strategy)
-      cat(sprintf("  Generating Plot 7B (%s): Window Index Width Bars...\n", toupper(strategy)))
-      plots[[plot7b_name]] <- plot_cumulative_window_count(
-        windows_list[[strategy]], validated_data, max_segments_to_show = 6
-      )
-    }
+    # Plot 7B: Window Index + Width bars
+    plot7b_name <- sprintf("plot7b_%s_window_index_width", strategy)
+    cat(sprintf("  Generating Plot 7B (%s): Window Index Width Bars...\n", toupper(strategy)))
+    plots[[plot7b_name]] <- plot_cumulative_window_count(
+      windows_list[[strategy]], validated_data, max_segments_to_show = 6
+    )
   }
 
   # ===================================================================
   # Plot 8: Strategy Width Comparison (Ridge, Box, CDF)
   # ===================================================================
 
-  if (exists("plot_strategy_width_ridge") && exists("plot_strategy_width_boxplot") && exists("plot_strategy_width_cdf")) {
-    cat("\n  Preparing Plot 8: Strategy Width Comparison (3 visualization types)...\n")
+  cat("\n  Preparing Plot 8: Strategy Width Comparison...\n")
 
-    # Plot 8A: Ridge plot
-    cat("  Generating Plot 8A: Ridge Plot...\n")
-    plots$`plot8a_strategy_width_ridge` <- plot_strategy_width_ridge(windows_list, validated_data)
+  # Plot 8A: Ridge plot (primary — included in PDF)
+  cat("  Generating Plot 8A: Ridge Plot...\n")
+  plots$`plot8a_strategy_width_ridge` <- plot_strategy_width_ridge(windows_list, validated_data)
 
-    # Plot 8B: Box plot
-    cat("  Generating Plot 8B: Box Plot...\n")
-    plots$`plot8b_strategy_width_boxplot` <- plot_strategy_width_boxplot(windows_list, validated_data)
+  # Plot 8B: Box plot (kept for individual export, removed from PDF)
+  cat("  Generating Plot 8B: Box Plot...\n")
+  plots$`plot8b_strategy_width_boxplot` <- plot_strategy_width_boxplot(windows_list, validated_data)
 
-    # Plot 8C: CDF plot
-    cat("  Generating Plot 8C: CDF Plot...\n")
-    plots$`plot8c_strategy_width_cdf` <- plot_strategy_width_cdf(windows_list, validated_data)
-  }
+  # Plot 8C: CDF plot (kept for individual export, removed from PDF)
+  cat("  Generating Plot 8C: CDF Plot...\n")
+  plots$`plot8c_strategy_width_cdf` <- plot_strategy_width_cdf(windows_list, validated_data)
 
   # ===================================================================
   # Plot 8D: Strategy Comparison Summary Table
   # ===================================================================
 
-  if (exists("plot_strategy_comparison_table")) {
-    cat("\n  Generating Plot 8D: Strategy Comparison Summary Table...\n")
-    plots$`plot8d_strategy_comparison_table` <- plot_strategy_comparison_table(windows_list)
+  cat("\n  Generating Plot 8D: Strategy Comparison Summary Table...\n")
+  plots$`plot8d_strategy_comparison_table` <- plot_strategy_comparison_table(windows_list)
+
+  # ===================================================================
+  # Plot 15: Per-Precursor DPPP Distribution (Before vs After)
+  # ===================================================================
+
+  cat("\n  Generating Plot 15: Per-Precursor DPPP Distribution...\n")
+  plots$`plot15_dppp_distribution` <- plot_dppp_distribution(optimization_plan, validated_data)
+
+  # ===================================================================
+  # Plot 16: Precursor Load Balance Across Windows
+  # ===================================================================
+
+  cat("  Generating Plot 16: Precursor Load Balance...\n")
+  plots$`plot16_load_balance` <- plot_precursor_load_balance(optimized_windows, validated_data)
+
+  # ===================================================================
+  # Plot 17: Window Edge Proximity
+  # ===================================================================
+
+  cat("  Generating Plot 17: Window Edge Proximity...\n")
+  plots$`plot17_edge_proximity` <- plot_edge_proximity(optimized_windows, validated_data)
+
+  # ===================================================================
+  # Plot 18: Strategy Radar Chart (Multi-Strategy only)
+  # ===================================================================
+
+  if (length(windows_list) >= 2) {
+    cat("  Generating Plot 18: Strategy Radar Chart...\n")
+    plots$`plot18_strategy_radar` <- plot_strategy_radar(windows_list, validated_data)
   }
+
+  # ===================================================================
+  # Plot 19: Charge State x m/z Distribution
+  # ===================================================================
+
+  cat("  Generating Plot 19: Charge State x m/z Distribution...\n")
+  plots$`plot19_charge_mz` <- plot_charge_mz_distribution(optimized_windows, validated_data)
 
   cat(sprintf("\nOK All %d plots generated successfully\n\n", length(plots)))
 
@@ -327,8 +331,7 @@ generate_visualizations <- function(
   if (create_pdf) {
     cat("\nStep 3: Creating PDF report...\n")
     # Build report filename from optimized_windows metadata
-    pdf_filename <- if (exists("format_output_filename") &&
-                        !is.null(optimized_windows$parameters$window_mode)) {
+    pdf_filename <- if (!is.null(optimized_windows$parameters$window_mode)) {
       format_output_filename(
         type = "report",
         instrument_preset = optimized_windows$metadata$instrument_preset %||%

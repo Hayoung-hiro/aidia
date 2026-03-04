@@ -77,10 +77,7 @@ plot_strategy_width_ridge <- function(windows_list, validated_data) {
     ) +
     theme_aidia() +
     theme(
-      plot.title = element_text(size = 12, face = "bold"),
-      plot.subtitle = element_text(size = 9),
-      axis.title = element_text(size = 10),
-      axis.text = element_text(size = 9),
+      plot.title = element_text(face = "bold"),
       axis.text.y = element_text(face = "bold"),
       panel.grid.minor = element_blank(),
       panel.grid.major.y = element_blank()

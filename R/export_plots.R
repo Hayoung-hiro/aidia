@@ -77,7 +77,12 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
             x = 0.5, y = 0.72,
             gp = grid::gpar(fontsize = 42, fontface = "bold",
                        col = aidia_colors$primary))
-  grid::grid.text("Adaptive Isolation for DIA",
+  # Version from package metadata
+  pkg_version <- tryCatch(
+    as.character(utils::packageVersion("aidia")),
+    error = function(e) "dev"
+  )
+  grid::grid.text(sprintf("Adaptive Isolation for DIA  v%s", pkg_version),
             x = 0.5, y = 0.65,
             gp = grid::gpar(fontsize = 16, col = aidia_colors$secondary))
 
@@ -91,15 +96,20 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
             gp = grid::gpar(fontsize = 20, fontface = "bold",
                        col = aidia_colors$primary))
 
-  # Key metrics (centered block)
+  # Key metrics (centered block) — guard all values for NULL safety
   instrument <- optimization_plan$instrument$preset %||% "custom"
-  n_windows <- nrow(optimized_windows$windows)
-  coverage <- optimized_windows$statistics$coverage_percentage
-  n_precursors <- format(validated_data$metadata$n_precursors, big.mark = ",")
-  mz_strategy <- optimized_windows$parameters$mz_strategy
-  window_mode <- optimized_windows$parameters$window_mode
+  n_windows <- nrow(optimized_windows$windows) %||% 0L
+  coverage <- as.numeric(optimized_windows$statistics$coverage_percentage %||% 0)[1]
+  n_precursors <- format(validated_data$metadata$n_precursors %||% 0, big.mark = ",")
+  mz_strategy <- optimized_windows$parameters$mz_strategy %||% "unknown"
+  window_mode <- optimized_windows$parameters$window_mode %||% "unknown"
+
+  # Dataset identifier from gradient name if available
+  gradient_name <- optimized_windows$metadata$gradient_name %||%
+                   validated_data$metadata$gradient_name %||% NULL
 
   metrics <- c(
+    if (!is.null(gradient_name)) sprintf("Dataset: %s", gradient_name),
     sprintf("Instrument: %s", instrument),
     sprintf("Precursors: %s", n_precursors),
     sprintf("Strategy: %s | Mode: %s", mz_strategy, window_mode),
@@ -206,8 +216,8 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
       format(instrument$ms2_resolution %||% NA, big.mark = ","),
       sprintf("%.1f", optimization_plan$parameters$target_dppp),
       sprintf("%.0f%%", (optimization_plan$parameters$target_satisfaction %||% 0.7) * 100),
-      params$mz_strategy,
-      params$window_mode,
+      params$mz_strategy %||% "N/A",
+      params$window_mode %||% "N/A",
       as.character(params$fz_offset %||% 0.25),
       params$rt_binning_mode %||% "fixed",
       as.character(params$rt_bin_width_min %||% 5),
@@ -340,82 +350,83 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   .draw_cover_page(optimization_plan, optimized_windows, validated_data)
   n_pages <- n_pages + 1
 
+  # --- Executive Summary (moved before Parameter Summary — pyramid principle) ---
+  .draw_executive_summary(optimization_plan, optimized_windows)
+  n_pages <- n_pages + 1
+
   # --- Parameter Summary ---
   .draw_parameter_summary(optimization_plan, optimized_windows, validated_data)
   n_pages <- n_pages + 1
 
-  # --- Executive Summary ---
-  .draw_executive_summary(optimization_plan, optimized_windows)
-  n_pages <- n_pages + 1
-
   # --- Section 1: Input Data Profile ---
+  # FWHM distribution + RT x m/z heatmap only (RT histograms removed as 1D projections)
   .draw_section_page(1, "Input Data Profile",
                      "Chromatographic and mass spectrometric characteristics of the dataset")
   n_pages <- n_pages + 1
   n <- .emit_section_plots(plots, c(
     "plot0_fwhm_distribution",
     "plot2_rt_mz_density_heatmap",
-    "plot2b_rt_histogram_continuous",
-    "plot2b_rt_histogram_5min"
+    "plot19_charge_mz"
   ))
   n_pages <- n_pages + n
 
   # --- Section 2: DPPP Analysis & Optimization ---
+  # Enhanced DPPP only (Simple removed — Enhanced is strict superset)
   .draw_section_page(2, "DPPP Analysis & Optimization",
                      "Data Points Per Peak diagnosis, cycle time optimization, and impact assessment")
   n_pages <- n_pages + 1
   n <- .emit_section_plots(plots, c(
-    "plot1a_dppp_comparison_simple",
     "plot1b_dppp_comparison_enhanced",
+    "plot15_dppp_distribution",
     "plot6_satisfaction_curve",
     "plot6b_impact_summary"
   ))
   n_pages <- n_pages + n
 
   # --- Section 3: Window Optimization Results ---
+  # Density overlay + Gantt (RT Bin Quality heatmap removed — normalization issue)
   .draw_section_page(3, "Window Optimization Results",
-                     "RT binning, m/z density overlay, and isolation window layout")
+                     "m/z density overlay and isolation window layout")
   n_pages <- n_pages + 1
   n <- .emit_section_plots(plots, c(
     "plot3_mz_density_overlay",
-    "plot9_rt_bin_quality_heatmap",
-    "plot10_isolation_window_gantt"
+    "plot10_isolation_window_gantt",
+    "plot16_load_balance"
   ))
   n_pages <- n_pages + n
 
   # --- Section 4: Strategy Comparison ---
+  # Table + Ridge only (Box/CDF removed — Ridge with quantile lines is sufficient)
   .draw_section_page(4, "Strategy Comparison",
                      "Side-by-side comparison of m/z optimization strategies")
   n_pages <- n_pages + 1
   n <- .emit_section_plots(plots, c(
     "plot8d_strategy_comparison_table",
-    "plot4e_mz_width_all_strategies",
     "plot8a_strategy_width_ridge",
-    "plot8b_strategy_width_boxplot",
-    "plot8c_strategy_width_cdf"
+    "plot18_strategy_radar"
   ))
   n_pages <- n_pages + n
 
   # --- Section 5: Window Verification ---
-  verification_keys <- c("plot12_tiling_coverage_map",
-                         "plot13_alignment_density",
+  # Tiling (12) and Alignment (13) removed — internal QC only, replaced by Edge Proximity (17)
+  verification_keys <- c("plot17_edge_proximity",
                          "plot14_fz_zoom")
   if (any(verification_keys %in% names(plots))) {
-    .draw_section_page(5, "Window Verification",
-                       "Tiling coverage, precursor alignment, and forbidden zone validation")
+    .draw_section_page(5, "Window Quality Assessment",
+                       "Edge proximity analysis and forbidden zone boundary validation")
     n_pages <- n_pages + 1
     n <- .emit_section_plots(plots, verification_keys)
     n_pages <- n_pages + n
   }
 
   # --- Appendix A: Detailed Per-Strategy Analysis ---
-  # Only emit if any per-strategy plots exist
-  per_strategy_keys <- grep("^plot[47]_", names(plots), value = TRUE)
-  # Exclude the all-strategies comparison already shown above
+  # Plot 7/7B removed — single-strategy views don't enable comparison;
+  # Ridge (8A) + Radar (18) provide cross-strategy comparison in Section 4
+  per_strategy_keys <- grep("^plot4_", names(plots), value = TRUE)
   per_strategy_keys <- setdiff(per_strategy_keys, "plot4e_mz_width_all_strategies")
   if (length(per_strategy_keys) > 0) {
     .draw_section_page("A", "Detailed Per-Strategy Analysis",
-                       "Per-strategy m/z excluded regions, coverage maps, and window width distributions")
+                       "Per-strategy m/z excluded regions and coverage maps")
     n_pages <- n_pages + 1
 
     # Coverage map grid (2x2)

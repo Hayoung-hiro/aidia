@@ -78,10 +78,12 @@ create_before_after_bar <- function(before_value, after_value, title, y_label,
 #'
 #' @return ggplot object (text-based)
 create_metrics_table <- function(optimized_windows, validated_data) {
-  # Extract metrics
-  strategy <- optimized_windows$mz_optimization$strategy
-  window_mode <- optimized_windows$window_generation$window_mode
-  n_precursors <- validated_data$summary$n_precursors
+  # Extract metrics — use canonical S3 field paths
+  strategy <- optimized_windows$parameters$mz_strategy %||%
+              optimized_windows$mz_optimization$strategy %||% "unknown"
+  window_mode <- optimized_windows$parameters$window_mode %||% "unknown"
+  n_precursors <- validated_data$metadata$n_precursors %||%
+                  validated_data$summary$n_precursors %||% nrow(validated_data$data)
   n_rt_bins <- length(unique(optimized_windows$windows$rt_segment_id))
 
   # Calculate mean window width (column is window_width, not mz_width)
@@ -124,8 +126,8 @@ create_metrics_table <- function(optimized_windows, validated_data) {
 
   # Format text
   text_lines <- c(
-    sprintf("Strategy:    %s", toupper(strategy)),
-    sprintf("Window Mode: %s", toupper(window_mode)),
+    sprintf("Strategy:    %s", format_strategy_label(strategy)),
+    sprintf("Window Mode: %s", tools::toTitleCase(window_mode)),
     sprintf("Precursors:  %s", format(n_precursors, big.mark = ",")),
     sprintf("RT Bins:     %d", n_rt_bins),
     sprintf("Mean Width:  %.1f Da", mean_width),
@@ -195,11 +197,7 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
   before_cycle_time <- optimization_plan$diagnosis$current_cycle_time_sec
   before_satisfaction <- optimization_plan$diagnosis$current_satisfaction_ratio
 
-  # Calculate before window count based on current cycle time and window size
-  # Estimate: assume same window width as optimized, count would be proportional to cycle time ratio
   after_n_windows <- nrow(optimized_windows$windows)
-  cycle_time_ratio <- before_cycle_time / optimization_plan$required_cycle_time_sec
-  before_n_windows <- round(after_n_windows / cycle_time_ratio)
 
   # Extract after (optimized) values
   after_cycle_time <- optimization_plan$required_cycle_time_sec
@@ -247,14 +245,31 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
       color = "#E74C3C"
     )
 
-  # Panel 3: Window Count Before/After
-  p3 <- create_before_after_bar(
-    before_value = before_n_windows,
-    after_value = after_n_windows,
-    title = "Isolation Windows",
-    y_label = "Count",
-    value_format = "%.0f"
+  # Panel 3: Optimized Window Count (no "before" — original method is unknown)
+  n_rt_bins <- length(unique(optimized_windows$windows$rt_segment_id))
+  windows_per_bin <- optimization_plan$window_count_per_bin
+  p3_df <- data.frame(
+    label = c(
+      sprintf("Total Windows: %s", format(after_n_windows, big.mark = ",")),
+      sprintf("RT Bins: %d", n_rt_bins),
+      sprintf("Windows/Bin: %d", windows_per_bin)
+    ),
+    x = 0.05,
+    y = c(0.7, 0.5, 0.3)
   )
+  p3 <- ggplot(p3_df, aes(x = x, y = y, label = label)) +
+    geom_text(hjust = 0, vjust = 0.5, size = 4.5, fontface = "bold",
+              color = aidia_colors$primary) +
+    scale_x_continuous(limits = c(0, 1)) +
+    scale_y_continuous(limits = c(0, 1)) +
+    labs(title = "Optimized Window Layout") +
+    theme_void() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 12,
+                                color = aidia_colors$primary, margin = margin(b = 10)),
+      plot.background = element_rect(fill = "white", color = "gray80", linewidth = 0.5),
+      plot.margin = margin(10, 10, 10, 10)
+    )
 
   # Panel 4: Key Metrics Table
   p4 <- create_metrics_table(optimized_windows, validated_data)

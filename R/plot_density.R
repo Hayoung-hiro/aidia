@@ -23,7 +23,7 @@
 #'
 #' @return ggplot object
 #' @keywords internal
-plot_rt_mz_density_heatmap <- function(validated_data, bins = 50) {
+plot_rt_mz_density_heatmap <- function(validated_data, bins = 150) {
 
   cat("  Generating RT x m/z Density Heatmap...\n")
 

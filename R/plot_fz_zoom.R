@@ -1,8 +1,8 @@
 # plot_fz_zoom.R - Plot 14: Forbidden Zone Zoom-in (Micro View)
 #
-# Purpose: Static visualization showing how FZ-optimized boundaries avoid
-#          isotope clusters by sitting in inter-peak valleys. Compares
-#          FZ boundary (green) vs naive integer boundary (red dashed).
+# Purpose: Visualize how FZ-optimized boundaries sit in low-density inter-peak
+#          valleys using ACTUAL precursor data (not simulated). Shows real m/z
+#          distribution near a window boundary with FZ vs integer placement.
 #
 # Dependencies: ggplot2, dplyr, stats, theme_aidia.R
 
@@ -10,36 +10,36 @@
 #' Forbidden Zone Zoom-in Plot (Micro View)
 #'
 #' Creates a zoomed view (~5 Da range) around a representative window boundary,
-#' showing simulated isotope envelope peaks at integer m/z positions. The
-#' FZ-optimized boundary (green) sits in the valley between isotope clusters,
-#' while a naive integer boundary (red dashed) would cut through a cluster.
+#' showing actual precursor m/z density. The FZ-optimized boundary (green) sits
+#' in a low-density valley between isotope clusters at integer m/z positions,
+#' while a naive integer boundary (red dashed) falls on a high-density peak.
 #'
 #' Only generated when \code{fz_offset > 0} (forbidden zone optimization active).
 #'
 #' @param optimized_windows OptimizedWindows object from Stage 3
+#' @param validated_data ValidatedData object from Stage 1
 #' @param boundary_index Integer, index of the internal boundary to zoom into.
 #'   NULL (default) selects the median internal boundary.
 #' @param fz_offset Numeric, forbidden zone offset used in optimization
 #'   (default: 0.25)
 #' @param zoom_range_da Numeric, total m/z range to display (default: 5)
-#' @param base_size Numeric, base font size for theme_aidia (default: 12)
 #'
 #' @return A ggplot object
 #' @keywords internal
 plot_fz_zoom <- function(optimized_windows,
+                          validated_data,
                           boundary_index = NULL,
                           fz_offset = 0.25,
-                          zoom_range_da = 5,
-                          base_size = 12) {
+                          zoom_range_da = 5) {
 
   windows <- optimized_windows$windows
+  precursor_data <- validated_data$data
 
   if (nrow(windows) == 0) stop("No windows found in optimized_windows object")
 
   is_staggered <- "cycle" %in% colnames(windows)
 
   # Get internal boundaries (excluding range edges)
-  # Use Cycle 1 boundaries if staggered
   if (is_staggered) {
     c1_windows <- windows %>%
       filter(cycle == 1L) %>%
@@ -53,9 +53,11 @@ plot_fz_zoom <- function(optimized_windows,
   median_seg <- select_median_rt_segment(c1_windows)
   seg_windows <- c1_windows %>% filter(rt_segment_id == median_seg)
 
-  # Internal boundaries = end of window i = start of window i+1
   if (nrow(seg_windows) < 2) {
-    stop("Need at least 2 windows to show internal boundaries")
+    return(create_insufficient_data_plot(
+      title = "Forbidden Zone Boundary Placement",
+      message = "Need at least 2 windows to show internal boundaries"
+    ))
   }
 
   internal_boundaries <- seg_windows$mz_end[-nrow(seg_windows)]
@@ -70,39 +72,37 @@ plot_fz_zoom <- function(optimized_windows,
   # Nearest integer boundary (naive placement)
   integer_boundary <- round(fz_boundary)
 
-  # --- Simulated Isotope Envelope ---
-  # Generate Gaussian peaks at integer m/z positions
+  # --- Real Precursor Data in Zoom Window ---
   half_range <- zoom_range_da / 2
   mz_min <- fz_boundary - half_range
   mz_max <- fz_boundary + half_range
 
-  # Integer positions within range
-  peak_positions <- seq(floor(mz_min), ceiling(mz_max))
+  # Filter precursors in the zoom range (all RT segments — to get enough data)
+  zoom_precursors <- precursor_data$Precursor.Mz[
+    precursor_data$Precursor.Mz >= mz_min & precursor_data$Precursor.Mz <= mz_max
+  ]
 
-  # High-resolution m/z axis
-  mz_axis <- seq(mz_min, mz_max, length.out = 2000)
-
-  # Gaussian envelope parameters
-  peak_sd <- 0.08  # Narrow peaks simulating isotope clusters
-  peak_heights <- stats::runif(length(peak_positions), min = 0.4, max = 1.0)
-  # Make the peak nearest to integer_boundary taller for visual impact
-  nearest_idx <- which.min(abs(peak_positions - integer_boundary))
-  peak_heights[nearest_idx] <- 1.0
-
-  # Sum of Gaussians
-  envelope <- numeric(length(mz_axis))
-  for (i in seq_along(peak_positions)) {
-    envelope <- envelope + peak_heights[i] *
-      stats::dnorm(mz_axis, mean = peak_positions[i], sd = peak_sd)
+  if (length(zoom_precursors) < 5) {
+    return(create_insufficient_data_plot(
+      title = "Forbidden Zone Boundary Placement",
+      message = sprintf("Only %d precursors in zoom range (%.1f-%.1f Da)",
+                        length(zoom_precursors), mz_min, mz_max)
+    ))
   }
-  # Normalize to 0-1 range
-  envelope <- envelope / max(envelope)
 
-  envelope_df <- data.frame(mz = mz_axis, intensity = envelope)
+  # Compute fractional m/z (distance from nearest integer)
+  # This reveals the isotope cluster periodicity pattern
+  df <- data.frame(mz = zoom_precursors)
+
+  # High-resolution KDE for smooth density
+  kde <- stats::density(zoom_precursors, n = 1024,
+                        from = mz_min, to = mz_max,
+                        adjust = 0.3)  # Narrow bandwidth to show fine structure
+  density_df <- data.frame(mz = kde$x, density = kde$y)
+  # Normalize to 0-1
+  density_df$density <- density_df$density / max(density_df$density)
 
   # --- Forbidden Zone Band ---
-  # FZ sits between integer positions: [N + 0.5 - offset, N + 0.5 + offset]
-  # Find the FZ band containing our boundary
   fz_center <- floor(fz_boundary) + 0.5
   fz_band_start <- fz_center - fz_offset
   fz_band_end <- fz_center + fz_offset
@@ -114,34 +114,41 @@ plot_fz_zoom <- function(optimized_windows,
     ymax = 1.15
   )
 
+  # Density at boundary positions (for annotation)
+  density_at_fz <- approx(density_df$mz, density_df$density, xout = fz_boundary)$y
+  density_at_int <- approx(density_df$mz, density_df$density, xout = integer_boundary)$y
+
   # --- Build Plot ---
   p <- ggplot() +
-    # Forbidden zone band (light gray background)
+    # Forbidden zone band
     geom_rect(
       data = fz_band_df,
       aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
       fill = aidia_colors$grid, alpha = 0.5
     ) +
-    # Isotope envelope
-    geom_area(
-      data = envelope_df,
-      aes(x = mz, y = intensity),
+    # Precursor m/z histogram (rug-like)
+    geom_histogram(
+      data = df,
+      aes(x = mz, y = after_stat(density) / max(after_stat(density))),
+      bins = 80,
       fill = viridis::viridis(1, option = "cividis", begin = 0.4),
-      alpha = 0.4
+      alpha = 0.35,
+      color = NA
     ) +
+    # KDE density curve
     geom_line(
-      data = envelope_df,
-      aes(x = mz, y = intensity),
+      data = density_df,
+      aes(x = mz, y = density),
       color = viridis::viridis(1, option = "cividis", begin = 0.6),
-      linewidth = 0.6
+      linewidth = 0.8
     ) +
-    # Integer boundary (red dashed — bad placement)
+    # Integer boundary (red dashed — naive)
     geom_vline(
       xintercept = integer_boundary,
       color = aidia_colors$accent,
       linetype = "dashed", linewidth = 0.8, alpha = 0.8
     ) +
-    # FZ-optimized boundary (green — good placement)
+    # FZ-optimized boundary (green — good)
     geom_vline(
       xintercept = fz_boundary,
       color = aidia_colors$success,
@@ -152,32 +159,34 @@ plot_fz_zoom <- function(optimized_windows,
              x = integer_boundary, y = 1.08,
              label = sprintf("Integer: %d", integer_boundary),
              color = aidia_colors$accent,
-             size = base_size / 3.5, fontface = "bold",
+             size = 3.5, fontface = "bold",
              hjust = -0.1) +
     annotate("text",
              x = fz_boundary, y = 1.02,
-             label = sprintf("FZ: %.4f", fz_boundary),
+             label = sprintf("FZ: %.2f", fz_boundary),
              color = aidia_colors$success,
-             size = base_size / 3.5, fontface = "bold",
+             size = 3.5, fontface = "bold",
              hjust = -0.1) +
     # FZ band label
     annotate("text",
              x = fz_center, y = 1.12,
              label = "Forbidden Zone",
              color = aidia_colors$secondary,
-             size = base_size / 4, fontface = "italic") +
-    # Labels and theme
+             size = 3, fontface = "italic") +
     labs(
       title = "Forbidden Zone Boundary Placement",
       subtitle = sprintf(
-        "FZ offset = %.2f Da | Boundary shifted %.4f Da from integer",
-        fz_offset, abs(fz_boundary - integer_boundary)
+        "FZ offset = %.2f Da | %d precursors in view | Boundary shifted %.2f Da from integer",
+        fz_offset, length(zoom_precursors), abs(fz_boundary - integer_boundary)
       ),
-      caption = "Green = FZ-optimized boundary (valley) | Red dashed = Integer boundary (through cluster)",
+      caption = sprintf(
+        "Actual precursor m/z density | Density at FZ boundary: %.2f vs Integer: %.2f (lower = better)",
+        density_at_fz %||% 0, density_at_int %||% 0
+      ),
       x = "m/z (Da)",
-      y = "Simulated Isotope Intensity"
+      y = "Relative Precursor Density"
     ) +
-    theme_aidia(base_size = base_size) +
+    theme_aidia() +
     theme(
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5),

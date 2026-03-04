@@ -279,6 +279,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   output$before_summary <- renderUI({
     req(rv$validated_data)
 
+    precursor_data <- rv$validated_data$data
     median_fwhm_sec <- rv$median_fwhm_sec
 
     calc_result <- cycle_time_result()
@@ -294,11 +295,11 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
     tags$div(
       class = "summary-list",
-      tags$div(tags$strong("Precursors: "), format(nrow(data), big.mark = ",")),
+      tags$div(tags$strong("Precursors: "), format(nrow(precursor_data), big.mark = ",")),
       tags$div(tags$strong("RT: "),
-               sprintf("%.1f - %.1f min", min(data$RT.Apex, na.rm = TRUE), max(data$RT.Apex, na.rm = TRUE))),
+               sprintf("%.1f - %.1f min", min(precursor_data$RT.Apex, na.rm = TRUE), max(precursor_data$RT.Apex, na.rm = TRUE))),
       tags$div(tags$strong("m/z: "),
-               sprintf("%.0f - %.0f Da", min(data$Precursor.Mz, na.rm = TRUE), max(data$Precursor.Mz, na.rm = TRUE))),
+               sprintf("%.0f - %.0f Da", min(precursor_data$Precursor.Mz, na.rm = TRUE), max(precursor_data$Precursor.Mz, na.rm = TRUE))),
       tags$div(tags$strong("FWHM: "), sprintf("%.2f sec", median_fwhm_sec)),
       tags$div(tags$strong("Cycle Time: "), ct_text),
       tags$div(tags$strong("Est. DPPP: "), dppp_text)

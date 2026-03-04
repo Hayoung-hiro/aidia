@@ -20,10 +20,11 @@
 #' @examples
 #' \dontrun{
 #' windows_list <- list(
+#'   greedy = optimized_windows_g,
+#'   kde = optimized_windows_k,
 #'   quantile = optimized_windows_q,
-#'   smoothing = optimized_windows_s,
-#'   outlier = optimized_windows_o,
-#'   coverage = optimized_windows_c
+#'   coverage = optimized_windows_c,
+#'   outlier = optimized_windows_o
 #' )
 #' plot4c <- plot_mz_width_comparison_all_strategies(windows_list, validated_data)
 #' }
@@ -31,21 +32,10 @@ plot_mz_width_comparison_all_strategies <- function(windows_list, validated_data
 
   cat("  Generating Plot 4C: m/z Width Comparison (All Strategies Overlay)...\n")
 
-  # Strategy colors (Original = gray, 4 strategies colored)
+  # Strategy colors: Original + 5 strategies from design system
   bar_colors <- c(
     "Original" = "gray60",
-    "Quantile" = "steelblue",
-    "Smoothing" = "seagreen",
-    "Outlier" = "darkorange",
-    "Coverage" = "mediumpurple"
-  )
-
-  strategy_labels <- c(
-    "greedy" = "Greedy (MacCoss)",
-    "kde" = "KDE (Density Peak)",
-    "quantile" = "Quantile (P5-P95)",
-    "outlier" = "Outlier (+/-3SD)",
-    "coverage" = "Coverage (95%)"
+    setNames(aidia_strategy_colors, tools::toTitleCase(names(aidia_strategy_colors)))
   )
 
   # Get reference mz_ranges (use quantile for RT bin structure)
@@ -93,34 +83,24 @@ plot_mz_width_comparison_all_strategies <- function(windows_list, validated_data
     all_widths[[length(all_widths) + 1]] <- strategy_widths
   }
 
-  # Combine all data
+  # Combine all data — dynamic factor levels from actual strategies
+  strategy_levels <- c("Original", tools::toTitleCase(names(windows_list)))
   plot_data <- safe_bind_rows(all_widths) %>%
-    mutate(
-      strategy = factor(
-        strategy,
-        levels = c("Original", "Quantile", "Smoothing", "Outlier", "Coverage")
-      )
-    )
+    mutate(strategy = factor(strategy, levels = strategy_levels))
 
   # Calculate summary statistics
   strategy_stats <- plot_data %>%
     filter(strategy != "Original") %>%
     group_by(strategy) %>%
-    summarise(
-      mean_width = mean(width, na.rm = TRUE),
-      .groups = "drop"
-    )
+    summarise(mean_width = mean(width, na.rm = TRUE), .groups = "drop")
 
   mean_original <- mean(original_widths$width, na.rm = TRUE)
 
-  subtitle_text <- sprintf(
-    "Original: %.1f Da | Quantile: %.1f | Smoothing: %.1f | Outlier: %.1f | Coverage: %.1f Da",
-    mean_original,
-    strategy_stats$mean_width[strategy_stats$strategy == "Quantile"],
-    strategy_stats$mean_width[strategy_stats$strategy == "Smoothing"],
-    strategy_stats$mean_width[strategy_stats$strategy == "Outlier"],
-    strategy_stats$mean_width[strategy_stats$strategy == "Coverage"]
+  stats_labels <- paste(
+    sprintf("%s: %.1f", strategy_stats$strategy, strategy_stats$mean_width),
+    collapse = " | "
   )
+  subtitle_text <- sprintf("Original: %.1f Da | %s", mean_original, stats_labels)
 
   # Create grouped bar chart
   p <- ggplot(plot_data, aes(x = rt_label, y = width, fill = strategy)) +
@@ -128,12 +108,7 @@ plot_mz_width_comparison_all_strategies <- function(windows_list, validated_data
 
     scale_fill_manual(
       name = "Strategy",
-      values = bar_colors,
-      labels = c("Original" = "Original (full range)",
-                 "Quantile" = "Quantile (P5-P95)",
-                 "Smoothing" = "Smoothing (SG)",
-                 "Outlier" = "Outlier (+/-3SD)",
-                 "Coverage" = "Coverage (95%)")
+      values = bar_colors
     ) +
 
     labs(
@@ -141,14 +116,13 @@ plot_mz_width_comparison_all_strategies <- function(windows_list, validated_data
       subtitle = subtitle_text,
       x = "RT Segment",
       y = "m/z Range Width (Da)",
-      caption = "Grouped bars show Original + 4 optimization strategies per RT segment"
+      caption = "Grouped bars show Original + optimization strategies per RT segment"
     ) +
 
     scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
 
-    theme_aidia(base_size = 11) +
+    theme_aidia() +
     theme(
-      plot.title = element_text(face = "bold", size = 14),
       plot.subtitle = element_text(size = 9, color = "gray30"),
       plot.caption = element_text(size = 9, hjust = 0, color = "gray50"),
       legend.position = "top",

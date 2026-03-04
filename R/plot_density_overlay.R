@@ -103,9 +103,9 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
       caption = NULL
     ) +
 
-    theme_aidia(base_size = 11) +
+    theme_aidia() +
     theme(
-      plot.title = element_text(face = "bold", size = 12, hjust = 0.5),
+      plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(size = 10, hjust = 0.5, color = "gray30"),
       legend.position = "right",
       legend.key.height = unit(1, "cm"),
