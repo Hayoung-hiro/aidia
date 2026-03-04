@@ -163,8 +163,7 @@ server_instrument <- function(input, output, session, rv) {
     # Calculate based on target DPPP if we have FWHM data
     dppp_windows <- NULL
     if (!is.null(rv$validated_data)) {
-      fwhm_values <- ensure_fwhm_seconds(rv$validated_data$data$FWHM)
-      fwhm_median <- median(fwhm_values, na.rm = TRUE)
+      fwhm_median <- rv$median_fwhm_sec
 
       if (!is.null(calc_result) && !is.na(fwhm_median)) {
         target_dppp <- input$target_dppp %||% 7.0
@@ -219,8 +218,7 @@ server_instrument <- function(input, output, session, rv) {
       # Estimate if no plan yet
       if (is.null(n_windows) && !is.null(rv$validated_data)) {
         calc_result <- cycle_time_result()
-        fwhm_values <- ensure_fwhm_seconds(rv$validated_data$data$FWHM)
-        fwhm_median <- median(fwhm_values, na.rm = TRUE)
+        fwhm_median <- rv$median_fwhm_sec
         if (!is.null(calc_result) && !is.na(fwhm_median)) {
           target_dppp <- input$target_dppp %||% 7.0
           ms2_time_sec <- calc_result$ms2$scan_time_ms / 1000
@@ -269,7 +267,7 @@ server_instrument <- function(input, output, session, rv) {
 
       # Formula breakdown
       tags$div(
-        style = "margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(211, 84, 0, 0.3);",
+        style = "margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-subtle);",
         tags$span(
           class = "text-accent",
           style = "font-size: 12px;",
@@ -299,7 +297,8 @@ server_instrument <- function(input, output, session, rv) {
   # Returns a list with all derived values for reuse across render functions
   compute_overall_efficiency <- function(result) {
     if (is.null(result)) return(list(efficiency_pct = 100, optimal_ms = 0,
-      optimal_sec = 0, slowdown = 1, color = "var(--semantic-success)", icon_class = "check-circle",
+      optimal_sec = 0, slowdown = 1, color = "var(--semantic-success)",
+      color_bg = "var(--semantic-success-bg)", icon_class = "check-circle",
       limiting = NULL, ms1_optimal_scan = 0, ms2_optimal_scan = 0))
 
     current_ms <- result$cycle_time_ms
@@ -323,13 +322,13 @@ server_instrument <- function(input, output, session, rv) {
     efficiency_pct <- min((optimal_ms / current_ms) * 100, 100)
     slowdown <- current_ms / optimal_ms
 
-    # Color coding
+    # Color coding (color = solid, color_bg = translucent background)
     if (efficiency_pct >= 95) {
-      color <- "var(--semantic-success)"; icon_class <- "check-circle"
+      color <- "var(--semantic-success)"; color_bg <- "var(--semantic-success-bg)"; icon_class <- "check-circle"
     } else if (efficiency_pct >= 70) {
-      color <- "var(--semantic-warning)"; icon_class <- "exclamation-triangle"
+      color <- "var(--semantic-warning)"; color_bg <- "var(--semantic-warning-bg)"; icon_class <- "exclamation-triangle"
     } else {
-      color <- "var(--semantic-danger)"; icon_class <- "exclamation-triangle"
+      color <- "var(--semantic-danger)"; color_bg <- "var(--semantic-danger-bg)"; icon_class <- "exclamation-triangle"
     }
 
     # Identify limiting component
@@ -347,7 +346,7 @@ server_instrument <- function(input, output, session, rv) {
 
     list(efficiency_pct = efficiency_pct, optimal_ms = optimal_ms,
          optimal_sec = optimal_ms / 1000, slowdown = slowdown,
-         color = color, icon_class = icon_class, limiting = limiting,
+         color = color, color_bg = color_bg, icon_class = icon_class, limiting = limiting,
          ms1_optimal_scan = ms1_optimal_scan, ms2_optimal_scan = ms2_optimal_scan)
   }
 
@@ -536,7 +535,7 @@ server_instrument <- function(input, output, session, rv) {
     limiting <- eff$limiting
 
     tags$div(
-      style = sprintf("padding: 12px; border-radius: 6px; background: %s15; border-left: 3px solid %s;", color, color),
+      style = sprintf("padding: 12px; border-radius: 6px; background: %s; border-left: 3px solid %s;", eff$color_bg, color),
 
       # Header with efficiency
       tags$div(
@@ -558,13 +557,13 @@ server_instrument <- function(input, output, session, rv) {
       tags$div(
         style = "display: flex; gap: 16px; margin-bottom: 8px;",
         tags$div(
-          style = "flex: 1; text-align: center; padding: 6px; background: rgba(39, 174, 96, 0.1); border-radius: 4px;",
+          style = "flex: 1; text-align: center; padding: 6px; background: var(--semantic-success-bg); border-radius: 4px;",
           tags$div(class = "text-muted", style = "font-size: 10px; text-transform: uppercase;", "Optimal (Auto IT)"),
           tags$div(class = "text-semantic-success", style = "font-size: 18px; font-weight: 700;",
                    sprintf("%.3f sec", optimal_sec))
         ),
         tags$div(
-          style = sprintf("flex: 1; text-align: center; padding: 6px; background: %s15; border-radius: 4px;", color),
+          style = sprintf("flex: 1; text-align: center; padding: 6px; background: %s; border-radius: 4px;", eff$color_bg),
           tags$div(class = "text-muted", style = "font-size: 10px; text-transform: uppercase;", "Current"),
           tags$div(style = sprintf("font-size: 18px; font-weight: 700; color: %s;", color),
                    sprintf("%.3f sec", current_sec))

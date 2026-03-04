@@ -2,6 +2,19 @@
 
 server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
+  # --- Helper: Loop N badge for staggered mode (used in After summary + m/z summary) ---
+  render_loop_n_badge <- function(windows) {
+    loop_n <- tryCatch(calculate_loop_n(windows), error = function(e) NULL)
+    if (is.null(loop_n)) return(NULL)
+    tags$div(
+      class = "panel-accent", style = "margin-top: 6px; font-weight: 600;",
+      icon("sync-alt"),
+      sprintf(" Loop Control N = %d", loop_n),
+      tags$span(class = "text-muted", style = "font-weight: 400; margin-left: 8px;",
+                "(set in Xcalibur method)")
+    )
+  }
+
   # --- DPPP Preset Buttons ---
   # Preset clicks only update the numeric value; visual sync is handled
   # by the single target_dppp observer below via sendCustomMessage.
@@ -266,9 +279,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   output$before_summary <- renderUI({
     req(rv$validated_data)
 
-    data <- rv$validated_data$data
-    fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
-    median_fwhm_sec <- median(fwhm_sec, na.rm = TRUE)
+    median_fwhm_sec <- rv$median_fwhm_sec
 
     calc_result <- cycle_time_result()
     ct_text <- if (!is.null(calc_result)) sprintf("%.3f sec", calc_result$cycle_time_sec) else "N/A"
@@ -335,21 +346,12 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       n_cycle1 <- if ("cycle" %in% colnames(windows)) sum(windows$cycle == 1L) else n_windows
       n_cycle2 <- if ("cycle" %in% colnames(windows)) sum(windows$cycle == 2L) else 0
       fz_val <- params$fz_offset %||% 0.25
-      loop_n_val <- tryCatch(calculate_loop_n(windows), error = function(e) NULL)
       tags$div(
         tags$div(
           tags$strong("2-Cycle Interleaved: "),
           sprintf("C1: %d + C2: %d windows (forbidden zone: %.4f)", n_cycle1, n_cycle2, fz_val)
         ),
-        if (!is.null(loop_n_val)) {
-          tags$div(
-            class = "panel-accent", style = "margin-top: 6px; font-weight: 600;",
-            icon("sync-alt"),
-            sprintf(" Loop Control N = %d", loop_n_val),
-            tags$span(class = "text-muted", style = "font-weight: 400; margin-left: 8px;",
-                      "(set in Xcalibur method)")
-          )
-        }
+        render_loop_n_badge(windows)
       )
     } else {
       tags$div(
@@ -515,15 +517,12 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
           style = "margin-left: 4px;",
           params$window_mode %||% "density"
         ),
-        # Loop N badge for staggered mode
+        # Loop N badge for staggered mode (inline variant)
         if ((params$window_mode %||% "density") == "staggered") {
-          loop_n_val <- tryCatch(calculate_loop_n(windows), error = function(e) NULL)
-          if (!is.null(loop_n_val)) {
-            tags$span(
-              class = "badge-accent",
-              style = "margin-left: 4px;",
-              sprintf("Loop N = %d", loop_n_val)
-            )
+          loop_n <- tryCatch(calculate_loop_n(windows), error = function(e) NULL)
+          if (!is.null(loop_n)) {
+            tags$span(class = "badge-accent", style = "margin-left: 4px;",
+                      sprintf("Loop N = %d", loop_n))
           }
         }
       ),

@@ -30,6 +30,10 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
       rv$optimization_complete <- FALSE
       rv$optimized_windows <- NULL
 
+      # Cache FWHM conversion (immutable until next upload)
+      rv$fwhm_sec <- ensure_fwhm_seconds(rv$validated_data$data$FWHM)
+      rv$median_fwhm_sec <- median(rv$fwhm_sec, na.rm = TRUE)
+
       # Calculate DPPP Quick Preview
       cat("[Shiny] Calculating DPPP Quick Preview...\n")
       rv$dppp_preview <- quick_dppp_preview(
@@ -208,7 +212,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
                dppp_data$satisfaction_pct[i] >= target_satisfaction
 
       row_style <- if (meets) {
-        "background-color: rgba(39, 174, 96, 0.12); font-weight: 600;"
+        "background: var(--semantic-success-bg); font-weight: 600;"
       } else {
         ""
       }
@@ -331,8 +335,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
     calc_ct <- cycle_time_result()
     req(calc_ct)
 
-    fwhm_sec <- ensure_fwhm_seconds(rv$validated_data$data$FWHM)
-    median_fwhm <- median(fwhm_sec, na.rm = TRUE)
+    median_fwhm <- rv$median_fwhm_sec
     target <- input$target_dppp
     req(target)
     ms2_sec <- calc_ct$ms2$scan_time_ms / 1000
@@ -352,14 +355,14 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
   output$sidebar_data_summary <- renderUI({
     req(rv$validated_data)
     data <- rv$validated_data$data
-    fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
+    fwhm_sec <- rv$fwhm_sec
 
     tags$div(
       class = "text-muted", style = "font-size: 11px; line-height: 1.9;",
       tags$div(sprintf("Precursors: %s", format(nrow(data), big.mark = ","))),
       tags$div(sprintf("RT: %.1f - %.1f min", min(data$RT.Apex), max(data$RT.Apex))),
       tags$div(sprintf("m/z: %.0f - %.0f Da", min(data$Precursor.Mz), max(data$Precursor.Mz))),
-      tags$div(sprintf("FWHM: %.2f sec (median)", median(fwhm_sec, na.rm = TRUE))),
+      tags$div(sprintf("FWHM: %.2f sec (median)", rv$median_fwhm_sec)),
       tags$div(sprintf("FWHM IQR: %.2f - %.2f sec",
                        quantile(fwhm_sec, 0.25, na.rm = TRUE),
                        quantile(fwhm_sec, 0.75, na.rm = TRUE)))
@@ -397,7 +400,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
   output$fwhm_ridgeline <- renderPlot({
     req(rv$validated_data)
     data <- rv$validated_data$data
-    fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
+    fwhm_sec <- rv$fwhm_sec
 
     # Precursor.Charge is in QC_COLUMNS (kept if available, not required)
     has_charge <- "Precursor.Charge" %in% colnames(data)
@@ -452,9 +455,6 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
 
     data <- rv$validated_data$data
 
-    fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
-    median_fwhm_sec <- median(fwhm_sec, na.rm = TRUE)
-
     data.frame(
       Metric = c(
         "Total Precursors",
@@ -466,7 +466,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
         format(nrow(data), big.mark = ","),
         sprintf("%.1f - %.1f", min(data$RT.Apex), max(data$RT.Apex)),
         sprintf("%.1f - %.1f", min(data$Precursor.Mz), max(data$Precursor.Mz)),
-        sprintf("%.2f", median_fwhm_sec)
+        sprintf("%.2f", rv$median_fwhm_sec)
       )
     )
   })
