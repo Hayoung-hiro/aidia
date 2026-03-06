@@ -144,11 +144,8 @@ plot_density_with_mz_ranges_grid <- function(windows_list, validated_data, bins 
 
   cat("  Generating Plot 5: RT x m/z Density with m/z Range Overlay (2x2 Grid)...\n")
 
-  # Use all available strategies (preserve preferred order where applicable)
-  preferred_order <- c("greedy", "kde", "quantile", "coverage", "outlier")
-  strategy_order <- intersect(preferred_order, names(windows_list))
-  # Add any strategies not in preferred order
-  strategy_order <- unique(c(strategy_order, names(windows_list)))
+  # Use all available strategies (preserve preferred order)
+  strategy_order <- order_strategies(names(windows_list))
 
   # Create individual plots for each strategy
   plot_list <- list()
@@ -245,10 +242,7 @@ plot_strategy_boundary_comparison <- function(windows_list, validated_data) {
   boundary_df <- safe_bind_rows(boundary_list)
 
   # Order strategies consistently
-  preferred_order <- c("greedy", "kde", "quantile", "coverage", "outlier")
-  available <- intersect(preferred_order, unique(boundary_df$strategy))
-  extra <- setdiff(unique(boundary_df$strategy), preferred_order)
-  ordered <- c(available, extra)
+  ordered <- order_strategies(unique(boundary_df$strategy))
   boundary_df$strategy_label <- factor(
     boundary_df$strategy_label,
     levels = format_strategy_label(ordered)
@@ -366,10 +360,7 @@ plot_strategy_width_profile <- function(windows_list, validated_data) {
   width_df <- safe_bind_rows(width_list)
 
   # Order strategies consistently
-  preferred_order <- c("greedy", "kde", "quantile", "coverage", "outlier")
-  available <- intersect(preferred_order, unique(width_df$strategy))
-  extra <- setdiff(unique(width_df$strategy), preferred_order)
-  ordered <- c(available, extra)
+  ordered <- order_strategies(unique(width_df$strategy))
   width_df$strategy_label <- factor(
     width_df$strategy_label,
     levels = format_strategy_label(ordered)

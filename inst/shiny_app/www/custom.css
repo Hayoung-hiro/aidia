@@ -175,6 +175,24 @@ label {
    4. SIDEBAR (AdminLTE3)
    ========================================================================== */
 
+/* Sidebar logo container — white pill on dark sidebar */
+.sidebar-logo {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: inline-block;
+}
+
+.sidebar-logo img {
+  display: block;
+}
+
+/* Header brand logo — invert to white for dark navbar */
+.main-header .brand-link img,
+.main-header .navbar-brand img {
+  filter: brightness(0) invert(1);
+}
+
 .main-sidebar {
   background-color: #2c3e50 !important;
 }
@@ -330,7 +348,8 @@ label {
   padding: 12px 16px;
 }
 
-/* Unified solid headers — flat dark bg (replaces 6 gradient rules) */
+/* Unified headers — ALL status cards get flat dark bg
+   (card-outline included — force dark header for consistency) */
 .box.box-primary > .box-header,
 .box.box-success > .box-header,
 .box.box-warning > .box-header,
@@ -342,12 +361,19 @@ label {
 .card.card-warning > .card-header,
 .card.card-info > .card-header,
 .card.card-danger > .card-header,
-.card.card-secondary > .card-header {
+.card.card-secondary > .card-header,
+/* Higher specificity for card-outline (overrides AdminLTE3's transparent bg) */
+.card.card-outline.card-primary > .card-header,
+.card.card-outline.card-success > .card-header,
+.card.card-outline.card-warning > .card-header,
+.card.card-outline.card-info > .card-header,
+.card.card-outline.card-danger > .card-header,
+.card.card-outline.card-secondary > .card-header {
   background: var(--box-header-bg) !important;
   border-bottom: 2px solid var(--box-header-border);
 }
 
-/* White text on dark solid headers */
+/* White text on ALL dark headers (including card-outline) */
 .box.box-primary > .box-header .box-title,
 .box.box-success > .box-header .box-title,
 .box.box-warning > .box-header .box-title,
@@ -359,8 +385,9 @@ label {
 .card.card-warning > .card-header .card-title,
 .card.card-info > .card-header .card-title,
 .card.card-danger > .card-header .card-title,
-.card.card-secondary > .card-header .card-title {
-  color: var(--box-header-text);
+.card.card-secondary > .card-header .card-title,
+.card.card-outline > .card-header .card-title {
+  color: var(--box-header-text) !important;
 }
 
 /* ==========================================================================
@@ -882,15 +909,6 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover {
    20. INFO / WARNING BANNERS
    ========================================================================== */
 
-.tab-banner-info {
-  background: var(--semantic-info-bg);
-  padding: 10px 14px;
-  border-radius: 6px;
-  margin-bottom: 12px;
-  border-left: 3px solid var(--semantic-info);
-  color: var(--text-primary);
-}
-
 .tab-banner-warning {
   background: var(--semantic-warning-bg);
   padding: 10px 14px;
@@ -1207,7 +1225,8 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover {
 }
 
 /* Section labels (A, B, C, D, E) in Setup step */
-.tab-pane .box-header .box-title {
+.tab-pane .box-header .box-title,
+.tab-pane .card-header .card-title {
   font-size: 15px;
   letter-spacing: 0.3px;
 }
@@ -1221,17 +1240,61 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover {
 }
 
 /* ==========================================================================
-   27. COLLAPSED BOX INDICATOR
+   27. COLLAPSED BOX/CARD INDICATOR & TOOL BUTTONS
    ========================================================================== */
 
+/* Collapse toggle buttons — colored pill on dark header.
+   All headers are dark (--box-header-bg), so icons need contrast.
+   We give .btn-tool a subtle colored bg pill to make +/- clearly visible. */
+.card-header .btn-tool,
+.card-header .btn-tool.btn-primary,
+.card-header .btn-tool.btn-success,
+.card-header .btn-tool.btn-warning,
+.card-header .btn-tool.btn-info,
+.card-header .btn-tool.btn-danger,
+.card-header .btn-tool.btn-secondary,
+.box-header .btn-tool {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 4px !important;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  padding: 0 !important;
+  transition: background 0.15s;
+}
+.card-header .btn-tool:hover,
+.box-header .btn-tool:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+  color: #fff !important;
+}
+
+/* Collapsed card indicator (bs4Dash uses .collapsed-card, not .collapsed-box) */
+.card.collapsed-card > .card-header {
+  border-bottom: none;
+}
+.card.collapsed-card > .card-header .card-title {
+  opacity: 0.7;
+}
+.card.collapsed-card > .card-header .card-title::after {
+  content: " (click to expand)";
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* Legacy .box selectors (AdminLTE3 fallback) */
 .box.collapsed-box > .box-header {
   border-bottom: none;
 }
-
 .box.collapsed-box > .box-header .box-title {
   color: var(--text-muted);
 }
-
 .box.collapsed-box > .box-header .box-title::after {
   content: " (click to expand)";
   font-size: 11px;
@@ -1505,13 +1568,22 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover {
 
 /* m/z range display card */
 .mz-range-display {
-  background: var(--accent-subtle);
   padding: 10px;
   border-radius: 6px;
   margin: 8px 0;
   border: 1px solid var(--border-default);
+  /* Default: success (green) */
+  background: var(--semantic-success-bg);
+  border-left: 3px solid var(--semantic-success);
 }
-
+.mz-range-display.range-warning {
+  background: var(--semantic-warning-bg);
+  border-left: 3px solid var(--semantic-warning);
+}
+.mz-range-display.range-danger {
+  background: var(--semantic-danger-bg);
+  border-left: 3px solid var(--semantic-danger);
+}
 /* Cycle time bar colors (keep as fixed for visual consistency) */
 .ct-bar-ms1 { background: var(--semantic-info); }
 .ct-bar-ms2 { background: var(--accent); }
@@ -1585,6 +1657,53 @@ body.dark-mode .card-body {
 /* Info boxes */
 body.dark-mode .info-box {
   background-color: var(--surface-card) !important;
+}
+
+/* Value boxes — prominent numbers (dominant visual element)
+   bs4Dash valueBox renders: .small-box > .inner > [raw text] + p.small-box-subtitle
+   There is NO <h3> wrapper — the value is a bare text node inside .inner */
+.small-box {
+  min-height: 130px;
+  overflow: hidden;
+}
+.small-box .inner {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  color: #fff;
+  padding: 14px 14px 10px;
+}
+.small-box .inner .small-box-subtitle {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  opacity: 0.85;
+  margin-top: 6px;
+  line-height: 1.3;
+  text-shadow: none;
+}
+/* If bs4Dash wraps value in h3 (version-dependent), style that too */
+.small-box .inner h3 {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1;
+  margin: 0 0 6px 0;
+}
+.small-box .inner p:not(.small-box-subtitle) {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.85;
+}
+.small-box .icon > .fa,
+.small-box .icon > .fas,
+.small-box .icon > .far,
+.small-box .icon > .ion {
+  font-size: 65px;
+  opacity: 0.15;
+  top: 10px;
 }
 
 /* Value boxes (keep colored bg, ensure white text) */

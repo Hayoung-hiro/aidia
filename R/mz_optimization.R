@@ -412,7 +412,8 @@ optimize_mz_ranges_greedy_internal <- function(precursor_data, rt_stats,
   cat(sprintf("     Isolation width: %.1f Da\n", min_width_da))
   cat(sprintf("     Fixed m/z range per cycle: %.1f Da\n", mz_range_per_cycle))
   cat(sprintf("     Sliding step: %.1f Da\n", mz_step))
-  cat(sprintf("     Post-smoothing: %s\n", ifelse(apply_smoothing, "YES (SG filter)", "NO")))
+  cat(sprintf("     Post-smoothing: %s\n", ifelse(apply_smoothing,
+    ifelse(smoothing_method == "whittaker", "YES (Whittaker-Henderson)", "YES (Savitzky-Golay)"), "NO")))
   cat(sprintf("     Finding optimal m/z position per RT bin...\n\n"))
 
   # =========================================================================

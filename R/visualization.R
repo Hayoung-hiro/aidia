@@ -118,7 +118,7 @@ generate_visualizations <- function(
   cat("\n  Preparing Plot 4: Multi-Strategy Comparison...\n")
 
   # Default strategies for re-computation when no windows_list provided
-  default_strategies <- c("greedy", "kde", "quantile", "coverage", "outlier")
+  default_strategies <- STRATEGY_PREFERRED_ORDER
 
   # Use pre-computed windows_list if provided, otherwise compute
   if (is.null(windows_list)) {

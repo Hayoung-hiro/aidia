@@ -186,7 +186,7 @@ export_method_files <- function(windows_list,
                                 output_dir,
                                 validated_data,
                                 optimization_plan = NULL,
-                                strategies = c("greedy", "kde", "quantile", "coverage", "outlier"),
+                                strategies = STRATEGY_PREFERRED_ORDER,
                                 instrument_type = "orbitrap",
                                 normalized_agc_target = 100) {
 

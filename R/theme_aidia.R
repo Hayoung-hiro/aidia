@@ -8,6 +8,16 @@
 NULL
 
 
+# Strategy Order & Color Palette -------------------------------------------
+
+#' Canonical strategy display order
+#'
+#' Preferred ordering of strategies for facets, legends, and comparisons.
+#' GLOBAL strategies first (greedy, kde), then LOCAL (quantile, coverage, outlier).
+#'
+#' @keywords internal
+STRATEGY_PREFERRED_ORDER <- c("greedy", "kde", "quantile", "coverage", "outlier")
+
 # Strategy Color Palette (colorblind-safe) ---------------------------------
 
 #' Strategy color palette for AIDIA

@@ -26,6 +26,30 @@ extract_dppp_inputs <- function(optimization_plan, validated_data) {
   )
 }
 
+#' Compute DPPP key metrics at two operating points
+#'
+#' Calculates median DPPP and satisfaction at both current and required
+#' cycle times. Avoids redundant calculate_dppp() calls by computing
+#' each DPPP vector once.
+#'
+#' @param fwhm_sec Numeric vector of FWHM in seconds
+#' @param current_ct Current cycle time (seconds)
+#' @param required_ct Required cycle time (seconds)
+#' @param target_dppp Target DPPP threshold
+#'
+#' @return Named list with current_dppp, required_dppp, current_sat, required_sat
+#' @keywords internal
+compute_dppp_key_metrics <- function(fwhm_sec, current_ct, required_ct, target_dppp) {
+  dppp_current  <- calculate_dppp(fwhm_sec, current_ct)
+  dppp_required <- calculate_dppp(fwhm_sec, required_ct)
+  list(
+    current_dppp  = median(dppp_current, na.rm = TRUE),
+    required_dppp = median(dppp_required, na.rm = TRUE),
+    current_sat   = mean(dppp_current >= target_dppp, na.rm = TRUE) * 100,
+    required_sat  = mean(dppp_required >= target_dppp, na.rm = TRUE) * 100
+  )
+}
+
 # =============================================================================
 # Plot 1A: DPPP Distribution Comparison (Simple Version)
 # =============================================================================
@@ -216,11 +240,12 @@ plot_dppp_comparison_enhanced <- function(optimization_plan, validated_data,
     }, numeric(1))
   )
 
-  # Key point metrics
-  current_dppp <- median(calculate_dppp(fwhm_sec, current_cycle_time), na.rm = TRUE)
-  required_dppp <- median(calculate_dppp(fwhm_sec, required_cycle_time), na.rm = TRUE)
-  current_sat <- mean(calculate_dppp(fwhm_sec, current_cycle_time) >= target_dppp, na.rm = TRUE) * 100
-  required_sat <- mean(calculate_dppp(fwhm_sec, required_cycle_time) >= target_dppp, na.rm = TRUE) * 100
+  # Key point metrics (compute each DPPP vector once)
+  km <- compute_dppp_key_metrics(fwhm_sec, current_cycle_time, required_cycle_time, target_dppp)
+  current_dppp <- km$current_dppp
+  required_dppp <- km$required_dppp
+  current_sat <- km$current_sat
+  required_sat <- km$required_sat
 
   # Direction label
   ct_change <- required_cycle_time - current_cycle_time
@@ -398,22 +423,24 @@ plot_dppp_satisfaction_combined <- function(optimization_plan, validated_data,
 
   cycle_times <- seq(ct_range[1], ct_range[2], length.out = n_points)
 
-  # Pre-compute both curves
+  # Pre-compute both curves (single DPPP vector per cycle time)
+  curve_metrics <- vapply(cycle_times, function(ct) {
+    dppp <- calculate_dppp(fwhm_sec, ct)
+    c(median(dppp, na.rm = TRUE), mean(dppp >= target_dppp, na.rm = TRUE) * 100)
+  }, numeric(2))
+
   curve_data <- data.frame(
     cycle_time = cycle_times,
-    median_dppp = vapply(cycle_times, function(ct) {
-      median(calculate_dppp(fwhm_sec, ct), na.rm = TRUE)
-    }, numeric(1)),
-    satisfaction_pct = vapply(cycle_times, function(ct) {
-      mean(calculate_dppp(fwhm_sec, ct) >= target_dppp, na.rm = TRUE) * 100
-    }, numeric(1))
+    median_dppp = curve_metrics[1, ],
+    satisfaction_pct = curve_metrics[2, ]
   )
 
-  # Key metrics at operating points
-  current_dppp <- median(calculate_dppp(fwhm_sec, current_cycle_time), na.rm = TRUE)
-  required_dppp <- median(calculate_dppp(fwhm_sec, required_cycle_time), na.rm = TRUE)
-  current_sat <- mean(calculate_dppp(fwhm_sec, current_cycle_time) >= target_dppp, na.rm = TRUE) * 100
-  required_sat <- mean(calculate_dppp(fwhm_sec, required_cycle_time) >= target_dppp, na.rm = TRUE) * 100
+  # Key metrics at operating points (compute each DPPP vector once)
+  km <- compute_dppp_key_metrics(fwhm_sec, current_cycle_time, required_cycle_time, target_dppp)
+  current_dppp <- km$current_dppp
+  required_dppp <- km$required_dppp
+  current_sat <- km$current_sat
+  required_sat <- km$required_sat
 
   ct_change <- required_cycle_time - current_cycle_time
   direction <- if (ct_change < 0) "decrease" else "increase"
@@ -548,11 +575,12 @@ plot_dppp_diagnosis_table <- function(optimization_plan, validated_data) {
   current_ct <- inputs$current_cycle_time
   required_ct <- inputs$required_cycle_time
 
-  # Calculate metrics at both operating points
-  current_dppp  <- median(calculate_dppp(fwhm_sec, current_ct), na.rm = TRUE)
-  required_dppp <- median(calculate_dppp(fwhm_sec, required_ct), na.rm = TRUE)
-  current_sat   <- mean(calculate_dppp(fwhm_sec, current_ct) >= target_dppp, na.rm = TRUE) * 100
-  required_sat  <- mean(calculate_dppp(fwhm_sec, required_ct) >= target_dppp, na.rm = TRUE) * 100
+  # Calculate metrics at both operating points (compute each DPPP vector once)
+  km <- compute_dppp_key_metrics(fwhm_sec, current_ct, required_ct, target_dppp)
+  current_dppp  <- km$current_dppp
+  required_dppp <- km$required_dppp
+  current_sat   <- km$current_sat
+  required_sat  <- km$required_sat
 
   target_satisfaction <- (optimization_plan$parameters$target_satisfaction %||% 0.7) * 100
   n_precursors <- length(fwhm_sec)

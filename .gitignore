@@ -14,6 +14,7 @@ test_output/
 !R/stage3/
 *.pdf
 *.png
+!inst/shiny_app/www/*.png
 !inst/shiny_app/www/strategy_previews/*.png
 *.rds
 *.RData

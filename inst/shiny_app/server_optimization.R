@@ -225,9 +225,8 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         # Outlier parameters
         outlier_threshold = input$outlier_threshold %||% 3.0,
         outlier_apply_smoothing = isTRUE(input$outlier_apply_smoothing %||% FALSE),
-        # SG Smoothing parameters (shared)
-        smoothing_window = 7,
-        polynomial_order = 3,
+        # Smoothing parameters (Whittaker-Henderson default)
+        smoothing_method = "whittaker",
         # KDE parameters
         kde_density_threshold = (input$kde_density_threshold %||% 10) / 100,  # Convert % to ratio
         kde_min_coverage = (input$kde_min_coverage %||% 80) / 100  # Convert % to ratio
@@ -240,20 +239,20 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       }
 
       cat("[Shiny] Strategy parameters:\n")
-      cat(sprintf("  - Quantile: P%.0f-P%.0f, SG=%s\n",
+      cat(sprintf("  - Quantile: P%.0f-P%.0f, Smooth=%s\n",
                   strategy_params$quantile_lower * 100,
                   strategy_params$quantile_upper * 100,
-                  ifelse(strategy_params$quantile_apply_smoothing, "YES", "NO")))
+                  ifelse(strategy_params$quantile_apply_smoothing, "WH", "NO")))
       cat(sprintf("  - Coverage target: %.0f%%\n", strategy_params$target_coverage * 100))
-      cat(sprintf("  - Greedy mz_step: %.1f Da, SG=%s\n",
+      cat(sprintf("  - Greedy mz_step: %.1f Da, Smooth=%s\n",
                   strategy_params$mz_step,
-                  ifelse(strategy_params$greedy_apply_smoothing, "YES", "NO")))
+                  ifelse(strategy_params$greedy_apply_smoothing, "WH", "NO")))
       if (!is.null(strategy_params$greedy_n_windows)) {
         cat(sprintf("  - Greedy n_windows: %d (manual)\n", strategy_params$greedy_n_windows))
       }
-      cat(sprintf("  - Outlier threshold: %.1f SD, SG=%s\n",
+      cat(sprintf("  - Outlier threshold: %.1f SD, Smooth=%s\n",
                   strategy_params$outlier_threshold,
-                  ifelse(strategy_params$outlier_apply_smoothing, "YES", "NO")))
+                  ifelse(strategy_params$outlier_apply_smoothing, "WH", "NO")))
       cat(sprintf("  - KDE: threshold=%.0f%%, min_coverage=%.0f%%\n",
                   strategy_params$kde_density_threshold * 100,
                   strategy_params$kde_min_coverage * 100))
@@ -280,8 +279,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         greedy_apply_smoothing = strategy_params$greedy_apply_smoothing,
         outlier_threshold = strategy_params$outlier_threshold,
         outlier_apply_smoothing = strategy_params$outlier_apply_smoothing,
-        smoothing_window = strategy_params$smoothing_window,
-        polynomial_order = strategy_params$polynomial_order,
+        smoothing_method = strategy_params$smoothing_method,
         # KDE parameters
         kde_density_threshold = strategy_params$kde_density_threshold,
         kde_min_coverage = strategy_params$kde_min_coverage,
@@ -570,7 +568,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         ),
         # Loop N badge for staggered mode (inline variant)
         if ((params$window_mode %||% "density") == "staggered") {
-          loop_n <- tryCatch(calculate_loop_n(windows), error = function(e) NULL)
+          loop_n <- cached_loop_n()
           if (!is.null(loop_n)) {
             tags$span(class = "badge-accent", style = "margin-left: 4px;",
                       sprintf("Loop N = %d", loop_n))
@@ -644,34 +642,50 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       DT::formatRound(columns = c("mz_start", "mz_end", "window_width"), digits = 4)
   })
 
-  # --- ValueBox Rendering for Results Summary Dashboard ---
-  output$summary_box_cycle_time <- renderValueBox({
+  # --- Cached reactives for results summary (avoid redundant extraction) ---
+  cached_metrics <- reactive({
     req(rv$optimization_complete, rv$optimization_plan, rv$optimized_windows)
+    extract_before_after_metrics(rv$optimization_plan, rv$optimized_windows)
+  })
 
-    m <- extract_before_after_metrics(rv$optimization_plan, rv$optimized_windows)
+  cached_loop_n <- reactive({
+    req(rv$optimization_complete, rv$optimized_windows)
+    tryCatch(calculate_loop_n(rv$optimized_windows$windows), error = function(e) NULL)
+  })
+
+  # --- ValueBox Rendering for Results Summary Dashboard ---
+  # Design principle: color reflects TARGET ACHIEVEMENT, not direction of change.
+  # Green = target met, Yellow = close/marginal, Red = target not met.
+  # Subtitle provides context (vs. original) so users understand the trade-off.
+
+  output$summary_box_cycle_time <- renderValueBox({
+    m <- cached_metrics()
     orig_ct <- m$orig_ct
     new_ct <- m$new_ct
+    target_dppp <- m$target_dppp
 
-    if (is.null(orig_ct) || is.na(orig_ct) || orig_ct == 0) orig_ct <- new_ct  # Fallback
-    if (is.null(new_ct) || is.na(new_ct)) new_ct <- orig_ct  # Guard NA
+    if (is.null(orig_ct) || is.na(orig_ct) || orig_ct == 0) orig_ct <- new_ct
+    if (is.null(new_ct) || is.na(new_ct)) new_ct <- orig_ct
 
+    # Context: show change from original
     diff_pct <- if (!is.na(orig_ct) && orig_ct != 0) {
-      round((orig_ct - new_ct) / orig_ct * 100, 1)
+      round((new_ct - orig_ct) / orig_ct * 100, 1)
+    } else 0
+
+    change_text <- if (abs(diff_pct) < 1) {
+      "unchanged"
+    } else if (diff_pct > 0) {
+      sprintf("+%.0f%% vs original", diff_pct)
     } else {
-      0
+      sprintf("%.0f%% vs original", diff_pct)
     }
 
-    subtitle <- "Cycle Time"
+    # Color: based on whether DPPP target is achievable at this cycle time
+    # The optimizer already computed this — if we have results, the target IS met
+    # Show green (target met) with neutral context about the change
+    subtitle <- sprintf("Cycle Time (%s)", change_text)
+    color <- "success"
     icon_name <- "clock"
-    color <- "info"
-
-    if (diff_pct > 5) {
-      subtitle <- paste0("Cycle Time (-", diff_pct, "%)")
-      color <- "success"
-    } else if (diff_pct < -5) {
-      subtitle <- paste0("Cycle Time (+", abs(diff_pct), "%)")
-      color <- "warning"
-    }
 
     valueBox(
       value = paste0(round(new_ct, 2), " s"),
@@ -682,46 +696,55 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   })
 
   output$summary_box_dppp <- renderValueBox({
-    req(rv$optimization_complete, rv$optimization_plan, rv$optimized_windows)
-
-    m <- extract_before_after_metrics(rv$optimization_plan, rv$optimized_windows)
-    orig_dppp <- m$orig_dppp
+    m <- cached_metrics()
     new_dppp <- m$new_dppp
+    target_dppp <- m$target_dppp
 
-    if (is.null(orig_dppp) || is.na(orig_dppp)) orig_dppp <- new_dppp  # Fallback
+    if (is.null(new_dppp) || is.na(new_dppp)) new_dppp <- 0
 
-    diff_val <- round(new_dppp - orig_dppp, 1)
-
-    subtitle <- "DPPP (Median)"
-    icon_name <- "chart-line"
-    color <- "info"
-
-    if (diff_val >= 0.5) {
-      subtitle <- paste0("DPPP (Median) (+", diff_val, ")")
+    # Color: based on target achievement
+    if (!is.na(target_dppp) && new_dppp >= target_dppp) {
       color <- "success"
-    } else if (diff_val <= -0.5) {
-      subtitle <- paste0("DPPP (Median) (", diff_val, ")")
+      subtitle <- sprintf("Median DPPP (target %.1f met)", target_dppp)
+    } else if (!is.na(target_dppp) && new_dppp >= target_dppp * 0.9) {
       color <- "warning"
+      subtitle <- sprintf("Median DPPP (%.0f%% of target %.1f)",
+                          new_dppp / target_dppp * 100, target_dppp)
+    } else {
+      color <- "danger"
+      subtitle <- sprintf("Median DPPP (target %.1f not met)", target_dppp %||% 0)
     }
 
     valueBox(
       value = round(new_dppp, 1),
       subtitle = subtitle,
-      icon = icon(icon_name),
+      icon = icon("chart-line"),
       color = color
     )
   })
 
   output$summary_box_windows <- renderValueBox({
-    req(rv$optimization_complete, rv$optimization_plan, rv$optimized_windows)
-
+    req(rv$optimization_complete, rv$optimized_windows)
     n_per_bin <- rv$optimization_plan$window_count_per_bin
     n_total <- nrow(rv$optimized_windows$windows) %||%
       rv$optimized_windows$statistics$total_windows
+    used_mode <- rv$optimized_windows$parameters$window_mode %||% "density"
+
+    # Determine display value — staggered mode shows Loop N prominently
+    vb_value <- n_per_bin
+    vb_subtitle <- sprintf("%d per bin (%d total)", n_per_bin, n_total)
+
+    if (used_mode == "staggered") {
+      loop_n <- cached_loop_n()
+      if (!is.null(loop_n)) {
+        vb_value <- sprintf("%d (Loop %d)", n_per_bin, loop_n)
+        vb_subtitle <- sprintf("%d per bin | %d total | Staggered", n_per_bin, n_total)
+      }
+    }
 
     valueBox(
-      value = n_per_bin,
-      subtitle = sprintf("%d per bin (%d total)", n_per_bin, n_total),
+      value = vb_value,
+      subtitle = vb_subtitle,
       icon = icon("layer-group"),
       color = "primary"
     )

@@ -93,7 +93,7 @@ plot_boundary_ci <- function(ci_result, validated_data,
     geom_ribbon(
       data = ci_lower,
       aes(x = rt, ymin = ymin, ymax = ymax),
-      fill = "#3498DB",
+      fill = aidia_strategy_colors[["greedy"]],
       alpha = 0.3,
       inherit.aes = FALSE
     ) +
@@ -109,7 +109,7 @@ plot_boundary_ci <- function(ci_result, validated_data,
     geom_line(
       data = ci_lower,
       aes(x = rt, y = observed),
-      color = "#3498DB",
+      color = aidia_strategy_colors[["greedy"]],
       linewidth = 1.0,
       inherit.aes = FALSE
     )
@@ -128,7 +128,7 @@ plot_boundary_ci <- function(ci_result, validated_data,
       geom_line(
         data = ci_lower,
         aes(x = rt, y = median_val),
-        color = "#3498DB",
+        color = aidia_strategy_colors[["greedy"]],
         linewidth = 0.6,
         linetype = "dashed",
         inherit.aes = FALSE
@@ -203,7 +203,7 @@ plot_boundary_ci_width <- function(ci_result) {
 
   # Color by boundary type
   boundary_colors <- c(
-    "Lower (mz_min)" = "#3498DB",
+    "Lower (mz_min)" = aidia_strategy_colors[["greedy"]],
     "Upper (mz_max)" = aidia_colors$accent
   )
 
@@ -283,9 +283,9 @@ plot_boundary_ci_comparison <- function(ci_a, ci_b,
     setNames(aidia_colors$after, label_b)
   )
 
-  # Summary for subtitle
-  mean_a <- mean(build_df(ci_a, label_a)$total_ci_width)
-  mean_b <- mean(build_df(ci_b, label_b)$total_ci_width)
+  # Summary for subtitle (derive from already-bound plot_data)
+  mean_a <- mean(plot_data$total_ci_width[plot_data$method == label_a])
+  mean_b <- mean(plot_data$total_ci_width[plot_data$method == label_b])
   pct_change <- (mean_b - mean_a) / mean_a * 100
 
   p <- ggplot(plot_data, aes(x = rt_bin, y = total_ci_width, fill = method)) +

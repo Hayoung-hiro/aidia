@@ -59,12 +59,10 @@ plot_satisfaction_curve <- function(optimization_plan, validated_data,
     })
   )
 
-  # Calculate current and recommended satisfaction
-  dppp_current <- calculate_dppp(fwhm_sec, current_cycle_time)
-  current_satisfaction_pct <- mean(dppp_current >= target_dppp, na.rm = TRUE) * 100
-
-  dppp_recommended <- calculate_dppp(fwhm_sec, required_cycle_time)
-  recommended_satisfaction_pct <- mean(dppp_recommended >= target_dppp, na.rm = TRUE) * 100
+  # Calculate current and recommended satisfaction (reuse shared helper)
+  km <- compute_dppp_key_metrics(fwhm_sec, current_cycle_time, required_cycle_time, target_dppp)
+  current_satisfaction_pct <- km$current_sat
+  recommended_satisfaction_pct <- km$required_sat
 
   # Create plot — clean S-curve with minimal crosshair annotation
   p <- ggplot(satisfaction_data, aes(x = cycle_time, y = satisfaction_pct)) +

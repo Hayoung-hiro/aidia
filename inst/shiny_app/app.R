@@ -60,18 +60,25 @@ ui <- dashboardPage(
 
   # --- Header ---
   header = dashboardHeader(
-    title = "AIDIA"
+    title = tags$span(
+      tags$img(src = "logo_header.png", height = "28px",
+               style = "margin-right: 8px; vertical-align: middle;"),
+      "AIDIA",
+      style = "display: inline-flex; align-items: center;"
+    )
   ),
 
   # --- Sidebar (Navigation + Data Summary + Cycle Time + Pipeline Status) ---
   sidebar = dashboardSidebar(
     width = 250,
 
-    # Logo placeholder (future: tags$img(src = "logo.png"))
+    # Sidebar logo
     div(
-      id = "logo_placeholder",
-      style = "text-align: center; padding: 10px 15px 5px 15px;",
-      span("AIDIA", class = "text-accent", style = "font-size: 18px; font-weight: 700; letter-spacing: 1px;")
+      style = "text-align: center; padding: 12px 15px 4px 15px;",
+      div(
+        class = "sidebar-logo",
+        tags$img(src = "logo_sidebar.png", width = "150px", alt = "AIDIA")
+      )
     ),
 
     # Wizard step navigation
@@ -233,6 +240,9 @@ server <- function(input, output, session) {
   # =========================================================================
   # NAVIGATION HANDLERS (Wizard Step Control)
   # =========================================================================
+
+  # Client-side scroll-to-top on any tab change (single handler, no server round-trips)
+  shinyjs::runjs("$(document).on('shown.bs.tab', function() { window.scrollTo(0, 0); });")
 
   # Step 1 -> Step 2
   observeEvent(input$btn_to_setup, {

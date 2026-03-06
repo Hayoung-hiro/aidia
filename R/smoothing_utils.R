@@ -11,6 +11,37 @@
 # prospectr availability is checked at runtime inside smooth_savgol()
 
 # =============================================================================
+# Linear Extrapolation Helper (for SG boundary handling)
+# =============================================================================
+
+#' Linear extrapolation to extend data at boundaries
+#'
+#' Extends data by `n_extend` points on each side using linear extrapolation
+#' from the first/last 2 points. This prevents SG boundary artifacts by
+#' providing the smoother with sufficient context at edges.
+#'
+#' Reference: Schmid et al. (2022) ACS Meas. Sci. Au, 2(2), 185-196
+#'
+#' @param y Numeric vector
+#' @param n_extend Number of points to extend on each side
+#' @return Extended numeric vector of length `length(y) + 2 * n_extend`
+#' @keywords internal
+extrapolate_linear <- function(y, n_extend) {
+  n <- length(y)
+  if (n < 2 || n_extend < 1) return(y)
+
+  # Left extrapolation: slope from first 2 points
+  slope_left <- y[2] - y[1]
+  left_ext <- y[1] - slope_left * (n_extend:1)
+
+  # Right extrapolation: slope from last 2 points
+  slope_right <- y[n] - y[n - 1]
+  right_ext <- y[n] + slope_right * (1:n_extend)
+
+  c(left_ext, y, right_ext)
+}
+
+# =============================================================================
 # Core Smoothing Function (Savitzky-Golay only)
 # =============================================================================
 
@@ -47,13 +78,19 @@ smooth_savgol <- function(y_array, window_size = 7, poly_order = 3) {
     return(smooth_moving_average(y_array, window_size))
   }
 
-  # Use prospectr Savitzky-Golay filter
+  # Use prospectr Savitzky-Golay filter with linear extrapolation at boundaries
+  # (Schmid et al. 2022, ACS Meas. Sci. Au): extend data with linear extrapolation
+  # before smoothing, then trim — avoids boundary artifacts from raw value retention
   tryCatch({
+    half_window <- (window_size - 1) / 2
+
+    # Linear extrapolation at boundaries to avoid edge artifacts
+    y_extended <- extrapolate_linear(y_array, half_window)
+
     # Convert to matrix for prospectr (expects matrix input)
-    y_matrix <- matrix(y_array, nrow = 1)
+    y_matrix <- matrix(y_extended, nrow = 1)
 
     # Apply Savitzky-Golay filter using prospectr
-    # NOTE: prospectr returns shorter vector (removes boundary points)
     smoothed_matrix <- prospectr::savitzkyGolay(
       X = y_matrix,
       m = 0,              # 0th derivative (smoothing)
@@ -61,32 +98,29 @@ smooth_savgol <- function(y_array, window_size = 7, poly_order = 3) {
       w = window_size     # window size
     )
 
-    # Convert back to vector
+    # Convert back to vector — prospectr removes half_window from each end
     smoothed <- as.vector(smoothed_matrix)
 
-    # Handle boundary truncation by prospectr
-    # Following dynamicDIA.py approach: keep original values at boundaries
-    # prospectr removes (window_size - 1) / 2 points from each end
-    if (length(smoothed) < original_length) {
-      half_window <- (window_size - 1) / 2
-
-      # Create result vector
+    # After extending by half_window on each side and prospectr trimming half_window,
+    # the result should be original_length. Handle any remaining mismatch.
+    if (length(smoothed) == original_length) {
+      return(smoothed)
+    } else if (length(smoothed) > original_length) {
+      # Trim excess symmetrically
+      excess <- length(smoothed) - original_length
+      start <- floor(excess / 2) + 1
+      return(smoothed[start:(start + original_length - 1)])
+    } else {
+      # Shorter than expected — pad with original boundary values
       result <- numeric(original_length)
-
-      # Keep original values at boundaries (dynamicDIA method)
-      # This is scientifically correct: boundaries lack sufficient neighboring points
-      # for reliable smoothing, so we preserve the actual measured values
-      result[1:half_window] <- y_array[1:half_window]
-      result[(original_length - half_window + 1):original_length] <-
-        y_array[(original_length - half_window + 1):original_length]
-
-      # Fill middle section with smoothed values
-      result[(half_window + 1):(original_length - half_window)] <- smoothed
-
+      pad <- original_length - length(smoothed)
+      pad_left <- floor(pad / 2)
+      result[1:pad_left] <- y_array[1:pad_left]
+      result[(pad_left + 1):(pad_left + length(smoothed))] <- smoothed
+      result[(pad_left + length(smoothed) + 1):original_length] <-
+        y_array[(pad_left + length(smoothed) + 1):original_length]
       return(result)
     }
-
-    return(smoothed)
   }, error = function(e) {
     # If prospectr fails, use moving average fallback
     warning(sprintf("Savitzky-Golay failed: %s. Using moving average.", e$message))
@@ -120,6 +154,11 @@ smooth_savgol <- function(y_array, window_size = 7, poly_order = 3) {
 smooth_whittaker <- function(y, weights = NULL, lambda = 10, d = 2) {
   n <- length(y)
   if (n < 3) return(y)
+  if (n > 500) {
+    warning("Whittaker smoother uses dense O(n^3) solver; n=", n,
+            " is too large. Returning original values.")
+    return(y)
+  }
 
   if (is.null(weights)) {
     weights <- rep(1, n)

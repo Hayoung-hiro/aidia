@@ -80,11 +80,7 @@ plot_heatmap_with_windows <- function(optimized_windows, validated_data, bins = 
   n_rt_bins <- length(unique(windows$rt_segment_id))
 
   # Calculate window widths for subtitle
-  if ("window_width" %in% names(windows)) {
-    widths <- windows$window_width
-  } else {
-    widths <- windows$mz_end - windows$mz_start
-  }
+  widths <- get_window_widths(windows)
 
   p <- ggplot() +
     # Layer 1: Precursor density heatmap

@@ -328,36 +328,39 @@ select_median_rt_segment <- function(windows) {
 }
 
 
-#' Select the RT Segment with Most Precursors
+#' Get Window Widths from Windows Data Frame
 #'
-#' Finds the RT bin containing the highest number of precursors.
-#' Used to select a representative dense bin for close-up window visualizations.
+#' Extracts window widths, using the pre-computed `window_width` column
+#' if available, otherwise computing from `mz_end - mz_start`.
 #'
-#' @param optimized_windows OptimizedWindows object
-#' @param validated_data ValidatedData object
+#' @param windows Data frame with window boundaries
 #'
-#' @return Integer RT segment ID
+#' @return Numeric vector of window widths
 #' @keywords internal
-select_densest_rt_segment <- function(optimized_windows, validated_data) {
-  windows <- optimized_windows$windows
-  precursor_data <- validated_data$data
+get_window_widths <- function(windows) {
+  if ("window_width" %in% names(windows)) {
+    windows$window_width
+  } else if ("mz_width" %in% names(windows)) {
+    windows$mz_width
+  } else {
+    windows$mz_end - windows$mz_start
+  }
+}
 
-  # Get RT boundaries per segment
-  rt_bins <- windows %>%
-    dplyr::group_by(rt_segment_id) %>%
-    dplyr::summarize(
-      rt_start = min(rt_start),
-      rt_end = max(rt_end),
-      .groups = "drop"
-    )
 
-  # Count precursors per bin
-  counts <- vapply(seq_len(nrow(rt_bins)), function(i) {
-    sum(precursor_data$RT.Apex >= rt_bins$rt_start[i] &
-        precursor_data$RT.Apex < rt_bins$rt_end[i])
-  }, integer(1))
-
-  rt_bins$rt_segment_id[which.max(counts)]
+#' Order Strategy Names in Canonical Display Order
+#'
+#' Returns strategy names sorted by the canonical AIDIA order
+#' (GLOBAL first, then LOCAL), preserving any unknown strategies at the end.
+#'
+#' @param strategy_names Character vector of strategy names
+#'
+#' @return Character vector in canonical order
+#' @keywords internal
+order_strategies <- function(strategy_names) {
+  available <- intersect(STRATEGY_PREFERRED_ORDER, unique(strategy_names))
+  extra <- setdiff(unique(strategy_names), STRATEGY_PREFERRED_ORDER)
+  c(available, extra)
 }
 
 
@@ -503,17 +506,10 @@ format_output_filename <- function(type,
 #'   coverage_pct, and mean_width
 #' @keywords internal
 extract_before_after_metrics <- function(optimization_plan, optimized_windows) {
-  # Window width: prefer window_width, fallback to mz_width, then compute
+  # Window width: use shared helper (handles window_width -> mz_width -> compute)
   windows <- optimized_windows$windows
-  if ("window_width" %in% names(windows)) {
-    mean_width <- mean(windows$window_width, na.rm = TRUE)
-  } else if ("mz_width" %in% names(windows)) {
-    mean_width <- mean(windows$mz_width, na.rm = TRUE)
-  } else if (all(c("mz_start", "mz_end") %in% names(windows))) {
-    mean_width <- mean(windows$mz_end - windows$mz_start, na.rm = TRUE)
-  } else {
-    mean_width <- NA_real_
-  }
+  widths <- get_window_widths(windows)
+  mean_width <- if (length(widths) > 0) mean(widths, na.rm = TRUE) else NA_real_
 
   # Coverage: try percentage first, then ratio
 

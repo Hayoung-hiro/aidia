@@ -236,19 +236,21 @@ server_instrument <- function(input, output, session, rv) {
 
     # Determine if this is a reasonable range (typical precursor spread is 400-1200 m/z)
     range_status <- if (mz_range < 100) {
-      list(icon = "!", msg = "Very narrow - may miss many precursors")
+      list(icon = "exclamation-triangle", msg = "Very narrow - may miss many precursors",
+           box_class = "range-danger", text_class = "text-semantic-danger")
     } else if (mz_range < 200) {
-      list(icon = "~", msg = "Narrow range - check coverage")
+      list(icon = "exclamation-circle", msg = "Narrow range - check coverage",
+           box_class = "range-warning", text_class = "text-semantic-warning")
     } else if (mz_range > 600) {
-      list(icon = "o", msg = "Wide range - good coverage expected")
+      list(icon = "check-circle", msg = "Wide range - good coverage expected",
+           box_class = "", text_class = "text-semantic-info")
     } else {
-      list(icon = "v", msg = "Typical range for DIA")
+      list(icon = "check-circle", msg = "Typical range for DIA",
+           box_class = "", text_class = "text-semantic-success")
     }
 
-    status_class <- if (mz_range < 100) "text-semantic-danger" else if (mz_range < 200) "text-semantic-warning" else "text-semantic-success"
-
     tags$div(
-      class = "mz-range-display",
+      class = paste("mz-range-display", range_status$box_class),
 
       # Main value
       tags$div(
@@ -283,9 +285,9 @@ server_instrument <- function(input, output, session, rv) {
 
       # Status indicator
       tags$div(
-        class = status_class,
+        class = range_status$text_class,
         style = "margin-top: 6px; font-size: 11px;",
-        sprintf("%s %s", range_status$icon, range_status$msg)
+        icon(range_status$icon), " ", range_status$msg
       )
     )
   })

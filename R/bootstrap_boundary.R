@@ -66,7 +66,7 @@ bootstrap_boundary_ci <- function(validated_data,
   }
 
   # Use override if provided, otherwise default
- if (!is.null(rt_bin_width_min_override)) {
+  if (!is.null(rt_bin_width_min_override)) {
     rt_bin_width_min <- rt_bin_width_min_override
   }
 
@@ -84,8 +84,6 @@ bootstrap_boundary_ci <- function(validated_data,
   # Step 1: Prepare RT bins and observed boundaries
   # =========================================================================
   precursor_data <- validated_data$data
-  rt_range <- range(precursor_data$RT.Apex)
-  gradient_length <- rt_range[2] - rt_range[1]
 
   # Create RT bins
   rt_result <- perform_rt_binning_internal(

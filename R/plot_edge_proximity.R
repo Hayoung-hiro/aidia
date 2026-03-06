@@ -99,11 +99,7 @@ plot_edge_proximity <- function(optimized_windows, validated_data) {
   }
 
   # Calculate mean window width for adaptive threshold
-  if ("window_width" %in% names(windows)) {
-    mean_width <- mean(windows$window_width, na.rm = TRUE)
-  } else {
-    mean_width <- mean(windows$mz_end - windows$mz_start, na.rm = TRUE)
-  }
+  mean_width <- mean(get_window_widths(windows), na.rm = TRUE)
   half_width <- mean_width / 2
 
   # Normalize to relative position: 0 = boundary, 1 = center

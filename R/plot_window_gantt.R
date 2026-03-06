@@ -85,11 +85,7 @@ plot_faceted_window_density <- function(optimized_windows,
 
   # Summary stats
   n_windows <- nrow(optimized_windows$windows)
-  if ("window_width" %in% names(windows)) {
-    widths <- windows$window_width
-  } else {
-    widths <- windows$mz_end - windows$mz_start
-  }
+  widths <- get_window_widths(windows)
 
   # Window band colors: alternate for visual separation
   window_colors <- rep(c(aidia_colors$accent, aidia_colors$success),

@@ -222,6 +222,83 @@ Similarly, use `ensure_fwhm_seconds()` for FWHM unit conversion and
 
 ---
 
+## Boundary Smoothing Design (SG vs WH vs Modified Sinc)
+
+### Context
+
+m/z window boundaries across RT bins can exhibit abrupt jumps due to per-bin
+optimization noise. Post-hoc smoothing of these boundaries produces physically
+sensible window transitions. AIDIA supports two smoothing methods: Savitzky-Golay
+(SG) and Whittaker-Henderson (WH).
+
+### References
+
+1. Schmid, M.; Rath, D.; Diebold, U. "Why and How Savitzky-Golay Filters Should
+   Be Replaced". *ACS Measurement Science Au*, 2022, 2(2), 185-196.
+   DOI: [10.1021/acsmeasuresciau.1c00054](https://pubs.acs.org/doi/10.1021/acsmeasuresciau.1c00054)
+   — Proposes SGW (windowed SG) and Modified Sinc kernels as improved FIR
+   alternatives; WH as comparison baseline for boundary handling.
+
+2. Eilers, P.H.C. "A Perfect Smoother". *Analytical Chemistry*, 2003, 75(14),
+   3631-3636. DOI: 10.1021/ac034173t
+   — Foundation for Whittaker-Henderson penalized smoothing used in AIDIA.
+
+### Paper's Key Contributions
+
+1. **SGW (Savitzky-Golay with Window)**: Apply a tapering window function
+   (e.g., Hann-square) to SG fitting weights → smooth kernel edges → better
+   stopband attenuation (high-frequency noise rejection)
+
+2. **Modified Sinc Kernel**: Truncated sinc with Gaussian window + moment
+   correction for flat passband → near-ideal low-pass filter as FIR kernel
+
+3. **Boundary handling**: Linear extrapolation before smoothing, trim after
+   → avoids edge artifacts (vs. our current approach of keeping raw values)
+
+4. **WH role in paper**: Comparison alternative only — authors recommend
+   Modified Sinc + extrapolation over WH for general spectroscopic data
+
+### Why AIDIA Uses WH as Default (Justified Deviation)
+
+The paper targets spectroscopic signals with **thousands of data points** where
+frequency-domain behavior matters. AIDIA smooths m/z boundaries across
+**10-50 RT bins** — a fundamentally different regime:
+
+| Aspect | Paper's Context | AIDIA's Context |
+|--------|----------------|-----------------|
+| Data length | 1000s of points | 10-50 RT bins |
+| Signal type | Spectroscopic peaks | m/z boundary positions |
+| Key need | Frequency selectivity | Weighted fidelity |
+| WH cost (O(n³)) | Prohibitive | Negligible (n≤50) |
+
+**WH advantages for our use case**:
+- **Per-point weights**: `sqrt(n_precursors)` — bins with more data are trusted
+  more, sparse bins are smoothed toward neighbors. SG/FIR methods lack this.
+- **Global optimization**: No boundary artifacts by design (WH solves over all
+  points simultaneously). No need for extrapolation tricks.
+- **Lambda=10 with d=2**: Second-order difference penalty (smoothness), moderate
+  strength. Appropriate for 10-50 point sequences.
+
+### Lambda Selection Rationale
+
+- **Fixed lambda=10**: Works well for typical 15-30 bin scenarios. The penalty
+  balances data fidelity vs smoothness appropriately at this scale.
+- **Configurable via `strategy_config`**: `whittaker_lambda` parameter exists
+  in `greedy_config()`, `quantile_config()`, `outlier_config()` for programmatic
+  users. Not exposed in Shiny UI (Expert panel could add it if needed).
+- **Auto-tuning (GCV/AIC)**: Not implemented. For n=10-50, the improvement over
+  fixed lambda=10 is marginal and adds complexity. Could be reconsidered if
+  AIDIA scales to finer RT binning (100+ bins).
+
+### SG Boundary Fix (DONE)
+
+`smooth_savgol()` in `smoothing_utils.R` now uses `extrapolate_linear()` to
+extend data by `half_window` points on each side before applying SG, then trims
+the result back to original length. This replaces the naive approach of keeping
+raw boundary values, eliminating edge artifacts per Schmid et al. (2022).
+
+---
+
 ## Frontend Design System — Shiny UI (bs4Dash)
 
 ### Overview

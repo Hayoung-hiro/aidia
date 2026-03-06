@@ -215,13 +215,13 @@ step2_setup_ui <- function() {
 
           hr(style = "margin: 10px 0; border-color: var(--border-subtle);"),
 
-          # Post-Smoothing (following dynamicDIA.py)
+          # Post-Smoothing
           checkboxInput(
             inputId = "greedy_apply_smoothing",
-            label = "Apply Savitzky-Golay Smoothing",
+            label = "Apply Boundary Smoothing (Whittaker-Henderson)",
             value = TRUE
           ),
-          helpText("Smooths m/z boundaries across RT bins to prevent abrupt jumps (dynamicDIA method).",
+          helpText("Smooths m/z boundaries across RT bins to prevent abrupt jumps. Uses weighted Whittaker-Henderson smoother.",
                    style = "font-size: 10px;")
         )
       ),
@@ -243,10 +243,10 @@ step2_setup_ui <- function() {
           ),
           checkboxInput(
             inputId = "quantile_apply_smoothing",
-            label = "Apply SG Smoothing (smooth m/z boundaries across RT)",
+            label = "Apply Boundary Smoothing (Whittaker-Henderson)",
             value = FALSE
           ),
-          helpText("P5-P95 covers 90% of precursors. SG smoothing prevents abrupt m/z jumps.",
+          helpText("P5-P95 covers 90% of precursors. WH smoothing prevents abrupt m/z jumps.",
                    style = "font-size: 10px;")
         )
       ),
@@ -278,10 +278,10 @@ step2_setup_ui <- function() {
           ),
           checkboxInput(
             inputId = "outlier_apply_smoothing",
-            label = "Apply SG Smoothing (smooth m/z boundaries across RT)",
+            label = "Apply Boundary Smoothing (Whittaker-Henderson)",
             value = FALSE
           ),
-          helpText("Mean +/- NxSD range. SG smoothing prevents abrupt m/z jumps.",
+          helpText("Mean +/- NxSD range. WH smoothing prevents abrupt m/z jumps.",
                    style = "font-size: 10px;")
         )
       ),
