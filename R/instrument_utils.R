@@ -137,9 +137,11 @@ MINIMUM_OVERHEAD_MS <- 5.0
 #' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' calculate_scan_overhead(64)   # For 30K resolution: returns ~12.8 ms
 #' calculate_scan_overhead(32)   # For 15K resolution: returns ~6.4 ms
 #' calculate_scan_overhead(16)   # For 7.5K resolution: returns 5 ms (minimum)
+#' }
 calculate_scan_overhead <- function(transient_time_ms,
                                      overhead_factor = DEFAULT_OVERHEAD_FACTOR,
                                      min_overhead_ms = MINIMUM_OVERHEAD_MS) {
@@ -163,8 +165,10 @@ calculate_scan_overhead <- function(transient_time_ms,
 #' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' calculate_max_injection_time(64)  # 30K: ~64 - 12.8 = ~51 ms
 #' calculate_max_injection_time(32)  # 15K: ~32 - 6.4 = ~25.6 ms
+#' }
 calculate_max_injection_time <- function(transient_time_ms,
                                           overhead_ms = NULL,
                                           safety_margin = 0.95) {
@@ -222,21 +226,11 @@ calculate_max_injection_time <- function(transient_time_ms,
 #' @keywords internal
 #'
 #' @examples
-#' # 30K resolution with 50ms IT (Resolution-Limited)
-#' calculate_ms2_scan_time(30000, 50)
-#' # t_scan = max(64, 50) + 12.8 = 76.8 ms
-#'
-#' # 30K resolution with 80ms IT (Sensitivity-Limited)
-#' calculate_ms2_scan_time(30000, 80)
-#' # t_scan = max(64, 80) + 12.8 = 92.8 ms
-#'
-#' # 15K resolution with 30ms IT
-#' calculate_ms2_scan_time(15000, 30)
-#' # t_scan = max(32, 30) + 6.4 = 38.4 ms
-#'
-#' # Astral analyzer (fixed detection time)
-#' calculate_ms2_scan_time(80000, 3.0, analyzer = "astral")
-#' # t_scan = max(2.5, 3.0) + 2.0 = 5.0 ms -> 200 Hz
+#' \dontrun{
+#' calculate_ms2_scan_time(30000, 50)   # 30K, 50ms IT -> 76.8 ms
+#' calculate_ms2_scan_time(30000, 80)   # 30K, 80ms IT -> 92.8 ms
+#' calculate_ms2_scan_time(80000, 3.0, analyzer = "astral")  # Astral
+#' }
 calculate_ms2_scan_time <- function(resolution = 30000,
                                      injection_time_ms,
                                      overhead_ms = NULL,
@@ -463,10 +457,12 @@ calculate_ms2_scan_time <- function(resolution = 30000,
 #' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' get_transient_time(30000, "orbitrap")  # Returns 64 ms
 #' get_transient_time(15000, "orbitrap")  # Returns 32 ms
 #' get_transient_time(80000, "astral")    # Returns 2.5 ms (fixed)
 #' get_transient_time(30000, "tof")       # Returns NA
+#' }
 get_transient_time <- function(resolution, analyzer = "orbitrap") {
 
  # Astral analyzer (Multi-Reflection TOF)
@@ -531,8 +527,10 @@ get_transient_time <- function(resolution, analyzer = "orbitrap") {
 #' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' configs <- load_instruments_config()
 #' names(configs)  # List available instruments
+#' }
 load_instruments_config <- function() {
   # Package-aware path resolution
   json_path <- system.file("config", "instruments.json", package = "aidia")
@@ -581,8 +579,10 @@ load_instruments_config <- function() {
 #' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' config <- get_instrument_config("fusion_lumos")
 #' config$max_scan_rate
+#' }
 get_instrument_config <- function(preset_name) {
   configs <- load_instruments_config()
 
@@ -653,7 +653,9 @@ is_astral_instrument <- function(preset_name) {
 #' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' list_available_instruments()
+#' }
 list_available_instruments <- function() {
   configs <- load_instruments_config()
 
@@ -677,7 +679,9 @@ list_available_instruments <- function() {
 #' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' print_instrument_info("fusion_lumos")
+#' }
 print_instrument_info <- function(preset_name) {
   config <- get_instrument_config(preset_name)
 
@@ -850,8 +854,10 @@ validate_instrument_config <- function(config, preset_name = "unknown") {
 #' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' # Fusion Lumos with 80% load factor
 #' calculate_effective_scan_rate(20, 0.8)  # Returns 16 Hz
+#' }
 calculate_effective_scan_rate <- function(max_scan_rate_hz, load_factor = 0.8) {
 
   # Validate inputs
@@ -891,14 +897,10 @@ calculate_effective_scan_rate <- function(max_scan_rate_hz, load_factor = 0.8) {
 #'   - Returns the value unchanged
 #'
 #' @examples
-#' # Auto mode at 30K resolution -> 64 ms (T_transient)
-#' resolve_injection_time("auto", 30000, "orbitrap")
-#'
-#' # Auto mode at 7.5K resolution -> 16 ms
-#' resolve_injection_time("auto", 7500, "orbitrap")
-#'
-#' # Explicit IT value -> returned unchanged
-#' resolve_injection_time(50, 30000, "orbitrap")  # Returns 50
+#' \dontrun{
+#' resolve_injection_time("auto", 30000, "orbitrap")  # 64 ms
+#' resolve_injection_time(50, 30000, "orbitrap")       # Returns 50
+#' }
 resolve_injection_time <- function(ms2_time, resolution = NULL, analyzer_type = "orbitrap") {
 
   # Case 1: Numeric value - return as-is

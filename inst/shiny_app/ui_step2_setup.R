@@ -103,6 +103,16 @@ step2_setup_ui <- function() {
         )
       ),
 
+      # --- Strategy & Window Mode Preview Images ---
+      fluidRow(
+        column(6,
+          uiOutput("strategy_preview_img")
+        ),
+        column(6,
+          uiOutput("window_mode_preview_img")
+        )
+      ),
+
       # --- Window Mode descriptions (conditionalPanel per mode) ---
       conditionalPanel(
         condition = "input.window_mode == 'density'",

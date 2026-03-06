@@ -88,7 +88,8 @@ plot_fwhm_distribution <- function(validated_data, optimization_plan = NULL) {
       color = aidia_colors$accent
     ) +
     scale_x_continuous(
-      breaks = seq(0, max(fwhm_sec, na.rm = TRUE) + 5, by = 5),
+      limits = c(0, ceiling(quantile(fwhm_sec, 0.99, na.rm = TRUE) * 1.3)),
+      breaks = scales::breaks_pretty(n = 8),
       labels = function(x) sprintf("%.0fs", x)
     ) +
     labs(

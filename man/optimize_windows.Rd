@@ -38,7 +38,9 @@ optimize_windows(
   cpd_significance_level = 0.05,
   edge_void_buffer_min = 0.5,
   edge_wash_min_precursors = 30,
-  width_grid_step = 0.5
+  width_grid_step = 0.5,
+  smoothing_method = "whittaker",
+  whittaker_lambda = 10
 )
 }
 \arguments{

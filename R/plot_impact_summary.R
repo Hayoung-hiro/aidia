@@ -44,7 +44,7 @@ create_before_after_bar <- function(before_value, after_value, title, y_label,
   df <- data.frame(
     state = factor(c("Before", "After"), levels = c("Before", "After")),
     value = c(before_value, after_value),
-    color = c("#BDC3C7", "#27AE60")  # Gray, Green
+    color = c(aidia_colors$before_muted, aidia_colors$success)
   )
 
   # Auto-calculate y-limits if not provided
@@ -119,9 +119,12 @@ create_metrics_table <- function(optimized_windows, validated_data) {
     }
   }
 
-  # Default coverage to 0 if still NA
-  if (is.null(coverage) || length(coverage) == 0 || is.na(coverage)) {
-    coverage <- 0
+  # Format coverage: show "N/A" instead of silent 0%
+  coverage_display <- if (is.null(coverage) || length(coverage) == 0 ||
+                          is.na(coverage) || coverage == 0) {
+    "N/A"
+  } else {
+    sprintf("%.1f%%", coverage * 100)
   }
 
   # Format text
@@ -131,11 +134,11 @@ create_metrics_table <- function(optimized_windows, validated_data) {
     sprintf("Precursors:  %s", format(n_precursors, big.mark = ",")),
     sprintf("RT Bins:     %d", n_rt_bins),
     sprintf("Mean Width:  %.1f Da", mean_width),
-    if (!is.na(coverage)) sprintf("Coverage:    %.1f%%", coverage * 100) else NULL
+    sprintf("Coverage:    %s", coverage_display)
   )
 
-  # Remove NULL entries
-  text_lines <- text_lines[!sapply(text_lines, is.null)]
+  # Remove NULL entries (defensive)
+  text_lines <- text_lines[!vapply(text_lines, is.null, logical(1))]
 
   # Create data frame for plotting
   df <- data.frame(
@@ -155,7 +158,7 @@ create_metrics_table <- function(optimized_windows, validated_data) {
         hjust = 0.5,
         face = "bold",
         size = 12,
-        color = "#2C3E50",
+        color = aidia_colors$primary,
         margin = margin(b = 10)
       ),
       plot.background = element_rect(fill = "white", color = "gray80", linewidth = 0.5),
@@ -231,7 +234,7 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
     geom_hline(
       yintercept = target_satisfaction * 100,
       linetype = "dashed",
-      color = "#E74C3C",
+      color = aidia_colors$accent,
       linewidth = 0.8
     ) +
     annotate(
@@ -242,7 +245,7 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
       vjust = -0.5,
       size = 3.5,
       fontface = "bold",
-      color = "#E74C3C"
+      color = aidia_colors$accent
     )
 
   # Panel 3: Optimized Window Count (no "before" — original method is unknown)
@@ -276,7 +279,7 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
 
   # Assemble composite plot
   title_grob <- grid::textGrob(
-    "AIDIA Optimization Impact Summary",
+    "AIDIA Configuration Summary",
     gp = grid::gpar(fontsize = 16, fontface = "bold")
   )
 

@@ -105,7 +105,7 @@ Stage 4: Visualization (Plots Only)
   Output: Plots + PDF report
   Main:   generate_visualizations()
   File:   R/visualization.R (orchestrator)
-          R/plot_*.R (13 modular plot files)
+          R/plot_*.R (15 modular plot files)
 ```
 
 **Design Principle**: Stage 3 handles all data export. Stage 4 is visualization-only.
@@ -120,6 +120,8 @@ Extracted from the original monolithic `utils_common.R`:
 | `R/precursor_matching.R` | `count_precursors_in_windows()`, `count_precursors_in_2d_windows()` |
 | `R/validation_helpers.R` | `validate_input_type()`, `validate_numeric_range()`, `validate_positive_integer()` |
 | `R/strategy_config.R` | `greedy_config()`, `quantile_config()`, `coverage_config()`, `outlier_config()`, `kde_config()` |
+| `R/smoothing_utils.R` | `smooth_whittaker()`, `smooth_savgol()`, `smooth_boundaries()` (dispatcher) |
+| `R/bootstrap_boundary.R` | `bootstrap_boundary_ci()`, `compute_mz_boundaries_quiet()` |
 | `R/utils_common.R` | Progress/UI helpers, stats, data access, timing, output filenames, gradient heuristics |
 
 ### Shared API Layer
@@ -161,6 +163,8 @@ inst/shiny_app/
 
 Key design: `server_instrument()` returns the `cycle_time_result` reactive, which `server_data()` and `server_optimization()` receive as a parameter. No Shiny `NS()` namespacing — all `conditionalPanel` JS conditions preserved as-is.
 
+**Strategy/Mode Previews**: Step 2 displays pre-generated schematic PNGs from `inst/shiny_app/www/strategy_previews/` when users select a strategy or window mode. Images are rendered via `renderUI` in `server_optimization.R`. KDE/Coverage selections include a collapsible bimodal comparison panel. Generate previews: `source("tests/manual/generate_schematic_previews.R")`.
+
 ---
 
 ## Key Technical Details
@@ -200,19 +204,30 @@ Constructors: `greedy_config()`, `quantile_config()`, `coverage_config()`, `outl
 ### m/z Optimization Strategies (5 total)
 
 **GLOBAL Strategies** (gradient-wide optimization):
-| Strategy | Algorithm | SG Smoothing | Best For |
+| Strategy | Algorithm | Smoothing | Best For |
 |----------|-----------|:---:|----------|
-| **greedy** | MacCoss Lab sliding window | Optional (default ON) | General purpose, recommended |
+| **greedy** | MacCoss Lab sliding window | WH (default ON) | General purpose, recommended |
 | **kde** | Kernel Density Estimation | N/A | Peak-focused regions |
 
 **LOCAL Strategies** (per-RT-bin, independent):
-| Strategy | Algorithm | SG Smoothing | Best For |
+| Strategy | Algorithm | Smoothing | Best For |
 |----------|-----------|:---:|----------|
-| **quantile** | P5-P95 percentiles | Optional (default OFF) | Fast, robust |
+| **quantile** | P5-P95 percentiles | WH (default OFF) | Fast, robust |
 | **coverage** | Minimum range for target % | N/A | Discovery, comprehensive |
-| **outlier** | Mean +/- 3 sigma | Optional (default OFF) | High-throughput, inclusive |
+| **outlier** | Mean +/- 3 sigma | WH (default OFF) | High-throughput, inclusive |
 
-SG smoothing is a post-processing option (`*_apply_smoothing` parameters), not a standalone strategy.
+Boundary smoothing uses Whittaker-Henderson (WH) by default with per-point `sqrt(n_precursors)` weights. Savitzky-Golay (SG) available via `smoothing_method = "sg"`. Smoothing is a post-processing option (`*_apply_smoothing` parameters), not a standalone strategy.
+
+### Bootstrap Boundary CI
+
+`bootstrap_boundary_ci()` estimates m/z boundary uncertainty via stratified bootstrap resampling. Precursors are resampled with replacement within each RT bin, and boundaries are recalculated N times to produce percentile-based CIs.
+
+```r
+ci <- bootstrap_boundary_ci(validated, plan, strategy_config = greedy_config(), n_boot = 200)
+plot_boundary_ci(ci, validated)           # density heatmap + CI ribbons
+plot_boundary_ci_width(ci)                # per-bin CI bar chart
+plot_boundary_ci_comparison(ci_a, ci_b)   # compare two methods
+```
 
 ### Window Modes (3 total)
 
@@ -300,6 +315,15 @@ optimize_mz_ranges_newstrategy_internal <- function(data, rt_bins, ...) {
 
 ---
 
+## Verification Skills
+
+| Skill | Description |
+|-------|-------------|
+| `verify-shiny-design` | CSS token compliance, shared API usage, typography hierarchy in Shiny app |
+| `verify-implementation` | Run all verify skills sequentially, produce unified report |
+
+---
+
 ## Dependencies
 
 Core (Imports in DESCRIPTION):
@@ -314,6 +338,15 @@ Optional (Suggests in DESCRIPTION):
 ---
 
 ## Version History
+
+**v0.2.1** (2026-03): Smoothing, Bootstrap CI, Visualization & Preview
+- Whittaker-Henderson (WH) smoother now **default** for all strategies (SG available via `smoothing_method = "sg"`)
+- Bootstrap boundary CI: `bootstrap_boundary_ci()` with stratified resampling + 3 visualization functions
+- Visualization overhaul: 5 new plots, PDF restructure, data-driven FZ zoom
+- Strategy/mode schematic previews: 18 PNGs in `inst/shiny_app/www/strategy_previews/`
+- Shiny Step 2 preview integration: live image display on strategy/mode selection
+- KDE vs Coverage bimodal comparison diagram
+- DRY refactoring: `extract_before_after_metrics()`, `select_median_rt_segment()`, vectorized FZ transform
 
 **v0.2.0** (2026-02): Modular architecture refactoring
 - Exports reduced 149 → 61 (internal functions marked `@keywords internal`)

@@ -21,10 +21,9 @@ Efficiently counts precursors in each window using vectorized operations.
 This is 50-100x faster than nested loops.
 }
 \examples{
+\dontrun{
 precursors <- c(400.5, 450.2, 500.8, 550.3, 600.1)
-starts <- c(400, 500, 600)
-ends <- c(500, 600, 700)
-counts <- count_precursors_in_windows(precursors, starts, ends)
-# Returns: c(2, 2, 1)
+counts <- count_precursors_in_windows(precursors, c(400, 500, 600), c(500, 600, 700))
+}
 }
 \keyword{internal}

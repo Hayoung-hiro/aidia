@@ -57,7 +57,9 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
                                        outlier_apply_smoothing = FALSE,
                                        coverage_mode = "narrowest",
                                        mz_range_min = 400,
-                                       mz_range_max = 1200) {
+                                       mz_range_max = 1200,
+                                       smoothing_method = "whittaker",
+                                       whittaker_lambda = 10) {
 
   n_bins <- nrow(rt_stats)
 
@@ -75,7 +77,8 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
     cat("  Strategy: GREEDY (m/z sliding optimization)\n")
     cat("  -> Slide window across m/z axis, maximize precursor count\n")
     if (greedy_apply_smoothing) {
-      cat("  -> Apply Savitzky-Golay smoothing to prevent abrupt jumps\n\n")
+      method_label <- if (smoothing_method == "whittaker") "Whittaker-Henderson" else "Savitzky-Golay"
+      cat(sprintf("  -> Apply %s smoothing to prevent abrupt jumps\n\n", method_label))
     } else {
       cat("  -> No smoothing (raw boundaries)\n\n")
     }
@@ -90,7 +93,9 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
       smoothing_window = smoothing_window,
       polynomial_order = polynomial_order,
       mz_range_min = mz_range_min,
-      mz_range_max = mz_range_max
+      mz_range_max = mz_range_max,
+      smoothing_method = smoothing_method,
+      whittaker_lambda = whittaker_lambda
     ))
   }
 
@@ -256,13 +261,16 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
   # Apply SG Smoothing (post-processing for quantile/outlier)
   # =================================================================
   if (apply_smoothing && nrow(result) >= 3) {
-    cat("  Applying Savitzky-Golay smoothing to m/z boundaries...\n")
+    method_label <- if (smoothing_method == "whittaker") "Whittaker-Henderson" else "Savitzky-Golay"
+    cat(sprintf("  Applying %s smoothing to m/z boundaries...\n", method_label))
 
     result <- apply_sg_smoothing_to_mz_ranges(
       result,
       smoothing_window = smoothing_window,
       polynomial_order = polynomial_order,
-      precursor_data = precursor_data
+      precursor_data = precursor_data,
+      smoothing_method = smoothing_method,
+      whittaker_lambda = whittaker_lambda
     )
 
     cat("  -> Smoothing applied successfully\n\n")
@@ -288,26 +296,41 @@ optimize_mz_ranges_internal <- function(precursor_data, rt_stats, strategy,
 #' @return Data frame with smoothed m/z ranges
 #' @keywords internal
 apply_sg_smoothing_to_mz_ranges <- function(mz_ranges, smoothing_window,
-                                             polynomial_order, precursor_data) {
+                                             polynomial_order, precursor_data,
+                                             smoothing_method = "whittaker",
+                                             whittaker_lambda = 10) {
   n_bins <- nrow(mz_ranges)
 
-  # Adaptive smoothing window
-  adaptive_window <- min(smoothing_window, floor(n_bins * 0.7))
-  if (adaptive_window %% 2 == 0) adaptive_window <- adaptive_window + 1
-  adaptive_window <- max(3, adaptive_window)
+  if (smoothing_method == "whittaker") {
+    # Whittaker-Henderson: weighted smoothing (experimental)
+    bin_weights <- sqrt(pmax(mz_ranges$n_precursors_covered, 1))
+    cat(sprintf("     WH params: lambda=%.0f, weights=sqrt(n_precursors)\n",
+                whittaker_lambda))
 
-  adaptive_poly <- min(polynomial_order, adaptive_window - 2)
+    mz_min_smooth <- smooth_boundaries(mz_ranges$mz_min, method = "whittaker",
+                                        weights = bin_weights,
+                                        lambda = whittaker_lambda)
+    mz_max_smooth <- smooth_boundaries(mz_ranges$mz_max, method = "whittaker",
+                                        weights = bin_weights,
+                                        lambda = whittaker_lambda)
+  } else {
+    # Savitzky-Golay: uniform weight smoothing
+    adaptive_window <- min(smoothing_window, floor(n_bins * 0.7))
+    if (adaptive_window %% 2 == 0) adaptive_window <- adaptive_window + 1
+    adaptive_window <- max(3, adaptive_window)
 
-  cat(sprintf("     SG params: window=%d, poly_order=%d\n",
-              adaptive_window, adaptive_poly))
+    adaptive_poly <- min(polynomial_order, adaptive_window - 2)
 
-  # Apply smoothing to mz_min and mz_max
-  mz_min_smooth <- smooth_savgol(mz_ranges$mz_min,
-                                  window_size = adaptive_window,
-                                  poly_order = adaptive_poly)
-  mz_max_smooth <- smooth_savgol(mz_ranges$mz_max,
-                                  window_size = adaptive_window,
-                                  poly_order = adaptive_poly)
+    cat(sprintf("     SG params: window=%d, poly_order=%d\n",
+                adaptive_window, adaptive_poly))
+
+    mz_min_smooth <- smooth_boundaries(mz_ranges$mz_min, method = "sg",
+                                        window_size = adaptive_window,
+                                        poly_order = adaptive_poly)
+    mz_max_smooth <- smooth_boundaries(mz_ranges$mz_max, method = "sg",
+                                        window_size = adaptive_window,
+                                        poly_order = adaptive_poly)
+  }
 
   # Update values
   mz_ranges$mz_min <- mz_min_smooth
@@ -375,7 +398,9 @@ optimize_mz_ranges_greedy_internal <- function(precursor_data, rt_stats,
                                                 polynomial_order = 2,
                                                 target_coverage = 0.90,
                                                 mz_range_min = 400,
-                                                mz_range_max = 1200) {
+                                                mz_range_max = 1200,
+                                                smoothing_method = "whittaker",
+                                                whittaker_lambda = 10) {
   n_bins <- nrow(rt_stats)
 
   # Calculate FIXED m/z range per cycle (MacCoss Lab approach)
@@ -465,11 +490,23 @@ optimize_mz_ranges_greedy_internal <- function(precursor_data, rt_stats,
   }
 
   # =========================================================================
-  # Phase 2: Apply Savitzky-Golay smoothing (following dynamicDIA.py)
+  # Phase 2: Apply boundary smoothing
   # =========================================================================
   if (apply_smoothing && n_bins >= 3) {
-    if (apply_smoothing && exists("smooth_savgol")) {
-      # Adaptive window size based on number of bins
+    if (smoothing_method == "whittaker") {
+      # Whittaker-Henderson: weighted smoothing (experimental)
+      bin_weights <- sqrt(pmax(n_precursors_total, 1))
+      cat(sprintf("     Applying Whittaker-Henderson smoothing (lambda=%.0f)...\n",
+                  whittaker_lambda))
+
+      mz_min_smooth <- smooth_boundaries(mz_min_raw, method = "whittaker",
+                                          weights = bin_weights,
+                                          lambda = whittaker_lambda)
+      mz_max_smooth <- smooth_boundaries(mz_max_raw, method = "whittaker",
+                                          weights = bin_weights,
+                                          lambda = whittaker_lambda)
+    } else {
+      # Savitzky-Golay: uniform weight smoothing
       adaptive_window <- min(smoothing_window, floor(n_bins * 0.7))
       if (adaptive_window %% 2 == 0) adaptive_window <- adaptive_window + 1
       adaptive_window <- max(3, adaptive_window)
@@ -480,13 +517,13 @@ optimize_mz_ranges_greedy_internal <- function(precursor_data, rt_stats,
       cat(sprintf("     Applying Savitzky-Golay smoothing (window=%d, poly=%d)...\n",
                   adaptive_window, adaptive_poly))
 
-      # Smooth mz_min and mz_max separately
-      mz_min_smooth <- smooth_savgol(mz_min_raw,
-                                      window_size = adaptive_window,
-                                      poly_order = adaptive_poly)
-      mz_max_smooth <- smooth_savgol(mz_max_raw,
-                                      window_size = adaptive_window,
-                                      poly_order = adaptive_poly)
+      mz_min_smooth <- smooth_boundaries(mz_min_raw, method = "sg",
+                                          window_size = adaptive_window,
+                                          poly_order = adaptive_poly)
+      mz_max_smooth <- smooth_boundaries(mz_max_raw, method = "sg",
+                                          window_size = adaptive_window,
+                                          poly_order = adaptive_poly)
+    }
 
       # Ensure width constraint is maintained after smoothing
       # If smoothing made the range narrower than mz_range_per_cycle, adjust
@@ -500,16 +537,12 @@ optimize_mz_ranges_greedy_internal <- function(precursor_data, rt_stats,
         }
       }
 
-      # Calculate change from raw to smoothed
-      max_change <- max(abs(mz_min_smooth - mz_min_raw), abs(mz_max_smooth - mz_max_raw))
-      cat(sprintf("     Max boundary shift from smoothing: %.1f Da\n", max_change))
+    # Calculate change from raw to smoothed
+    max_change <- max(abs(mz_min_smooth - mz_min_raw), abs(mz_max_smooth - mz_max_raw))
+    cat(sprintf("     Max boundary shift from smoothing: %.1f Da\n", max_change))
 
-      mz_min_final <- mz_min_smooth
-      mz_max_final <- mz_max_smooth
-    } else {
-      mz_min_final <- mz_min_raw
-      mz_max_final <- mz_max_raw
-    }
+    mz_min_final <- mz_min_smooth
+    mz_max_final <- mz_max_smooth
   } else {
     if (n_bins < 3) {
       cat("     Skipping smoothing (need at least 3 RT bins)\n")

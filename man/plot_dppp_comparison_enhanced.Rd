@@ -2,25 +2,24 @@
 % Please edit documentation in R/plot_dppp.R
 \name{plot_dppp_comparison_enhanced}
 \alias{plot_dppp_comparison_enhanced}
-\title{Plot DPPP Distribution: Enhanced Version with Visual Annotations}
+\title{Plot Median DPPP vs Cycle Time}
 \usage{
-plot_dppp_comparison_enhanced(optimization_plan, validated_data)
+plot_dppp_comparison_enhanced(optimization_plan, validated_data, n_points = 80)
 }
 \arguments{
 \item{optimization_plan}{OptimizationPlan object from Stage 2}
 
 \item{validated_data}{ValidatedData object from Stage 1}
+
+\item{n_points}{Number of points along the curve (default: 80)}
 }
 \value{
 ggplot object
 }
 \description{
-Enhanced version of plot_dppp_comparison() with additional visual elements:
-\itemize{
-\item Target region highlighting (satisfied zone)
-\item Median DPPP vertical lines for both conditions
-\item Shift arrow showing DPPP improvement
-\item Clearer visual separation of satisfied/unsatisfied regions
-}
+Shows the hyperbolic relationship between cycle time and median DPPP.
+Marks the current operating point and the required cycle time to meet
+the target DPPP + satisfaction. Clearly shows whether cycle time must
+increase or decrease.
 }
 \keyword{internal}

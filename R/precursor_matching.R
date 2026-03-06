@@ -17,11 +17,10 @@
 #' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' precursors <- c(400.5, 450.2, 500.8, 550.3, 600.1)
-#' starts <- c(400, 500, 600)
-#' ends <- c(500, 600, 700)
-#' counts <- count_precursors_in_windows(precursors, starts, ends)
-#' # Returns: c(2, 2, 1)
+#' counts <- count_precursors_in_windows(precursors, c(400, 500, 600), c(500, 600, 700))
+#' }
 count_precursors_in_windows <- function(precursor_mz, window_starts,
                                        window_ends) {
   n_windows <- length(window_starts)
@@ -65,15 +64,13 @@ count_precursors_in_windows <- function(precursor_mz, window_starts,
 #' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' rt <- c(10.1, 10.5, 20.2, 20.8)
 #' mz <- c(400.5, 450.2, 500.8, 550.3)
-#' win_rt_start <- c(10, 20)
-#' win_rt_end <- c(15, 25)
-#' win_mz_start <- c(400, 500)
-#' win_mz_end <- c(500, 600)
-#' counts <- count_precursors_in_2d_windows(rt, mz, win_rt_start, win_rt_end,
-#'                                           win_mz_start, win_mz_end)
-#' # Returns: c(2, 2) - first window has 2 precursors, second has 2
+#' counts <- count_precursors_in_2d_windows(
+#'   rt, mz, c(10, 20), c(15, 25), c(400, 500), c(500, 600)
+#' )
+#' }
 count_precursors_in_2d_windows <- function(precursor_rt, precursor_mz,
                                             window_rt_start, window_rt_end,
                                             window_mz_start, window_mz_end) {

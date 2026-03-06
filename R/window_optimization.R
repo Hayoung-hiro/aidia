@@ -135,7 +135,9 @@ optimize_windows <- function(
   cpd_significance_level = 0.05,
   edge_void_buffer_min = 0.5,
   edge_wash_min_precursors = 30,
-  width_grid_step = 0.5
+  width_grid_step = 0.5,
+  smoothing_method = "whittaker",
+  whittaker_lambda = 10
 ) {
 
   # Start timing
@@ -166,6 +168,8 @@ optimize_windows <- function(
     if (!is.null(sc$kde_min_coverage)) kde_min_coverage <- sc$kde_min_coverage
     if (!is.null(sc$smoothing_window)) smoothing_window <- sc$smoothing_window
     if (!is.null(sc$polynomial_order)) polynomial_order <- sc$polynomial_order
+    if (!is.null(sc$smoothing_method)) smoothing_method <- sc$smoothing_method
+    if (!is.null(sc$whittaker_lambda)) whittaker_lambda <- sc$whittaker_lambda
     # n_windows_override: only set from greedy config
     if ("n_windows_override" %in% names(sc)) n_windows_override <- sc$n_windows_override
   }
@@ -287,7 +291,9 @@ optimize_windows <- function(
       outlier_apply_smoothing = outlier_apply_smoothing,
       coverage_mode = coverage_mode,
       mz_range_min = mz_range_min,
-      mz_range_max = mz_range_max
+      mz_range_max = mz_range_max,
+      smoothing_method = smoothing_method,
+      whittaker_lambda = whittaker_lambda
     )
 
     print_info(sprintf("Optimized m/z ranges for %d RT bins", nrow(mz_ranges)))

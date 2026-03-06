@@ -13,6 +13,8 @@ Data frame with instrument information
 List all available instruments
 }
 \examples{
+\dontrun{
 list_available_instruments()
+}
 }
 \keyword{internal}

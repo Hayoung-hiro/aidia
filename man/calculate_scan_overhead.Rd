@@ -25,8 +25,10 @@ Estimates the overhead time (delta) for each MS2 scan.
 delta includes ion transfer, C-trap operation, and data handling.
 }
 \examples{
+\dontrun{
 calculate_scan_overhead(64)   # For 30K resolution: returns ~12.8 ms
 calculate_scan_overhead(32)   # For 15K resolution: returns ~6.4 ms
 calculate_scan_overhead(16)   # For 7.5K resolution: returns 5 ms (minimum)
+}
 }
 \keyword{internal}

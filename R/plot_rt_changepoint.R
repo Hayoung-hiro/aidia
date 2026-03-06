@@ -93,7 +93,7 @@ plot_rt_changepoint_validation <- function(validated_data,
     geom_vline(
       xintercept = adaptive_boundaries,
       linetype = "solid",
-      color = "#E74C3C",
+      color = aidia_colors$accent,
       linewidth = 0.7,
       alpha = 0.9
     ) +
@@ -197,7 +197,7 @@ plot_ks_statistic_trace <- function(optimized_windows) {
       alpha = 0.85
     ) +
     scale_color_manual(
-      values = c("TRUE" = "#E74C3C", "FALSE" = "#95A5A6"),
+      values = c("TRUE" = aidia_colors$accent, "FALSE" = aidia_colors$before_muted_dark),
       labels = c("TRUE" = sprintf("p < %.2f (change point)", sig_level),
                  "FALSE" = "Not significant"),
       name = "Significance"
@@ -208,7 +208,7 @@ plot_ks_statistic_trace <- function(optimized_windows) {
     p <- p + geom_hline(
       yintercept = threshold_line,
       linetype = "dashed",
-      color = "#F39C12",
+      color = aidia_colors$warning,
       linewidth = 0.6,
       alpha = 0.8
     )
@@ -219,7 +219,7 @@ plot_ks_statistic_trace <- function(optimized_windows) {
     p <- p + geom_vline(
       xintercept = change_pts,
       linetype = "dotted",
-      color = "#3498DB",
+      color = aidia_strategy_colors[["greedy"]],
       linewidth = 0.5,
       alpha = 0.7
     )

@@ -19,7 +19,9 @@ build_strategy_config(
   kde_density_threshold = 0.1,
   kde_min_coverage = 0.8,
   smoothing_window = 7,
-  polynomial_order = 3
+  polynomial_order = 3,
+  smoothing_method = "whittaker",
+  whittaker_lambda = 10
 )
 }
 \arguments{

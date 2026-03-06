@@ -82,14 +82,14 @@ plot_dppp_distribution <- function(optimization_plan, validated_data) {
     # Color scheme
     scale_fill_manual(
       values = c(
-        "Before (Current)" = "#BDC3C7",
+        "Before (Current)" = aidia_colors$before_muted,
         "After (Optimized)" = aidia_colors$success
       )
     ) +
     scale_color_manual(
       values = c(
-        "Before (Current)" = "#95A5A6",
-        "After (Optimized)" = "#1E8449"
+        "Before (Current)" = aidia_colors$before_muted_dark,
+        "After (Optimized)" = aidia_colors$after_success
       )
     ) +
     scale_x_continuous(

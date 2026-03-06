@@ -6,14 +6,16 @@
 \usage{
 plot_fz_zoom(
   optimized_windows,
+  validated_data,
   boundary_index = NULL,
   fz_offset = 0.25,
-  zoom_range_da = 5,
-  base_size = 12
+  zoom_range_da = 5
 )
 }
 \arguments{
 \item{optimized_windows}{OptimizedWindows object from Stage 3}
+
+\item{validated_data}{ValidatedData object from Stage 1}
 
 \item{boundary_index}{Integer, index of the internal boundary to zoom into.
 NULL (default) selects the median internal boundary.}
@@ -22,17 +24,15 @@ NULL (default) selects the median internal boundary.}
 (default: 0.25)}
 
 \item{zoom_range_da}{Numeric, total m/z range to display (default: 5)}
-
-\item{base_size}{Numeric, base font size for theme_aidia (default: 12)}
 }
 \value{
 A ggplot object
 }
 \description{
 Creates a zoomed view (~5 Da range) around a representative window boundary,
-showing simulated isotope envelope peaks at integer m/z positions. The
-FZ-optimized boundary (green) sits in the valley between isotope clusters,
-while a naive integer boundary (red dashed) would cut through a cluster.
+showing actual precursor m/z density. The FZ-optimized boundary (green) sits
+in a low-density valley between isotope clusters at integer m/z positions,
+while a naive integer boundary (red dashed) falls on a high-density peak.
 }
 \details{
 Only generated when \code{fz_offset > 0} (forbidden zone optimization active).

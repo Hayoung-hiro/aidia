@@ -16,7 +16,9 @@ Instrument configuration list
 Get specific instrument configuration
 }
 \examples{
+\dontrun{
 config <- get_instrument_config("fusion_lumos")
 config$max_scan_rate
+}
 }
 \keyword{internal}

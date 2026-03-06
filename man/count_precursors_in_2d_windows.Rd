@@ -35,14 +35,12 @@ Groups windows by RT segment and uses findInterval() on sorted m/z
 for O(n + m\emph{log(n)) time and O(n + m) memory instead of O(n}m).
 }
 \examples{
+\dontrun{
 rt <- c(10.1, 10.5, 20.2, 20.8)
 mz <- c(400.5, 450.2, 500.8, 550.3)
-win_rt_start <- c(10, 20)
-win_rt_end <- c(15, 25)
-win_mz_start <- c(400, 500)
-win_mz_end <- c(500, 600)
-counts <- count_precursors_in_2d_windows(rt, mz, win_rt_start, win_rt_end,
-                                          win_mz_start, win_mz_end)
-# Returns: c(2, 2) - first window has 2 precursors, second has 2
+counts <- count_precursors_in_2d_windows(
+  rt, mz, c(10, 20), c(15, 25), c(400, 500), c(500, 600)
+)
+}
 }
 \keyword{internal}

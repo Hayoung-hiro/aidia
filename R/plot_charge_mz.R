@@ -1,21 +1,23 @@
 # plot_charge_mz.R
-# Plot 19: Charge State x m/z Distribution with Window Boundaries
+# Plot 19: Charge State x m/z Distribution (Violin)
 #
 # Purpose: Visualize how precursor charge states distribute across the m/z
-#          range and how isolation windows cover different charge state
-#          populations. Reveals whether optimization inadvertently
-#          disadvantages specific charge states (e.g., z=4+ from PTM peptides).
+#          range. Reveals the mass-to-charge landscape and charge state
+#          composition of the sample — key for understanding precursor
+#          complexity without imposing RT-dependent window boundaries.
 #
 # Dependencies: ggplot2, dplyr
 
 
-#' Plot Charge State × m/z Distribution
+#' Plot Charge State x m/z Distribution (Violin)
 #'
-#' Creates a scatter/jitter plot of precursor charge state vs m/z value,
-#' colored by charge state, with window boundaries from a representative
-#' RT segment overlaid as vertical lines. Includes per-charge summary stats.
+#' Creates violin plots of precursor m/z distribution per charge state,
+#' showing the density shape, median, and count per charge. No window
+#' boundaries are overlaid because windows are RT-dependent and a single
+#' snapshot would be misleading.
 #'
-#' @param optimized_windows OptimizedWindows object from Stage 3
+#' @param optimized_windows OptimizedWindows object from Stage 3 (unused,
+#'   kept for API compatibility with visualization.R dispatcher)
 #' @param validated_data ValidatedData object from Stage 1
 #'
 #' @return ggplot object
@@ -34,12 +36,6 @@ plot_charge_mz_distribution <- function(optimized_windows, validated_data) {
     ))
   }
 
-  windows <- optimized_windows$windows
-
-  # Select representative RT segment (median)
-  median_seg <- select_median_rt_segment(windows)
-  rep_windows <- windows[windows$rt_segment_id == median_seg, ]
-
   # Build plot data
   df <- data.frame(
     mz = precursor_data$Precursor.Mz,
@@ -48,85 +44,82 @@ plot_charge_mz_distribution <- function(optimized_windows, validated_data) {
 
   # Per-charge stats
   charge_stats <- df %>%
-    group_by(charge) %>%
-    summarize(
-      n = n(),
+    dplyr::group_by(charge) %>%
+    dplyr::summarize(
+      n = dplyr::n(),
       mz_median = median(mz, na.rm = TRUE),
-      mz_range = sprintf("%.0f-%.0f", min(mz), max(mz)),
       .groups = "drop"
     )
 
   # Subtitle with charge distribution
   charge_pcts <- charge_stats %>%
-    mutate(pct = n / sum(n) * 100) %>%
-    mutate(label = sprintf("z=%s: %.0f%%", charge, pct))
+    dplyr::mutate(pct = n / sum(n) * 100) %>%
+    dplyr::mutate(label = sprintf("z=%s: %.0f%%", charge, pct))
   subtitle_text <- paste(charge_pcts$label, collapse = " | ")
 
-  # Charge-aware color palette (sequential, distinct)
+  # Charge-aware color palette
   n_charges <- length(unique(df$charge))
   charge_colors <- if (n_charges <= 5) {
-    c("#3498DB", "#27AE60", "#F39C12", "#E74C3C", "#9B59B6")[seq_len(n_charges)]
+    aidia_charge_colors[seq_len(n_charges)]
   } else {
     viridis::viridis(n_charges, option = "D")
   }
 
-  p <- ggplot(df, aes(x = mz, y = charge, color = charge)) +
-    # Window boundary lines from representative RT segment
-    geom_vline(
-      xintercept = rep_windows$mz_start,
-      color = "gray75",
-      linewidth = 0.3,
-      alpha = 0.7
+  p <- ggplot(df, aes(x = charge, y = mz, fill = charge)) +
+    # Violin plot showing density shape
+    geom_violin(
+      alpha = 0.5,
+      color = "gray40",
+      linewidth = 0.4,
+      scale = "width",
+      trim = FALSE
     ) +
-    # Jittered points (violin-style beeswarm with jitter)
+    # Actual data points (jittered) for visual n per charge
     geom_jitter(
-      height = 0.3,
-      width = 0,
-      size = 0.5,
-      alpha = 0.25
+      width = 0.12,
+      size = 0.4,
+      alpha = 0.15,
+      color = "gray30"
     ) +
-    # Box plot overlay for m/z range per charge
+    # Box plot inside for quartiles
     geom_boxplot(
-      fill = NA,
+      width = 0.12,
+      fill = "white",
       color = "gray30",
-      linewidth = 0.5,
+      linewidth = 0.4,
       outlier.shape = NA,
-      width = 0.5,
-      alpha = 0.8
+      alpha = 0.7
     ) +
     # Median markers
     stat_summary(
       fun = median,
       geom = "point",
       shape = 18,
-      size = 3,
+      size = 2.5,
       color = "black"
     ) +
-    # Count annotation on right
+    # Count annotation at top
     geom_text(
       data = charge_stats,
-      aes(x = Inf, y = charge,
+      aes(x = charge, y = Inf,
           label = sprintf("n=%s", format(n, big.mark = ","))),
-      hjust = 1.1,
+      vjust = 1.5,
       size = 3,
       fontface = "bold",
-      color = "gray40"
+      color = "gray40",
+      inherit.aes = FALSE
     ) +
-    scale_color_manual(values = charge_colors, guide = "none") +
+    scale_fill_manual(values = charge_colors, guide = "none") +
     labs(
       title = "Charge State \u00d7 m/z Distribution",
       subtitle = subtitle_text,
-      x = "Precursor m/z (Da)",
-      y = "Charge State",
-      caption = sprintf(
-        "Window boundaries from RT segment %d (median) shown as vertical lines",
-        median_seg
-      )
+      x = "Charge State",
+      y = "Precursor m/z (Da)"
     ) +
     theme_aidia() +
     theme(
       panel.grid.minor = element_blank(),
-      panel.grid.major.y = element_blank()
+      panel.grid.major.x = element_blank()
     )
 
   return(p)

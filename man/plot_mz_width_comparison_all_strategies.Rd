@@ -22,10 +22,11 @@ vs all strategies in one plot.
 \examples{
 \dontrun{
 windows_list <- list(
+  greedy = optimized_windows_g,
+  kde = optimized_windows_k,
   quantile = optimized_windows_q,
-  smoothing = optimized_windows_s,
-  outlier = optimized_windows_o,
-  coverage = optimized_windows_c
+  coverage = optimized_windows_c,
+  outlier = optimized_windows_o
 )
 plot4c <- plot_mz_width_comparison_all_strategies(windows_list, validated_data)
 }

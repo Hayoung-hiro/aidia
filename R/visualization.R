@@ -89,8 +89,14 @@ generate_visualizations <- function(
   cat("  Generating Plot 1A: DPPP Comparison (Simple)...\n")
   plots$`plot1a_dppp_comparison_simple` <- plot_dppp_comparison(optimization_plan, validated_data)
 
-  cat("  Generating Plot 1B: DPPP Comparison (Enhanced)...\n")
-  plots$`plot1b_dppp_comparison_enhanced` <- plot_dppp_comparison_enhanced(optimization_plan, validated_data)
+  # Plot 1B: Acquisition Diagnosis Table (primary for PDF)
+  plots$`plot1b_dppp_diagnosis_table` <- plot_dppp_diagnosis_table(optimization_plan, validated_data)
+
+  # Legacy versions (kept for individual export, not used in PDF)
+  cat("  Generating Plot 1B curve: DPPP vs Cycle Time (legacy)...\n")
+  plots$`plot1b_dppp_enhanced` <- plot_dppp_comparison_enhanced(optimization_plan, validated_data)
+  cat("  Generating Plot 1B+6: DPPP & Satisfaction Combined (legacy)...\n")
+  plots$`plot1b_dppp_satisfaction_combined` <- plot_dppp_satisfaction_combined(optimization_plan, validated_data)
 
   # Plot 2: RT x m/z Density Heatmap
   cat("  Generating Plot 2: RT x m/z Density Heatmap...\n")
@@ -160,15 +166,17 @@ generate_visualizations <- function(
     windows_list, validated_data
   )
 
-  # Plot 5: Coverage Map 2x2 Grid (multi-strategy comparison)
-  cat("  Generating Plot 5: Coverage Map 2x2 Grid (All Strategies)...\n")
-  plots$`plot5_coverage_map_2x2` <- plot_density_with_mz_ranges_grid(
+  # Plot 5: Strategy Width Profile (overlay line chart — primary for PDF)
+  cat("  Generating Plot 5: Strategy Width Profile...\n")
+  plots$`plot5_strategy_width_profile` <- plot_strategy_width_profile(
     windows_list, validated_data
   )
 
-  # Plot 6: Satisfaction Curve
-  cat("  Generating Plot 6: Satisfaction vs Cycle Time Curve...\n")
-  plots$`plot6_satisfaction_curve` <- plot_satisfaction_curve(optimization_plan, validated_data)
+  # Plot 5 Legacy: Strategy Boundary Comparison (kept for individual export)
+  cat("  Generating Plot 5B: Strategy Boundary Comparison (legacy)...\n")
+  plots$`plot5b_strategy_boundary_comparison` <- plot_strategy_boundary_comparison(
+    windows_list, validated_data
+  )
 
   # Plot 6B: Optimization Impact Summary (Before/After Dashboard)
   cat("  Generating Plot 6B: Optimization Impact Summary...\n")
@@ -180,11 +188,13 @@ generate_visualizations <- function(
     optimized_windows, validated_data, optimization_plan
   )
 
-  # Plot 10: Isolation Window Gantt Chart
-  cat("  Generating Plot 10: Isolation Window Gantt Chart...\n")
-  plots$`plot10_isolation_window_gantt` <- plot_isolation_window_gantt(
-    optimized_windows, validated_data, show_precursors = TRUE
+  # Plot 2C: RT x m/z Heatmap with m/z Range Overlay (per-strategy grid)
+  cat("  Generating Plot 2C: Heatmap with m/z Range (All Strategies)...\n")
+  plots$`plot2c_heatmap_with_mz_range` <- plot_density_with_mz_ranges_grid(
+    windows_list, validated_data
   )
+
+  # Plot 10: Removed — redundant with Plot 7 (window width distribution)
 
   # Plot 11: RT Change Point Validation (only when adaptive RT binning used)
   rt_binning_mode <- optimized_windows$rt_binning$rt_binning_mode %||% "fixed"

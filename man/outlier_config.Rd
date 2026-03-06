@@ -8,17 +8,23 @@ outlier_config(
   threshold = 3,
   apply_smoothing = FALSE,
   smoothing_window = 7,
-  polynomial_order = 3
+  polynomial_order = 3,
+  smoothing_method = "whittaker",
+  whittaker_lambda = 10
 )
 }
 \arguments{
 \item{threshold}{Numeric, SD multiplier (default: 3.0)}
 
-\item{apply_smoothing}{Logical, apply SG smoothing to boundaries (default: FALSE)}
+\item{apply_smoothing}{Logical, apply boundary smoothing (default: FALSE)}
 
-\item{smoothing_window}{Integer, SG window size (default: 7)}
+\item{smoothing_window}{Integer, SG window size (default: 7). Only used when smoothing_method = "sg".}
 
-\item{polynomial_order}{Integer, SG polynomial order (default: 3)}
+\item{polynomial_order}{Integer, SG polynomial order (default: 3). Only used when smoothing_method = "sg".}
+
+\item{smoothing_method}{Character, "whittaker" (default) or "sg" (Savitzky-Golay)}
+
+\item{whittaker_lambda}{Numeric, Whittaker smoothing parameter (default: 10). Only used when smoothing_method = "whittaker".}
 }
 \value{
 A strategy_config object for the outlier strategy
@@ -29,4 +35,5 @@ Uses mean +/- N*SD to define m/z range, removing outliers.
 \examples{
 config <- outlier_config()
 config <- outlier_config(threshold = 2.5, apply_smoothing = TRUE)
+config <- outlier_config(smoothing_method = "sg")  # use legacy SG smoother
 }

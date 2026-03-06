@@ -19,7 +19,8 @@ Integer vector of length N+1
 \description{
 Rounds all boundaries to nearest integer, ensuring the first boundary
 covers mz_min (floor) and the last covers mz_max (ceiling).
-Integer boundaries guarantee deterministic FZ transform behavior
-because ceil(N / 1.00045475) = N for all integers (inc > 1).
+Always applied regardless of FZ setting to produce clean integer
+boundaries. When FZ is active, integer inputs also guarantee
+deterministic FZ transform (ceil(N / 1.00045475) = N for integers).
 }
 \keyword{internal}

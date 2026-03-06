@@ -30,7 +30,8 @@
 #' }
 plot_window_width_distribution <- function(optimized_windows,
                                             validated_data,
-                                            max_segments_to_show = 6) {
+                                            max_segments_to_show = 6,
+                                            selected_segment_ids = NULL) {
 
   cat("  Generating Plot 7: Window Width Distribution by RT Segment...\n")
 
@@ -50,7 +51,11 @@ plot_window_width_distribution <- function(optimized_windows,
 
   # Select RT segments to display
   n_segments <- nrow(rt_bins)
-  if (!is.null(max_segments_to_show) && n_segments > max_segments_to_show) {
+  if (!is.null(selected_segment_ids)) {
+    # Explicit segment IDs provided (e.g., densest bin)
+    selected_segments <- selected_segment_ids
+    cat(sprintf("    Showing %d specified RT segment(s)\n", length(selected_segments)))
+  } else if (!is.null(max_segments_to_show) && n_segments > max_segments_to_show) {
     selected_segments <- round(seq(1, n_segments, length.out = max_segments_to_show))
     cat(sprintf("    Showing %d of %d RT segments (sampled evenly)\n",
                 max_segments_to_show, n_segments))
@@ -134,7 +139,7 @@ plot_window_width_distribution <- function(optimized_windows,
       # Manual color scale for legend
       scale_color_manual(
         name = NULL,
-        values = c("Input Histogram" = "steelblue", "Variable Windows" = "coral"),
+        values = c("Input Histogram" = aidia_colors$before, "Variable Windows" = aidia_colors$after),
         breaks = c("Input Histogram", "Variable Windows")
       ) +
       # Dual y-axis setup
@@ -156,13 +161,13 @@ plot_window_width_distribution <- function(optimized_windows,
       ) +
       theme_aidia() +
       theme(
-        plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
+        plot.title = element_text(size = 10, face = "bold"),
         axis.title.x = element_text(size = 9),
-        axis.title.y.left = element_text(size = 9, color = "steelblue"),
-        axis.title.y.right = element_text(size = 9, color = "coral"),
+        axis.title.y.left = element_text(size = 9, color = aidia_colors$before),
+        axis.title.y.right = element_text(size = 9, color = aidia_colors$after),
         axis.text = element_text(size = 8),
-        axis.text.y.left = element_text(color = "steelblue"),
-        axis.text.y.right = element_text(color = "coral"),
+        axis.text.y.left = element_text(color = aidia_colors$before),
+        axis.text.y.right = element_text(color = aidia_colors$after),
         panel.grid.minor = element_blank(),
         legend.position = "top",
         legend.text = element_text(size = 8),
@@ -186,7 +191,7 @@ plot_window_width_distribution <- function(optimized_windows,
   cat(sprintf("    Created %d panels (%d rows x %d cols)\n", n_plots, n_rows, n_cols))
 
   # Create final grid with shared legend
-  final_plot <- do.call(grid.arrange, c(plot_list, ncol = n_cols))
+  final_plot <- do.call(gridExtra::arrangeGrob, c(plot_list, ncol = n_cols))
 
   return(final_plot)
 }
@@ -297,7 +302,7 @@ plot_cumulative_window_count <- function(optimized_windows,
           ymin = window_index - 0.4,
           ymax = window_index + 0.4
         ),
-        fill = "steelblue",
+        fill = aidia_colors$before,
         color = "white",
         linewidth = 0.3,
         alpha = 0.8
@@ -318,7 +323,7 @@ plot_cumulative_window_count <- function(optimized_windows,
       ) +
       theme_aidia() +
       theme(
-        plot.title = element_text(size = 9, face = "bold", hjust = 0.5, lineheight = 1.1),
+        plot.title = element_text(size = 9, face = "bold", lineheight = 1.1),
         axis.title = element_text(size = 9),
         axis.text = element_text(size = 8),
         panel.grid.minor = element_blank(),
@@ -341,7 +346,7 @@ plot_cumulative_window_count <- function(optimized_windows,
   cat(sprintf("    Created %d panels (%d rows x %d cols)\n", n_plots, n_rows, n_cols))
 
   # Create final grid
-  final_plot <- do.call(grid.arrange, c(plot_list, ncol = n_cols))
+  final_plot <- do.call(gridExtra::arrangeGrob, c(plot_list, ncol = n_cols))
 
   return(final_plot)
 }

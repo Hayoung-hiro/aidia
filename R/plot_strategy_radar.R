@@ -120,7 +120,8 @@ plot_strategy_radar <- function(windows_list, validated_data) {
   closing_idx <- (nrow(metrics_df) + 1):nrow(metrics_closed)
   metrics_closed$angle_pos[closing_idx] <- n_metrics + 1
 
-  # Strategy labels
+  # Strategy labels (add to both data frames — layers reference both)
+  metrics_df$strategy_label <- format_strategy_label(metrics_df$strategy)
   metrics_closed$strategy_label <- format_strategy_label(metrics_closed$strategy)
 
   # Grid circles data (0.25, 0.50, 0.75, 1.00)

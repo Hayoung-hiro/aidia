@@ -7,7 +7,8 @@
 plot_window_width_distribution(
   optimized_windows,
   validated_data,
-  max_segments_to_show = 6
+  max_segments_to_show = 6,
+  selected_segment_ids = NULL
 )
 }
 \arguments{

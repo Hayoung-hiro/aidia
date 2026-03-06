@@ -35,13 +35,9 @@ When ms2_time is numeric:
 }
 }
 \examples{
-# Auto mode at 30K resolution -> 64 ms (T_transient)
-resolve_injection_time("auto", 30000, "orbitrap")
-
-# Auto mode at 7.5K resolution -> 16 ms
-resolve_injection_time("auto", 7500, "orbitrap")
-
-# Explicit IT value -> returned unchanged
-resolve_injection_time(50, 30000, "orbitrap")  # Returns 50
+\dontrun{
+resolve_injection_time("auto", 30000, "orbitrap")  # 64 ms
+resolve_injection_time(50, 30000, "orbitrap")       # Returns 50
+}
 }
 \keyword{internal}

@@ -9,7 +9,9 @@ quantile_config(
   upper = 0.95,
   apply_smoothing = FALSE,
   smoothing_window = 7,
-  polynomial_order = 3
+  polynomial_order = 3,
+  smoothing_method = "whittaker",
+  whittaker_lambda = 10
 )
 }
 \arguments{
@@ -17,11 +19,15 @@ quantile_config(
 
 \item{upper}{Numeric, upper quantile 0-1 (default: 0.95)}
 
-\item{apply_smoothing}{Logical, apply SG smoothing to boundaries (default: FALSE)}
+\item{apply_smoothing}{Logical, apply boundary smoothing (default: FALSE)}
 
-\item{smoothing_window}{Integer, SG window size (default: 7)}
+\item{smoothing_window}{Integer, SG window size (default: 7). Only used when smoothing_method = "sg".}
 
-\item{polynomial_order}{Integer, SG polynomial order (default: 3)}
+\item{polynomial_order}{Integer, SG polynomial order (default: 3). Only used when smoothing_method = "sg".}
+
+\item{smoothing_method}{Character, "whittaker" (default) or "sg" (Savitzky-Golay)}
+
+\item{whittaker_lambda}{Numeric, Whittaker smoothing parameter (default: 10). Only used when smoothing_method = "whittaker".}
 }
 \value{
 A strategy_config object for the quantile strategy

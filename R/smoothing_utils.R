@@ -1,8 +1,12 @@
-# smoothing_utils.R - Simplified Smoothing Utilities for DIA Window Optimization
+# smoothing_utils.R - Smoothing Utilities for DIA Window Optimization
 #
-# Purpose: Provide essential smoothing functions extracted from dynamicDIA.R
+# Purpose: Provide smoothing functions for m/z boundary smoothing across RT bins
 #
-# Dependencies: prospectr package only
+# Methods:
+#   - Savitzky-Golay (SG): Traditional fixed-window polynomial smoother (via prospectr)
+#   - Whittaker-Henderson (WH): Penalized least squares with per-point weights (experimental)
+#
+# Dependencies: prospectr package (optional, for SG)
 
 # prospectr availability is checked at runtime inside smooth_savgol()
 
@@ -89,6 +93,90 @@ smooth_savgol <- function(y_array, window_size = 7, poly_order = 3) {
     return(smooth_moving_average(y_array, window_size))
   })
 }
+
+
+# =============================================================================
+# Whittaker-Henderson Smoother (Experimental)
+# =============================================================================
+
+#' Whittaker-Henderson Smoothing with Per-Point Weights
+#'
+#' Penalized least squares smoother that balances data fidelity against
+#' smoothness. Supports per-point weights for adaptive smoothing:
+#' high-weight points are preserved, low-weight points are smoothed
+#' toward their neighbors.
+#'
+#' Based on Eilers (2003) "A Perfect Smoother". No external dependencies.
+#'
+#' @param y Numeric vector to smooth
+#' @param weights Numeric vector of per-point weights (default: uniform).
+#'   Higher weight = trust this point more. Use e.g. sqrt(n_precursors).
+#' @param lambda Smoothing parameter (default: 10). Higher = smoother.
+#'   Typical range: 1 (light) to 1000 (very heavy).
+#' @param d Difference order for penalty (default: 2 for second-order).
+#'
+#' @return Smoothed numeric vector (same length as y)
+#' @keywords internal
+smooth_whittaker <- function(y, weights = NULL, lambda = 10, d = 2) {
+  n <- length(y)
+  if (n < 3) return(y)
+
+  if (is.null(weights)) {
+    weights <- rep(1, n)
+  } else {
+    # Normalize weights to mean = 1 for consistent lambda interpretation
+    w_positive <- weights[weights > 0]
+    if (length(w_positive) > 0) {
+      weights <- weights / mean(w_positive)
+    }
+    # Avoid zero weights (causes singular matrix)
+    weights[weights < 1e-6] <- 1e-6
+  }
+
+  E <- diag(n)
+  D <- diff(E, differences = d)
+  W <- diag(weights)
+
+  z <- tryCatch(
+    solve(W + lambda * crossprod(D), W %*% y),
+    error = function(e) {
+      warning(sprintf("Whittaker smoother failed: %s. Returning original.", e$message))
+      y
+    }
+  )
+
+  as.numeric(z)
+}
+
+
+# =============================================================================
+# Boundary Smoothing Dispatcher
+# =============================================================================
+
+#' Dispatch Boundary Smoothing Method
+#'
+#' Dispatches to either Savitzky-Golay or Whittaker-Henderson smoothing.
+#' Used for m/z boundary smoothing across RT bins.
+#'
+#' @param y Numeric vector to smooth
+#' @param method Character: "sg" (Savitzky-Golay) or "whittaker"
+#' @param weights Numeric vector of per-point weights (only used by "whittaker")
+#' @param window_size SG window size (only used by "sg")
+#' @param poly_order SG polynomial order (only used by "sg")
+#' @param lambda Whittaker smoothing parameter (only used by "whittaker")
+#'
+#' @return Smoothed numeric vector
+#' @keywords internal
+smooth_boundaries <- function(y, method = "sg", weights = NULL,
+                               window_size = 7, poly_order = 3,
+                               lambda = 10) {
+  if (method == "whittaker") {
+    smooth_whittaker(y, weights = weights, lambda = lambda)
+  } else {
+    smooth_savgol(y, window_size = window_size, poly_order = poly_order)
+  }
+}
+
 
 #' Simple Moving Average Smoothing (Fallback)
 #'

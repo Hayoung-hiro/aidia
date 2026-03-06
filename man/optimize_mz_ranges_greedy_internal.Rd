@@ -15,7 +15,9 @@ optimize_mz_ranges_greedy_internal(
   polynomial_order = 2,
   target_coverage = 0.9,
   mz_range_min = 400,
-  mz_range_max = 1200
+  mz_range_max = 1200,
+  smoothing_method = "whittaker",
+  whittaker_lambda = 10
 )
 }
 \arguments{

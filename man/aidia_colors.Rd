@@ -5,7 +5,7 @@
 \alias{aidia_colors}
 \title{General purpose color palette for AIDIA plots}
 \format{
-An object of class \code{list} of length 7.
+An object of class \code{list} of length 14.
 }
 \usage{
 aidia_colors

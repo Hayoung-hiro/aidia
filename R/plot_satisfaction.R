@@ -26,10 +26,10 @@
 #' @return ggplot object
 #' @keywords internal
 plot_satisfaction_curve <- function(optimization_plan, validated_data,
-                                   cycle_time_range = c(0.5, 3.0),
+                                   cycle_time_range = NULL,
                                    n_points = 50) {
 
-  cat("  Generating Plot 9: Satisfaction vs Cycle Time Trade-off Curve...\n")
+  cat("  Generating Plot 6: Satisfaction vs Cycle Time Trade-off Curve...\n")
 
   # Extract parameters
   current_cycle_time <- optimization_plan$diagnosis$current_cycle_time_sec
@@ -39,6 +39,14 @@ plot_satisfaction_curve <- function(optimization_plan, validated_data,
 
   # Extract FWHM data
   fwhm_sec <- ensure_fwhm_seconds(validated_data$data$FWHM)
+
+  # Dynamic cycle time range: pad around actual values to ensure both points visible
+  if (is.null(cycle_time_range)) {
+    ct_min <- min(current_cycle_time, required_cycle_time)
+    ct_max <- max(current_cycle_time, required_cycle_time)
+    padding <- max(0.5, (ct_max - ct_min) * 0.5)
+    cycle_time_range <- c(max(0.3, ct_min - padding), ct_max + padding)
+  }
 
   # Calculate satisfaction across cycle time range
   cycle_times <- seq(cycle_time_range[1], cycle_time_range[2], length.out = n_points)
@@ -58,58 +66,32 @@ plot_satisfaction_curve <- function(optimization_plan, validated_data,
   dppp_recommended <- calculate_dppp(fwhm_sec, required_cycle_time)
   recommended_satisfaction_pct <- mean(dppp_recommended >= target_dppp, na.rm = TRUE) * 100
 
-  # Calculate improvement metrics
-  cycle_time_reduction_pct <- ((current_cycle_time - required_cycle_time) / current_cycle_time) * 100
-  satisfaction_gain_pp <- recommended_satisfaction_pct - current_satisfaction_pct  # percentage points
-
-  # Create annotation text
-  annotation_text <- sprintf(
-    "Trade-off Analysis:\n\nCycle time: %.2f -> %.2f sec\nReduction: %.1f%%\n\nSatisfaction: %.1f%% -> %.1f%%\nGain: +%.1f pp\n\nFormula:\nSatisfaction = f(FWHM, cycle_time)\nTarget DPPP >= %.1f",
-    current_cycle_time,
-    required_cycle_time,
-    cycle_time_reduction_pct,
-    current_satisfaction_pct,
-    recommended_satisfaction_pct,
-    satisfaction_gain_pp,
-    target_dppp
-  )
-
-  # Create plot
+  # Create plot — clean S-curve with minimal crosshair annotation
   p <- ggplot(satisfaction_data, aes(x = cycle_time, y = satisfaction_pct)) +
-    # Reference lines
+    # Target satisfaction reference line
     geom_hline(
       yintercept = target_satisfaction,
       linetype = "dashed",
-      color = "gray40",
-      linewidth = 0.8
+      color = "gray50",
+      linewidth = 0.6
     ) +
     annotate(
       "text",
-      x = cycle_time_range[1] + 0.1,
+      x = cycle_time_range[1],
       y = target_satisfaction,
       label = sprintf("Target: %.0f%%", target_satisfaction),
-      hjust = 0,
-      vjust = -0.5,
-      size = 3.5,
-      fontface = "bold",
-      color = "gray40"
+      hjust = -0.1, vjust = -0.5,
+      size = 3, fontface = "bold", color = "gray50"
     ) +
-    geom_vline(
-      xintercept = current_cycle_time,
-      linetype = "dotted",
-      color = "steelblue",
-      linewidth = 0.6,
-      alpha = 0.7
-    ) +
+    # Required cycle time crosshair (vertical)
     geom_vline(
       xintercept = required_cycle_time,
       linetype = "dotted",
-      color = "coral",
-      linewidth = 0.6,
-      alpha = 0.7
+      color = aidia_colors$after,
+      linewidth = 0.6
     ) +
     # Main S-curve
-    geom_line(color = "navy", linewidth = 1.5, alpha = 0.8) +
+    geom_line(color = aidia_colors$primary, linewidth = 1.5, alpha = 0.8) +
     # Current state point
     geom_point(
       data = data.frame(
@@ -117,112 +99,63 @@ plot_satisfaction_curve <- function(optimization_plan, validated_data,
         satisfaction_pct = current_satisfaction_pct
       ),
       aes(x = cycle_time, y = satisfaction_pct),
-      color = "steelblue4",
-      fill = "steelblue",
-      size = 5,
-      shape = 21,
-      stroke = 2
+      color = aidia_colors$before_dark, fill = aidia_colors$before,
+      size = 4.5, shape = 21, stroke = 1.5
     ) +
     annotate(
-      "text",
+      "label",
       x = current_cycle_time,
       y = current_satisfaction_pct,
-      label = sprintf("Current\n(%.2f sec, %.1f%%)", current_cycle_time, current_satisfaction_pct),
-      hjust = 1.2,
+      label = sprintf("Current: %.2fs, %.0f%%", current_cycle_time, current_satisfaction_pct),
+      hjust = if (current_cycle_time > required_cycle_time) -0.1 else 1.1,
       vjust = 0.5,
-      size = 3.5,
-      fontface = "bold",
-      color = "steelblue4"
+      size = 3.2, fontface = "bold", color = aidia_colors$before_dark,
+      fill = "white", alpha = 0.85, label.linewidth = 0.3
     ) +
-    # Recommended state point
+    # Required state point (intersection)
     geom_point(
       data = data.frame(
         cycle_time = required_cycle_time,
         satisfaction_pct = recommended_satisfaction_pct
       ),
       aes(x = cycle_time, y = satisfaction_pct),
-      color = "coral4",
-      fill = "coral",
-      size = 5,
-      shape = 21,
-      stroke = 2
+      color = aidia_colors$after_dark, fill = aidia_colors$after,
+      size = 4.5, shape = 21, stroke = 1.5
     ) +
     annotate(
-      "text",
+      "label",
       x = required_cycle_time,
       y = recommended_satisfaction_pct,
-      label = sprintf("Recommended\n(%.2f sec, %.1f%%)", required_cycle_time, recommended_satisfaction_pct),
-      hjust = -0.2,
+      label = sprintf("Required: %.2fs, %.0f%%", required_cycle_time, recommended_satisfaction_pct),
+      hjust = if (current_cycle_time > required_cycle_time) 1.1 else -0.1,
       vjust = 0.5,
-      size = 3.5,
-      fontface = "bold",
-      color = "coral4"
+      size = 3.2, fontface = "bold", color = aidia_colors$after_dark,
+      fill = "white", alpha = 0.85, label.linewidth = 0.3
     ) +
-    # Improvement arrow (curved)
-    geom_curve(
-      data = data.frame(
-        x = current_cycle_time,
-        xend = required_cycle_time,
-        y = current_satisfaction_pct + 5,
-        yend = recommended_satisfaction_pct - 5
-      ),
-      aes(x = x, xend = xend, y = y, yend = yend),
-      arrow = arrow(length = unit(0.3, "cm"), type = "closed"),
-      color = "black",
-      linewidth = 1,
-      curvature = -0.3,
-      alpha = 0.7
-    ) +
-    annotate(
-      "text",
-      x = (current_cycle_time + required_cycle_time) / 2,
-      y = (current_satisfaction_pct + recommended_satisfaction_pct) / 2 + 8,
-      label = sprintf("%.1f%% cycle time down\n+%.1f pp satisfaction up",
-                     cycle_time_reduction_pct, satisfaction_gain_pp),
-      hjust = 0.5,
-      vjust = 0.5,
-      size = 3.5,
-      fontface = "bold",
-      lineheight = 0.9
-    ) +
-    # Annotation box (right side, mid-to-top position to avoid overlap)
-    annotate(
-      "text",
-      x = cycle_time_range[2] - 0.1,
-      y = 90,
-      label = annotation_text,
-      hjust = 1,
-      vjust = 1,
-      size = 3,
-      family = "mono",
-      lineheight = 0.95
-    ) +
-    # Scales
+    # Scales — clean breaks
     scale_x_continuous(
-      breaks = seq(cycle_time_range[1], cycle_time_range[2], by = 0.5),
-      expand = expansion(mult = c(0.02, 0.02))
+      breaks = scales::breaks_pretty(n = 8),
+      expand = expansion(mult = c(0.05, 0.05))
     ) +
     scale_y_continuous(
       breaks = seq(0, 100, by = 10),
       limits = c(0, 100),
       expand = expansion(mult = c(0.02, 0.02))
     ) +
-    # Labels
     labs(
-      title = "DPPP Satisfaction vs Cycle Time Trade-off",
-      subtitle = sprintf("Optimization path from %.2f sec (%.1f%%) to %.2f sec (%.1f%%) for %s precursors",
-                        current_cycle_time, current_satisfaction_pct,
-                        required_cycle_time, recommended_satisfaction_pct,
-                        format(nrow(validated_data$data), big.mark = ",")),
+      title = "Satisfaction vs Cycle Time",
+      subtitle = sprintf(
+        "Required cycle time: %.2f sec for %.0f%% satisfaction at DPPP >= %.1f",
+        required_cycle_time, target_satisfaction, target_dppp
+      ),
       x = "Cycle Time (seconds)",
-      y = "Satisfaction Ratio (%)",
-      caption = "S-curve shows trade-off between cycle time and DPPP achievement; shorter cycle time = higher satisfaction"
+      y = sprintf("Precursors with DPPP >= %.1f (%%)", target_dppp),
+      caption = sprintf(
+        "Shorter cycle time = higher DPPP | %s precursors",
+        format(nrow(validated_data$data), big.mark = ",")
+      )
     ) +
-    # Theme
-    theme_aidia() +
-    theme(
-      panel.grid.minor = element_line(color = "gray95", linewidth = 0.3)
-    )
+    theme_aidia()
 
   return(p)
 }

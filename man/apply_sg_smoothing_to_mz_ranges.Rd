@@ -8,7 +8,9 @@ apply_sg_smoothing_to_mz_ranges(
   mz_ranges,
   smoothing_window,
   polynomial_order,
-  precursor_data
+  precursor_data,
+  smoothing_method = "whittaker",
+  whittaker_lambda = 10
 )
 }
 \arguments{

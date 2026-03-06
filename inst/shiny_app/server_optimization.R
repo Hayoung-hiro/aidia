@@ -31,6 +31,56 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   # DPPP button visual sync is handled purely client-side in app.R
   # (no server round-trip needed for CSS class toggles)
 
+  # --- Strategy Preview Image ---
+  output$strategy_preview_img <- renderUI({
+    strategy <- input$mz_strategy
+    if (is.null(strategy)) return(NULL)
+
+    # Map strategy to schematic image
+    img_file <- sprintf("strategy_previews/schematic_%s.png", strategy)
+
+    tags$div(
+      style = "margin-bottom: 8px;",
+      tags$img(
+        src = img_file,
+        width = "100%",
+        style = "border-radius: 6px; border: 1px solid var(--border-subtle);"
+      ),
+      # Show KDE vs Coverage comparison when either is selected
+      if (strategy %in% c("kde", "coverage")) {
+        tags$details(
+          style = "margin-top: 6px;",
+          tags$summary(
+            style = "cursor: pointer; font-size: 11px; color: var(--text-secondary);",
+            "KDE vs Coverage: what's the difference?"
+          ),
+          tags$img(
+            src = "strategy_previews/schematic_kde_vs_coverage.png",
+            width = "100%",
+            style = "border-radius: 6px; border: 1px solid var(--border-subtle); margin-top: 4px;"
+          )
+        )
+      }
+    )
+  })
+
+  # --- Window Mode Preview Image ---
+  output$window_mode_preview_img <- renderUI({
+    mode <- input$window_mode
+    if (is.null(mode)) return(NULL)
+
+    img_file <- sprintf("strategy_previews/schematic_mode_%s.png", mode)
+
+    tags$div(
+      style = "margin-bottom: 8px;",
+      tags$img(
+        src = img_file,
+        width = "100%",
+        style = "border-radius: 6px; border: 1px solid var(--border-subtle);"
+      )
+    )
+  })
+
   # --- Toggle: "More Options" in Setup tab (legacy handler, harmless) ---
   observeEvent(input$toggle_setup_more, {
     shinyjs::toggle("setup_more_options")

@@ -13,6 +13,8 @@ print_instrument_info(preset_name)
 Print instrument information
 }
 \examples{
+\dontrun{
 print_instrument_info("fusion_lumos")
+}
 }
 \keyword{internal}

@@ -54,7 +54,7 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
     # Histogram
     geom_histogram(
       bins = bins,
-      fill = "steelblue",
+      fill = aidia_colors$before,
       alpha = 0.7,
       color = "white",
       linewidth = 0.1
@@ -64,7 +64,7 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
     geom_vline(
       xintercept = rt_median,
       linetype = "dashed",
-      color = "coral",
+      color = aidia_colors$after,
       linewidth = 1
     ) +
 
@@ -72,7 +72,7 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
     geom_vline(
       xintercept = rt_mean,
       linetype = "dotted",
-      color = "darkred",
+      color = aidia_colors$accent,
       linewidth = 0.8
     ) +
 
@@ -99,7 +99,7 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
       vjust = 0,
       size = 3.5,
       fontface = "bold",
-      color = "darkorange"
+      color = aidia_colors$warning
     ) +
 
     # Median annotation
@@ -111,7 +111,7 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
       hjust = 1.1,
       vjust = 1.5,
       size = 3,
-      color = "coral",
+      color = aidia_colors$after,
       fontface = "bold"
     ) +
 
@@ -124,7 +124,7 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
       hjust = -0.1,
       vjust = 1.5,
       size = 3,
-      color = "darkred",
+      color = aidia_colors$accent,
       fontface = "bold"
     ) +
 
@@ -171,14 +171,9 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
 
     theme_aidia(base_size = 12) +
     theme(
-      plot.title = element_text(face = "bold", size = 14),
-      plot.subtitle = element_text(size = 11, color = "gray30"),
-      plot.caption = element_text(size = 9, hjust = 0, color = "gray50"),
-      axis.title = element_text(face = "bold"),
-      axis.text = element_text(size = 10),
-      panel.grid.minor = element_blank(),
+      plot.caption = element_text(hjust = 0),
       panel.grid.major.x = element_blank(),
-      panel.grid.major.y = element_line(color = "gray90", linewidth = 0.3)
+      panel.grid.major.y = element_line(color = aidia_colors$grid, linewidth = 0.3)
     )
 
   return(p)
@@ -243,7 +238,7 @@ plot_rt_histogram_binned <- function(validated_data, bin_width_min = 5) {
   p <- ggplot(binned_data, aes(x = rt_bin_start, y = n_precursors)) +
     # Bars
     geom_col(
-      fill = "steelblue",
+      fill = aidia_colors$before,
       alpha = 0.8,
       width = bin_width_min * 0.9
     ) +
@@ -252,7 +247,7 @@ plot_rt_histogram_binned <- function(validated_data, bin_width_min = 5) {
     geom_col(
       data = peak_bin,
       aes(x = rt_bin_start, y = n_precursors),
-      fill = "coral",
+      fill = aidia_colors$after,
       alpha = 0.8,
       width = bin_width_min * 0.9
     ) +
@@ -303,15 +298,10 @@ plot_rt_histogram_binned <- function(validated_data, bin_width_min = 5) {
 
     theme_aidia(base_size = 12) +
     theme(
-      plot.title = element_text(face = "bold", size = 14),
-      plot.subtitle = element_text(size = 11, color = "gray30"),
-      plot.caption = element_text(size = 9, hjust = 0, color = "gray50"),
-      axis.title = element_text(face = "bold"),
-      axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
-      axis.text.y = element_text(size = 10),
-      panel.grid.minor = element_blank(),
+      plot.caption = element_text(hjust = 0),
+      axis.text.x = element_text(angle = 45, hjust = 1),
       panel.grid.major.x = element_blank(),
-      panel.grid.major.y = element_line(color = "gray90", linewidth = 0.3)
+      panel.grid.major.y = element_line(color = aidia_colors$grid, linewidth = 0.3)
     )
 
   return(p)

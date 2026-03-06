@@ -7,7 +7,7 @@
 plot_satisfaction_curve(
   optimization_plan,
   validated_data,
-  cycle_time_range = c(0.5, 3),
+  cycle_time_range = NULL,
   n_points = 50
 )
 }

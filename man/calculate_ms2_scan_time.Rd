@@ -65,20 +65,10 @@ This is the core formula for accurate window count calculation:
 }
 }
 \examples{
-# 30K resolution with 50ms IT (Resolution-Limited)
-calculate_ms2_scan_time(30000, 50)
-# t_scan = max(64, 50) + 12.8 = 76.8 ms
-
-# 30K resolution with 80ms IT (Sensitivity-Limited)
-calculate_ms2_scan_time(30000, 80)
-# t_scan = max(64, 80) + 12.8 = 92.8 ms
-
-# 15K resolution with 30ms IT
-calculate_ms2_scan_time(15000, 30)
-# t_scan = max(32, 30) + 6.4 = 38.4 ms
-
-# Astral analyzer (fixed detection time)
-calculate_ms2_scan_time(80000, 3.0, analyzer = "astral")
-# t_scan = max(2.5, 3.0) + 2.0 = 5.0 ms -> 200 Hz
+\dontrun{
+calculate_ms2_scan_time(30000, 50)   # 30K, 50ms IT -> 76.8 ms
+calculate_ms2_scan_time(30000, 80)   # 30K, 80ms IT -> 92.8 ms
+calculate_ms2_scan_time(80000, 3.0, analyzer = "astral")  # Astral
+}
 }
 \keyword{internal}

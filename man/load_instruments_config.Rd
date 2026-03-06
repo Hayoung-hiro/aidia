@@ -13,7 +13,9 @@ List of instrument configurations
 Load all instrument configurations from JSON
 }
 \examples{
+\dontrun{
 configs <- load_instruments_config()
 names(configs)  # List available instruments
+}
 }
 \keyword{internal}

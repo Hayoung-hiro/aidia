@@ -146,8 +146,6 @@ plot_tiling_coverage_map <- function(optimized_windows,
     ) +
     theme_aidia(base_size = base_size) +
     theme(
-      plot.title = element_text(hjust = 0.5),
-      plot.subtitle = element_text(hjust = 0.5),
       legend.position = "bottom",
       panel.grid.major.y = element_blank(),
       panel.grid.major.x = element_line(linewidth = 0.2)

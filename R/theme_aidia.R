@@ -38,7 +38,26 @@ aidia_colors <- list(
   success   = "#27AE60",  # Green (satisfied region)
   warning   = "#F39C12",  # Orange (caution)
   grid      = "#ECF0F1",  # Light gray (grid lines)
-  bg        = "#FFFFFF"   # White background
+  bg        = "#FFFFFF",  # White background
+  # Before/After comparison pair
+  before      = "steelblue",   # Current/input state (fill)
+  before_dark = "steelblue4",  # Current state (outline, text)
+  after       = "coral",       # Optimized/required state (fill)
+  after_dark  = "coral4",      # Optimized state (outline, text)
+  # Before/After gray variant (density overlays)
+  before_muted      = "#BDC3C7",  # Light gray fill
+  before_muted_dark = "#95A5A6",  # Darker gray outline
+  after_success     = "#1E8449"   # Dark green outline (after condition)
+)
+
+#' Charge-state color palette for AIDIA
+#'
+#' 5-color vector for charge state visualizations.
+#' Based on the AIDIA palette for visual consistency.
+#'
+#' @export
+aidia_charge_colors <- c(
+  "#3498DB", "#27AE60", "#F39C12", "#E74C3C", "#9B59B6"
 )
 
 # Theme Function ------------------------------------------------------------

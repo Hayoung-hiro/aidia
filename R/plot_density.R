@@ -54,6 +54,91 @@ plot_rt_mz_density_heatmap <- function(validated_data, bins = 150) {
 }
 
 # =============================================================================
+# Plot 2C: RT x m/z Density Heatmap with Optimized Window Overlay
+# =============================================================================
+
+#' Plot RT x m/z Density Heatmap with Window Boundaries
+#'
+#' Overlays optimized isolation window boundaries on the precursor density
+#' heatmap. This is the primary Section 3 visualization — it answers
+#' "how do the optimized windows relate to where precursors actually are?"
+#'
+#' @param optimized_windows OptimizedWindows object from Stage 3
+#' @param validated_data ValidatedData object from Stage 1
+#' @param bins Number of bins for density calculation (default: 150)
+#'
+#' @return ggplot object
+#' @keywords internal
+plot_heatmap_with_windows <- function(optimized_windows, validated_data, bins = 150) {
+
+  cat("  Generating RT x m/z Heatmap with Window Overlay...\n")
+
+  precursor_data <- validated_data$data
+  windows <- optimized_windows$windows
+
+  n_windows <- nrow(windows)
+  n_rt_bins <- length(unique(windows$rt_segment_id))
+
+  # Calculate window widths for subtitle
+  if ("window_width" %in% names(windows)) {
+    widths <- windows$window_width
+  } else {
+    widths <- windows$mz_end - windows$mz_start
+  }
+
+  p <- ggplot() +
+    # Layer 1: Precursor density heatmap
+    stat_density_2d(
+      data = precursor_data,
+      aes(x = RT.Apex, y = Precursor.Mz, fill = after_stat(density)),
+      geom = "raster",
+      contour = FALSE,
+      n = bins
+    ) +
+    scale_fill_viridis_c(option = "plasma", name = "Precursor\nDensity") +
+    # Layer 2: Window rectangles (transparent fill, colored border)
+    geom_rect(
+      data = windows,
+      aes(xmin = rt_start, xmax = rt_end,
+          ymin = mz_start, ymax = mz_end),
+      fill = NA,
+      color = "white",
+      linewidth = 0.4,
+      alpha = 0.8
+    ) +
+    # Layer 3: RT bin boundary lines (thicker, dashed)
+    geom_vline(
+      xintercept = sort(unique(c(windows$rt_start, max(windows$rt_end)))),
+      linetype = "dashed",
+      color = "cyan",
+      linewidth = 0.5,
+      alpha = 0.6
+    ) +
+    labs(
+      title = "Precursor Density with Optimized Window Layout",
+      subtitle = sprintf(
+        "%d windows | %d RT bins | Width: %.0f\u2013%.0f Da (mean %.1f)",
+        n_windows, n_rt_bins,
+        min(widths), max(widths), mean(widths)
+      ),
+      x = "Retention Time (min)",
+      y = "m/z (Da)",
+      caption = "Heatmap = precursor density | White rectangles = isolation windows"
+    ) +
+    theme_aidia() +
+    theme(
+      legend.position = "right"
+    ) +
+    coord_cartesian(
+      xlim = range(precursor_data$RT.Apex),
+      ylim = range(precursor_data$Precursor.Mz)
+    )
+
+  return(p)
+}
+
+
+# =============================================================================
 # Plot 3: m/z Normalized Density (Line Plot by RT Segment)
 # =============================================================================
 

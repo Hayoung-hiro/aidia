@@ -193,10 +193,6 @@ plot_alignment_density <- function(optimized_windows,
       y = "Precursor Density"
     ) +
     theme_aidia(base_size = base_size) +
-    theme(
-      plot.title = element_text(hjust = 0.5),
-      plot.subtitle = element_text(hjust = 0.5)
-    ) +
     coord_cartesian(
       xlim = c(min(seg_windows$mz_start) - 5, max(seg_windows$mz_end) + 5),
       ylim = c(0, y_max * 1.35)

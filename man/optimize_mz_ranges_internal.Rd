@@ -24,7 +24,9 @@ optimize_mz_ranges_internal(
   outlier_apply_smoothing = FALSE,
   coverage_mode = "narrowest",
   mz_range_min = 400,
-  mz_range_max = 1200
+  mz_range_max = 1200,
+  smoothing_method = "whittaker",
+  whittaker_lambda = 10
 )
 }
 \arguments{

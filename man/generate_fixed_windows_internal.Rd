@@ -31,8 +31,8 @@ Data frame with window specifications
 }
 \description{
 Creates equal-width windows across the m/z range.
-When fz_offset > 0, uses boundary-array-first architecture:
-integer boundaries are FZ-transformed and assembled as adjacent pairs,
-guaranteeing continuity by construction.
+Uses boundary-array-first architecture: boundaries are always integerized
+for clean edges, then optionally FZ-transformed when fz_offset > 0.
+Continuity is guaranteed by construction (adjacent boundary pairs).
 }
 \keyword{internal}

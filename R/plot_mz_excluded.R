@@ -136,7 +136,7 @@ plot_mz_distribution_with_exclusions <- function(optimized_windows,
       theme_aidia(base_size = 9) +
       theme(
         plot.title = element_text(face = "bold", size = 10),
-        plot.subtitle = element_text(size = 8, color = "gray30"),
+        plot.subtitle = element_text(size = 8),
         axis.title = element_text(size = 9),
         axis.text = element_text(size = 8),
         panel.grid.minor = element_blank()

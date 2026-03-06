@@ -15,6 +15,8 @@ print_header(title, width = 50)
 Creates a consistent box-style header for stage/section titles.
 }
 \examples{
+\dontrun{
 print_header("Stage 2: Optimization Planning")
+}
 }
 \keyword{internal}

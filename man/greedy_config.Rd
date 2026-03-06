@@ -10,7 +10,9 @@ greedy_config(
   mz_step = 0.5,
   apply_smoothing = TRUE,
   smoothing_window = 7,
-  polynomial_order = 3
+  polynomial_order = 3,
+  smoothing_method = "whittaker",
+  whittaker_lambda = 10
 )
 }
 \arguments{
@@ -20,11 +22,15 @@ greedy_config(
 
 \item{mz_step}{Numeric, sliding window step size in Da (default: 0.5)}
 
-\item{apply_smoothing}{Logical, apply Savitzky-Golay smoothing to boundaries (default: TRUE)}
+\item{apply_smoothing}{Logical, apply boundary smoothing (default: TRUE)}
 
-\item{smoothing_window}{Integer, SG window size (default: 7, must be odd >= 3)}
+\item{smoothing_window}{Integer, SG window size (default: 7, must be odd >= 3). Only used when smoothing_method = "sg".}
 
-\item{polynomial_order}{Integer, SG polynomial order (default: 3)}
+\item{polynomial_order}{Integer, SG polynomial order (default: 3). Only used when smoothing_method = "sg".}
+
+\item{smoothing_method}{Character, "whittaker" (default) or "sg" (Savitzky-Golay)}
+
+\item{whittaker_lambda}{Numeric, Whittaker smoothing parameter (default: 10). Only used when smoothing_method = "whittaker".}
 }
 \value{
 A strategy_config object for the greedy strategy
@@ -35,4 +41,5 @@ MacCoss Lab sliding window algorithm. Recommended for general-purpose use.
 \examples{
 config <- greedy_config()
 config <- greedy_config(auto_windows = FALSE, n_windows = 40, mz_step = 1.0)
+config <- greedy_config(smoothing_method = "sg")  # use legacy SG smoother
 }

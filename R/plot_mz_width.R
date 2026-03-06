@@ -123,8 +123,7 @@ plot_mz_width_comparison_all_strategies <- function(windows_list, validated_data
 
     theme_aidia() +
     theme(
-      plot.subtitle = element_text(size = 9, color = "gray30"),
-      plot.caption = element_text(size = 9, hjust = 0, color = "gray50"),
+      plot.caption = element_text(hjust = 0),
       legend.position = "top",
       legend.title = element_text(face = "bold", size = 10),
       legend.text = element_text(size = 9),

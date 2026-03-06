@@ -188,8 +188,6 @@ plot_fz_zoom <- function(optimized_windows,
     ) +
     theme_aidia() +
     theme(
-      plot.title = element_text(hjust = 0.5),
-      plot.subtitle = element_text(hjust = 0.5),
       axis.text.y = element_blank(),
       panel.grid.major.y = element_blank()
     ) +

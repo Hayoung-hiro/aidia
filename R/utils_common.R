@@ -23,7 +23,9 @@
 #' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' print_header("Stage 2: Optimization Planning")
+#' }
 print_header <- function(title, width = 50) {
   # Calculate padding
   title_length <- nchar(title)
@@ -326,6 +328,39 @@ select_median_rt_segment <- function(windows) {
 }
 
 
+#' Select the RT Segment with Most Precursors
+#'
+#' Finds the RT bin containing the highest number of precursors.
+#' Used to select a representative dense bin for close-up window visualizations.
+#'
+#' @param optimized_windows OptimizedWindows object
+#' @param validated_data ValidatedData object
+#'
+#' @return Integer RT segment ID
+#' @keywords internal
+select_densest_rt_segment <- function(optimized_windows, validated_data) {
+  windows <- optimized_windows$windows
+  precursor_data <- validated_data$data
+
+  # Get RT boundaries per segment
+  rt_bins <- windows %>%
+    dplyr::group_by(rt_segment_id) %>%
+    dplyr::summarize(
+      rt_start = min(rt_start),
+      rt_end = max(rt_end),
+      .groups = "drop"
+    )
+
+  # Count precursors per bin
+  counts <- vapply(seq_len(nrow(rt_bins)), function(i) {
+    sum(precursor_data$RT.Apex >= rt_bins$rt_start[i] &
+        precursor_data$RT.Apex < rt_bins$rt_end[i])
+  }, integer(1))
+
+  rt_bins$rt_segment_id[which.max(counts)]
+}
+
+
 # =============================================================================
 # Data Manipulation Utilities
 # =============================================================================
@@ -456,25 +491,52 @@ format_output_filename <- function(type,
 
 #' Extract Before/After Metrics from Optimization Results
 #'
-#' Centralized accessor for DPPP, cycle time, strategy, and window mode
-#' from OptimizationPlan and OptimizedWindows S3 objects. Provides consistent
-#' null handling across PDF reports and Shiny ValueBoxes.
+#' Centralized accessor for DPPP, cycle time, strategy, window mode, and
+#' scorecard fields from OptimizationPlan and OptimizedWindows S3 objects.
+#' Provides consistent null handling across PDF reports and Shiny ValueBoxes.
 #'
 #' @param optimization_plan OptimizationPlan object from Stage 2
 #' @param optimized_windows OptimizedWindows object from Stage 3
 #'
 #' @return Named list with orig_dppp, new_dppp, target_dppp, orig_ct, new_ct,
-#'   strategy, and window_mode
+#'   strategy, window_mode, target_satisfaction, n_windows, windows_per_bin,
+#'   coverage_pct, and mean_width
 #' @keywords internal
 extract_before_after_metrics <- function(optimization_plan, optimized_windows) {
+  # Window width: prefer window_width, fallback to mz_width, then compute
+  windows <- optimized_windows$windows
+  if ("window_width" %in% names(windows)) {
+    mean_width <- mean(windows$window_width, na.rm = TRUE)
+  } else if ("mz_width" %in% names(windows)) {
+    mean_width <- mean(windows$mz_width, na.rm = TRUE)
+  } else if (all(c("mz_start", "mz_end") %in% names(windows))) {
+    mean_width <- mean(windows$mz_end - windows$mz_start, na.rm = TRUE)
+  } else {
+    mean_width <- NA_real_
+  }
+
+  # Coverage: try percentage first, then ratio
+
+  coverage_pct <- optimized_windows$statistics$coverage_percentage %||% NA_real_
+  if (is.na(coverage_pct)) {
+    ratio <- optimized_windows$statistics$mean_coverage_ratio %||% NA_real_
+    if (!is.na(ratio)) coverage_pct <- ratio * 100
+  }
+
   list(
-    orig_dppp   = optimization_plan$diagnosis$current_dppp_mean %||% NA_real_,
-    new_dppp    = optimized_windows$dppp_verification$actual_dppp_median %||% NA_real_,
-    target_dppp = optimization_plan$parameters$target_dppp %||% NA_real_,
-    orig_ct     = optimization_plan$diagnosis$current_cycle_time_sec %||% NA_real_,
-    new_ct      = optimized_windows$actual_cycle_time_sec %||% NA_real_,
-    strategy    = optimized_windows$parameters$mz_strategy %||% "unknown",
-    window_mode = optimized_windows$parameters$window_mode %||% "unknown"
+    orig_dppp          = optimization_plan$diagnosis$current_dppp_mean %||% NA_real_,
+    new_dppp           = optimized_windows$dppp_verification$actual_dppp_median %||% NA_real_,
+    target_dppp        = optimization_plan$parameters$target_dppp %||% NA_real_,
+    orig_ct            = optimization_plan$diagnosis$current_cycle_time_sec %||% NA_real_,
+    new_ct             = optimized_windows$actual_cycle_time_sec %||%
+                         optimization_plan$required_cycle_time_sec %||% NA_real_,
+    strategy           = optimized_windows$parameters$mz_strategy %||% "unknown",
+    window_mode        = optimized_windows$parameters$window_mode %||% "unknown",
+    target_satisfaction = optimization_plan$parameters$target_satisfaction %||% NA_real_,
+    n_windows          = nrow(optimized_windows$windows) %||% 0L,
+    windows_per_bin    = optimization_plan$window_count_per_bin %||% NA_integer_,
+    coverage_pct       = coverage_pct,
+    mean_width         = mean_width
   )
 }
 

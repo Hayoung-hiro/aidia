@@ -470,6 +470,11 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
 # Staggered Window Mode (2-Cycle Interleaved + Forbidden Zone)
 # =============================================================================
 
+# Average mass defect of amino acid residues (Da).
+# Peptide precursors cannot exist at multiples of this increment,
+# making these m/z positions ideal for isolation window boundaries.
+OPTIMAL_INCREMENT <- 1.00045475
+
 #' Calculate Forbidden Zone Edge (Mass Defect)
 #'
 #' Calculates the nearest forbidden zone m/z boundary using mass defect.
@@ -481,11 +486,6 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
 #'
 #' @return Numeric, forbidden zone edge m/z value
 #' @keywords internal
-# Average mass defect of amino acid residues (Da).
-# Peptide precursors cannot exist at multiples of this increment,
-# making these m/z positions ideal for isolation window boundaries.
-OPTIMAL_INCREMENT <- 1.00045475
-
 calc_forbidden_edge <- function(nominal_mz, fz_offset = 0.25) {
   round(ceiling(nominal_mz / OPTIMAL_INCREMENT) * OPTIMAL_INCREMENT + fz_offset, 4)
 }

@@ -20,9 +20,11 @@
 #' @param auto_windows Logical, auto-detect window count (default: TRUE)
 #' @param n_windows Integer or NULL, manual window count override (used when auto_windows = FALSE)
 #' @param mz_step Numeric, sliding window step size in Da (default: 0.5)
-#' @param apply_smoothing Logical, apply Savitzky-Golay smoothing to boundaries (default: TRUE)
-#' @param smoothing_window Integer, SG window size (default: 7, must be odd >= 3)
-#' @param polynomial_order Integer, SG polynomial order (default: 3)
+#' @param apply_smoothing Logical, apply boundary smoothing (default: TRUE)
+#' @param smoothing_window Integer, SG window size (default: 7, must be odd >= 3). Only used when smoothing_method = "sg".
+#' @param polynomial_order Integer, SG polynomial order (default: 3). Only used when smoothing_method = "sg".
+#' @param smoothing_method Character, "whittaker" (default) or "sg" (Savitzky-Golay)
+#' @param whittaker_lambda Numeric, Whittaker smoothing parameter (default: 10). Only used when smoothing_method = "whittaker".
 #'
 #' @return A strategy_config object for the greedy strategy
 #' @export
@@ -30,12 +32,15 @@
 #' @examples
 #' config <- greedy_config()
 #' config <- greedy_config(auto_windows = FALSE, n_windows = 40, mz_step = 1.0)
+#' config <- greedy_config(smoothing_method = "sg")  # use legacy SG smoother
 greedy_config <- function(auto_windows = TRUE,
                           n_windows = NULL,
                           mz_step = 0.5,
                           apply_smoothing = TRUE,
                           smoothing_window = 7,
-                          polynomial_order = 3) {
+                          polynomial_order = 3,
+                          smoothing_method = "whittaker",
+                          whittaker_lambda = 10) {
   structure(
     list(
       strategy = "greedy",
@@ -44,7 +49,9 @@ greedy_config <- function(auto_windows = TRUE,
       mz_step = mz_step,
       greedy_apply_smoothing = apply_smoothing,
       smoothing_window = smoothing_window,
-      polynomial_order = polynomial_order
+      polynomial_order = polynomial_order,
+      smoothing_method = smoothing_method,
+      whittaker_lambda = whittaker_lambda
     ),
     class = c("strategy_config", "list")
   )
@@ -56,9 +63,11 @@ greedy_config <- function(auto_windows = TRUE,
 #'
 #' @param lower Numeric, lower quantile 0-1 (default: 0.05)
 #' @param upper Numeric, upper quantile 0-1 (default: 0.95)
-#' @param apply_smoothing Logical, apply SG smoothing to boundaries (default: FALSE)
-#' @param smoothing_window Integer, SG window size (default: 7)
-#' @param polynomial_order Integer, SG polynomial order (default: 3)
+#' @param apply_smoothing Logical, apply boundary smoothing (default: FALSE)
+#' @param smoothing_window Integer, SG window size (default: 7). Only used when smoothing_method = "sg".
+#' @param polynomial_order Integer, SG polynomial order (default: 3). Only used when smoothing_method = "sg".
+#' @param smoothing_method Character, "whittaker" (default) or "sg" (Savitzky-Golay)
+#' @param whittaker_lambda Numeric, Whittaker smoothing parameter (default: 10). Only used when smoothing_method = "whittaker".
 #'
 #' @return A strategy_config object for the quantile strategy
 #' @export
@@ -70,7 +79,9 @@ quantile_config <- function(lower = 0.05,
                             upper = 0.95,
                             apply_smoothing = FALSE,
                             smoothing_window = 7,
-                            polynomial_order = 3) {
+                            polynomial_order = 3,
+                            smoothing_method = "whittaker",
+                            whittaker_lambda = 10) {
   validate_numeric_range(lower, min = 0, max = 1, param_name = "lower")
   validate_numeric_range(upper, min = 0, max = 1, param_name = "upper")
   if (lower >= upper) stop("lower must be less than upper")
@@ -82,7 +93,9 @@ quantile_config <- function(lower = 0.05,
       quantile_upper = upper,
       quantile_apply_smoothing = apply_smoothing,
       smoothing_window = smoothing_window,
-      polynomial_order = polynomial_order
+      polynomial_order = polynomial_order,
+      smoothing_method = smoothing_method,
+      whittaker_lambda = whittaker_lambda
     ),
     class = c("strategy_config", "list")
   )
@@ -123,9 +136,11 @@ coverage_config <- function(target = 0.95,
 #' Uses mean +/- N*SD to define m/z range, removing outliers.
 #'
 #' @param threshold Numeric, SD multiplier (default: 3.0)
-#' @param apply_smoothing Logical, apply SG smoothing to boundaries (default: FALSE)
-#' @param smoothing_window Integer, SG window size (default: 7)
-#' @param polynomial_order Integer, SG polynomial order (default: 3)
+#' @param apply_smoothing Logical, apply boundary smoothing (default: FALSE)
+#' @param smoothing_window Integer, SG window size (default: 7). Only used when smoothing_method = "sg".
+#' @param polynomial_order Integer, SG polynomial order (default: 3). Only used when smoothing_method = "sg".
+#' @param smoothing_method Character, "whittaker" (default) or "sg" (Savitzky-Golay)
+#' @param whittaker_lambda Numeric, Whittaker smoothing parameter (default: 10). Only used when smoothing_method = "whittaker".
 #'
 #' @return A strategy_config object for the outlier strategy
 #' @export
@@ -133,10 +148,13 @@ coverage_config <- function(target = 0.95,
 #' @examples
 #' config <- outlier_config()
 #' config <- outlier_config(threshold = 2.5, apply_smoothing = TRUE)
+#' config <- outlier_config(smoothing_method = "sg")  # use legacy SG smoother
 outlier_config <- function(threshold = 3.0,
                            apply_smoothing = FALSE,
                            smoothing_window = 7,
-                           polynomial_order = 3) {
+                           polynomial_order = 3,
+                           smoothing_method = "whittaker",
+                           whittaker_lambda = 10) {
   validate_numeric_range(threshold, min = 0, param_name = "threshold")
 
   structure(
@@ -145,7 +163,9 @@ outlier_config <- function(threshold = 3.0,
       outlier_threshold = threshold,
       outlier_apply_smoothing = apply_smoothing,
       smoothing_window = smoothing_window,
-      polynomial_order = polynomial_order
+      polynomial_order = polynomial_order,
+      smoothing_method = smoothing_method,
+      whittaker_lambda = whittaker_lambda
     ),
     class = c("strategy_config", "list")
   )
@@ -223,7 +243,9 @@ build_strategy_config <- function(mz_strategy,
                                   kde_density_threshold = 0.1,
                                   kde_min_coverage = 0.8,
                                   smoothing_window = 7,
-                                  polynomial_order = 3) {
+                                  polynomial_order = 3,
+                                  smoothing_method = "whittaker",
+                                  whittaker_lambda = 10) {
   switch(mz_strategy,
     greedy = greedy_config(
       auto_windows = is.null(n_windows_override),
@@ -231,14 +253,18 @@ build_strategy_config <- function(mz_strategy,
       mz_step = mz_step,
       apply_smoothing = greedy_apply_smoothing,
       smoothing_window = smoothing_window,
-      polynomial_order = polynomial_order
+      polynomial_order = polynomial_order,
+      smoothing_method = smoothing_method,
+      whittaker_lambda = whittaker_lambda
     ),
     quantile = quantile_config(
       lower = quantile_lower,
       upper = quantile_upper,
       apply_smoothing = quantile_apply_smoothing,
       smoothing_window = smoothing_window,
-      polynomial_order = polynomial_order
+      polynomial_order = polynomial_order,
+      smoothing_method = smoothing_method,
+      whittaker_lambda = whittaker_lambda
     ),
     coverage = coverage_config(
       target = target_coverage,
@@ -248,7 +274,9 @@ build_strategy_config <- function(mz_strategy,
       threshold = outlier_threshold,
       apply_smoothing = outlier_apply_smoothing,
       smoothing_window = smoothing_window,
-      polynomial_order = polynomial_order
+      polynomial_order = polynomial_order,
+      smoothing_method = smoothing_method,
+      whittaker_lambda = whittaker_lambda
     ),
     kde = kde_config(
       density_threshold = kde_density_threshold,
