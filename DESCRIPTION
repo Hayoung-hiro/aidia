@@ -32,14 +32,14 @@ Imports:
     tools,
     stats,
     utils,
-    grDevices
-Suggests:
-    testthat (>= 3.0.0),
+    grDevices,
     shiny (>= 1.7.0),
     bs4Dash (>= 2.0.0),
     shinyjs (>= 2.0.0),
     shinybusy (>= 0.3.0),
-    DT (>= 0.28),
+    DT (>= 0.28)
+Suggests:
+    testthat (>= 3.0.0),
     prospectr (>= 0.2.0)
 Config/testthat/edition: 3
 LazyData: true
