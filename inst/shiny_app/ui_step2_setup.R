@@ -1,6 +1,7 @@
 # ui_step2_setup.R - Step 2: STRATEGY (DPPP Target, Strategy, Parameters)
 
 step2_setup_ui <- function() {
+  smoothing_label <- "Apply Boundary Smoothing (Whittaker-Henderson)"
   tabItem(
     tabName = "setup",
 
@@ -218,7 +219,7 @@ step2_setup_ui <- function() {
           # Post-Smoothing
           checkboxInput(
             inputId = "greedy_apply_smoothing",
-            label = "Apply Boundary Smoothing (Whittaker-Henderson)",
+            label = smoothing_label,
             value = TRUE
           ),
           helpText("Smooths m/z boundaries across RT bins to prevent abrupt jumps. Uses weighted Whittaker-Henderson smoother.",
@@ -243,7 +244,7 @@ step2_setup_ui <- function() {
           ),
           checkboxInput(
             inputId = "quantile_apply_smoothing",
-            label = "Apply Boundary Smoothing (Whittaker-Henderson)",
+            label = smoothing_label,
             value = FALSE
           ),
           helpText("P5-P95 covers 90% of precursors. WH smoothing prevents abrupt m/z jumps.",
@@ -278,7 +279,7 @@ step2_setup_ui <- function() {
           ),
           checkboxInput(
             inputId = "outlier_apply_smoothing",
-            label = "Apply Boundary Smoothing (Whittaker-Henderson)",
+            label = smoothing_label,
             value = FALSE
           ),
           helpText("Mean +/- NxSD range. WH smoothing prevents abrupt m/z jumps.",

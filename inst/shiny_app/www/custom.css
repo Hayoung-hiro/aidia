@@ -1666,14 +1666,21 @@ body.dark-mode .info-box {
   min-height: 130px;
   overflow: hidden;
 }
-.small-box .inner {
+/* Prominent number styling — shared for bare text and h3 (bs4Dash version-dependent) */
+.small-box .inner,
+.small-box .inner h3 {
   font-size: 3rem;
   font-weight: 800;
   letter-spacing: -1px;
   line-height: 1.1;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   color: #fff;
+}
+.small-box .inner {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   padding: 14px 14px 10px;
+}
+.small-box .inner h3 {
+  margin: 0 0 6px 0;
 }
 .small-box .inner .small-box-subtitle {
   font-size: 12px;
@@ -1683,14 +1690,6 @@ body.dark-mode .info-box {
   margin-top: 6px;
   line-height: 1.3;
   text-shadow: none;
-}
-/* If bs4Dash wraps value in h3 (version-dependent), style that too */
-.small-box .inner h3 {
-  font-size: 3rem;
-  font-weight: 800;
-  letter-spacing: -1px;
-  line-height: 1;
-  margin: 0 0 6px 0;
 }
 .small-box .inner p:not(.small-box-subtitle) {
   font-size: 12px;

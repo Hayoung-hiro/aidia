@@ -96,7 +96,7 @@
 #' @importFrom gridExtra grid.arrange
 #' @importFrom grid unit
 #' @importFrom graphics hist
-#' @importFrom stats median sd quantile ecdf density approx complete.cases cycle setNames
+#' @importFrom stats median sd quantile ecdf density approx complete.cases setNames
 #' @importFrom utils read.csv write.csv read.delim head tail capture.output
 #' @importFrom grDevices pdf dev.off
 #'
