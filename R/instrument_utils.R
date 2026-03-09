@@ -454,6 +454,7 @@ calculate_ms2_scan_time <- function(resolution = 30000,
 #' @param analyzer Character, analyzer type: "orbitrap", "astral", or "tof"
 #'
 #' @return Numeric, transient/detection time in milliseconds (NA for TOF)
+#' @export
 #' @keywords internal
 #'
 #' @examples
@@ -965,6 +966,7 @@ if (is.numeric(ms2_time)) {
 #' @param language Character, output language: "ko" (Korean) or "en" (English)
 #'
 #' @return List with calculated cycle time and detailed breakdown
+#' @export
 #' @keywords internal
 #'
 #' @details

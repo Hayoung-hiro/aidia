@@ -23,6 +23,7 @@
 #' @param windows Data frame with columns: cycle, rt_segment_id
 #'
 #' @return Integer Loop N value, or NULL if not staggered
+#' @export
 #' @keywords internal
 calculate_loop_n <- function(windows) {
   if (!"cycle" %in% colnames(windows)) return(NULL)

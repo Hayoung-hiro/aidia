@@ -467,6 +467,7 @@ format_short_rt_mode <- function(rt_binning_mode, rt_bin_width_min = 5) {
 #' @param date Character, date string (default: today in YYYYMMDD format)
 #'
 #' @return Character, formatted filename (without directory path)
+#' @export
 #' @keywords internal
 format_output_filename <- function(type,
                                    instrument_preset,
@@ -504,6 +505,7 @@ format_output_filename <- function(type,
 #' @return Named list with orig_dppp, new_dppp, target_dppp, orig_ct, new_ct,
 #'   strategy, window_mode, target_satisfaction, n_windows, windows_per_bin,
 #'   coverage_pct, and mean_width
+#' @export
 #' @keywords internal
 extract_before_after_metrics <- function(optimization_plan, optimized_windows) {
   # Window width: use shared helper (handles window_width -> mz_width -> compute)
