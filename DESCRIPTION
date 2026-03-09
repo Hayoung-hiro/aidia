@@ -40,10 +40,7 @@ Suggests:
     shinyjs (>= 2.0.0),
     shinybusy (>= 0.3.0),
     DT (>= 0.28),
-    prospectr (>= 0.2.0),
-    yaml (>= 2.3.0),
-    knitr,
-    rmarkdown
+    prospectr (>= 0.2.0)
 Config/testthat/edition: 3
 LazyData: true
 URL: https://github.com/KBSI/aidia
