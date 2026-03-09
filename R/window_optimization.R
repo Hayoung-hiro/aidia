@@ -82,6 +82,11 @@
 #'   - Snaps window widths to nearest multiple for batch reproducibility
 #'   - Set to NULL or 0 to disable digitization
 #'   - Only applies to density (variable) window mode
+#' @param smoothing_method Character, boundary smoothing method (default: "whittaker").
+#'   "whittaker" for Whittaker-Henderson penalized least squares,
+#'   "sg" for Savitzky-Golay polynomial filter.
+#' @param whittaker_lambda Numeric, lambda penalty for Whittaker-Henderson smoother
+#'   (default: 10). Higher values produce smoother boundaries.
 #'
 #' @return OptimizedWindows S3 object
 #' @export

@@ -226,7 +226,22 @@ flatten_strategy_config <- function(config) {
 #' Used internally for backward compatibility.
 #'
 #' @param mz_strategy Character, strategy name
-#' @param ... Strategy-specific parameters
+#' @param quantile_lower Lower quantile for quantile strategy (default 0.05)
+#' @param quantile_upper Upper quantile for quantile strategy (default 0.95)
+#' @param quantile_apply_smoothing Logical, apply smoothing for quantile
+#' @param target_coverage Target coverage ratio for coverage strategy
+#' @param coverage_mode Coverage mode: "narrowest" or "centered"
+#' @param outlier_threshold Sigma threshold for outlier strategy
+#' @param outlier_apply_smoothing Logical, apply smoothing for outlier
+#' @param mz_step Step size in Da for greedy strategy
+#' @param n_windows_override Manual window count override for greedy
+#' @param greedy_apply_smoothing Logical, apply smoothing for greedy
+#' @param kde_density_threshold Density threshold for KDE strategy
+#' @param kde_min_coverage Minimum coverage for KDE strategy
+#' @param smoothing_window Savitzky-Golay window size (legacy, used when smoothing_method="sg")
+#' @param polynomial_order Savitzky-Golay polynomial order (legacy)
+#' @param smoothing_method Smoothing method: "whittaker" (default) or "sg"
+#' @param whittaker_lambda Lambda parameter for Whittaker-Henderson smoother
 #' @return strategy_config object
 #' @keywords internal
 build_strategy_config <- function(mz_strategy,

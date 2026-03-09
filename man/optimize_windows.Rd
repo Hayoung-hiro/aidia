@@ -136,6 +136,13 @@ Ignored when strategy_config is provided.
 \item Set to NULL or 0 to disable digitization
 \item Only applies to density (variable) window mode
 }}
+
+\item{smoothing_method}{Character, boundary smoothing method (default: "whittaker").
+"whittaker" for Whittaker-Henderson penalized least squares,
+"sg" for Savitzky-Golay polynomial filter.}
+
+\item{whittaker_lambda}{Numeric, lambda penalty for Whittaker-Henderson smoother
+(default: 10). Higher values produce smoother boundaries.}
 }
 \value{
 OptimizedWindows S3 object

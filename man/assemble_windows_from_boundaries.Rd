@@ -14,8 +14,8 @@ Tibble with mz_start, mz_end, mz_center, window_width columns
 }
 \description{
 Creates a window tibble from an N+1 boundary array by pairing
-adjacent elements: window\link{i} = (array\link{i}, array\link{i+1}).
-Continuity is guaranteed by construction — mz_start\link{j} == mz_end\link{j-1}
+adjacent elements: window[i] = (array[i], array[i+1]).
+Continuity is guaranteed by construction: mz_start[j] == mz_end[j-1]
 because both reference the same array element.
 }
 \keyword{internal}

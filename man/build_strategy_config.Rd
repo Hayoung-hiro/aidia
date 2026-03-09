@@ -27,7 +27,37 @@ build_strategy_config(
 \arguments{
 \item{mz_strategy}{Character, strategy name}
 
-\item{...}{Strategy-specific parameters}
+\item{quantile_lower}{Lower quantile for quantile strategy (default 0.05)}
+
+\item{quantile_upper}{Upper quantile for quantile strategy (default 0.95)}
+
+\item{quantile_apply_smoothing}{Logical, apply smoothing for quantile}
+
+\item{target_coverage}{Target coverage ratio for coverage strategy}
+
+\item{coverage_mode}{Coverage mode: "narrowest" or "centered"}
+
+\item{outlier_threshold}{Sigma threshold for outlier strategy}
+
+\item{outlier_apply_smoothing}{Logical, apply smoothing for outlier}
+
+\item{mz_step}{Step size in Da for greedy strategy}
+
+\item{n_windows_override}{Manual window count override for greedy}
+
+\item{greedy_apply_smoothing}{Logical, apply smoothing for greedy}
+
+\item{kde_density_threshold}{Density threshold for KDE strategy}
+
+\item{kde_min_coverage}{Minimum coverage for KDE strategy}
+
+\item{smoothing_window}{Savitzky-Golay window size (legacy, used when smoothing_method="sg")}
+
+\item{polynomial_order}{Savitzky-Golay polynomial order (legacy)}
+
+\item{smoothing_method}{Smoothing method: "whittaker" (default) or "sg"}
+
+\item{whittaker_lambda}{Lambda parameter for Whittaker-Henderson smoother}
 }
 \value{
 strategy_config object

@@ -29,6 +29,11 @@ library(DT)             # Interactive tables
 # DIA-NN parquet files can be 50-500MB depending on experiment size
 options(shiny.maxRequestSize = 500 * 1024^2)
 
+# --- Ensure %||% is available (R < 4.4.0 compatibility) ---
+if (!exists("%||%", mode = "function")) {
+  `%||%` <- function(x, y) if (is.null(x)) y else x
+}
+
 # --- Load AIDIA package ---
 if (requireNamespace("aidia", quietly = TRUE)) {
   library(aidia)

@@ -530,8 +530,8 @@ transform_boundaries_to_fz <- function(boundaries, fz_offset = 0.25) {
 #' Assemble Windows from Boundary Array
 #'
 #' Creates a window tibble from an N+1 boundary array by pairing
-#' adjacent elements: window[i] = (array[i], array[i+1]).
-#' Continuity is guaranteed by construction — mz_start[j] == mz_end[j-1]
+#' adjacent elements: window\[i\] = (array\[i\], array\[i+1\]).
+#' Continuity is guaranteed by construction: mz_start\[j\] == mz_end\[j-1\]
 #' because both reference the same array element.
 #'
 #' @param boundaries Numeric vector of N+1 boundary positions

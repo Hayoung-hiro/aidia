@@ -96,8 +96,8 @@
 #' @importFrom gridExtra grid.arrange
 #' @importFrom grid unit
 #' @importFrom graphics hist
-#' @importFrom stats median sd quantile ecdf density approx complete.cases
-#' @importFrom utils read.csv write.csv read.delim head tail
+#' @importFrom stats median sd quantile ecdf density approx complete.cases cycle setNames
+#' @importFrom utils read.csv write.csv read.delim head tail capture.output
 #' @importFrom grDevices pdf dev.off
 #'
 #' @keywords internal
@@ -114,3 +114,18 @@
 #' @importFrom dplyr %>%
 #' @usage lhs \%>\% rhs
 NULL
+
+#' Default value operator
+#'
+#' If \code{x} is \code{NULL}, return \code{y}; otherwise return \code{x}.
+#' Provides compatibility for R < 4.4.0 where base \code{\%||\%} is unavailable.
+#'
+#' @param x A value to check.
+#' @param y A default value to use if \code{x} is \code{NULL}.
+#' @return \code{x} if not \code{NULL}, otherwise \code{y}.
+#' @name op-null-default
+#' @rdname null-default
+#' @keywords internal
+`%||%` <- function(x, y) {
+  if (is.null(x)) y else x
+}
