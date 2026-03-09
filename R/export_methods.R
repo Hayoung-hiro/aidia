@@ -3,12 +3,13 @@
 # Purpose: Export DIA windows to CSV and method files for instrument upload
 #
 # Functions:
-#   - export_windows_to_csv(): Single strategy export
-#   - export_method_files(): Multi-strategy batch export
-#   - print.OptimizedWindows: S3 print method
-#   - summary.OptimizedWindows: S3 summary method
+#   - export_windows_to_csv(): Single strategy Thermo CSV export
+#   - export_center_mass_list(): Generic center mass + width format
+#   - export_mz_range_list(): Generic m/z boundary format
+#   - export_batch_comparison(): Multi-strategy, multi-format batch export + comparison
+#   - export_method_files(): Multi-strategy Thermo CSV batch export
 #
-# Dependencies: dplyr, utils_common.R
+# Dependencies: dplyr, utils_common.R, window_statistics.R
 
 
 # =============================================================================
@@ -150,6 +151,190 @@ export_windows_to_csv <- function(optimized_windows, output_file,
   }
   invisible(NULL)
 }
+
+
+# =============================================================================
+# Generic Format Exports
+# =============================================================================
+
+#' Export Center Mass List (Generic Format)
+#'
+#' Creates a simple 4-column CSV with RT range and window center/width.
+#' Compatible with various DIA method software.
+#'
+#' @param optimized_windows OptimizedWindows object
+#' @param output_file Character, output CSV file path
+#'
+#' @return NULL (invisible), writes CSV file
+#' @export
+export_center_mass_list <- function(optimized_windows, output_file) {
+  validate_input_type(optimized_windows, "OptimizedWindows", "optimized_windows")
+  windows <- optimized_windows$windows
+
+  center_mass_df <- data.frame(
+    rt_start = round(windows$rt_start, 2),
+    rt_end = round(windows$rt_end, 2),
+    `Center Mass (m/z)` = round(windows$mz_center, 7),
+    `Window Width (m/z)` = round(windows$window_width, 7),
+    check.names = FALSE
+  )
+
+  write.csv(center_mass_df, output_file, row.names = FALSE, quote = FALSE)
+  cat(sprintf("OK Center mass list exported: %s (%d windows)\n", output_file, nrow(center_mass_df)))
+  invisible(NULL)
+}
+
+
+#' Export m/z Range List (Boundary Format)
+#'
+#' Creates a 4-column CSV with RT range and explicit m/z boundaries.
+#' 7 decimal places for precision. Useful for method verification.
+#'
+#' @param optimized_windows OptimizedWindows object
+#' @param output_file Character, output CSV file path
+#'
+#' @return NULL (invisible), writes CSV file
+#' @export
+export_mz_range_list <- function(optimized_windows, output_file) {
+  validate_input_type(optimized_windows, "OptimizedWindows", "optimized_windows")
+  windows <- optimized_windows$windows
+
+  range_df <- data.frame(
+    rt_start = round(windows$rt_start, 2),
+    rt_end = round(windows$rt_end, 2),
+    mz_start = round(windows$mz_start, 7),
+    mz_end = round(windows$mz_end, 7)
+  )
+
+  write.csv(range_df, output_file, row.names = FALSE, quote = FALSE)
+  cat(sprintf("OK m/z range list exported: %s (%d windows)\n", output_file, nrow(range_df)))
+  invisible(NULL)
+}
+
+
+# =============================================================================
+# Batch Strategy Comparison Export
+# =============================================================================
+
+#' Export Batch Strategy Comparison
+#'
+#' Runs multiple strategies and exports all format variants plus a comparison summary.
+#' Creates subdirectories for each format (thermo, center_mass, mz_range) and
+#' an optional comparison.csv with per-strategy metrics.
+#'
+#' @param windows_list Named list of OptimizedWindows objects
+#' @param validated_data ValidatedData object
+#' @param optimization_plan OptimizationPlan object
+#' @param output_dir Character, output directory path
+#' @param formats Character vector, export formats (default: all 3)
+#' @param include_comparison Logical, include comparison.csv (default: TRUE)
+#'
+#' @return Character, path to output directory (invisible)
+#' @export
+export_batch_comparison <- function(windows_list,
+                                    validated_data,
+                                    optimization_plan = NULL,
+                                    output_dir,
+                                    formats = c("thermo", "center_mass", "mz_range"),
+                                    include_comparison = TRUE) {
+
+  # Validate inputs
+  if (!is.list(windows_list) || length(windows_list) == 0) {
+    stop("windows_list must be a non-empty named list of OptimizedWindows objects")
+  }
+  if (is.null(names(windows_list))) {
+    stop("windows_list must be a named list (names = strategy names)")
+  }
+  validate_input_type(validated_data, "ValidatedData", "validated_data")
+
+  # Create output subdirectories
+  subdirs <- list(
+    thermo      = file.path(output_dir, "thermo"),
+    center_mass = file.path(output_dir, "center_mass"),
+    mz_range    = file.path(output_dir, "mz_range")
+  )
+  for (fmt in formats) {
+    if (!dir.exists(subdirs[[fmt]])) {
+      dir.create(subdirs[[fmt]], recursive = TRUE, showWarnings = FALSE)
+    }
+  }
+
+  precursor_data <- get_precursor_data(validated_data)
+  strategies <- names(windows_list)
+  cat(sprintf("\nBatch export: %d strategies x %d formats\n",
+              length(strategies), length(formats)))
+
+  # Export each strategy in each format
+  for (strategy in strategies) {
+    opt_win <- windows_list[[strategy]]
+    file_stem <- sprintf("%s_%s", strategy,
+                         format(Sys.Date(), "%Y%m%d"))
+
+    cat(sprintf("  - %s: ", strategy))
+
+    if ("thermo" %in% formats) {
+      export_windows_to_csv(
+        optimized_windows = opt_win,
+        output_file = file.path(subdirs$thermo, paste0(file_stem, "_thermo.csv")),
+        validated_data = validated_data,
+        optimization_plan = optimization_plan
+      )
+    }
+    if ("center_mass" %in% formats) {
+      export_center_mass_list(
+        optimized_windows = opt_win,
+        output_file = file.path(subdirs$center_mass, paste0(file_stem, "_center_mass.csv"))
+      )
+    }
+    if ("mz_range" %in% formats) {
+      export_mz_range_list(
+        optimized_windows = opt_win,
+        output_file = file.path(subdirs$mz_range, paste0(file_stem, "_mz_range.csv"))
+      )
+    }
+  }
+
+  # Generate comparison summary
+  if (include_comparison && length(strategies) > 1) {
+    cat("  Generating comparison.csv...\n")
+
+    comparison_rows <- lapply(strategies, function(strategy) {
+      opt_win <- windows_list[[strategy]]
+      windows <- opt_win$windows
+
+      # Calculate window statistics for coverage
+      win_stats <- calculate_window_statistics_internal(
+        windows = calculate_precursors_per_window(windows, precursor_data),
+        precursor_data = precursor_data
+      )
+
+      widths <- get_window_widths(windows)
+
+      data.frame(
+        strategy          = strategy,
+        n_windows         = nrow(windows),
+        mean_width_da     = round(mean(widths, na.rm = TRUE), 2),
+        width_cv          = round(calculate_cv(widths), 4),
+        coverage_pct      = round(win_stats$coverage_percentage, 2),
+        load_balance_cv   = round(win_stats$cv_precursors, 4),
+        min_precursors    = win_stats$min_precursors_per_window,
+        max_precursors    = win_stats$max_precursors_per_window,
+        mean_precursors   = round(win_stats$mean_precursors_per_window, 1),
+        stringsAsFactors  = FALSE
+      )
+    })
+
+    comparison_df <- do.call(rbind, comparison_rows)
+    comparison_file <- file.path(output_dir, "comparison.csv")
+    write.csv(comparison_df, comparison_file, row.names = FALSE)
+    cat(sprintf("OK Comparison saved: %s (%d strategies)\n",
+                comparison_file, nrow(comparison_df)))
+  }
+
+  cat("OK Batch export complete\n\n")
+  invisible(output_dir)
+}
+
 
 # =============================================================================
 # Multi-Strategy Batch Export

@@ -75,7 +75,20 @@ step3_results_ui <- function() {
         )
       ),
 
-      # --- Row 5: Downloads (compact single row) ---
+      # --- Row 5: Precursor Distribution Plot (collapsed) ---
+      fluidRow(
+        box(
+          title = "Precursor Distribution Across Windows",
+          status = "secondary",
+          solidHeader = FALSE,
+          width = 12,
+          collapsible = TRUE,
+          collapsed = TRUE,
+          plotOutput("plot_precursors_per_window", height = "400px")
+        )
+      ),
+
+      # --- Row 6: Downloads (expanded with format options) ---
       fluidRow(
         box(
           title = "Downloads",
@@ -92,16 +105,20 @@ step3_results_ui <- function() {
               textInput("condition", "Condition/Note",
                         value = "", placeholder = "e.g., 60min_gradient")
             ),
-            column(3,
+            column(6,
               div(style = "padding-top: 25px;",
-                downloadButton("download_csv", "CSV Method File",
-                               class = "btn-success btn-block")
-              )
-            ),
-            column(3,
-              div(style = "padding-top: 25px;",
-                downloadButton("download_pdf", "PDF Report",
-                               class = "btn-info btn-block")
+                div(style = "display: flex; gap: 8px; flex-wrap: wrap;",
+                  downloadButton("download_csv", "Thermo CSV",
+                                 class = "btn-success"),
+                  downloadButton("download_center_mass", "Center Mass",
+                                 class = "btn-outline-success"),
+                  downloadButton("download_mz_range", "m/z Range",
+                                 class = "btn-outline-success"),
+                  downloadButton("download_pdf", "PDF Report",
+                                 class = "btn-info"),
+                  downloadButton("download_batch_zip", "Batch Export (ZIP)",
+                                 class = "btn-warning")
+                )
               )
             )
           )

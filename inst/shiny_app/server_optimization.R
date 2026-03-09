@@ -209,6 +209,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       cat("[Shiny] Window Width Mode:", input$window_mode, "\n")
       cat("[Shiny] RT Binning Mode:", input$rt_binning_mode %||% "fixed", "\n")
       cat("[Shiny] Min Isolation Width:", input$min_isolation_width, "Da\n")
+      cat("[Shiny] Max Isolation Width:", input$max_isolation_width %||% 80, "Da\n")
 
       # Build typed strategy_config (validated by constructors)
       strategy_cfg <- switch(input$mz_strategy,
@@ -250,6 +251,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         edge_void_buffer_min = input$edge_void_buffer %||% 0.5,
         edge_wash_min_precursors = input$edge_wash_threshold %||% 30,
         min_width_da = input$min_isolation_width %||% 2,
+        max_width_da = input$max_isolation_width %||% 80,
         fz_offset = if (isTRUE(input$fz_offset_preset == "custom")) {
           as.numeric(input$custom_fz_offset %||% 0.25)
         } else {
@@ -606,6 +608,15 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       rownames = FALSE
     ) %>%
       DT::formatRound(columns = c("mz_start", "mz_end", "window_width"), digits = 4)
+  })
+
+  # --- Precursors-per-Window Plot ---
+  output$plot_precursors_per_window <- renderPlot({
+    req(rv$optimized_windows, rv$validated_data)
+    plot_precursors_per_window(
+      optimized_windows = rv$optimized_windows,
+      validated_data = rv$validated_data
+    )
   })
 
   # --- Cached reactives for results summary (avoid redundant extraction) ---

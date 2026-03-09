@@ -323,6 +323,18 @@ step2_setup_ui <- function() {
           ),
           helpText("Minimum window width (2 Da typical for narrow-DIA)",
                    style = "font-size: 11px;")
+        ),
+        column(4,
+          numericInput(
+            inputId = "max_isolation_width",
+            label = "Max Isolation Width (Da)",
+            value = 80,
+            min = 10,
+            max = 500,
+            step = 5
+          ),
+          helpText("Maximum window width (80 Da default; limits wide windows in sparse m/z regions)",
+                   style = "font-size: 11px;")
         )
       ),
 

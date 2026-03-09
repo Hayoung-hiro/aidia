@@ -414,3 +414,146 @@ When modifying the Shiny UI, verify these items:
 3. **Gradient headers** — removed. All box headers use flat `--box-header-bg`.
 4. **`dark = FALSE`** — removes the dark mode toggle entirely. Use `dark = NULL` for optional toggle.
 5. **Duplicating server output in UI templates** — e.g., `textOutput("x")` that already includes context text, then adding more text around it in the UI. Check server render functions before wrapping.
+
+---
+
+## Export Format & Evaluation Design (v0.3.0)
+
+### Decision Log
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| RT in Format B/C | Include (rt_start, rt_end columns) | AIDIA is RT-dependent; omitting RT loses information |
+| Instrument scope | Thermo only | Verified instruments are all Thermo Orbitrap |
+| External method import | Not needed | AIDIA methods compared against each other |
+| Batch download | ZIP for batch; individual buttons per format | UX balance |
+| BO Auto-Tune | Deferred | No clear objective function — geometry metrics are proxies, not ground truth |
+| max_width_da | Expose in Shiny UI next to min_width_da | Prevents extreme windows in sparse m/z regions |
+
+### Export Formats (3 types)
+
+All formats include RT columns because AIDIA generates RT-dependent windows.
+
+**Format A: Thermo Targeted Mass List** (existing — `export_windows_to_csv()`)
+```
+Compound, Formula, Adduct, m/z, z, t start (min), t stop (min),
+Isolation Window (m/z), Normalized AGC Target (%),
+Start (m/z), End (m/z), Window_ID, RT_Segment_ID, RT_Center, RT_Width,
+N_Precursors, [Cycle]
+```
+- 16-17 columns, Xcalibur import compatible
+- AIDIA metadata columns (12-17) are ignored by instrument
+
+**Format B: Center Mass List** (new — `export_center_mass_list()`)
+```
+rt_start, rt_end, center_mass_mz, window_width_mz
+```
+- 4 columns, generic format
+- Useful for method reconstruction in other software
+
+**Format C: m/z Range List** (new — `export_mz_range_list()`)
+```
+rt_start, rt_end, mz_start, mz_end
+```
+- 4 columns, boundary-explicit format
+- 7 decimal places for precision
+- Useful for method verification and comparison
+
+### In-Silico Evaluation
+
+**Purpose**: Show how optimized windows distribute precursors from the input data.
+Not a replacement for DIA-NN reanalysis, but provides immediate feedback on
+window quality without requiring instrument time.
+
+**New function**: `evaluate_windows()` in `R/window_evaluation.R`
+
+```r
+evaluate_windows(optimized_windows, validated_data, optimization_plan)
+# Returns:
+#   per_window: data.frame with window_id, rt_bin, mz_start, mz_end,
+#               width, n_precursors, load_ratio, width_ok
+#   per_rt_bin: data.frame with rt_bin, n_windows, mean_width, coverage,
+#               precursor_cv, dppp_satisfaction
+#   overall:    list(coverage_pct, load_balance_cv, width_stats, dppp_median)
+#   quality_flags: list(empty_windows, overloaded_windows, width_violations,
+#                       high_cv_bins)
+```
+
+**Quality flags**:
+- `empty_windows`: windows with 0 precursors (wasted scan time)
+- `overloaded_windows`: windows with >2x mean precursors (chimeric risk)
+- `width_violations`: windows exceeding min/max constraints
+- `high_cv_bins`: RT bins with precursor CV > 0.5 (load imbalance)
+
+**Existing infrastructure to reuse**:
+- `calculate_window_statistics_internal()` → coverage, width stats
+- `calculate_precursors_per_window()` → per-window counts
+- `count_precursors_in_2d_windows()` → vectorized 2D matching
+- `compute_strategy_radar_metrics()` → load balance, edge safety
+
+### Batch Comparison Export
+
+**New function**: `export_batch_comparison()` in `R/export_methods.R`
+
+```r
+export_batch_comparison(
+  windows_list,           # named list of OptimizedWindows (e.g., 5 strategies)
+  validated_data,
+  optimization_plan,
+  output_dir,
+  formats = c("thermo", "center_mass", "mz_range")
+)
+```
+
+**Output structure**:
+```
+{output_dir}/
+├── thermo/
+│   ├── {strategy_A}_{mode}.csv
+│   └── {strategy_B}_{mode}.csv
+├── center_mass/
+│   └── (same structure)
+├── mz_range/
+│   └── (same structure)
+├── comparison.csv          ← strategy metrics side-by-side
+└── evaluation_summary.csv  ← per-window quality flags for all strategies
+```
+
+**comparison.csv columns**:
+```
+strategy, window_mode, n_windows, mean_width_da, width_cv,
+coverage_pct, load_balance_cv, edge_safety_pct, dppp_median,
+empty_windows, overloaded_windows, width_violations
+```
+
+### Batch Strategy Comparison Report (PDF)
+
+Enhanced multi-strategy comparison in PDF report:
+
+1. **Strategy radar chart** (existing `plot_strategy_radar()`)
+2. **Strategy comparison table** (existing `plot_strategy_comparison_table()`)
+3. **Precursors-per-window bar chart** — NEW, per strategy, shows load distribution
+4. **Width distribution violin** — NEW, per strategy, shows width variability
+5. **Per-RT-bin heatmap comparison** — NEW, strategies as columns, RT bins as rows
+
+### Shiny UI Changes (Step 3 Downloads)
+
+```
+Current:
+  [Sample Name] [Condition] [CSV Method File] [PDF Report]
+
+Updated:
+  [Sample Name] [Condition]
+  Format: [Thermo CSV ▼] [Center Mass ▼] [m/z Range ▼] [PDF Report]
+  Batch:  [Batch Export (ZIP)] ← runs all 5 strategies, all 3 formats
+```
+
+### Implementation Order
+
+1. max_width_da → Shiny UI (next to min_width_da)
+2. export_center_mass_list() + export_mz_range_list()
+3. evaluate_windows() + quality flags
+4. Shiny Step 3 download buttons (3 format buttons)
+5. export_batch_comparison() + ZIP handler
+6. Batch comparison plots for PDF report
+7. Shiny precursors-per-window visualization
