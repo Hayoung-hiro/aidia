@@ -210,57 +210,38 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       cat("[Shiny] RT Binning Mode:", input$rt_binning_mode %||% "fixed", "\n")
       cat("[Shiny] Min Isolation Width:", input$min_isolation_width, "Da\n")
 
-      # Get strategy-specific parameters with defaults
-      strategy_params <- list(
-        # Quantile parameters
-        quantile_lower = input$quantile_lower %||% 0.05,
-        quantile_upper = input$quantile_upper %||% 0.95,
-        quantile_apply_smoothing = isTRUE(input$quantile_apply_smoothing %||% FALSE),
-        # Coverage parameters
-        target_coverage = (input$target_coverage %||% 90) / 100,  # Convert % to ratio
-        # Greedy parameters
-        mz_step = input$greedy_mz_step %||% 2.0,
-        greedy_n_windows = NULL,  # Will be set below if manual
-        greedy_apply_smoothing = isTRUE(input$greedy_apply_smoothing %||% TRUE),
-        # Outlier parameters
-        outlier_threshold = input$outlier_threshold %||% 3.0,
-        outlier_apply_smoothing = isTRUE(input$outlier_apply_smoothing %||% FALSE),
-        # Smoothing parameters (Whittaker-Henderson default)
-        smoothing_method = "whittaker",
-        # KDE parameters
-        kde_density_threshold = (input$kde_density_threshold %||% 10) / 100,  # Convert % to ratio
-        kde_min_coverage = (input$kde_min_coverage %||% 80) / 100  # Convert % to ratio
+      # Build typed strategy_config (validated by constructors)
+      strategy_cfg <- switch(input$mz_strategy,
+        greedy = greedy_config(
+          auto_windows = isTRUE(input$greedy_auto_windows %||% TRUE),
+          n_windows = input$greedy_n_windows %||% 40,
+          mz_step = input$greedy_mz_step %||% 0.5,
+          apply_smoothing = isTRUE(input$greedy_apply_smoothing %||% TRUE)
+        ),
+        quantile = quantile_config(
+          lower = input$quantile_lower %||% 0.05,
+          upper = input$quantile_upper %||% 0.95,
+          apply_smoothing = isTRUE(input$quantile_apply_smoothing %||% FALSE)
+        ),
+        coverage = coverage_config(
+          target = (input$target_coverage %||% 90) / 100
+        ),
+        outlier = outlier_config(
+          threshold = input$outlier_threshold %||% 3.0,
+          apply_smoothing = isTRUE(input$outlier_apply_smoothing %||% FALSE)
+        ),
+        kde = kde_config(
+          density_threshold = (input$kde_density_threshold %||% 10) / 100,
+          min_coverage = (input$kde_min_coverage %||% 80) / 100
+        )
       )
-
-      # Handle Greedy window count (auto vs manual)
-      if (input$mz_strategy == "greedy" && !isTRUE(input$greedy_auto_windows)) {
-        strategy_params$greedy_n_windows <- input$greedy_n_windows %||% 40
-        cat(sprintf("[Shiny] Greedy: Manual window count = %d\n", strategy_params$greedy_n_windows))
-      }
-
-      cat("[Shiny] Strategy parameters:\n")
-      cat(sprintf("  - Quantile: P%.0f-P%.0f, Smooth=%s\n",
-                  strategy_params$quantile_lower * 100,
-                  strategy_params$quantile_upper * 100,
-                  ifelse(strategy_params$quantile_apply_smoothing, "WH", "NO")))
-      cat(sprintf("  - Coverage target: %.0f%%\n", strategy_params$target_coverage * 100))
-      cat(sprintf("  - Greedy mz_step: %.1f Da, Smooth=%s\n",
-                  strategy_params$mz_step,
-                  ifelse(strategy_params$greedy_apply_smoothing, "WH", "NO")))
-      if (!is.null(strategy_params$greedy_n_windows)) {
-        cat(sprintf("  - Greedy n_windows: %d (manual)\n", strategy_params$greedy_n_windows))
-      }
-      cat(sprintf("  - Outlier threshold: %.1f SD, Smooth=%s\n",
-                  strategy_params$outlier_threshold,
-                  ifelse(strategy_params$outlier_apply_smoothing, "WH", "NO")))
-      cat(sprintf("  - KDE: threshold=%.0f%%, min_coverage=%.0f%%\n",
-                  strategy_params$kde_density_threshold * 100,
-                  strategy_params$kde_min_coverage * 100))
+      cat("[Shiny] Strategy config:", input$mz_strategy, "\n")
+      cat("[Shiny]  ", paste(names(as.list(strategy_cfg)), collapse = ", "), "\n")
 
       rv$optimized_windows <- optimize_windows(
         validated_data = rv$validated_data,
         optimization_plan = rv$optimization_plan,
-        mz_strategy = input$mz_strategy,
+        strategy_config = strategy_cfg,
         window_mode = input$window_mode %||% "density",
         rt_bin_width_min = rt_bin_width_final,
         rt_binning_mode = rt_binning_mode_final,
@@ -269,25 +250,10 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         edge_void_buffer_min = input$edge_void_buffer %||% 0.5,
         edge_wash_min_precursors = input$edge_wash_threshold %||% 30,
         min_width_da = input$min_isolation_width %||% 2,
-        # Pass strategy-specific parameters
-        quantile_lower = strategy_params$quantile_lower,
-        quantile_upper = strategy_params$quantile_upper,
-        quantile_apply_smoothing = strategy_params$quantile_apply_smoothing,
-        target_coverage = strategy_params$target_coverage,
-        mz_step = strategy_params$mz_step,
-        n_windows_override = strategy_params$greedy_n_windows,  # For Greedy manual override
-        greedy_apply_smoothing = strategy_params$greedy_apply_smoothing,
-        outlier_threshold = strategy_params$outlier_threshold,
-        outlier_apply_smoothing = strategy_params$outlier_apply_smoothing,
-        smoothing_method = strategy_params$smoothing_method,
-        # KDE parameters
-        kde_density_threshold = strategy_params$kde_density_threshold,
-        kde_min_coverage = strategy_params$kde_min_coverage,
-        # Forbidden zone placement optimization (all modes, default: recommended ON)
         fz_offset = if (isTRUE(input$fz_offset_preset == "custom")) {
           as.numeric(input$custom_fz_offset %||% 0.25)
         } else {
-          as.numeric(input$fz_offset_preset %||% "0.25")  # "0" = disabled
+          as.numeric(input$fz_offset_preset %||% "0.25")
         }
       )
       cat("[Shiny] optimize_windows() completed!\n")

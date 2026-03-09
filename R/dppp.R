@@ -94,6 +94,22 @@ calculate_satisfaction_ratio <- function(values, target, tolerance = 0.0,
 }
 
 
+#' Compute DPPP Satisfaction Percentage
+#'
+#' Returns the percentage of DPPP values meeting the target threshold.
+#' Convenience wrapper used across visualization and planning modules
+#' to avoid scattered \code{mean(dppp >= target, na.rm = TRUE) * 100} patterns.
+#'
+#' @param dppp_values Numeric vector of DPPP values
+#' @param target_dppp Numeric, target threshold
+#'
+#' @return Numeric scalar, percentage (0-100)
+#' @keywords internal
+dppp_satisfaction_pct <- function(dppp_values, target_dppp) {
+  mean(dppp_values >= target_dppp, na.rm = TRUE) * 100
+}
+
+
 # =============================================================================
 # FWHM Unit Conversion
 # =============================================================================

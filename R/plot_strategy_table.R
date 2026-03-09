@@ -31,14 +31,8 @@ plot_strategy_comparison_table <- function(windows_list) {
     # Extract window count
     n_windows <- nrow(optimized_windows$windows)
 
-    # Extract mean window width
-    if ("window_width" %in% colnames(optimized_windows$windows)) {
-      mean_width <- mean(optimized_windows$windows$window_width, na.rm = TRUE)
-    } else if ("mz_width" %in% colnames(optimized_windows$windows)) {
-      mean_width <- mean(optimized_windows$windows$mz_width, na.rm = TRUE)
-    } else {
-      mean_width <- NA
-    }
+    # Extract mean window width (canonical accessor)
+    mean_width <- mean(get_window_widths(optimized_windows$windows), na.rm = TRUE)
 
     # Extract coverage from statistics (handle both list and tibble formats)
     if (is.list(optimized_windows$statistics)) {

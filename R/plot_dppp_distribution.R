@@ -51,8 +51,8 @@ plot_dppp_distribution <- function(optimization_plan, validated_data) {
   df$condition <- factor(df$condition, levels = c("Before (Current)", "After (Optimized)"))
 
   # Satisfaction stats for subtitle
-  sat_before <- mean(dppp_before >= target_dppp, na.rm = TRUE) * 100
-  sat_after <- mean(dppp_after >= target_dppp, na.rm = TRUE) * 100
+  sat_before <- dppp_satisfaction_pct(dppp_before, target_dppp)
+  sat_after <- dppp_satisfaction_pct(dppp_after, target_dppp)
 
   # Clip x-axis for readability (0 to 3x target or max, whichever is larger)
   x_max <- max(quantile(dppp_after, 0.99, na.rm = TRUE), target_dppp * 3)

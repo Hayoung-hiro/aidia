@@ -45,8 +45,8 @@ compute_dppp_key_metrics <- function(fwhm_sec, current_ct, required_ct, target_d
   list(
     current_dppp  = median(dppp_current, na.rm = TRUE),
     required_dppp = median(dppp_required, na.rm = TRUE),
-    current_sat   = mean(dppp_current >= target_dppp, na.rm = TRUE) * 100,
-    required_sat  = mean(dppp_required >= target_dppp, na.rm = TRUE) * 100
+    current_sat   = dppp_satisfaction_pct(dppp_current, target_dppp),
+    required_sat  = dppp_satisfaction_pct(dppp_required, target_dppp)
   )
 }
 

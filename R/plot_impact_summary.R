@@ -15,19 +15,6 @@
 # Helper Functions
 # =============================================================================
 
-#' Calculate DPPP satisfaction after optimization
-#'
-#' @param validated_data ValidatedData object
-#' @param cycle_time_sec Numeric, cycle time in seconds
-#' @param target_dppp Numeric, target DPPP threshold
-#'
-#' @return Numeric, satisfaction ratio (0-1)
-calculate_satisfaction <- function(validated_data, cycle_time_sec, target_dppp) {
-  fwhm_sec <- ensure_fwhm_seconds(validated_data$data$FWHM)
-  dppp <- calculate_dppp(fwhm_sec, cycle_time_sec)
-  satisfaction <- mean(dppp >= target_dppp, na.rm = TRUE)
-  return(satisfaction)
-}
 
 #' Create a before/after bar chart
 #'
@@ -86,14 +73,8 @@ create_metrics_table <- function(optimized_windows, validated_data) {
                   validated_data$summary$n_precursors %||% nrow(validated_data$data)
   n_rt_bins <- length(unique(optimized_windows$windows$rt_segment_id))
 
-  # Calculate mean window width (column is window_width, not mz_width)
-  if ("window_width" %in% colnames(optimized_windows$windows)) {
-    mean_width <- mean(optimized_windows$windows$window_width, na.rm = TRUE)
-  } else if ("mz_width" %in% colnames(optimized_windows$windows)) {
-    mean_width <- mean(optimized_windows$windows$mz_width, na.rm = TRUE)
-  } else {
-    mean_width <- NA
-  }
+  # Calculate mean window width (canonical accessor)
+  mean_width <- mean(get_window_widths(optimized_windows$windows), na.rm = TRUE)
 
   # Extract coverage from statistics (handle both list and tibble formats)
   if (is.list(optimized_windows$statistics)) {
@@ -205,9 +186,11 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
   # Extract after (optimized) values
   after_cycle_time <- optimization_plan$required_cycle_time_sec
 
-  # Calculate after satisfaction using optimized cycle time
+  # Calculate after satisfaction using optimized cycle time (reuse shared helper)
   target_dppp <- optimization_plan$parameters$target_dppp
-  after_satisfaction <- calculate_satisfaction(validated_data, after_cycle_time, target_dppp)
+  fwhm_sec <- ensure_fwhm_seconds(validated_data$data$FWHM)
+  dppp_after <- calculate_dppp(fwhm_sec, after_cycle_time)
+  after_satisfaction <- dppp_satisfaction_pct(dppp_after, target_dppp) / 100
   target_satisfaction <- optimization_plan$parameters$target_satisfaction
 
   # Panel 1: Cycle Time Before/After

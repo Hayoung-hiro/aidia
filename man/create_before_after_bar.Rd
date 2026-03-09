@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_impact_summary.R
 \name{create_before_after_bar}
 \alias{create_before_after_bar}
-\title{Create a before/after bar chart}
+\title{Optimization Impact Summary - Before/After Comparison}
 \usage{
 create_before_after_bar(
   before_value,
@@ -30,5 +30,17 @@ create_before_after_bar(
 ggplot object
 }
 \description{
+Purpose: Generate a dashboard-style multi-panel visualization showing
+the impact of AIDIA optimization by comparing before (current) vs after
+(optimized) state across key metrics.
+}
+\details{
+Functions:
+\itemize{
+\item plot_optimization_impact(): 4-panel dashboard with cycle time,
+satisfaction, window count, and metrics table
+}
+
+Dependencies: ggplot2, dplyr, gridExtra, grid
 Create a before/after bar chart
 }

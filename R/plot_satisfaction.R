@@ -53,10 +53,9 @@ plot_satisfaction_curve <- function(optimization_plan, validated_data,
 
   satisfaction_data <- data.frame(
     cycle_time = cycle_times,
-    satisfaction_pct = sapply(cycle_times, function(ct) {
-      dppp <- calculate_dppp(fwhm_sec, ct)
-      mean(dppp >= target_dppp, na.rm = TRUE) * 100
-    })
+    satisfaction_pct = vapply(cycle_times, function(ct) {
+      dppp_satisfaction_pct(calculate_dppp(fwhm_sec, ct), target_dppp)
+    }, numeric(1))
   )
 
   # Calculate current and recommended satisfaction (reuse shared helper)

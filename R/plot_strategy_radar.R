@@ -51,7 +51,7 @@ compute_strategy_radar_metrics <- function(windows_list, validated_data) {
     load_balance <- max(0, 1 - load_cv)
 
     # 3. Width Uniformity: 1 - CV of window widths
-    widths <- w$window_width %||% (w$mz_end - w$mz_start)
+    widths <- get_window_widths(w)
     mean_w <- mean(widths, na.rm = TRUE)
     width_cv <- if (mean_w > 0) sd(widths, na.rm = TRUE) / mean_w else 1
     width_uniformity <- max(0, 1 - width_cv)

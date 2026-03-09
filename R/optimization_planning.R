@@ -890,7 +890,7 @@ quick_dppp_preview <- function(validated_data,
     list(
       cycle_time_sec = ct,
       dppp_median = median(dppp_values, na.rm = TRUE),
-      satisfaction_pct = mean(dppp_values >= target_dppp, na.rm = TRUE) * 100
+      satisfaction_pct = dppp_satisfaction_pct(dppp_values, target_dppp)
     )
   })
 
