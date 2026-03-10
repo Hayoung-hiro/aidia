@@ -53,7 +53,7 @@ plot_precursors_per_window <- function(optimized_windows,
       dplyr::ungroup()
   }
 
-  # ---- Compute mz_center and window widths --------------------------------
+  # ---- Compute mz_center, widths, and load status -------------------------
   windows_counted <- windows_counted %>%
     dplyr::mutate(
       mz_center    = (mz_start + mz_end) / 2,
@@ -87,6 +87,12 @@ plot_precursors_per_window <- function(optimized_windows,
     subtitle_text <- paste0(subtitle_text, "\n", median_note)
   }
 
+  # ---- Compute load ratio (vs mean) for color mapping ---------------------
+  windows_counted <- windows_counted %>%
+    dplyr::mutate(
+      load_ratio = n_precursors / mean(n_precursors, na.rm = TRUE)
+    )
+
   # ---- Build plot ---------------------------------------------------------
   p <- ggplot2::ggplot(
     windows_counted,
@@ -95,7 +101,7 @@ plot_precursors_per_window <- function(optimized_windows,
       xmax = mz_end,
       ymin = 0,
       ymax = n_precursors,
-      fill = window_width
+      fill = load_ratio
     )
   ) +
     # Bars with width proportional to actual isolation window width
@@ -118,11 +124,18 @@ plot_precursors_per_window <- function(optimized_windows,
       fontface = "italic",
       color = aidia_colors$accent
     ) +
-    # Viridis fill: narrow windows = purple, wide = yellow
-    viridis::scale_fill_viridis(
-      name   = "Window\nWidth (Da)",
-      option = "viridis",
-      direction = 1
+    # Diverging fill: blue = underloaded, white = balanced, red = overloaded
+    ggplot2::scale_fill_gradient2(
+      name     = "Load\nRatio",
+      low      = "#2166ac",
+      mid      = "#f7f7f7",
+      high     = "#b2182b",
+      midpoint = 1.0,
+      limits   = c(
+        min(0.2, min(windows_counted$load_ratio, na.rm = TRUE)),
+        max(1.8, max(windows_counted$load_ratio, na.rm = TRUE))
+      ),
+      labels   = function(x) sprintf("%.1fx", x)
     ) +
     ggplot2::scale_y_continuous(
       expand = ggplot2::expansion(mult = c(0, 0.12))
@@ -135,7 +148,7 @@ plot_precursors_per_window <- function(optimized_windows,
       subtitle = subtitle_text,
       x        = "m/z",
       y        = "Precursors per Window",
-      caption  = "Bar width = isolation window width (Da) | Dashed line = mean count | Color = window width"
+      caption  = "Bar width = isolation window width (Da) | Dashed line = mean count | Color: blue = underloaded, red = overloaded"
     ) +
     theme_aidia() +
     ggplot2::theme(

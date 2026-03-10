@@ -51,7 +51,18 @@ step3_results_ui <- function() {
         )
       ),
 
-      # --- Row 4: Detailed Table + Window Preview (collapsed) ---
+      # --- Row 4: Precursor Distribution Plot (always visible) ---
+      fluidRow(
+        box(
+          title = "Precursor Distribution Across Windows",
+          status = "primary",
+          solidHeader = TRUE,
+          width = 12,
+          plotOutput("plot_precursors_per_window", height = "400px")
+        )
+      ),
+
+      # --- Row 5: Detailed Table + Window Preview (collapsed) ---
       fluidRow(
         box(
           title = "Detailed Results",
@@ -75,26 +86,14 @@ step3_results_ui <- function() {
         )
       ),
 
-      # --- Row 5: Precursor Distribution Plot (collapsed) ---
+      # --- Row 6: Downloads ---
       fluidRow(
+        # Method File Download (left)
         box(
-          title = "Precursor Distribution Across Windows",
-          status = "secondary",
-          solidHeader = FALSE,
-          width = 12,
-          collapsible = TRUE,
-          collapsed = TRUE,
-          plotOutput("plot_precursors_per_window", height = "400px")
-        )
-      ),
-
-      # --- Row 6: Downloads (expanded with format options) ---
-      fluidRow(
-        box(
-          title = "Downloads",
+          title = "Download Method File",
           status = "success",
           solidHeader = TRUE,
-          width = 12,
+          width = 8,
 
           fluidRow(
             column(3,
@@ -105,22 +104,37 @@ step3_results_ui <- function() {
               textInput("condition", "Condition/Note",
                         value = "", placeholder = "e.g., 60min_gradient")
             ),
-            column(6,
+            column(3,
+              selectInput("export_format", "Export Format",
+                choices = c(
+                  "Thermo Targeted Mass List" = "thermo",
+                  "Center Mass List" = "center_mass",
+                  "m/z Range List" = "mz_range"
+                ),
+                selected = "thermo"
+              )
+            ),
+            column(3,
               div(style = "padding-top: 25px;",
-                div(style = "display: flex; gap: 8px; flex-wrap: wrap;",
-                  downloadButton("download_csv", "Thermo CSV",
-                                 class = "btn-success"),
-                  downloadButton("download_center_mass", "Center Mass",
-                                 class = "btn-outline-success"),
-                  downloadButton("download_mz_range", "m/z Range",
-                                 class = "btn-outline-success"),
-                  downloadButton("download_pdf", "PDF Report",
-                                 class = "btn-info"),
-                  downloadButton("download_batch_zip", "Batch Export (ZIP)",
-                                 class = "btn-warning")
-                )
+                downloadButton("download_method", "Download Method",
+                               class = "btn-success btn-block")
               )
             )
+          ),
+          # Format preview
+          uiOutput("export_format_preview")
+        ),
+        # Other Downloads (right)
+        box(
+          title = "Other Downloads",
+          status = "secondary",
+          solidHeader = TRUE,
+          width = 4,
+          div(style = "display: flex; flex-direction: column; gap: 8px;",
+            downloadButton("download_pdf", "PDF Report",
+                           class = "btn-info btn-block"),
+            downloadButton("download_batch_zip", "Batch Export (5 strategies, ZIP)",
+                           class = "btn-warning btn-block")
           )
         )
       )

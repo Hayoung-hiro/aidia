@@ -409,13 +409,18 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
     plot_data <- data.frame(FWHM = fwhm_sec, Charge = charge)
     plot_data <- plot_data[!is.na(plot_data$FWHM), ]
 
+    # Data-adaptive x-axis: focus on distribution shape, trim long tail
+    # Use P95 * 1.3 to capture the main peak with slight headroom, not extreme outliers
+    fwhm_p95 <- quantile(plot_data$FWHM, 0.95, na.rm = TRUE)
+    xlim_max <- max(10, ceiling(fwhm_p95 * 1.3))
+
     # Fallback to simple density if no charge data
     if (!has_charge || all(is.na(plot_data$Charge))) {
       plot_data$Charge <- factor("All")
       return(
         ggplot2::ggplot(plot_data, ggplot2::aes(x = FWHM, y = Charge, fill = Charge)) +
           ggridges::geom_density_ridges(alpha = 0.7) +
-          ggplot2::coord_cartesian(xlim = c(0, 10)) +
+          ggplot2::coord_cartesian(xlim = c(0, xlim_max)) +
           ggplot2::labs(x = "FWHM (sec)", y = NULL) +
           ggplot2::theme_minimal(base_size = 12) +
           ggplot2::theme(
@@ -438,7 +443,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
     ggplot2::ggplot(plot_data, ggplot2::aes(x = FWHM, y = Charge, fill = Charge)) +
       ggridges::geom_density_ridges(alpha = 0.7, scale = 1.2) +
       viridis::scale_fill_viridis(discrete = TRUE, option = "D") +
-      ggplot2::coord_cartesian(xlim = c(0, 10)) +
+      ggplot2::coord_cartesian(xlim = c(0, xlim_max)) +
       ggplot2::labs(x = "FWHM (sec)", y = "Charge") +
       ggplot2::theme_minimal(base_size = 12) +
       ggplot2::theme(

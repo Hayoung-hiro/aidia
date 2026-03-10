@@ -1,4 +1,4 @@
-# server_downloads.R - Download Handlers (CSV, Center Mass, m/z Range, PDF, Batch ZIP)
+# server_downloads.R - Download Handlers (Method File, PDF Report, Batch ZIP)
 
 server_downloads <- function(input, output, session, rv) {
 
@@ -23,34 +23,89 @@ server_downloads <- function(input, output, session, rv) {
     if (nchar(prefix) > 0) paste0(prefix, "_", base_name) else base_name
   }
 
-  # --- Download Handler: CSV Method File ---
-  output$download_csv <- downloadHandler(
+  # --- Export Format Preview ---
+  output$export_format_preview <- renderUI({
+    fmt <- input$export_format %||% "thermo"
+
+    preview <- switch(fmt,
+      thermo = tags$div(
+        class = "panel-raised", style = "margin-top: 8px; padding: 8px 12px;",
+        tags$strong("Thermo Targeted Mass List"),
+        tags$span(class = "text-muted", " - Xcalibur-compatible CSV"),
+        tags$pre(style = "font-size: 11px; margin: 6px 0 0 0; max-height: 80px; overflow: auto;",
+          "Compound, Formula, Adduct, m/z, z, ..., RT Start [min], RT End [min], ..."
+        ),
+        tags$small(class = "text-muted", "16-column compound template with acquisition parameters")
+      ),
+      center_mass = tags$div(
+        class = "panel-raised", style = "margin-top: 8px; padding: 8px 12px;",
+        tags$strong("Center Mass List"),
+        tags$span(class = "text-muted", " - Generic 4-column format"),
+        tags$pre(style = "font-size: 11px; margin: 6px 0 0 0; max-height: 80px; overflow: auto;",
+          "rt_start, rt_end, Center Mass (m/z), Window Width (m/z)\n1.50, 6.50, 425.2523, 50.5046\n1.50, 6.50, 475.7569, 50.5046"
+        ),
+        tags$small(class = "text-muted", "Compatible with various DIA method software")
+      ),
+      mz_range = tags$div(
+        class = "panel-raised", style = "margin-top: 8px; padding: 8px 12px;",
+        tags$strong("m/z Range List"),
+        tags$span(class = "text-muted", " - Explicit boundary format"),
+        tags$pre(style = "font-size: 11px; margin: 6px 0 0 0; max-height: 80px; overflow: auto;",
+          "rt_start, rt_end, mz_start, mz_end\n1.50, 6.50, 400.0000, 450.5046\n1.50, 6.50, 450.5046, 501.0092"
+        ),
+        tags$small(class = "text-muted", "7 decimal precision for method verification")
+      )
+    )
+
+    preview
+  })
+
+  # --- Download Handler: Unified Method File (format selected by dropdown) ---
+  output$download_method <- downloadHandler(
     filename = function() {
-      shiny_output_filename("method", "csv")
+      fmt <- input$export_format %||% "thermo"
+      type_name <- switch(fmt,
+        thermo = "method",
+        center_mass = "center_mass",
+        mz_range = "mz_range"
+      )
+      shiny_output_filename(type_name, "csv")
     },
     content = function(file) {
-      req(rv$optimized_windows, rv$validated_data)
+      req(rv$optimized_windows)
+      fmt <- input$export_format %||% "thermo"
 
-      # Build project name from inputs
-      project_name <- paste(
-        c(
-          trimws(input$sample_name %||% ""),
-          trimws(input$condition %||% "")
-        )[nchar(c(trimws(input$sample_name %||% ""),
-                  trimws(input$condition %||% ""))) > 0],
-        collapse = "_"
-      )
-      if (nchar(project_name) == 0) project_name <- "shiny_export"
+      if (fmt == "thermo") {
+        req(rv$validated_data)
+        project_name <- paste(
+          c(
+            trimws(input$sample_name %||% ""),
+            trimws(input$condition %||% "")
+          )[nchar(c(trimws(input$sample_name %||% ""),
+                    trimws(input$condition %||% ""))) > 0],
+          collapse = "_"
+        )
+        if (nchar(project_name) == 0) project_name <- "shiny_export"
 
-      # Use existing export function from Stage 3
-      export_windows_to_csv(
-        optimized_windows = rv$optimized_windows,
-        output_file = file,
-        validated_data = rv$validated_data,
-        optimization_plan = rv$optimization_plan,
-        instrument_type = input$instrument,
-        project_name = project_name
-      )
+        export_windows_to_csv(
+          optimized_windows = rv$optimized_windows,
+          output_file = file,
+          validated_data = rv$validated_data,
+          optimization_plan = rv$optimization_plan,
+          instrument_type = input$instrument,
+          project_name = project_name
+        )
+      } else if (fmt == "center_mass") {
+        export_center_mass_list(
+          optimized_windows = rv$optimized_windows,
+          output_file = file
+        )
+      } else if (fmt == "mz_range") {
+        export_mz_range_list(
+          optimized_windows = rv$optimized_windows,
+          output_file = file
+        )
+      }
     }
   )
 
@@ -108,34 +163,6 @@ server_downloads <- function(input, output, session, rv) {
     }
   )
 
-  # --- Download Handler: Center Mass List ---
-  output$download_center_mass <- downloadHandler(
-    filename = function() {
-      shiny_output_filename("center_mass", "csv")
-    },
-    content = function(file) {
-      req(rv$optimized_windows)
-      export_center_mass_list(
-        optimized_windows = rv$optimized_windows,
-        output_file = file
-      )
-    }
-  )
-
-  # --- Download Handler: m/z Range List ---
-  output$download_mz_range <- downloadHandler(
-    filename = function() {
-      shiny_output_filename("mz_range", "csv")
-    },
-    content = function(file) {
-      req(rv$optimized_windows)
-      export_mz_range_list(
-        optimized_windows = rv$optimized_windows,
-        output_file = file
-      )
-    }
-  )
-
   # --- Download Handler: Batch Export (ZIP) ---
   output$download_batch_zip <- downloadHandler(
     filename = function() {
@@ -146,6 +173,8 @@ server_downloads <- function(input, output, session, rv) {
 
       showNotification("Running all 5 strategies for batch export...",
                        id = "batch_progress", duration = NULL, type = "message")
+
+      strategy_order <- aidia:::STRATEGY_PREFERRED_ORDER
 
       tryCatch({
         # Collect shared parameters from current optimization run
@@ -171,10 +200,10 @@ server_downloads <- function(input, output, session, rv) {
 
         # Run each strategy
         windows_list <- list()
-        for (strategy in STRATEGY_PREFERRED_ORDER) {
+        for (strategy in strategy_order) {
           showNotification(
             sprintf("Optimizing: %s (%d/5)...",
-                    strategy, which(STRATEGY_PREFERRED_ORDER == strategy)),
+                    strategy, which(strategy_order == strategy)),
             id = "batch_progress", duration = NULL, type = "message"
           )
 

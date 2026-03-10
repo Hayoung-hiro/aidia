@@ -377,19 +377,35 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       )
     }
 
-    # DPPP verification badge
+    # DPPP verification badge with clear explanation
     dppp_line <- if (!is.null(dppp_v)) {
-      badge_class <- if (abs(dppp_v$deviation_pct) <= 5) {
-        "efficiency-badge status-pass"
-      } else {
-        "efficiency-badge status-fail"
-      }
-      badge_text <- if (abs(dppp_v$deviation_pct) <= 5) "PASS" else "WARNING"
+      deviation <- dppp_v$deviation_pct
+      is_ok <- abs(deviation) <= 5
+      badge_class <- if (is_ok) "efficiency-badge status-pass" else "efficiency-badge status-fail"
+      badge_text <- if (is_ok) "PASS" else sprintf("%.0f%% deviation", deviation)
 
-      tags$div(
-        tags$strong("Actual DPPP: "),
-        sprintf("%.1f ", dppp_v$actual_dppp_median),
-        tags$span(badge_text, class = badge_class)
+      # Explain WHY deviation occurs
+      explanation <- if (is_ok) {
+        NULL
+      } else if (deviation > 0) {
+        tags$div(class = "text-muted", style = "font-size: 12px; margin-top: 2px;",
+          icon("info-circle"),
+          sprintf(" Actual DPPP is %.0f%% higher than planned (fewer windows than estimated)", abs(deviation))
+        )
+      } else {
+        tags$div(class = "text-muted", style = "font-size: 12px; margin-top: 2px;",
+          icon("info-circle"),
+          sprintf(" Actual DPPP is %.0f%% lower than planned (more windows than estimated)", abs(deviation))
+        )
+      }
+
+      tagList(
+        tags$div(
+          tags$strong("Actual DPPP: "),
+          sprintf("%.1f ", dppp_v$actual_dppp_median),
+          tags$span(badge_text, class = badge_class)
+        ),
+        explanation
       )
     } else {
       NULL
@@ -481,9 +497,10 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       )
       deviation_str <- sprintf("%.1f%%", dppp_v$deviation_pct)
       if (abs(dppp_v$deviation_pct) > 5) {
-        deviation_str <- paste(deviation_str, "(WARNING)")
+        direction <- if (dppp_v$deviation_pct > 0) "higher" else "lower"
+        deviation_str <- sprintf("%s (%s than planned)", deviation_str, direction)
       } else {
-        deviation_str <- paste(deviation_str, "(PASS)")
+        deviation_str <- paste(deviation_str, "(within 5% tolerance)")
       }
       values <- c(values,
         sprintf("%.3f", dppp_v$actual_cycle_time_sec),
@@ -613,7 +630,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   # --- Precursors-per-Window Plot ---
   output$plot_precursors_per_window <- renderPlot({
     req(rv$optimized_windows, rv$validated_data)
-    plot_precursors_per_window(
+    aidia:::plot_precursors_per_window(
       optimized_windows = rv$optimized_windows,
       validated_data = rv$validated_data
     )
