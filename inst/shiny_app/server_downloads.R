@@ -2,6 +2,14 @@
 
 server_downloads <- function(input, output, session, rv) {
 
+  # --- Helper: Build project name from sample/condition inputs ---
+  build_project_name <- function(default = "shiny_export") {
+    parts <- c(trimws(input$sample_name %||% ""),
+               trimws(input$condition %||% ""))
+    name <- paste(parts[nchar(parts) > 0], collapse = "_")
+    if (nchar(name) == 0) default else name
+  }
+
   # --- Helper: Generate descriptive filename using pipeline convention ---
   shiny_output_filename <- function(type, ext) {
     params <- rv$optimized_windows$parameters
@@ -16,48 +24,44 @@ server_downloads <- function(input, output, session, rv) {
     )
 
     # Prepend sample/condition name if provided
-    parts <- c(trimws(input$sample_name %||% ""),
-               trimws(input$condition %||% ""))
-    prefix <- paste(parts[nchar(parts) > 0], collapse = "_")
-
+    prefix <- build_project_name(default = "")
     if (nchar(prefix) > 0) paste0(prefix, "_", base_name) else base_name
+  }
+
+  # --- Helper: Format preview card ---
+  format_preview_card <- function(title, subtitle, sample_data, description) {
+    tags$div(
+      class = "panel-raised", style = "margin-top: 8px; padding: 8px 12px;",
+      tags$strong(title),
+      tags$span(class = "text-muted", paste0(" - ", subtitle)),
+      tags$pre(style = "font-size: 11px; margin: 6px 0 0 0; max-height: 80px; overflow: auto;",
+        sample_data
+      ),
+      tags$small(class = "text-muted", description)
+    )
   }
 
   # --- Export Format Preview ---
   output$export_format_preview <- renderUI({
     fmt <- input$export_format %||% "thermo"
 
-    preview <- switch(fmt,
-      thermo = tags$div(
-        class = "panel-raised", style = "margin-top: 8px; padding: 8px 12px;",
-        tags$strong("Thermo Targeted Mass List"),
-        tags$span(class = "text-muted", " - Xcalibur-compatible CSV"),
-        tags$pre(style = "font-size: 11px; margin: 6px 0 0 0; max-height: 80px; overflow: auto;",
-          "Compound, Formula, Adduct, m/z, z, ..., RT Start [min], RT End [min], ..."
-        ),
-        tags$small(class = "text-muted", "16-column compound template with acquisition parameters")
+    switch(fmt,
+      thermo = format_preview_card(
+        "Thermo Targeted Mass List", "Xcalibur-compatible CSV",
+        "Compound, Formula, Adduct, m/z, z, ..., RT Start [min], RT End [min], ...",
+        "16-column compound template with acquisition parameters"
       ),
-      center_mass = tags$div(
-        class = "panel-raised", style = "margin-top: 8px; padding: 8px 12px;",
-        tags$strong("Center Mass List"),
-        tags$span(class = "text-muted", " - Generic 4-column format"),
-        tags$pre(style = "font-size: 11px; margin: 6px 0 0 0; max-height: 80px; overflow: auto;",
-          "rt_start, rt_end, Center Mass (m/z), Window Width (m/z)\n1.50, 6.50, 425.2523, 50.5046\n1.50, 6.50, 475.7569, 50.5046"
-        ),
-        tags$small(class = "text-muted", "Compatible with various DIA method software")
+      center_mass = format_preview_card(
+        "Center Mass List", "Generic 4-column format",
+        "rt_start, rt_end, Center Mass (m/z), Window Width (m/z)\n1.50, 6.50, 425.2523, 50.5046\n1.50, 6.50, 475.7569, 50.5046",
+        "Compatible with various DIA method software"
       ),
-      mz_range = tags$div(
-        class = "panel-raised", style = "margin-top: 8px; padding: 8px 12px;",
-        tags$strong("m/z Range List"),
-        tags$span(class = "text-muted", " - Explicit boundary format"),
-        tags$pre(style = "font-size: 11px; margin: 6px 0 0 0; max-height: 80px; overflow: auto;",
-          "rt_start, rt_end, mz_start, mz_end\n1.50, 6.50, 400.0000, 450.5046\n1.50, 6.50, 450.5046, 501.0092"
-        ),
-        tags$small(class = "text-muted", "7 decimal precision for method verification")
+      mz_range = format_preview_card(
+        "m/z Range List", "Explicit boundary format",
+        "rt_start, rt_end, mz_start, mz_end\n1.50, 6.50, 400.0000, 450.5046\n1.50, 6.50, 450.5046, 501.0092",
+        "7 decimal precision for method verification"
       )
     )
-
-    preview
   })
 
   # --- Download Handler: Unified Method File (format selected by dropdown) ---
@@ -77,15 +81,6 @@ server_downloads <- function(input, output, session, rv) {
 
       if (fmt == "thermo") {
         req(rv$validated_data)
-        project_name <- paste(
-          c(
-            trimws(input$sample_name %||% ""),
-            trimws(input$condition %||% "")
-          )[nchar(c(trimws(input$sample_name %||% ""),
-                    trimws(input$condition %||% ""))) > 0],
-          collapse = "_"
-        )
-        if (nchar(project_name) == 0) project_name <- "shiny_export"
 
         export_windows_to_csv(
           optimized_windows = rv$optimized_windows,
@@ -93,7 +88,7 @@ server_downloads <- function(input, output, session, rv) {
           validated_data = rv$validated_data,
           optimization_plan = rv$optimization_plan,
           instrument_type = input$instrument,
-          project_name = project_name
+          project_name = build_project_name()
         )
       } else if (fmt == "center_mass") {
         export_center_mass_list(
@@ -174,7 +169,7 @@ server_downloads <- function(input, output, session, rv) {
       showNotification("Running all 5 strategies for batch export...",
                        id = "batch_progress", duration = NULL, type = "message")
 
-      strategy_order <- aidia:::STRATEGY_PREFERRED_ORDER
+      strategy_order <- STRATEGY_PREFERRED_ORDER
 
       tryCatch({
         # Collect shared parameters from current optimization run
@@ -198,9 +193,17 @@ server_downloads <- function(input, output, session, rv) {
           outlier  = outlier_config
         )
 
-        # Run each strategy
+        # Run each strategy (reuse current result if already optimized)
+        current_strategy <- rv$optimized_windows$parameters$mz_strategy
         windows_list <- list()
         for (strategy in strategy_order) {
+          # Reuse existing result for the current strategy
+          if (!is.null(current_strategy) && strategy == current_strategy) {
+            cat(sprintf("[Shiny Batch] Reusing current result for: %s\n", strategy))
+            windows_list[[strategy]] <- rv$optimized_windows
+            next
+          }
+
           showNotification(
             sprintf("Optimizing: %s (%d/5)...",
                     strategy, which(strategy_order == strategy)),

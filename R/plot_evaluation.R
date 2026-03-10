@@ -125,6 +125,8 @@ plot_precursors_per_window <- function(optimized_windows,
       color = aidia_colors$accent
     ) +
     # Diverging fill: blue = underloaded, white = balanced, red = overloaded
+    # Limits 0.2-1.8x ensure the midpoint (1.0) stays visually centered;
+    # data beyond these bounds still renders at the extreme color.
     ggplot2::scale_fill_gradient2(
       name     = "Load\nRatio",
       low      = "#2166ac",

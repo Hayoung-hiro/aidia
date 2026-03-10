@@ -630,7 +630,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   # --- Precursors-per-Window Plot ---
   output$plot_precursors_per_window <- renderPlot({
     req(rv$optimized_windows, rv$validated_data)
-    aidia:::plot_precursors_per_window(
+    plot_precursors_per_window(
       optimized_windows = rv$optimized_windows,
       validated_data = rv$validated_data
     )
