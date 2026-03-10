@@ -172,6 +172,45 @@ By placing isolation window boundaries at these forbidden zone positions, we:
 - `transform_boundaries_to_fz(boundaries, fz_offset)`: Vectorized boundary array transform
 - `integerize_boundaries()`: Always applied first (integer boundaries → deterministic FZ transform)
 
+### Visualization: `plot_fz_zoom.R` (Plot 14)
+Zoomed KDE density plot (~5 Da range) around a representative window boundary using
+**actual precursor m/z from the input data**. Shows FZ boundary (green solid) sitting
+in a low-density valley vs integer boundary (red dashed) on a high-density peak.
+Caption reports quantitative density comparison at both positions.
+Only generated when `fz_offset > 0`.
+
+### Decision: FZ Validation Module — REJECTED (2026-03-09)
+
+A standalone FZ validation module (`validate_fz_offset()`) was proposed to quantitatively
+verify whether a given `fz_offset` is valid for the user's dataset by computing Peak/FZ
+density ratios per charge state. After domain review, this was **rejected** for the
+following reasons:
+
+1. **No new information**: The mass defect pattern is a physical property of amino acid
+   composition, not a per-dataset variable. For tryptic digests, offset=0.25 is universally
+   correct. For phospho-enriched samples, 0.18 is already provided as a preset. The
+   validation would only confirm what is already known from sample type.
+
+2. **Circular bias**: The input `report.parquet` contains only DIA-NN-identified precursors.
+   If the original DIA acquisition already split precursors at certain m/z positions, those
+   precursors are missing from the report, making any m/z position appear "empty" and
+   biasing validation toward PASS.
+
+3. **Existing coverage**: `plot_fz_zoom.R` already demonstrates FZ effectiveness using
+   real precursor data with quantitative density comparison. This provides the same
+   assurance without a separate validation step.
+
+4. **Glycoproteomics inapplicable**: Confirmed that glyco-enriched samples have
+   unpredictable mass defect patterns incompatible with the Nefedov constant approach,
+   limiting the module's value for the most uncertain use case.
+
+5. **Offset selection is sample-type-driven**: Users choose fz_offset based on their
+   enrichment protocol (standard=0.25, phospho=0.18, unknown=disabled), not from
+   data-driven fitting. A validation step would not change this decision.
+
+**Reference**: Full plan preserved in git history (`PLAN_AIDIA_FZ_VALIDATION.md`,
+removed in commit after this decision).
+
 ---
 
 ## Geometric CV for Proteomics Data
