@@ -5,11 +5,17 @@
     "ms2_time": 3.0,
     "ms2_resolution": 80000,
     "analyzer_type": "astral",
+    "ms1_analyzer_type": "orbitrap",
+    "default_ms1_resolution": 240000,
     "max_scan_rate": 200,
     "cycle_calculation": "parallel",
     "ms1_scans_per_cycle": 0,
     "max_windows": 350,
-    "description": "Orbitrap Astral Zoom with multi-pass MR-TOF (200 Hz at 80K, Zoom mode doubles resolution)"
+    "description": "Orbitrap Astral Zoom with multi-pass MR-TOF (200 Hz at 80K, Zoom mode doubles resolution)",
+    "ms1_overhead_ms": 10.0,
+    "ms2_overhead_ms": 1.0,
+    "recommended_min_width_da": 2,
+    "recommended_max_width_da": 50
   },
 
   "astral": {
@@ -18,24 +24,17 @@
     "ms2_time": 3.0,
     "ms2_resolution": 80000,
     "analyzer_type": "astral",
+    "ms1_analyzer_type": "orbitrap",
+    "default_ms1_resolution": 240000,
     "max_scan_rate": 200,
     "cycle_calculation": "parallel",
     "ms1_scans_per_cycle": 0,
     "max_windows": 300,
-    "description": "Orbitrap Astral with MR-TOF analyzer (200 Hz at 80K @ m/z 524, 3ms max IT)"
-  },
-
-  "astral_sensitive": {
-    "name": "Thermo Orbitrap Astral (Sensitivity Mode)",
-    "ms1_time": 5.0,
-    "ms2_time": 20.0,
-    "ms2_resolution": 80000,
-    "analyzer_type": "astral",
-    "max_scan_rate": 25,
-    "cycle_calculation": "parallel",
-    "ms1_scans_per_cycle": 0,
-    "max_windows": 100,
-    "description": "Orbitrap Astral in sensitivity mode (25 Hz at 80K, 20ms IT for low-abundance samples)"
+    "description": "Orbitrap Astral with MR-TOF analyzer (200 Hz at 80K @ m/z 524, 3ms max IT)",
+    "ms1_overhead_ms": 10.0,
+    "ms2_overhead_ms": 2.0,
+    "recommended_min_width_da": 2,
+    "recommended_max_width_da": 50
   },
 
   "qexactive": {
@@ -48,7 +47,11 @@
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 150,
-    "description": "Q Exactive high-resolution Orbitrap (12 Hz at 17,500 resolution, Auto IT mode)"
+    "description": "Q Exactive high-resolution Orbitrap (12 Hz at 17,500 resolution, Auto IT mode)",
+    "ms1_overhead_ms": 12.0,
+    "ms2_overhead_ms": 12.0,
+    "recommended_min_width_da": 5,
+    "recommended_max_width_da": 100
   },
 
   "qexactive_hfx": {
@@ -61,7 +64,11 @@
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 300,
-    "description": "Q Exactive HF-X with aHCD (40 Hz at 7,500 resolution, Auto IT mode)"
+    "description": "Q Exactive HF-X with aHCD (40 Hz at 7,500 resolution, Auto IT mode)",
+    "ms1_overhead_ms": 12.0,
+    "ms2_overhead_ms": 12.0,
+    "recommended_min_width_da": 4,
+    "recommended_max_width_da": 100
   },
 
   "exploris": {
@@ -74,7 +81,11 @@
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 400,
-    "description": "Orbitrap Exploris 480 (40 Hz at 7,500 resolution, Auto IT mode)"
+    "description": "Orbitrap Exploris 480 (40 Hz at 7,500 resolution, Auto IT mode)",
+    "ms1_overhead_ms": 10.0,
+    "ms2_overhead_ms": 10.0,
+    "recommended_min_width_da": 4,
+    "recommended_max_width_da": 80
   },
 
   "eclipse": {
@@ -87,7 +98,11 @@
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 400,
-    "description": "Orbitrap Eclipse Tribrid (40 Hz Orbitrap, 45 Hz LIT, Auto IT mode)"
+    "description": "Orbitrap Eclipse Tribrid (40 Hz Orbitrap, 45 Hz LIT, Auto IT mode)",
+    "ms1_overhead_ms": 10.0,
+    "ms2_overhead_ms": 10.0,
+    "recommended_min_width_da": 4,
+    "recommended_max_width_da": 80
   },
 
   "fusion_lumos": {
@@ -100,7 +115,11 @@
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 300,
-    "description": "Fusion Lumos Tribrid (20 Hz Orbitrap, Auto IT mode at 30K resolution)"
+    "description": "Fusion Lumos Tribrid (20 Hz Orbitrap, Auto IT mode at 30K resolution)",
+    "ms1_overhead_ms": 10.0,
+    "ms2_overhead_ms": 10.0,
+    "recommended_min_width_da": 4,
+    "recommended_max_width_da": 100
   },
 
   "timstof": {
@@ -113,7 +132,10 @@
     "cycle_calculation": "parallel",
     "ms1_scans_per_cycle": 0,
     "max_windows": 150,
-    "description": "timsTOF with PASEF technology (>100 Hz sequencing speed)"
+    "description": "timsTOF with PASEF technology (>100 Hz sequencing speed)",
+    "ms2_overhead_ms": 1.0,
+    "recommended_min_width_da": 5,
+    "recommended_max_width_da": 75
   },
 
   "timstof_pro": {
@@ -126,7 +148,10 @@
     "cycle_calculation": "parallel",
     "ms1_scans_per_cycle": 0,
     "max_windows": 200,
-    "description": "timsTOF Pro 2 with PASEF (>120 Hz sequencing speed)"
+    "description": "timsTOF Pro 2 with PASEF (>120 Hz sequencing speed)",
+    "ms2_overhead_ms": 1.0,
+    "recommended_min_width_da": 5,
+    "recommended_max_width_da": 75
   },
 
   "timstof_ultra": {
@@ -139,7 +164,10 @@
     "cycle_calculation": "parallel",
     "ms1_scans_per_cycle": 0,
     "max_windows": 300,
-    "description": "timsTOF Ultra with CSI-Ultra (300 Hz PASEF MS/MS)"
+    "description": "timsTOF Ultra with CSI-Ultra (300 Hz PASEF MS/MS)",
+    "ms2_overhead_ms": 0.5,
+    "recommended_min_width_da": 5,
+    "recommended_max_width_da": 75
   },
 
   "sciex_7600": {
@@ -152,7 +180,10 @@
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 500,
-    "description": "ZenoTOF 7600 with Zeno trap (133 Hz MS/MS, 90% duty cycle)"
+    "description": "ZenoTOF 7600 with Zeno trap (133 Hz MS/MS, 90% duty cycle)",
+    "ms2_overhead_ms": 3.0,
+    "recommended_min_width_da": 5,
+    "recommended_max_width_da": 80
   },
 
   "waters_synapt": {
@@ -165,7 +196,10 @@
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 400,
-    "description": "SYNAPT XS with IMS (Ion Mobility, SONAR DIA)"
+    "description": "SYNAPT XS with IMS (Ion Mobility, SONAR DIA)",
+    "ms2_overhead_ms": 5.0,
+    "recommended_min_width_da": 10,
+    "recommended_max_width_da": 100
   },
 
   "custom": {
@@ -178,6 +212,9 @@
     "cycle_calculation": "sequential",
     "ms1_scans_per_cycle": 1,
     "max_windows": 500,
-    "description": "User-defined instrument settings (Auto IT mode, edit JSON for custom IT)"
+    "description": "User-defined instrument settings (Auto IT mode, edit JSON for custom IT)",
+    "ms2_overhead_ms": 5.0,
+    "recommended_min_width_da": 2,
+    "recommended_max_width_da": 100
   }
 }

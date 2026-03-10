@@ -11,6 +11,7 @@ server_instrument <- function(input, output, session, rv) {
     instrument <- input$instrument
     ms1_scans_input <- input$ms1_scans_per_cycle  # Explicit dependency for reactivity
     window_count_input <- input$current_window_count  # Explicit dependency
+    astral_ms1_res_input <- input$astral_ms1_resolution  # Explicit dependency for Astral MS1
 
     # Determine analyzer type
     is_orbitrap <- is_orbitrap_instrument(instrument)
@@ -51,14 +52,15 @@ server_instrument <- function(input, output, session, rv) {
         )
       )
     } else if (is_astral) {
-      # Astral: use the Astral IT slider (MS1 on Orbitrap, MS2 on Astral - parallel)
+      # Astral: MS1 on Orbitrap (resolution-dependent), MS2 on Astral MR-TOF (parallel)
       ms2_it <- input$astral_ms2_it %||% 3.0
+      astral_ms1_res <- as.numeric(input$astral_ms1_resolution %||% 240000)
 
       config <- list(
         instrument = list(preset = instrument),
         ms1 = list(
-          resolution = 120000,  # Orbitrap MS1
-          max_injection_time_ms = 50,
+          resolution = astral_ms1_res,
+          max_injection_time_ms = "auto",  # Auto = Orbitrap transient time
           scans_per_cycle = 0  # Parallel: MS1 during MS2
         ),
         ms2 = list(
@@ -596,6 +598,93 @@ server_instrument <- function(input, output, session, rv) {
         )
       }
     )
+  })
+
+  # --- Output: Duty Cycle Sync Info (parallel instruments only) ---
+  output$duty_cycle_sync_info <- renderUI({
+    result <- cycle_time_result()
+    if (is.null(result)) return(NULL)
+
+    is_parallel <- result$instrument$cycle_calculation == "parallel"
+    if (!is_parallel) return(NULL)
+
+    # Get MS1 transient time (Orbitrap MS1, even for Astral instruments)
+    # For Astral: MS1 is on Orbitrap, so transient_ms = Orbitrap transient at chosen resolution
+    ms1_trans_ms <- result$ms1$transient_ms
+    if (is.null(ms1_trans_ms) || ms1_trans_ms < 10) {
+      # Fallback: derive from resolution if transient_ms seems wrong (e.g., Astral detection time)
+      ms1_res <- result$ms1$resolution %||% 240000
+      ms1_trans_ms <- get_transient_time(ms1_res, "orbitrap")
+      if (is.na(ms1_trans_ms)) ms1_trans_ms <- result$ms1$scan_time_ms
+    }
+    ms2_scan_ms <- result$ms2$scan_time_ms
+    n_windows <- result$window_count
+
+    sync <- calculate_duty_cycle_sync(
+      ms1_time_ms = ms1_trans_ms,
+      ms2_scan_time_ms = ms2_scan_ms,
+      n_windows = n_windows
+    )
+
+    # Badge color based on sync quality
+    if (sync$duty_cycle_pct >= 95) {
+      badge_class <- "status-pass"
+      badge_text <- sprintf("%.0f%% Synced", sync$duty_cycle_pct)
+    } else if (sync$duty_cycle_pct >= 80) {
+      badge_class <- "badge-accent"
+      badge_text <- sprintf("%.0f%% Duty Cycle", sync$duty_cycle_pct)
+    } else {
+      badge_class <- "status-fail"
+      badge_text <- sprintf("%.0f%% Duty Cycle", sync$duty_cycle_pct)
+    }
+
+    # Idle detail
+    idle_text <- if (sync$ms1_idle_ms > 1) {
+      sprintf("MS1 idle: %.0f ms", sync$ms1_idle_ms)
+    } else if (sync$ms2_idle_ms > 1) {
+      sprintf("MS2 idle: %.0f ms", sync$ms2_idle_ms)
+    } else {
+      "No idle time"
+    }
+
+    tags$div(
+      style = "padding-top: 25px;",
+      tags$div(
+        class = "panel-accent",
+        tags$div(
+          style = "display: flex; justify-content: space-between; align-items: center;",
+          tags$strong("Duty Cycle Sync"),
+          tags$span(class = paste("efficiency-badge", badge_class), badge_text)
+        ),
+        tags$div(
+          class = "text-muted", style = "font-size: 11px; margin-top: 6px;",
+          sprintf("MS1: %.0f ms | MS2: %d x %.1f ms = %.0f ms",
+                  ms1_trans_ms, n_windows, ms2_scan_ms, sync$total_ms2_time_ms)
+        ),
+        tags$div(
+          class = "text-muted", style = "font-size: 11px;",
+          idle_text
+        ),
+        tags$div(
+          class = "text-muted", style = "font-size: 11px;",
+          sprintf("Sync-optimal: %d windows", sync$n_sync_optimal)
+        )
+      )
+    )
+  })
+
+  # --- Output: Instrument Width Recommendations ---
+  observe({
+    instrument <- input$instrument
+    if (is.null(instrument)) return()
+
+    tryCatch({
+      config <- get_instrument_config(instrument)
+      recs <- get_instrument_width_recommendations(config)
+
+      updateNumericInput(session, "min_isolation_width", value = recs$min_width_da)
+      updateNumericInput(session, "max_isolation_width", value = recs$max_width_da)
+    }, error = function(e) NULL)
   })
 
   # Return the reactive for other modules to use

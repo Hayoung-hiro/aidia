@@ -183,29 +183,36 @@ cat("\n")
 # =============================================================================
 # Test 8: Astral Sensitive Mode Config
 # =============================================================================
+# Test 8: Duty Cycle Sync (Parallel Instruments)
+# =============================================================================
 cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-cat("Test 8: Astral Sensitive Mode Config\n")
+cat("Test 8: Duty Cycle Sync (Parallel Instruments)\n")
 cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 
-config <- tryCatch({
-  get_instrument_config("astral_sensitive")
-}, error = function(e) {
-  cat(sprintf("  [FAIL] Error loading astral_sensitive config: %s\n", e$message))
-  failed <<- failed + 1
-  NULL
-})
-
-if (!is.null(config)) {
-  # Check ms2_time is 20ms for sensitivity mode
-  status <- if (config$ms2_time == 20) { passed <<- passed + 1; "PASS" } else { failed <<- failed + 1; "FAIL" }
-  cat(sprintf("  [%s] ms2_time = %.0f ms (expected: 20)\n",
-              status, config$ms2_time))
-
-  # Check max_scan_rate is 25 Hz
-  status <- if (config$max_scan_rate == 25) { passed <<- passed + 1; "PASS" } else { failed <<- failed + 1; "FAIL" }
-  cat(sprintf("  [%s] max_scan_rate = %.0f Hz (expected: 25)\n",
-              status, config$max_scan_rate))
+# Astral: MS1 Orbitrap 120K = 256 ms, MS2 Astral = 5 ms/scan, 51 windows
+sync <- calculate_duty_cycle_sync(ms1_time_ms = 256, ms2_scan_time_ms = 5.0, n_windows = 51)
+status <- if (sync$duty_cycle_pct > 99 && sync$sync_status == "synced") {
+  passed <<- passed + 1; "PASS"
+} else {
+  failed <<- failed + 1; "FAIL"
 }
+cat(sprintf("  [%s] Astral 51 windows: duty=%.1f%%, status=%s, idle: MS1=%.1fms MS2=%.1fms\n",
+            status, sync$duty_cycle_pct, sync$sync_status, sync$ms1_idle_ms, sync$ms2_idle_ms))
+
+# Non-synced: 40 windows at 5 ms = 200 ms total MS2, MS1 = 256 ms → MS2 idles 56 ms
+sync2 <- calculate_duty_cycle_sync(ms1_time_ms = 256, ms2_scan_time_ms = 5.0, n_windows = 40)
+status <- if (sync2$ms2_idle_ms > 50 && sync2$sync_status == "ms2_idle") {
+  passed <<- passed + 1; "PASS"
+} else {
+  failed <<- failed + 1; "FAIL"
+}
+cat(sprintf("  [%s] Astral 40 windows: duty=%.1f%%, status=%s, MS2 idle=%.1fms\n",
+            status, sync2$duty_cycle_pct, sync2$sync_status, sync2$ms2_idle_ms))
+
+# Sync-optimal window count
+n_opt <- calculate_sync_optimal_windows(ms1_time_ms = 256, ms2_scan_time_ms = 5.0)
+status <- if (n_opt == 51) { passed <<- passed + 1; "PASS" } else { failed <<- failed + 1; "FAIL" }
+cat(sprintf("  [%s] Sync-optimal windows: %d (expected: 51)\n", status, n_opt))
 cat("\n")
 
 # =============================================================================

@@ -51,7 +51,7 @@ step3_results_ui <- function() {
         )
       ),
 
-      # --- Row 4: Precursor Distribution Plot (always visible) ---
+      # --- Row 4: Precursor Distribution + Temporal Density ---
       fluidRow(
         box(
           title = "Precursor Distribution Across Windows",
@@ -59,6 +59,24 @@ step3_results_ui <- function() {
           solidHeader = TRUE,
           width = 12,
           plotOutput("plot_precursors_per_window", height = "400px")
+        )
+      ),
+      fluidRow(
+        box(
+          title = "Precursor Temporal Density (Co-Elution Proxy)",
+          status = "info",
+          solidHeader = TRUE,
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          plotOutput("plot_temporal_density", height = "400px"),
+          tags$div(
+            class = "text-muted", style = "font-size: 11px; padding: 8px 0;",
+            icon("info-circle"),
+            " Based on identified precursors only (lower bound). ",
+            "Higher density = more co-eluting precursors = harder deconvolution. ",
+            "Values are relative — useful for comparing strategies, not as absolute co-isolation counts."
+          )
         )
       ),
 

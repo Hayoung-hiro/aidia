@@ -596,3 +596,49 @@ Updated:
 5. export_batch_comparison() + ZIP handler
 6. Batch comparison plots for PDF report
 7. Shiny precursors-per-window visualization
+
+---
+
+## v0.3.1: Astral Optimization (Duty Cycle Sync + Temporal Density)
+
+> **Detailed Astral instrument knowledge**: See [docs/astral-instrument-knowledge.md](astral-instrument-knowledge.md)
+> Covers architecture, MS2 parameters, AGC/space charge, IT tradeoffs, sync tables.
+
+### Duty Cycle Sync Constraint
+
+For **parallel instruments** (Astral, TimsTOF), MS1 and MS2 run simultaneously:
+- `cycle_time = max(MS1_time, n_windows * MS2_time)`
+- If total MS2 time ≠ MS1 transient time, one analyzer idles → wasted capacity
+- `calculate_duty_cycle_sync()` quantifies idle time and duty cycle %
+- `calculate_sync_optimal_windows()` finds n_windows for perfect sync: `floor(MS1_time / MS2_scan_time)`
+- For Astral: MS1 Orbitrap 120K = 256 ms, MS2 Astral = 5 ms → sync-optimal = 51 windows
+
+### Precursor Temporal Density (Co-Elution Proxy)
+
+**What it measures:** Number of identified precursors with overlapping elution
+profiles within a given isolation window at any point in time.
+
+**Survivor bias caveat:** report.parquet only contains successfully identified
+precursors. Precursors that failed deconvolution due to co-isolation are absent.
+Values are a **lower bound** — useful for relative comparison, not absolute.
+
+**Algorithm:** Sweepline O(k log k) per window:
+1. Filter precursors in [mz_start, mz_end] AND [rt_start, rt_end]
+2. Compute elution interval: [RT.Apex - 1×FWHM, RT.Apex + 1×FWHM]
+3. Create event list: +1 at start, -1 at end
+4. Walk events tracking cumsum → density_max = peak, density_mean = time-weighted avg
+
+### Boxcar/MAP-MS (Deferred to v0.4.0)
+
+**Concept:** Multiple narrow MS1 windows (K segments) instead of single full-range MS1.
+- Improves signal-to-noise for low-abundance precursors
+- Each segment gets longer AGC fill time → better ion statistics
+- Sync problem becomes K-dimensional: `cycle = K × max(MS1_transient, N_k × MS2_scan)`
+- Requires new export format (MS1 segment definitions)
+
+**Prerequisite:** Duty cycle sync (v0.3.1) must work first.
+
+**Key decisions for v0.4.0:**
+- `plan_ms1_segmentation()` function to define K segments
+- Modified export format for Xcalibur with MS1 segment table
+- `ms1_scans_per_cycle` field in instruments.json already has placeholder (0 for parallel)

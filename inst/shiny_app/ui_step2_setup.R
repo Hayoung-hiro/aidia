@@ -335,6 +335,10 @@ step2_setup_ui <- function() {
           ),
           helpText("Maximum window width (80 Da default; limits wide windows in sparse m/z regions)",
                    style = "font-size: 11px;")
+        ),
+        column(4,
+          # Duty cycle sync info (parallel instruments only)
+          uiOutput("duty_cycle_sync_info")
         )
       ),
 

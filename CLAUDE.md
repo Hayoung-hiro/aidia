@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**AIDIA v0.2.0** (Adaptive Isolation for DIA) - R package for optimizing Data-Independent Acquisition (DIA) isolation windows for mass spectrometry. Uses DIA-NN results to generate optimized RT-dependent isolation windows for **Thermo Fisher Orbitrap** instruments.
+**AIDIA v0.3.0** (Adaptive Isolation for DIA) - R package for optimizing Data-Independent Acquisition (DIA) isolation windows for mass spectrometry. Uses DIA-NN results to generate optimized RT-dependent isolation windows for **Thermo Fisher Orbitrap** instruments.
 
 **Status**: Development (4-stage pipeline complete, modular architecture)
 
@@ -117,7 +117,7 @@ Extracted from the original monolithic `utils_common.R`:
 | Module | Contents |
 |--------|----------|
 | `R/dppp.R` | `PEAK_WIDTH_FACTOR`, `calculate_dppp()`, `ensure_fwhm_seconds()`, `estimate_window_count_preview()` |
-| `R/precursor_matching.R` | `count_precursors_in_windows()`, `count_precursors_in_2d_windows()` |
+| `R/precursor_matching.R` | `count_precursors_in_windows()`, `count_precursors_in_2d_windows()`, `calculate_precursor_temporal_density()` |
 | `R/validation_helpers.R` | `validate_input_type()`, `validate_numeric_range()`, `validate_positive_integer()` |
 | `R/strategy_config.R` | `greedy_config()`, `quantile_config()`, `coverage_config()`, `outlier_config()`, `kde_config()` |
 | `R/smoothing_utils.R` | `smooth_whittaker()`, `smooth_savgol()`, `smooth_boundaries()` (dispatcher) |
@@ -137,6 +137,10 @@ Canonical functions that ALL entry points (main.R, Shiny app) must use:
 | `is_orbitrap_instrument()` | `R/instrument_utils.R` | Data-driven from JSON `analyzer_type` |
 | `is_astral_instrument()` | `R/instrument_utils.R` | Data-driven from JSON `analyzer_type` |
 | `export_windows_to_csv()` | `R/export_methods.R` | Unified 22-column Thermo CSV (z=0) |
+| `calculate_duty_cycle_sync()` | `R/instrument_utils.R` | Duty cycle % and idle times for parallel instruments |
+| `calculate_sync_optimal_windows()` | `R/instrument_utils.R` | Sync-optimal window count for parallel instruments |
+| `get_instrument_width_recommendations()` | `R/instrument_utils.R` | Per-instrument min/max width from JSON |
+| `calculate_precursor_temporal_density()` | `R/precursor_matching.R` | Sweepline co-elution density (lower bound) |
 
 **Rule**: Never inline FWHM conversion (`median < 1 → *60`) or window count formulas. Always use shared functions.
 
@@ -338,6 +342,19 @@ Optional (Suggests in DESCRIPTION):
 ---
 
 ## Version History
+
+**v0.3.1** (2026-03): Astral Optimization — Duty Cycle Sync + Temporal Density
+- **Duty cycle sync** for parallel instruments: `calculate_duty_cycle_sync()`, `calculate_sync_optimal_windows()`
+- Sync-first window count for Astral: uses sync-optimal N instead of DPPP-only
+- **Precursor temporal density**: sweepline co-elution proxy in `calculate_precursor_temporal_density()`
+- `evaluate_windows()` extended with `temporal_density_max`, `temporal_density_mean` per window
+- New plot: `plot_temporal_density()` — geom_rect heatmap with inferno colorscale
+- Per-instrument width recommendations from JSON (`recommended_min_width_da`, `recommended_max_width_da`)
+- `ms2_overhead_ms` added to all instruments in JSON (replaces hardcoded 2.0 for Astral)
+- Shiny: duty cycle sync badge in Step 2, temporal density plot in Step 3
+- Shiny: instrument-specific width defaults auto-populate on selection
+- Removed `astral_sensitive` (not a real instrument model)
+- Boxcar/MAP-MS concept documented (deferred to v0.4.0)
 
 **v0.2.1** (2026-03): Smoothing, Bootstrap CI, Visualization & Preview
 - Whittaker-Henderson (WH) smoother now **default** for all strategies (SG available via `smoothing_method = "sg"`)

@@ -140,3 +140,129 @@ find_windows_for_precursor <- function(precursor_mz, window_starts,
                                        window_ends) {
   which(precursor_mz >= window_starts & precursor_mz < window_ends)
 }
+
+#' Calculate Precursor Temporal Density (Co-Elution Proxy)
+#'
+#' For each isolation window, computes the maximum and mean number of
+#' concurrently eluting identified precursors using a sweepline algorithm.
+#' Each precursor's elution interval is \code{[RT.Apex - 1*FWHM, RT.Apex + 1*FWHM]}.
+#'
+#' \strong{Important:} This metric is a \strong{lower bound} of actual co-isolation
+#' because report.parquet only contains successfully identified precursors.
+#' Precursors that failed deconvolution due to co-isolation interference are
+#' absent from the data (survivor bias).
+#'
+#' @param precursor_mz Numeric vector, precursor m/z values
+#' @param precursor_rt Numeric vector, precursor RT.Apex values (minutes)
+#' @param precursor_fwhm Numeric vector, precursor FWHM values (auto-detected units)
+#' @param window_mz_start Numeric vector, window m/z start values
+#' @param window_mz_end Numeric vector, window m/z end values
+#' @param window_rt_start Numeric vector, window RT start values (minutes)
+#' @param window_rt_end Numeric vector, window RT end values (minutes)
+#'
+#' @return data.frame with columns: window_idx, density_max, density_mean, n_precursors
+#' @keywords internal
+calculate_precursor_temporal_density <- function(precursor_mz,
+                                                  precursor_rt,
+                                                  precursor_fwhm,
+                                                  window_mz_start,
+                                                  window_mz_end,
+                                                  window_rt_start,
+                                                  window_rt_end) {
+  n_windows <- length(window_mz_start)
+
+  # Validate input lengths
+  if (length(window_mz_end) != n_windows ||
+      length(window_rt_start) != n_windows ||
+      length(window_rt_end) != n_windows) {
+    stop("All window vectors must have the same length")
+  }
+
+  n_prec <- length(precursor_mz)
+  if (length(precursor_rt) != n_prec || length(precursor_fwhm) != n_prec) {
+    stop("precursor_mz, precursor_rt, and precursor_fwhm must have the same length")
+  }
+
+  # Convert FWHM to minutes: ensure_fwhm_seconds() returns seconds, divide by 60
+  fwhm_min <- ensure_fwhm_seconds(precursor_fwhm) / 60
+
+  # Precompute elution interval boundaries for every precursor (vectorized)
+  elut_start <- precursor_rt - fwhm_min
+  elut_end   <- precursor_rt + fwhm_min
+
+  # Output accumulators
+  out_density_max  <- numeric(n_windows)
+  out_density_mean <- numeric(n_windows)
+  out_n_prec       <- integer(n_windows)
+
+  # Group windows by unique RT segment to filter precursors once per segment
+  rt_key    <- paste(window_rt_start, window_rt_end, sep = "_")
+  unique_rt <- unique(data.frame(
+    rt_start = window_rt_start,
+    rt_end   = window_rt_end,
+    key      = rt_key,
+    stringsAsFactors = FALSE
+  ))
+
+  for (r in seq_len(nrow(unique_rt))) {
+    seg_rt_start <- unique_rt$rt_start[r]
+    seg_rt_end   <- unique_rt$rt_end[r]
+    seg_span     <- seg_rt_end - seg_rt_start
+
+    # Pre-filter precursors for this RT segment ONCE
+    rt_mask <- precursor_rt >= seg_rt_start & precursor_rt <= seg_rt_end
+    seg_mz    <- precursor_mz[rt_mask]
+    seg_start <- elut_start[rt_mask]
+    seg_end   <- elut_end[rt_mask]
+    seg_fwhm  <- fwhm_min[rt_mask]
+
+    # Windows belonging to this RT segment
+    win_idx <- which(rt_key == unique_rt$key[r])
+
+    for (w in win_idx) {
+      # Filter by m/z within pre-filtered segment (not full vector)
+      mz_sel <- seg_mz >= window_mz_start[w] & seg_mz <= window_mz_end[w]
+      n_in_win <- sum(mz_sel)
+      out_n_prec[w] <- n_in_win
+
+      if (n_in_win == 0L) next
+
+      if (n_in_win == 1L) {
+        out_density_max[w]  <- 1
+        out_density_mean[w] <- if (seg_span > 0) seg_fwhm[mz_sel] * 2 / seg_span else 1
+        next
+      }
+
+      # Sweepline: vectorized event processing
+      starts_clamped <- pmax(seg_start[mz_sel], seg_rt_start)
+      ends_clamped   <- pmin(seg_end[mz_sel],   seg_rt_end)
+
+      # Build and sort events (vectors, no data.frame allocation)
+      all_times  <- c(starts_clamped, ends_clamped)
+      all_deltas <- c(rep(1L, n_in_win), rep(-1L, n_in_win))
+      ord <- order(all_times, all_deltas)
+      times  <- all_times[ord]
+      deltas <- all_deltas[ord]
+
+      # Vectorized cumsum for max density
+      running <- cumsum(deltas)
+      density_max_val <- max(running)
+
+      # Time-weighted mean via vectorized diff
+      dt <- diff(times)
+      # running[1:(n-1)] is the level during each interval
+      weighted_sum <- sum(dt * running[-length(running)])
+
+      out_density_max[w]  <- density_max_val
+      out_density_mean[w] <- if (seg_span > 0) weighted_sum / seg_span else density_max_val
+    }
+  }
+
+  data.frame(
+    window_idx   = seq_len(n_windows),
+    density_max  = out_density_max,
+    density_mean = out_density_mean,
+    n_precursors = out_n_prec,
+    stringsAsFactors = FALSE
+  )
+}

@@ -1,11 +1,13 @@
 # plot_evaluation.R
 # Window Evaluation Plots
 #
-# Purpose: Visualize per-window precursor distribution and cross-strategy
-#          window width comparisons. Complements evaluate_windows() output.
+# Purpose: Visualize per-window precursor distribution, temporal density
+#          (co-elution proxy), and cross-strategy window width comparisons.
+#          Complements evaluate_windows() output.
 #
 # Functions:
 #   - plot_precursors_per_window(): Bar chart of precursor counts by window
+#   - plot_temporal_density(): Heatmap of co-eluting precursor density
 #   - plot_width_distribution_comparison(): Violin+box comparison across strategies
 #
 # Dependencies: ggplot2, dplyr, viridis, utils_common.R, theme_aidia.R
@@ -151,6 +153,136 @@ plot_precursors_per_window <- function(optimized_windows,
       x        = "m/z",
       y        = "Precursors per Window",
       caption  = "Bar width = isolation window width (Da) | Dashed line = mean count | Color: blue = underloaded, red = overloaded"
+    ) +
+    theme_aidia() +
+    ggplot2::theme(
+      panel.grid.major.x = ggplot2::element_blank(),
+      panel.grid.minor   = ggplot2::element_blank(),
+      legend.position    = "right"
+    )
+
+  # Facet by RT segment when multiple bins are present
+  if (n_bins > 1) {
+    p <- p + ggplot2::facet_wrap(
+      ~ rt_segment_id,
+      labeller = ggplot2::labeller(
+        rt_segment_id = function(x) sprintf("RT Bin %s", x)
+      ),
+      scales = "free_x"
+    )
+  }
+
+  return(p)
+}
+
+
+# =============================================================================
+# Plot: Precursor Temporal Density (Co-Elution Proxy)
+# =============================================================================
+
+#' Plot Precursor Temporal Density Across Windows
+#'
+#' Heatmap showing the maximum number of concurrently eluting identified
+#' precursors within each isolation window. Higher density indicates
+#' greater deconvolution difficulty. Uses geom_rect with diverging fill.
+#'
+#' \strong{Important:} Values are a \strong{lower bound} because only
+#' successfully identified precursors are counted (survivor bias).
+#'
+#' @param evaluation_result List returned by \code{evaluate_windows()}.
+#'   Must contain \code{per_window} with \code{temporal_density_max} column.
+#'
+#' @return ggplot object
+#' @keywords internal
+plot_temporal_density <- function(evaluation_result) {
+
+  cat("  Generating Evaluation Plot: Precursor Temporal Density...\n")
+
+  per_window <- evaluation_result$per_window
+
+  if (is.null(per_window) || nrow(per_window) < 1 ||
+      !"temporal_density_max" %in% names(per_window) ||
+      all(is.na(per_window$temporal_density_max))) {
+    return(create_insufficient_data_plot(
+      title   = "Precursor Temporal Density",
+      message = "Temporal density data not available\n(requires FWHM)"
+    ))
+  }
+
+  n_bins <- length(unique(per_window$rt_segment_id))
+
+  # If more than 6 RT bins, show median segment only
+  if (n_bins > 6) {
+    median_seg  <- select_median_rt_segment(per_window)
+    per_window  <- per_window[per_window$rt_segment_id == median_seg, , drop = FALSE]
+    n_bins      <- 1
+    median_note <- sprintf("Showing median RT segment (%d) only", median_seg)
+  } else {
+    median_note <- NULL
+  }
+
+  # Summary statistics
+  max_density  <- max(per_window$temporal_density_max, na.rm = TRUE)
+  mean_density <- mean(per_window$temporal_density_max, na.rm = TRUE)
+  median_density <- median(per_window$temporal_density_max, na.rm = TRUE)
+  n_wins <- nrow(per_window)
+
+  subtitle_text <- sprintf(
+    "%d windows | Max density: %d | Median: %.1f | Mean: %.1f",
+    n_wins, max_density, median_density, mean_density
+  )
+  if (!is.null(median_note)) {
+    subtitle_text <- paste0(subtitle_text, "\n", median_note)
+  }
+
+  p <- ggplot2::ggplot(
+    per_window,
+    ggplot2::aes(
+      xmin = mz_start,
+      xmax = mz_end,
+      ymin = 0,
+      ymax = temporal_density_max,
+      fill = temporal_density_max
+    )
+  ) +
+    ggplot2::geom_rect(color = "white", linewidth = 0.25, alpha = 0.85) +
+    # Median reference line
+    ggplot2::geom_hline(
+      yintercept = median_density,
+      linetype   = "dashed",
+      color      = aidia_colors$accent,
+      linewidth  = 0.7
+    ) +
+    ggplot2::annotate(
+      "text",
+      x     = -Inf,
+      y     = median_density,
+      label = sprintf("Median: %.1f", median_density),
+      hjust = -0.1,
+      vjust = -0.5,
+      size  = 3.2,
+      fontface = "italic",
+      color = aidia_colors$accent
+    ) +
+    viridis::scale_fill_viridis(
+      name     = "Max\nDensity",
+      option   = "inferno",
+      direction = -1,
+      begin    = 0.1,
+      end      = 0.9
+    ) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.12))
+    ) +
+    ggplot2::scale_x_continuous(
+      labels = function(x) sprintf("%.0f", x)
+    ) +
+    ggplot2::labs(
+      title    = "Precursor Temporal Density (Co-Elution Proxy)",
+      subtitle = subtitle_text,
+      x        = "m/z",
+      y        = "Max Co-Eluting Precursors",
+      caption  = "Based on identified precursors only (lower bound) | Higher = harder deconvolution"
     ) +
     theme_aidia() +
     ggplot2::theme(

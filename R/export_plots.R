@@ -517,7 +517,9 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   # Calculate after-optimization satisfaction
   after_sat <- NA_real_
   if (!is.null(validated_data) && !is.na(m$new_ct) && !is.na(m$target_dppp)) {
-    after_sat <- calculate_satisfaction(validated_data, m$new_ct, m$target_dppp)
+    fwhm_sec <- ensure_fwhm_seconds(get_precursor_data(validated_data)$FWHM)
+    dppp_vals <- calculate_dppp(fwhm_sec, m$new_ct)
+    after_sat <- dppp_satisfaction_pct(dppp_vals, m$target_dppp) / 100  # fraction
   }
   target_sat <- m$target_satisfaction
   if (is.na(target_sat)) target_sat <- 0.7  # fallback default

@@ -61,8 +61,9 @@ step1_data_ui <- function() {
           )
         ),
 
-        # Column 2: MS1 Resolution (Orbitrap only)
+        # Column 2: MS1 Resolution (Orbitrap sequential + Astral parallel)
         column(3, class = "instrument-col-conditional",
+          # Orbitrap sequential instruments: full MS1 resolution range
           conditionalPanel(
             condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
             selectInput(
@@ -78,6 +79,23 @@ step1_data_ui <- function() {
               ),
               selected = 60000
             )
+          ),
+          # Astral instruments: MS1 on Orbitrap (typical 120K-240K)
+          conditionalPanel(
+            condition = "input.instrument == 'astral' || input.instrument == 'astral_zoom'",
+            selectInput(
+              inputId = "astral_ms1_resolution",
+              label = "MS1 Resolution (Orbitrap)",
+              choices = c(
+                "60,000" = 60000,
+                "120,000" = 120000,
+                "240,000" = 240000,
+                "480,000" = 480000
+              ),
+              selected = 240000
+            ),
+            helpText("Astral MS1 acquired on Orbitrap analyzer",
+                     style = "font-size: 10px;")
           )
         ),
 
@@ -103,7 +121,7 @@ step1_data_ui <- function() {
 
           # Astral MS2 IT slider (for Astral instruments)
           conditionalPanel(
-            condition = "input.instrument == 'astral' || input.instrument == 'astral_zoom' || input.instrument == 'astral_sensitive'",
+            condition = "input.instrument == 'astral' || input.instrument == 'astral_zoom'",
             sliderInput(
               inputId = "astral_ms2_it",
               label = "Astral MS2 IT (ms)",

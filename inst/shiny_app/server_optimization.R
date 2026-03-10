@@ -636,6 +636,27 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     )
   })
 
+  # --- Cached evaluation result (avoid redundant evaluate_windows calls) ---
+  cached_evaluation <- reactive({
+    req(rv$optimized_windows, rv$validated_data, rv$optimization_plan)
+    tryCatch(
+      evaluate_windows(rv$optimized_windows, rv$validated_data, rv$optimization_plan),
+      error = function(e) NULL
+    )
+  })
+
+  # --- Temporal Density Plot ---
+  output$plot_temporal_density <- renderPlot({
+    eval_result <- cached_evaluation()
+    if (is.null(eval_result)) {
+      return(create_insufficient_data_plot(
+        title = "Precursor Temporal Density",
+        message = "Evaluation data not available"
+      ))
+    }
+    plot_temporal_density(eval_result)
+  })
+
   # --- Cached reactives for results summary (avoid redundant extraction) ---
   cached_metrics <- reactive({
     req(rv$optimization_complete, rv$optimization_plan, rv$optimized_windows)

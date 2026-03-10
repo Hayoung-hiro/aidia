@@ -407,7 +407,6 @@ format_short_instrument_name <- function(instrument_preset) {
   mapping <- c(
     astral           = "astral",
     astral_zoom      = "astral_zm",
-    astral_sensitive = "astral_sens",
     exploris         = "exploris",
     eclipse          = "eclipse",
     fusion_lumos     = "lumos",

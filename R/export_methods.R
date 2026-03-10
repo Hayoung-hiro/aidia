@@ -94,49 +94,27 @@ export_windows_to_csv <- function(optimized_windows, output_file,
     loop_n <- NULL
   }
 
-  # Create extended format (Thermo Orbitrap compatible)
+  # Create Thermo Xcalibur Targeted Mass List format
+  # 8 core columns: Compound, Formula, Adduct, m/z, z, RT Time (min), Window (min), Isolation Window (m/z)
   method_file <- windows_with_counts %>%
     mutate(
-      # Thermo format columns
-      Compound = .compound,
+      Compound = if (is_staggered) .compound else as.character(row_number()),
       Formula = "",
-      Adduct = "(no adduct)",
-
-      # Core columns
+      Adduct = "",
       `m/z` = round(mz_center, 4),
       z = 0,
-      `t start (min)` = round(rt_start, 1),
-      `t stop (min)` = round(rt_end, 1),
-      `Isolation Window (m/z)` = round(mz_end - mz_start, 4),
-      `Normalized AGC Target (%)` = normalized_agc_target,
-      `Start (m/z)` = round(mz_start, 4),
-      `End (m/z)` = round(mz_end, 4),
-
-      # Metadata columns
-      Window_ID = row_number(),
-      RT_Segment_ID = rt_segment_id,
-      RT_Center = round((rt_start + rt_end) / 2, 1),
-      RT_Width = round(rt_end - rt_start, 1),
-      N_Precursors = n_precursors
+      `RT Time (min)` = round((rt_start + rt_end) / 2, 1),
+      `Window (min)` = round(rt_end - rt_start, 1),
+      `Isolation Window (m/z)` = round(mz_end - mz_start, 4)
     )
 
-  # Column selection: base 16 + Cycle for staggered
   base_cols <- c("Compound", "Formula", "Adduct", "m/z", "z",
-                 "t start (min)", "t stop (min)",
-                 "Isolation Window (m/z)", "Normalized AGC Target (%)",
-                 "Start (m/z)", "End (m/z)",
-                 "Window_ID", "RT_Segment_ID", "RT_Center", "RT_Width",
-                 "N_Precursors")
-
-  if (is_staggered) {
-    method_file$Cycle <- windows_with_counts$cycle
-    base_cols <- c(base_cols, "Cycle")
-  }
+                 "RT Time (min)", "Window (min)", "Isolation Window (m/z)")
 
   method_file <- method_file %>% select(all_of(base_cols))
 
   # Write CSV file
-  write.csv(method_file, output_file, row.names = FALSE, quote = TRUE)
+  write.csv(method_file, output_file, row.names = FALSE, quote = FALSE)
 
   n_cols <- ncol(method_file)
   cat(sprintf("OK Method file exported: %s (%d windows, %d columns)\n",
@@ -172,8 +150,6 @@ export_center_mass_list <- function(optimized_windows, output_file) {
   windows <- optimized_windows$windows
 
   center_mass_df <- data.frame(
-    rt_start = round(windows$rt_start, 2),
-    rt_end = round(windows$rt_end, 2),
     `Center Mass (m/z)` = round(windows$mz_center, 7),
     `Window Width (m/z)` = round(windows$window_width, 7),
     check.names = FALSE
@@ -199,12 +175,9 @@ export_mz_range_list <- function(optimized_windows, output_file) {
   validate_input_type(optimized_windows, "OptimizedWindows", "optimized_windows")
   windows <- optimized_windows$windows
 
-  range_df <- data.frame(
-    rt_start = round(windows$rt_start, 2),
-    rt_end = round(windows$rt_end, 2),
-    mz_start = round(windows$mz_start, 7),
-    mz_end = round(windows$mz_end, 7)
-  )
+  # Single column format: " start-end" with space prefix and 7 decimal places
+  range_values <- sprintf(" %.7f-%.7f", windows$mz_start, windows$mz_end)
+  range_df <- data.frame(`m/z range` = range_values, check.names = FALSE)
 
   write.csv(range_df, output_file, row.names = FALSE, quote = FALSE)
   cat(sprintf("OK m/z range list exported: %s (%d windows)\n", output_file, nrow(range_df)))

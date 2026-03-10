@@ -246,7 +246,17 @@ plan_optimization <- function(
   print_step(5, "Determine Window Count")
 
   # Get MS1 time in seconds
-  ms1_time <- instrument_config$ms1_time / 1000  # ms to sec
+  # For parallel instruments (Astral): MS1 is on Orbitrap, use transient + overhead
+  if (instrument_config$cycle_calculation == "parallel") {
+    astral_ms1 <- resolve_astral_ms1(instrument_config)
+    ms1_transient <- astral_ms1$transient_ms
+    ms1_time <- astral_ms1$scan_time_ms / 1000  # ms to sec
+    print_info(sprintf("MS1 (Orbitrap %gK): %.1f ms transient + %.1f ms overhead = %.1f ms",
+                       astral_ms1$resolution / 1000, astral_ms1$transient_ms,
+                       astral_ms1$overhead_ms, astral_ms1$scan_time_ms))
+  } else {
+    ms1_time <- instrument_config$ms1_time / 1000  # ms to sec
+  }
 
   # Resolve MS2 time (handle "auto" mode and override)
   if (!is.null(ms2_time_override)) {
@@ -311,6 +321,69 @@ plan_optimization <- function(
     print_info(sprintf("Calculation (parallel): floor(%.3f sec / %.3f sec) = %d",
                        required_cycle_time,
                        window_result$t_scan_ms / 1000, window_count))
+  }
+
+  # ===================================================================
+  # Step 5b: Duty Cycle Sync (Parallel Instruments Only)
+  # ===================================================================
+  duty_cycle_sync <- NULL
+
+  if (instrument_config$cycle_calculation == "parallel") {
+    # Reuse ms1_transient from Step 5 (already resolved via resolve_astral_ms1)
+    ms1_transient_ms <- ms1_transient  # from Step 5 parallel branch
+
+    # MS2 scan time in ms
+    ms2_scan_time_ms <- window_result$t_scan_ms
+
+    # For parallel instruments, sync-optimal is the PRIMARY constraint.
+    # DPPP is easily met on Astral (cycle time << required), so the
+    # meaningful optimization is maximizing duty cycle (no idle analyzer).
+    n_sync <- calculate_sync_optimal_windows(ms1_transient_ms, ms2_scan_time_ms)
+    dppp_window_count <- window_count  # Save DPPP-based count for reference
+
+    if (n_sync > 0 && n_sync <= max_windows) {
+      # Verify sync-optimal still meets DPPP
+      sync_cycle_time <- calculate_cycle_time_internal(
+        n_windows = n_sync,
+        cycle_mode = "parallel",
+        ms1_time = ms1_time,
+        ms2_time = ms2_time,
+        resolution = resolution,
+        analyzer_type = analyzer_type
+      )
+
+      if (sync_cycle_time <= required_cycle_time) {
+        # Sync-optimal meets DPPP — use it as primary
+        if (n_sync != window_count) {
+          print_info(sprintf("Parallel sync-first: %d windows (sync-optimal, DPPP-based was %d)",
+                             n_sync, dppp_window_count))
+        }
+        window_count <- n_sync
+      } else {
+        # Rare: sync-optimal exceeds DPPP limit (very narrow FWHM peaks)
+        # Fall back to DPPP-based count but warn about duty cycle loss
+        print_warning(sprintf(
+          "Sync-optimal (%d windows) exceeds DPPP limit. Using DPPP-based %d windows.",
+          n_sync, window_count))
+      }
+    }
+
+    duty_cycle_sync <- calculate_duty_cycle_sync(
+      ms1_time_ms = ms1_transient_ms,
+      ms2_scan_time_ms = ms2_scan_time_ms,
+      n_windows = window_count
+    )
+
+    print_info(sprintf("Duty Cycle: %.1f%% (%s)",
+                       duty_cycle_sync$duty_cycle_pct, duty_cycle_sync$sync_status))
+    if (duty_cycle_sync$ms1_idle_ms > 1) {
+      print_info(sprintf("  MS1 idle: %.1f ms", duty_cycle_sync$ms1_idle_ms))
+    }
+    if (duty_cycle_sync$ms2_idle_ms > 1) {
+      print_info(sprintf("  MS2 idle: %.1f ms", duty_cycle_sync$ms2_idle_ms))
+    }
+    print_info(sprintf("  Sync-optimal: %d windows (DPPP-based: %d)",
+                       duty_cycle_sync$n_sync_optimal, dppp_window_count))
   }
 
   # ===================================================================
@@ -475,6 +548,9 @@ plan_optimization <- function(
         parallel_filling_efficiency = it_optimization$parallel_filling_efficiency,
         slack_time_ms = it_optimization$slack_time_ms
       ),
+
+      # Duty cycle sync (parallel instruments only, NULL for sequential)
+      duty_cycle_sync = duty_cycle_sync,
 
       # Parameters
       parameters = list(

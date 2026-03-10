@@ -149,9 +149,45 @@ evaluate_windows <- function(optimized_windows,
   )
 
   # ---------------------------------------------------------------------------
-  # 5. Quality flags
+  # 5. Temporal density (co-elution proxy)
+  # ---------------------------------------------------------------------------
+  # Only compute if FWHM data is available
+  has_fwhm <- "FWHM" %in% names(precursors) && !all(is.na(precursors$FWHM))
+
+  if (has_fwhm) {
+    temporal_density <- calculate_precursor_temporal_density(
+      precursor_mz    = precursors$Precursor.Mz,
+      precursor_rt    = precursors$RT.Apex,
+      precursor_fwhm  = precursors$FWHM,
+      window_mz_start = windows$mz_start,
+      window_mz_end   = windows$mz_end,
+      window_rt_start = windows$rt_start,
+      window_rt_end   = windows$rt_end
+    )
+
+    per_window$temporal_density_max  <- temporal_density$density_max
+    per_window$temporal_density_mean <- temporal_density$density_mean
+
+    overall$temporal_density_max_global  <- max(temporal_density$density_max, na.rm = TRUE)
+    overall$temporal_density_mean_global <- mean(temporal_density$density_mean, na.rm = TRUE)
+  } else {
+    per_window$temporal_density_max  <- NA_real_
+    per_window$temporal_density_mean <- NA_real_
+    overall$temporal_density_max_global  <- NA_real_
+    overall$temporal_density_mean_global <- NA_real_
+  }
+
+  # ---------------------------------------------------------------------------
+  # 6. Quality flags
   # ---------------------------------------------------------------------------
   overload_threshold <- 2 * mean_n
+
+  # High-density threshold: windows above P95 temporal density
+  high_density_threshold <- if (has_fwhm && any(!is.na(per_window$temporal_density_max))) {
+    quantile(per_window$temporal_density_max, 0.95, na.rm = TRUE)
+  } else {
+    Inf
+  }
 
   quality_flags <- list(
     empty_windows      = which(per_window$n_precursors == 0),
@@ -159,7 +195,11 @@ evaluate_windows <- function(optimized_windows,
     width_violations   = which(!per_window$width_ok),
     high_cv_bins       = per_rt_bin$rt_segment_id[
       !is.na(per_rt_bin$precursor_cv) & per_rt_bin$precursor_cv > 0.5
-    ]
+    ],
+    high_density_windows = which(
+      !is.na(per_window$temporal_density_max) &
+        per_window$temporal_density_max > high_density_threshold
+    )
   )
 
   list(

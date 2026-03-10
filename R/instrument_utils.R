@@ -96,6 +96,21 @@ ASTRAL_IT_TO_SCANRATE <- c(
   "40.0" = 12.5  # Maximum sensitivity
 )
 
+#' Default Orbitrap 240K Transient Time (ms)
+#'
+#' Fallback value when resolution lookup returns NA.
+#' 240K is the default MS1 resolution for Astral instruments.
+#' @keywords internal
+ORBITRAP_240K_TRANSIENT_MS <- 512
+
+#' Default MS1 Overhead (ms)
+#'
+#' Fallback value when instrument JSON does not specify ms1_overhead_ms.
+#' Based on typical C-trap/IRM timing for modern Orbitrap instruments.
+#' @keywords internal
+DEFAULT_MS1_OVERHEAD_MS <- 10.0
+
+
 # =============================================================================
 # Constants: Overhead Modeling
 # =============================================================================
@@ -265,7 +280,7 @@ calculate_ms2_scan_time <- function(resolution = 30000,
       efficiency_message_en <- "Instrument efficiency 100% (Parallel Mode - 200 Hz)"
     } else {
       # IT exceeds parallel capacity, becomes IT-limited
-      buffer_ms <- 2.0
+      buffer_ms <- overhead_ms %||% 2.0
       t_scan_ms <- injection_time_ms + buffer_ms
       limiting_factor <- "sensitivity"
       effective_time_ms <- injection_time_ms
@@ -1025,7 +1040,8 @@ calculate_cycle_time_from_experiment <- function(experiment_config,
     if (analyzer_type == "orbitrap") {
       ms1_it_resolved <- get_transient_time(ms1_resolution, "orbitrap")
     } else if (analyzer_type == "astral") {
-      ms1_it_resolved <- base_config$ms1_time %||% 5.0
+      # Astral MS1 is on Orbitrap — auto IT = transient time
+      ms1_it_resolved <- resolve_astral_ms1(base_config, ms1_resolution)$transient_ms
     } else {
       ms1_it_resolved <- base_config$ms1_time %||% 50.0
     }
@@ -1036,12 +1052,14 @@ calculate_cycle_time_from_experiment <- function(experiment_config,
   # Calculate MS1 scan time
   if (analyzer_type == "orbitrap") {
     ms1_transient <- get_transient_time(ms1_resolution, "orbitrap")
-    ms1_overhead <- calculate_scan_overhead(ms1_transient)
+    ms1_overhead <- base_config$ms1_overhead_ms %||% DEFAULT_MS1_OVERHEAD_MS
     ms1_scan_time_ms <- max(ms1_transient, ms1_it_resolved) + ms1_overhead
   } else if (analyzer_type == "astral") {
-    ms1_scan_time_ms <- base_config$ms1_time %||% 5.0
-    ms1_transient <- ASTRAL_DETECTION_TIME_MS
-    ms1_overhead <- 0
+    # Astral MS1 is on the Orbitrap analyzer
+    astral_ms1 <- resolve_astral_ms1(base_config, ms1_resolution)
+    ms1_transient <- astral_ms1$transient_ms
+    ms1_overhead <- astral_ms1$overhead_ms
+    ms1_scan_time_ms <- max(ms1_transient, ms1_it_resolved) + ms1_overhead
   } else {
     # TOF
     ms1_scan_time_ms <- (base_config$ms1_time %||% 50.0) + MINIMUM_OVERHEAD_MS
@@ -1065,10 +1083,12 @@ calculate_cycle_time_from_experiment <- function(experiment_config,
   }
 
   # Calculate MS2 scan time using the core function
+  # Pass instrument-specific overhead from JSON config
   ms2_scan_info <- calculate_ms2_scan_time(
     resolution = ms2_resolution,
     injection_time_ms = ms2_it_resolved,
     analyzer = analyzer_type,
+    overhead_ms = base_config$ms2_overhead_ms,
     verbose = FALSE
   )
 
@@ -1300,4 +1320,144 @@ get_ms1_scans_per_cycle <- function(ms1_scans_per_cycle, instrument_config) {
   # Ultimate fallback: Sequential (most common)
   warning("Could not determine ms1_scans_per_cycle, using default value 1 (sequential)")
   return(1L)
+}
+
+
+# =============================================================================
+# Astral MS1 Resolution Helper
+# =============================================================================
+
+#' Resolve Astral MS1 (Orbitrap) Parameters
+#'
+#' Centralizes the Astral MS1 resolution lookup, transient time calculation,
+#' and overhead retrieval. Astral MS1 is always on the Orbitrap analyzer.
+#'
+#' @param instrument_config List, instrument config (from get_instrument_config()
+#'   or plan_optimization's instrument_config). Must contain at least
+#'   \code{default_ms1_resolution}.
+#' @param ms1_resolution Optional override for MS1 resolution. If NULL, uses
+#'   \code{instrument_config$ms1_resolution} or \code{instrument_config$default_ms1_resolution}.
+#'
+#' @return List with:
+#'   \describe{
+#'     \item{resolution}{Integer, resolved MS1 resolution}
+#'     \item{transient_ms}{Numeric, Orbitrap transient time in ms}
+#'     \item{overhead_ms}{Numeric, MS1 overhead in ms}
+#'     \item{scan_time_ms}{Numeric, total MS1 scan time (transient + overhead)}
+#'   }
+#' @keywords internal
+resolve_astral_ms1 <- function(instrument_config, ms1_resolution = NULL) {
+  res <- ms1_resolution %||%
+         instrument_config$ms1_resolution %||%
+         instrument_config$default_ms1_resolution %||% 240000
+
+  transient <- get_transient_time(res, "orbitrap")
+  if (is.na(transient)) transient <- ORBITRAP_240K_TRANSIENT_MS
+
+  overhead <- instrument_config$ms1_overhead_ms %||% DEFAULT_MS1_OVERHEAD_MS
+
+  list(
+    resolution = res,
+    transient_ms = transient,
+    overhead_ms = overhead,
+    scan_time_ms = transient + overhead
+  )
+}
+
+
+# =============================================================================
+# Duty Cycle Sync (Parallel Instruments)
+# =============================================================================
+
+#' Calculate Duty Cycle Sync for Parallel Instruments
+#'
+#' For parallel instruments (Astral, TimsTOF), MS1 and MS2 run simultaneously.
+#' Cycle time = max(MS1_time, n_windows * MS2_time). If total MS2 time does
+#' not match MS1 transient time, one analyzer idles. This function quantifies
+#' the sync quality.
+#'
+#' @param ms1_time_ms Numeric, MS1 acquisition time in milliseconds
+#'   (for Astral: Orbitrap transient time, e.g. 256 ms at 120K)
+#' @param ms2_scan_time_ms Numeric, single MS2 scan time in milliseconds
+#' @param n_windows Integer, number of MS2 windows per cycle
+#'
+#' @return List with:
+#'   \describe{
+#'     \item{duty_cycle_pct}{Numeric, duty cycle percentage (100% = perfect sync)}
+#'     \item{ms1_idle_ms}{Numeric, MS1 idle time (ms), > 0 when MS2 > MS1}
+#'     \item{ms2_idle_ms}{Numeric, MS2 idle time (ms), > 0 when MS1 > MS2}
+#'     \item{total_ms2_time_ms}{Numeric, total MS2 acquisition time}
+#'     \item{cycle_time_ms}{Numeric, actual cycle time (max of MS1, total MS2)}
+#'     \item{sync_status}{Character, "synced" / "ms1_idle" / "ms2_idle"}
+#'     \item{n_sync_optimal}{Integer, window count for perfect sync}
+#'   }
+#' @keywords internal
+calculate_duty_cycle_sync <- function(ms1_time_ms, ms2_scan_time_ms, n_windows) {
+  total_ms2_ms <- n_windows * ms2_scan_time_ms
+  cycle_time_ms <- max(ms1_time_ms, total_ms2_ms)
+
+  # Idle times
+
+  ms1_idle_ms <- max(0, total_ms2_ms - ms1_time_ms)
+  ms2_idle_ms <- max(0, ms1_time_ms - total_ms2_ms)
+
+  # Duty cycle: fraction of cycle where both analyzers are active
+  active_time_ms <- min(ms1_time_ms, total_ms2_ms)
+  duty_cycle_pct <- (active_time_ms / cycle_time_ms) * 100
+
+  # Sync status
+  idle_threshold_ms <- 1.0
+  sync_status <- if (ms1_idle_ms <= idle_threshold_ms && ms2_idle_ms <= idle_threshold_ms) {
+    "synced"
+  } else if (ms1_idle_ms > ms2_idle_ms) {
+    "ms1_idle"
+  } else {
+    "ms2_idle"
+  }
+
+  # Optimal window count for perfect sync
+  n_sync_optimal <- calculate_sync_optimal_windows(ms1_time_ms, ms2_scan_time_ms)
+
+  list(
+    duty_cycle_pct = round(duty_cycle_pct, 1),
+    ms1_idle_ms = round(ms1_idle_ms, 1),
+    ms2_idle_ms = round(ms2_idle_ms, 1),
+    total_ms2_time_ms = round(total_ms2_ms, 1),
+    cycle_time_ms = round(cycle_time_ms, 1),
+    sync_status = sync_status,
+    n_sync_optimal = n_sync_optimal
+  )
+}
+
+
+#' Calculate Sync-Optimal Window Count for Parallel Instruments
+#'
+#' Returns the window count that minimizes idle time by matching total MS2
+#' time to MS1 transient time: n_sync = floor(ms1_time / ms2_scan_time).
+#'
+#' @param ms1_time_ms Numeric, MS1 acquisition time in milliseconds
+#' @param ms2_scan_time_ms Numeric, single MS2 scan time in milliseconds
+#'
+#' @return Integer, sync-optimal window count
+#' @keywords internal
+calculate_sync_optimal_windows <- function(ms1_time_ms, ms2_scan_time_ms) {
+  if (ms2_scan_time_ms <= 0) return(1L)
+  as.integer(floor(ms1_time_ms / ms2_scan_time_ms))
+}
+
+
+#' Get Instrument Width Recommendations from JSON Config
+#'
+#' Reads recommended_min_width_da and recommended_max_width_da from the
+#' instrument JSON configuration. Falls back to sensible defaults.
+#'
+#' @param instrument_config List, instrument config from get_instrument_config()
+#'
+#' @return List with min_width_da and max_width_da
+#' @keywords internal
+get_instrument_width_recommendations <- function(instrument_config) {
+  list(
+    min_width_da = instrument_config$recommended_min_width_da %||% 2,
+    max_width_da = instrument_config$recommended_max_width_da %||% 80
+  )
 }

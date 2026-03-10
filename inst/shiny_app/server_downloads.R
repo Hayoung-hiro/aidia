@@ -48,18 +48,18 @@ server_downloads <- function(input, output, session, rv) {
     switch(fmt,
       thermo = format_preview_card(
         "Thermo Targeted Mass List", "Xcalibur-compatible CSV",
-        "Compound, Formula, Adduct, m/z, z, ..., RT Start [min], RT End [min], ...",
-        "16-column compound template with acquisition parameters"
+        "Compound,Formula,Adduct,m/z,z,RT Time (min),Window (min),Isolation Window (m/z)\n1,,,425.2523,0,4.0,5.0,50.5046",
+        "8-column targeted mass list format"
       ),
       center_mass = format_preview_card(
-        "Center Mass List", "Generic 4-column format",
-        "rt_start, rt_end, Center Mass (m/z), Window Width (m/z)\n1.50, 6.50, 425.2523, 50.5046\n1.50, 6.50, 475.7569, 50.5046",
+        "Center Mass List", "Generic 2-column format",
+        "Center Mass (m/z),Window Width (m/z)\n425.2523000,50.5046000\n475.7569000,50.5046000",
         "Compatible with various DIA method software"
       ),
       mz_range = format_preview_card(
-        "m/z Range List", "Explicit boundary format",
-        "rt_start, rt_end, mz_start, mz_end\n1.50, 6.50, 400.0000, 450.5046\n1.50, 6.50, 450.5046, 501.0092",
-        "7 decimal precision for method verification"
+        "m/z Range List", "Single-column boundary format",
+        "m/z range\n 400.0000000-450.5046000\n 450.5046000-501.0092000",
+        "7 decimal precision, space-prefixed start-end pairs"
       )
     )
   })
