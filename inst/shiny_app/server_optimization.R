@@ -770,9 +770,10 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
   output$summary_box_windows <- renderValueBox({
     req(rv$optimization_complete, rv$optimized_windows)
-    n_per_bin <- rv$optimization_plan$window_count_per_bin
-    n_total <- nrow(rv$optimized_windows$windows) %||%
-      rv$optimized_windows$statistics$total_windows
+    windows <- rv$optimized_windows$windows
+    n_total <- nrow(windows) %||% rv$optimized_windows$statistics$total_windows
+    n_rt_bins <- length(unique(windows$rt_segment_id))
+    n_per_bin <- if (n_rt_bins > 0) round(n_total / n_rt_bins) else n_total
     used_mode <- rv$optimized_windows$parameters$window_mode %||% "density"
 
     # Determine display value — staggered mode shows Loop N prominently
