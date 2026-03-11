@@ -183,10 +183,10 @@ server_instrument <- function(input, output, session, rv) {
         if (is.na(ms1_trans_ms)) ms1_trans_ms <- calc_result$ms1$scan_time_ms
       }
       ms2_scan_ms <- calc_result$ms2$scan_time_ms
-      sync <- calculate_sync_optimal_windows(ms1_trans_ms, ms2_scan_ms)
+      n_sync <- calculate_sync_optimal_windows(ms1_trans_ms, ms2_scan_ms)
       return(tags$div(
         class = "indicator-info",
-        tags$span(class = "indicator-text", sprintf("Sync-optimal: %d windows", sync$n_sync)),
+        tags$span(class = "indicator-text", sprintf("Sync-optimal: %d windows", n_sync)),
         tags$br(),
         tags$small(sprintf("MS1 %.0fms / MS2 %.1fms", ms1_trans_ms, ms2_scan_ms),
                    class = "text-muted")
@@ -238,12 +238,12 @@ server_instrument <- function(input, output, session, rv) {
       if (is.na(ms1_trans_ms)) ms1_trans_ms <- calc_result$ms1$scan_time_ms
     }
     ms2_scan_ms <- calc_result$ms2$scan_time_ms
-    sync <- calculate_sync_optimal_windows(ms1_trans_ms, ms2_scan_ms)
+    n_sync <- calculate_sync_optimal_windows(ms1_trans_ms, ms2_scan_ms)
 
     tags$div(
       tags$span(
         style = "font-size: 36px; font-weight: 700; color: var(--accent);",
-        sprintf("%d", sync$n_sync)
+        sprintf("%d", n_sync)
       ),
       tags$span(
         class = "text-muted", style = "font-size: 14px; margin-left: 4px;",
@@ -275,8 +275,8 @@ server_instrument <- function(input, output, session, rv) {
       if (is.na(ms1_trans_ms)) ms1_trans_ms <- calc_result$ms1$scan_time_ms
     }
     ms2_scan_ms <- calc_result$ms2$scan_time_ms
-    sync <- calculate_sync_optimal_windows(ms1_trans_ms, ms2_scan_ms)
-    cycle_sec <- max(ms1_trans_ms, sync$n_sync * ms2_scan_ms) / 1000
+    n_sync <- calculate_sync_optimal_windows(ms1_trans_ms, ms2_scan_ms)
+    cycle_sec <- max(ms1_trans_ms, n_sync * ms2_scan_ms) / 1000
     dppp_at_sync <- calculate_dppp(fwhm_median, cycle_sec)
 
     target_dppp <- input$target_dppp %||% 7.0

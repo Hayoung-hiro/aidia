@@ -248,8 +248,8 @@ server <- function(input, output, session) {
   # NAVIGATION HANDLERS (Wizard Step Control)
   # =========================================================================
 
-  # Client-side scroll-to-top on any tab change (single handler, no server round-trips)
-  shinyjs::runjs("$(document).on('shown.bs.tab', function() { window.scrollTo(0, 0); });")
+  # Client-side scroll-to-top on sidebar tab change only (scoped to sidebar menu, not all tabs)
+  shinyjs::runjs("$('.sidebar-menu').on('shown.bs.tab', function() { window.scrollTo(0, 0); });")
 
   # Step 1 -> Step 2
   observeEvent(input$btn_to_setup, {
