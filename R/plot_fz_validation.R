@@ -1,21 +1,20 @@
 # plot_fz_validation.R - Forbidden Zone Offset Validation Plot
 #
-# Purpose: Visualize fractional m/z distribution from real precursor data
-#          and overlay the selected FZ offset band to confirm it falls in a
-#          true forbidden zone (low-density gap between isotope clusters).
+# Purpose: Visualize precursor m/z distribution within the amino acid mass
+#          defect cycle (OPTIMAL_INCREMENT = 1.00045475 Da) and overlay the
+#          selected FZ offset to confirm it targets a low-density gap.
 #
-# Dependencies: ggplot2, stats, theme_aidia.R
+# Dependencies: ggplot2, stats, theme_aidia.R, window_generation.R (OPTIMAL_INCREMENT)
 
 
 #' Forbidden Zone Offset Validation Plot
 #'
-#' Creates a histogram of fractional m/z values (distance from nearest integer)
-#' for all precursors in the dataset. Overlays the FZ offset band to visually
-#' confirm that it targets a low-density region between isotope clusters.
+#' Creates a histogram of precursor m/z modulo OPTIMAL_INCREMENT (1.00045475 Da,
+#' the amino acid mass defect period). The FZ offset line should fall in a
+#' low-density gap between precursor clusters.
 #'
-#' Peptide precursors cluster near integer m/z values due to amino acid mass
-#' defect (~1.00045 Da). The forbidden zone offset should be positioned in the
-#' gap between these clusters (typically around 0.2-0.3 or 0.7-0.8).
+#' Unlike simple \code{mz \%\% 1}, this uses the true mass defect periodicity
+#' so that the FZ offset position is correctly aligned regardless of m/z range.
 #'
 #' @param validated_data ValidatedData object from Stage 1, or a data.frame
 #'   with a \code{Precursor.Mz} column
@@ -44,21 +43,20 @@ plot_fz_validation <- function(validated_data,
     ))
   }
 
-  # Compute fractional m/z (0 to 1)
-  frac_mz <- mz_values %% 1
+  # Use amino acid mass defect period, not integer period
+  increment <- OPTIMAL_INCREMENT  # 1.00045475 Da
+
+  # Compute phase within the mass defect cycle: mz mod OPTIMAL_INCREMENT
+  frac_mz <- mz_values %% increment
 
   df <- data.frame(frac_mz = frac_mz)
 
-  # FZ band: the offset marks where boundaries should be placed
-  # Show both the offset and its complement (1 - offset) since the
-  # distribution wraps around at 0/1
-  fz_band_width <- 0.04  # visual width of the band
-  fz_primary <- fz_offset
-  fz_complement <- 1 - fz_offset
+  # FZ band visual width
+  fz_band_width <- 0.04
 
-  # Density at FZ offset position (for annotation)
-  kde <- stats::density(frac_mz, n = 512, from = 0, to = 1, adjust = 0.5)
-  density_at_fz <- stats::approx(kde$x, kde$y, xout = fz_primary)$y
+  # Density at FZ offset position (for quality assessment)
+  kde <- stats::density(frac_mz, n = 512, from = 0, to = increment, adjust = 0.5)
+  density_at_fz <- stats::approx(kde$x, kde$y, xout = fz_offset)$y
   density_max <- max(kde$y)
   density_ratio <- density_at_fz / density_max
 
@@ -82,39 +80,30 @@ plot_fz_validation <- function(validated_data,
     # Histogram
     geom_histogram(bins = n_bins, fill = "#3498DB", color = NA, alpha = 0.6) +
 
-    # FZ bands (primary + complement)
-    geom_vline(xintercept = fz_primary, color = "#27ae60", linewidth = 1.2, linetype = "solid") +
-    geom_vline(xintercept = fz_complement, color = "#27ae60", linewidth = 1.2, linetype = "dashed") +
+    # FZ offset line
+    geom_vline(xintercept = fz_offset, color = "#27ae60", linewidth = 1.2, linetype = "solid") +
 
-    # Shade FZ zones
+    # Shade FZ zone
     annotate("rect",
-             xmin = fz_primary - fz_band_width / 2,
-             xmax = fz_primary + fz_band_width / 2,
+             xmin = fz_offset - fz_band_width / 2,
+             xmax = fz_offset + fz_band_width / 2,
              ymin = -Inf, ymax = Inf,
              fill = "#27ae60", alpha = 0.15) +
-    annotate("rect",
-             xmin = fz_complement - fz_band_width / 2,
-             xmax = fz_complement + fz_band_width / 2,
-             ymin = -Inf, ymax = Inf,
-             fill = "#27ae60", alpha = 0.10) +
 
-    # Labels
-    annotate("text", x = fz_primary, y = Inf,
-             label = sprintf("FZ offset = %.2f", fz_primary),
+    # Label
+    annotate("text", x = fz_offset, y = Inf,
+             label = sprintf("FZ offset = %.4f", fz_offset),
              vjust = 2, hjust = 0.5, size = 3.5, fontface = "bold",
              color = "#27ae60") +
-    annotate("text", x = fz_complement, y = Inf,
-             label = sprintf("1 - offset = %.2f", fz_complement),
-             vjust = 3.5, hjust = 0.5, size = 3, color = "#27ae60") +
 
     # Quality badge
-    annotate("label", x = 0.5, y = Inf,
+    annotate("label", x = increment / 2, y = Inf,
              label = sprintf("%s (%.0f%% of peak density)", quality, density_ratio * 100),
              vjust = 1.5, size = 3.2, fontface = "bold",
              fill = quality_color, color = "white", label.size = 0) +
 
     labs(
-      x = "Fractional m/z (precursor m/z mod 1)",
+      x = sprintf("m/z mod %.8f (mass defect cycle)", increment),
       y = "Count",
       title = "Forbidden Zone Offset Validation",
       subtitle = sprintf(
@@ -124,7 +113,10 @@ plot_fz_validation <- function(validated_data,
         density_ratio * 100
       )
     ) +
-    scale_x_continuous(breaks = seq(0, 1, 0.1), limits = c(0, 1)) +
+    scale_x_continuous(
+      breaks = seq(0, 1, 0.1),
+      limits = c(0, increment)
+    ) +
     theme_aidia() +
     theme(plot.subtitle = element_text(size = 10, color = "grey50"))
 
