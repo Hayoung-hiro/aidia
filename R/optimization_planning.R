@@ -249,8 +249,7 @@ plan_optimization <- function(
   # For parallel instruments (Astral): MS1 is on Orbitrap, use transient + overhead
   if (instrument_config$cycle_calculation == "parallel") {
     astral_ms1 <- resolve_astral_ms1(instrument_config)
-    ms1_transient <- astral_ms1$transient_ms
-    ms1_time <- astral_ms1$scan_time_ms / 1000  # ms to sec
+    ms1_time <- astral_ms1$scan_time_ms / 1000  # ms to sec (transient + overhead)
     print_info(sprintf("MS1 (Orbitrap %gK): %.1f ms transient + %.1f ms overhead = %.1f ms",
                        astral_ms1$resolution / 1000, astral_ms1$transient_ms,
                        astral_ms1$overhead_ms, astral_ms1$scan_time_ms))

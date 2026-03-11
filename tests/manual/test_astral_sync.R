@@ -50,7 +50,7 @@ cat(sprintf("Reference: Orbitrap 240K MS1 = %.1f ms (%.0f transient + %.1f overh
             ms1_total_240k, ms1_transient_240k, ms1_overhead_240k))
 
 # =============================================================================
-# Test 1: Astral 240K + 3ms IT → sync-optimal = floor(512 / 5.0) = 102
+# Test 1: Astral 240K + 3ms IT → sync-optimal = floor(522 / 5.0) = 104
 # =============================================================================
 cat("\nTest 1: Astral 240K MS1, 3ms MS2 IT\n")
 cat(sprintf("  Physics: MS2 scan = 5.0 ms → sync-optimal = floor(%.0f/5) = %d\n",
@@ -84,7 +84,7 @@ stopifnot(dppp_at_cycle > 7.0 * 2)  # At least 2x above target
 cat("  PASS\n")
 
 # =============================================================================
-# Test 2: Astral 240K + 6ms IT → sync-optimal = floor(512 / 8.0) = 64
+# Test 2: Astral 240K + 6ms IT → sync-optimal = floor(522 / 8.0) = 65
 # =============================================================================
 cat("\nTest 2: Astral 240K MS1, 6ms MS2 IT (sensitivity mode)\n")
 cat(sprintf("  Physics: MS2 scan = 8.0 ms → sync-optimal = floor(%.0f/8) = %d\n",

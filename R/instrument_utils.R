@@ -1373,11 +1373,11 @@ resolve_astral_ms1 <- function(instrument_config, ms1_resolution = NULL) {
 #'
 #' For parallel instruments (Astral, TimsTOF), MS1 and MS2 run simultaneously.
 #' Cycle time = max(MS1_time, n_windows * MS2_time). If total MS2 time does
-#' not match MS1 transient time, one analyzer idles. This function quantifies
+#' not match MS1 total scan time, one analyzer idles. This function quantifies
 #' the sync quality.
 #'
-#' @param ms1_time_ms Numeric, MS1 acquisition time in milliseconds
-#'   (for Astral: Orbitrap transient time, e.g. 256 ms at 120K)
+#' @param ms1_time_ms Numeric, total MS1 scan time in milliseconds
+#'   (transient + overhead; for Astral: Orbitrap total, e.g. 266 ms at 120K, 522 ms at 240K)
 #' @param ms2_scan_time_ms Numeric, single MS2 scan time in milliseconds
 #' @param n_windows Integer, number of MS2 windows per cycle
 #'
@@ -1433,9 +1433,9 @@ calculate_duty_cycle_sync <- function(ms1_time_ms, ms2_scan_time_ms, n_windows) 
 #' Calculate Sync-Optimal Window Count for Parallel Instruments
 #'
 #' Returns the window count that minimizes idle time by matching total MS2
-#' time to MS1 transient time: n_sync = floor(ms1_time / ms2_scan_time).
+#' time to MS1 total scan time: n_sync = floor(ms1_time / ms2_scan_time).
 #'
-#' @param ms1_time_ms Numeric, MS1 acquisition time in milliseconds
+#' @param ms1_time_ms Numeric, total MS1 scan time in milliseconds (transient + overhead)
 #' @param ms2_scan_time_ms Numeric, single MS2 scan time in milliseconds
 #'
 #' @return Integer, sync-optimal window count
