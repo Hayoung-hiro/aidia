@@ -16,8 +16,7 @@
 #' Unlike simple \code{mz \%\% 1}, this uses the true mass defect periodicity
 #' so that the FZ offset position is correctly aligned regardless of m/z range.
 #'
-#' @param validated_data ValidatedData object from Stage 1, or a data.frame
-#'   with a \code{Precursor.Mz} column
+#' @param validated_data ValidatedData object from Stage 1
 #' @param fz_offset Numeric, forbidden zone offset to validate (default: 0.25)
 #' @param n_bins Integer, number of histogram bins (default: 100)
 #'
@@ -27,14 +26,8 @@ plot_fz_validation <- function(validated_data,
                                fz_offset = 0.25,
                                n_bins = 100) {
 
-  # Extract precursor m/z values
-  if (inherits(validated_data, "ValidatedData")) {
-    mz_values <- validated_data$data$Precursor.Mz
-  } else if (is.data.frame(validated_data)) {
-    mz_values <- validated_data$Precursor.Mz
-  } else {
-    stop("validated_data must be a ValidatedData object or data.frame with Precursor.Mz")
-  }
+  # Extract precursor m/z values via shared accessor
+  mz_values <- get_precursor_data(validated_data)$Precursor.Mz
 
   if (is.null(mz_values) || length(mz_values) < 10) {
     return(create_insufficient_data_plot(
@@ -63,16 +56,16 @@ plot_fz_validation <- function(validated_data,
   # Quality assessment
   if (density_ratio < 0.15) {
     quality <- "Excellent"
-    quality_color <- "#27ae60"
+    quality_color <- aidia_colors$success
   } else if (density_ratio < 0.30) {
     quality <- "Good"
-    quality_color <- "#27ae60"
+    quality_color <- aidia_colors$success
   } else if (density_ratio < 0.50) {
     quality <- "Marginal"
-    quality_color <- "#f39c12"
+    quality_color <- aidia_colors$warning
   } else {
     quality <- "Poor"
-    quality_color <- "#e74c3c"
+    quality_color <- aidia_colors$accent
   }
 
   # Build plot
@@ -81,20 +74,20 @@ plot_fz_validation <- function(validated_data,
     geom_histogram(bins = n_bins, fill = "#3498DB", color = NA, alpha = 0.6) +
 
     # FZ offset line
-    geom_vline(xintercept = fz_offset, color = "#27ae60", linewidth = 1.2, linetype = "solid") +
+    geom_vline(xintercept = fz_offset, color = aidia_colors$success, linewidth = 1.2, linetype = "solid") +
 
     # Shade FZ zone
     annotate("rect",
              xmin = fz_offset - fz_band_width / 2,
              xmax = fz_offset + fz_band_width / 2,
              ymin = -Inf, ymax = Inf,
-             fill = "#27ae60", alpha = 0.15) +
+             fill = aidia_colors$success, alpha = 0.15) +
 
     # Label
     annotate("text", x = fz_offset, y = Inf,
              label = sprintf("FZ offset = %.4f", fz_offset),
              vjust = 2, hjust = 0.5, size = 3.5, fontface = "bold",
-             color = "#27ae60") +
+             color = aidia_colors$success) +
 
     # Quality badge
     annotate("label", x = increment / 2, y = Inf,
