@@ -155,59 +155,204 @@ server_instrument <- function(input, output, session, rv) {
 
   # --- Output: Auto Windows Info (all strategies) ---
   # Shows the recommended window count when Auto mode is selected
+  # For parallel instruments: sync-optimal; for sequential: DPPP-based
   output$auto_windows_info <- renderUI({
-    # Calculate recommended windows from DPPP target and cycle time
     calc_result <- cycle_time_result()
+    is_parallel <- !is.null(calc_result) &&
+      identical(calc_result$instrument$cycle_calculation, "parallel")
 
     # Try to get windows from optimization plan first
     plan_windows <- rv$optimization_plan$n_windows_per_bin
 
-    # Calculate based on target DPPP if we have FWHM data
+    if (!is.null(plan_windows)) {
+      # Optimization plan available
+      return(tags$div(
+        class = "indicator-success",
+        tags$span(class = "indicator-text", sprintf("Auto: %d windows", plan_windows)),
+        tags$br(),
+        tags$small("(from optimization plan)", class = "text-muted")
+      ))
+    }
+
+    if (is_parallel) {
+      # Parallel: show sync-optimal
+      ms1_trans_ms <- calc_result$ms1$transient_ms
+      if (is.null(ms1_trans_ms) || ms1_trans_ms < 10) {
+        ms1_res <- calc_result$ms1$resolution %||% 240000
+        ms1_trans_ms <- get_transient_time(ms1_res, "orbitrap")
+        if (is.na(ms1_trans_ms)) ms1_trans_ms <- calc_result$ms1$scan_time_ms
+      }
+      ms2_scan_ms <- calc_result$ms2$scan_time_ms
+      sync <- calculate_sync_optimal_windows(ms1_trans_ms, ms2_scan_ms)
+      return(tags$div(
+        class = "indicator-info",
+        tags$span(class = "indicator-text", sprintf("Sync-optimal: %d windows", sync$n_sync)),
+        tags$br(),
+        tags$small(sprintf("MS1 %.0fms / MS2 %.1fms", ms1_trans_ms, ms2_scan_ms),
+                   class = "text-muted")
+      ))
+    }
+
+    # Sequential: DPPP-based estimate
     dppp_windows <- NULL
     if (!is.null(rv$validated_data)) {
       fwhm_median <- rv$median_fwhm_sec
-
       if (!is.null(calc_result) && !is.na(fwhm_median)) {
         target_dppp <- input$target_dppp %||% 7.0
+        target_sat <- (input$target_satisfaction %||% 70) / 100
         ms2_time_sec <- calc_result$ms2$scan_time_ms / 1000
         dppp_windows <- estimate_window_count_preview(fwhm_median, target_dppp, ms2_time_sec)
       }
     }
 
-    # Determine which value to show
-    if (!is.null(plan_windows)) {
-      # Optimization plan available
-      tags$div(
-        class = "indicator-success",
-        tags$span(
-          class = "indicator-text",
-          sprintf("Auto: %d windows", plan_windows)
-        ),
-        tags$br(),
-        tags$small("(from optimization plan)", class = "text-muted")
-      )
-    } else if (!is.null(dppp_windows)) {
-      # Estimated from DPPP calculation
+    if (!is.null(dppp_windows)) {
       tags$div(
         class = "indicator-info",
-        tags$span(
-          class = "indicator-text",
-          sprintf("Estimated: %d windows", dppp_windows)
-        ),
+        tags$span(class = "indicator-text", sprintf("Estimated: %d windows", dppp_windows)),
         tags$br(),
-        tags$small(sprintf("(for DPPP %.1f with current settings)", input$target_dppp),
+        tags$small(sprintf("(for DPPP %.1f, %.0f%% satisfaction)",
+                           input$target_dppp, input$target_satisfaction %||% 70),
                    class = "text-muted")
       )
     } else {
-      # No data available yet
       tags$div(
         class = "indicator-muted",
-        tags$span(
-          class = "indicator-text",
-          "Upload data to see recommended windows"
-        )
+        tags$span(class = "indicator-text", "Upload data to see recommended windows")
       )
     }
+  })
+
+  # --- Output: Sync Hero Window Count (parallel Section A) ---
+  output$sync_hero_window_count <- renderUI({
+    calc_result <- cycle_time_result()
+    if (is.null(calc_result)) {
+      return(tags$div(
+        style = "font-size: 36px; font-weight: 700; color: var(--text-muted);", "--"
+      ))
+    }
+
+    ms1_trans_ms <- calc_result$ms1$transient_ms
+    if (is.null(ms1_trans_ms) || ms1_trans_ms < 10) {
+      ms1_res <- calc_result$ms1$resolution %||% 240000
+      ms1_trans_ms <- get_transient_time(ms1_res, "orbitrap")
+      if (is.na(ms1_trans_ms)) ms1_trans_ms <- calc_result$ms1$scan_time_ms
+    }
+    ms2_scan_ms <- calc_result$ms2$scan_time_ms
+    sync <- calculate_sync_optimal_windows(ms1_trans_ms, ms2_scan_ms)
+
+    tags$div(
+      tags$span(
+        style = "font-size: 36px; font-weight: 700; color: var(--accent);",
+        sprintf("%d", sync$n_sync)
+      ),
+      tags$span(
+        class = "text-muted", style = "font-size: 14px; margin-left: 4px;",
+        "windows"
+      )
+    )
+  })
+
+  # --- Output: Sync DPPP Confirmation Badge (parallel Section A) ---
+  output$sync_dppp_confirmation <- renderUI({
+    calc_result <- cycle_time_result()
+    if (is.null(calc_result) || is.null(rv$validated_data)) {
+      return(tags$div(
+        style = "font-size: 20px; font-weight: 600; color: var(--text-muted);",
+        "Upload data"
+      ))
+    }
+
+    fwhm_median <- rv$median_fwhm_sec
+    if (is.null(fwhm_median) || is.na(fwhm_median)) {
+      return(tags$div(class = "text-muted", "FWHM not available"))
+    }
+
+    # Calculate DPPP at sync-optimal
+    ms1_trans_ms <- calc_result$ms1$transient_ms
+    if (is.null(ms1_trans_ms) || ms1_trans_ms < 10) {
+      ms1_res <- calc_result$ms1$resolution %||% 240000
+      ms1_trans_ms <- get_transient_time(ms1_res, "orbitrap")
+      if (is.na(ms1_trans_ms)) ms1_trans_ms <- calc_result$ms1$scan_time_ms
+    }
+    ms2_scan_ms <- calc_result$ms2$scan_time_ms
+    sync <- calculate_sync_optimal_windows(ms1_trans_ms, ms2_scan_ms)
+    cycle_sec <- max(ms1_trans_ms, sync$n_sync * ms2_scan_ms) / 1000
+    dppp_at_sync <- calculate_dppp(fwhm_median, cycle_sec)
+
+    target_dppp <- input$target_dppp %||% 7.0
+    is_met <- dppp_at_sync >= target_dppp
+
+    tags$div(
+      tags$div(
+        style = sprintf("font-size: 20px; font-weight: 600; color: %s;",
+                        if (is_met) "var(--semantic-success)" else "var(--semantic-warning)"),
+        icon(if (is_met) "check-circle" else "exclamation-triangle"),
+        sprintf(" DPPP %.0f", dppp_at_sync)
+      ),
+      tags$div(
+        class = "text-muted", style = "font-size: 11px; margin-top: 2px;",
+        sprintf("Target: %.1f", target_dppp)
+      )
+    )
+  })
+
+  # --- Output: Sync Detail Panel (parallel Section A) ---
+  output$sync_detail_panel <- renderUI({
+    calc_result <- cycle_time_result()
+    if (is.null(calc_result)) {
+      return(tags$div(class = "text-muted", "Configure instrument to see sync detail"))
+    }
+
+    ms1_trans_ms <- calc_result$ms1$transient_ms
+    if (is.null(ms1_trans_ms) || ms1_trans_ms < 10) {
+      ms1_res <- calc_result$ms1$resolution %||% 240000
+      ms1_trans_ms <- get_transient_time(ms1_res, "orbitrap")
+      if (is.na(ms1_trans_ms)) ms1_trans_ms <- calc_result$ms1$scan_time_ms
+    }
+    ms2_scan_ms <- calc_result$ms2$scan_time_ms
+    ms1_overhead <- calc_result$ms1$overhead_ms %||% 10
+    n_windows <- calc_result$window_count
+
+    sync <- calculate_duty_cycle_sync(ms1_trans_ms, ms2_scan_ms, n_windows)
+
+    # Badge color
+    if (sync$duty_cycle_pct >= 95) {
+      badge_style <- "background: var(--semantic-success); color: white;"
+      badge_text <- sprintf("%.0f%% Synced", sync$duty_cycle_pct)
+    } else if (sync$duty_cycle_pct >= 80) {
+      badge_style <- "background: var(--semantic-warning); color: white;"
+      badge_text <- sprintf("%.0f%% Duty Cycle", sync$duty_cycle_pct)
+    } else {
+      badge_style <- "background: var(--semantic-danger); color: white;"
+      badge_text <- sprintf("%.0f%% Duty Cycle", sync$duty_cycle_pct)
+    }
+
+    ms1_res <- calc_result$ms1$resolution %||% 240000
+    ms1_res_label <- if (ms1_res >= 1000) paste0(ms1_res / 1000, "K") else ms1_res
+
+    tags$div(
+      style = "font-size: 12px; line-height: 1.8;",
+      tags$div(
+        sprintf("MS1: %.0fms (Orbitrap %s)", ms1_trans_ms + ms1_overhead, ms1_res_label)
+      ),
+      tags$div(
+        sprintf("MS2: %d \u00d7 %.1fms = %.0fms",
+                n_windows, ms2_scan_ms, sync$total_ms2_time_ms)
+      ),
+      tags$div(
+        style = "display: flex; justify-content: space-between; align-items: center; margin-top: 4px;",
+        tags$span(
+          if (sync$ms1_idle_ms > 1) sprintf("Idle: %.0fms (Orbitrap)", sync$ms1_idle_ms)
+          else if (sync$ms2_idle_ms > 1) sprintf("Idle: %.0fms (Astral)", sync$ms2_idle_ms)
+          else "No idle time",
+          class = "text-muted"
+        ),
+        tags$span(
+          style = sprintf("padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; %s", badge_style),
+          badge_text
+        )
+      )
+    )
   })
 
   # --- Output: Greedy m/z Range Display ---
@@ -686,6 +831,14 @@ server_instrument <- function(input, output, session, rv) {
       updateNumericInput(session, "max_isolation_width", value = recs$max_width_da)
     }, error = function(e) NULL)
   })
+
+  # --- Output: Instrument type flag for conditional UI ---
+  output$is_parallel_instrument <- reactive({
+    result <- cycle_time_result()
+    if (is.null(result)) return(FALSE)
+    identical(result$instrument$cycle_calculation, "parallel")
+  })
+  outputOptions(output, "is_parallel_instrument", suspendWhenHidden = FALSE)
 
   # Return the reactive for other modules to use
   return(cycle_time_result)

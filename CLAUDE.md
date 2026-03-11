@@ -344,6 +344,14 @@ Optional (Suggests in DESCRIPTION):
 
 ## Version History
 
+**v0.4.0** (2026-03): Astral Sync-First UX + Strategy Unification
+- **Conditional Step 2 layout**: Parallel instruments get sync-first Section A; sequential keeps DPPP layout
+- Sync-first hero: sync-optimal window count as primary, DPPP as confirmation badge
+- `output$is_parallel_instrument` reactive for conditional UI rendering
+- `auto_windows_info` now reactive to `target_satisfaction` for sequential instruments
+- Unified auto window count across all 5 strategies (was greedy-only)
+- Quantile and outlier smoothing defaults changed to ON (Whittaker-Henderson)
+
 **v0.3.1** (2026-03): Astral Optimization — Duty Cycle Sync + Temporal Density
 - **Duty cycle sync** for parallel instruments: `calculate_duty_cycle_sync()`, `calculate_sync_optimal_windows()`
 - Sync-first window count for Astral: uses sync-optimal N instead of DPPP-only

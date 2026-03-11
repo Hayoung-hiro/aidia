@@ -5,64 +5,131 @@ step2_setup_ui <- function() {
   tabItem(
     tabName = "setup",
 
-    # --- Section A: DPPP Target ---
-    fluidRow(
-    box(
-      title = "A. DPPP Target",
-      status = "primary",
-      solidHeader = TRUE,
-      width = 12,
+    # --- Section A: Acquisition Target (conditional on instrument type) ---
 
+    # A-1: Sequential instruments — DPPP Target (current layout)
+    conditionalPanel(
+      condition = "output.is_parallel_instrument == false",
       fluidRow(
-        column(4, class = "label-prominent",
-          numericInput(
-            inputId = "target_dppp",
-            label = "Target DPPP",
-            value = 7.0,
-            min = 1.0,
-            max = 15.0,
-            step = 0.5
-          ),
+      box(
+        title = "A. DPPP Target",
+        status = "primary",
+        solidHeader = TRUE,
+        width = 12,
 
-          # Quick DPPP Presets (outline by default, filled on click)
-          div(
-            style = "display: flex; gap: 4px; margin-top: -5px;",
-            actionButton("preset_id", "ID (1.5)", class = "btn-sm dppp-preset-btn dppp-btn-id",
-                         style = "flex: 1; padding: 6px 0; font-size: 11px;"),
-            actionButton("preset_balanced", "Bal (4.0)", class = "btn-sm dppp-preset-btn dppp-btn-bal",
-                         style = "flex: 1; padding: 6px 0; font-size: 11px;"),
-            actionButton("preset_quant", "Quant (7.0)", class = "btn-sm dppp-preset-btn dppp-btn-quant",
-                         style = "flex: 1; padding: 6px 0; font-size: 11px;")
-          )
-        ),
-        column(4, class = "label-prominent",
-          # Satisfaction Target
-          sliderInput(
-            inputId = "target_satisfaction",
-            label = "Target Satisfaction (%)",
-            min = 50,
-            max = 95,
-            value = 70,
-            step = 5,
-            post = "%"
-          )
-        ),
-        column(4,
-          div(
-            style = "padding-top: 15px;",
-            # DPPP Formula card (prominent, readable)
-            tags$div(
-              class = "panel-accent", style = "font-size: 14px; line-height: 1.8;",
-              tags$strong("DPPP"), " = 1.7 \u00d7 FWHM / cycle_time",
-              tags$br(),
-              tags$span(class = "text-muted", "ID: 1.5 | Balanced: 4.0 | Quant: 7.0")
+        fluidRow(
+          column(4, class = "label-prominent",
+            numericInput(
+              inputId = "target_dppp",
+              label = "Target DPPP",
+              value = 7.0,
+              min = 1.0,
+              max = 15.0,
+              step = 0.5
             ),
-            # Window count preview (reactive, shown when data + instrument configured)
-            uiOutput("dppp_window_count_preview")
+
+            # Quick DPPP Presets (outline by default, filled on click)
+            div(
+              style = "display: flex; gap: 4px; margin-top: -5px;",
+              actionButton("preset_id", "ID (1.5)", class = "btn-sm dppp-preset-btn dppp-btn-id",
+                           style = "flex: 1; padding: 6px 0; font-size: 11px;"),
+              actionButton("preset_balanced", "Bal (4.0)", class = "btn-sm dppp-preset-btn dppp-btn-bal",
+                           style = "flex: 1; padding: 6px 0; font-size: 11px;"),
+              actionButton("preset_quant", "Quant (7.0)", class = "btn-sm dppp-preset-btn dppp-btn-quant",
+                           style = "flex: 1; padding: 6px 0; font-size: 11px;")
+            )
+          ),
+          column(4, class = "label-prominent",
+            # Satisfaction Target
+            sliderInput(
+              inputId = "target_satisfaction",
+              label = "Target Satisfaction (%)",
+              min = 50,
+              max = 95,
+              value = 70,
+              step = 5,
+              post = "%"
+            )
+          ),
+          column(4,
+            div(
+              style = "padding-top: 15px;",
+              # DPPP Formula card (prominent, readable)
+              tags$div(
+                class = "panel-accent", style = "font-size: 14px; line-height: 1.8;",
+                tags$strong("DPPP"), " = 1.7 \u00d7 FWHM / cycle_time",
+                tags$br(),
+                tags$span(class = "text-muted", "ID: 1.5 | Balanced: 4.0 | Quant: 7.0")
+              ),
+              # Window count preview (reactive, shown when data + instrument configured)
+              uiOutput("dppp_window_count_preview")
+            )
           )
         )
-      )
-    )),
+      ))
+    ),
+
+    # A-2: Parallel instruments (Astral) — Sync-First layout
+    conditionalPanel(
+      condition = "output.is_parallel_instrument == true",
+      fluidRow(
+      box(
+        title = "A. Acquisition Sync",
+        status = "primary",
+        solidHeader = TRUE,
+        width = 12,
+
+        fluidRow(
+          # Hero: Sync-optimal window count
+          column(4,
+            tags$div(
+              class = "panel-raised", style = "text-align: center; padding: 16px;",
+              tags$div(class = "text-muted", style = "font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;",
+                "Sync-Optimal Windows"
+              ),
+              uiOutput("sync_hero_window_count"),
+              tags$div(class = "text-muted", style = "font-size: 11px; margin-top: 4px;",
+                "Primary constraint for parallel acquisition"
+              )
+            )
+          ),
+
+          # DPPP confirmation badge
+          column(4,
+            tags$div(
+              class = "panel-raised", style = "text-align: center; padding: 16px;",
+              tags$div(class = "text-muted", style = "font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;",
+                "DPPP Check"
+              ),
+              uiOutput("sync_dppp_confirmation"),
+              tags$div(class = "text-muted", style = "font-size: 11px; margin-top: 4px;",
+                "Always met at sync-optimal N"
+              )
+            )
+          ),
+
+          # Sync detail panel
+          column(4,
+            tags$div(
+              class = "panel-raised", style = "padding: 16px;",
+              tags$div(class = "text-muted", style = "font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;",
+                "Sync Detail"
+              ),
+              uiOutput("sync_detail_panel")
+            )
+          )
+        ),
+
+        # Explanation note
+        tags$div(
+          class = "panel-accent", style = "margin-top: 12px; font-size: 12px; line-height: 1.6;",
+          icon("info-circle"), " ",
+          tags$strong("Parallel acquisition:"),
+          " cycle = max(MS1, N \u00d7 MS2). Window count is determined by MS1/MS2 sync, not DPPP.",
+          " DPPP is automatically satisfied at sync-optimal N."
+        )
+      ))
+    ),
 
     # --- Section B: Strategy & Parameters ---
     fluidRow(
@@ -165,7 +232,7 @@ step2_setup_ui <- function() {
         tags$h4("Window Count", class = "section-title strategy-heading"),
         checkboxInput(
           inputId = "auto_windows",
-          label = "Auto Window Count (from DPPP optimization)",
+          label = "Auto Window Count (recommended)",
           value = TRUE
         ),
         conditionalPanel(
@@ -340,8 +407,7 @@ step2_setup_ui <- function() {
                    style = "font-size: 11px;")
         ),
         column(4,
-          # Duty cycle sync info (parallel instruments only)
-          uiOutput("duty_cycle_sync_info")
+          # Placeholder column for layout balance
         )
       ),
 
