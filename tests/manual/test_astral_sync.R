@@ -53,7 +53,8 @@ cat(sprintf("Reference: Orbitrap 240K MS1 = %.1f ms (%.0f transient + %.1f overh
 # Test 1: Astral 240K + 3ms IT → sync-optimal = floor(512 / 5.0) = 102
 # =============================================================================
 cat("\nTest 1: Astral 240K MS1, 3ms MS2 IT\n")
-cat("  Physics: MS2 scan = 5.0 ms → sync-optimal = floor(512/5) = 102\n")
+cat(sprintf("  Physics: MS2 scan = 5.0 ms → sync-optimal = floor(%.0f/5) = %d\n",
+            ms1_total_240k, as.integer(floor(ms1_total_240k / 5.0))))
 
 plan1 <- plan_optimization(
   validated_data = validated,
@@ -63,7 +64,7 @@ plan1 <- plan_optimization(
   ms2_time_override = 3.0 / 1000
 )
 
-n_sync_expected_1 <- as.integer(floor(ms1_transient_240k / 5.0))
+n_sync_expected_1 <- as.integer(floor(ms1_total_240k / 5.0))
 cat(sprintf("  Expected sync-optimal: %d windows\n", n_sync_expected_1))
 cat(sprintf("  Actual window count:   %d windows\n", plan1$window_count_per_bin))
 cat(sprintf("  Actual cycle time:     %.3f sec (should ≈ %.3f sec = MS1 total)\n",
@@ -86,7 +87,8 @@ cat("  PASS\n")
 # Test 2: Astral 240K + 6ms IT → sync-optimal = floor(512 / 8.0) = 64
 # =============================================================================
 cat("\nTest 2: Astral 240K MS1, 6ms MS2 IT (sensitivity mode)\n")
-cat("  Physics: MS2 scan = 8.0 ms → sync-optimal = floor(512/8) = 64\n")
+cat(sprintf("  Physics: MS2 scan = 8.0 ms → sync-optimal = floor(%.0f/8) = %d\n",
+            ms1_total_240k, as.integer(floor(ms1_total_240k / 8.0))))
 
 plan2 <- plan_optimization(
   validated_data = validated,
@@ -96,7 +98,7 @@ plan2 <- plan_optimization(
   ms2_time_override = 6.0 / 1000
 )
 
-n_sync_expected_2 <- as.integer(floor(ms1_transient_240k / 8.0))
+n_sync_expected_2 <- as.integer(floor(ms1_total_240k / 8.0))
 cat(sprintf("  Expected sync-optimal: %d windows\n", n_sync_expected_2))
 cat(sprintf("  Actual window count:   %d windows\n", plan2$window_count_per_bin))
 cat(sprintf("  Actual cycle time:     %.3f sec\n", plan2$actual_cycle_time_sec))
@@ -133,9 +135,9 @@ cat("  PASS\n")
 # =============================================================================
 cat("\nTest 4: Verify excess windows cause idle (physics check)\n")
 
-# 200 windows × 5ms = 1000ms > 512ms transient → MS1 idle 488ms
+# 200 windows × 5ms = 1000ms > 522ms total → MS1 idle 478ms
 sync_200 <- calculate_duty_cycle_sync(
-  ms1_time_ms = ms1_transient_240k,
+  ms1_time_ms = ms1_total_240k,
   ms2_scan_time_ms = 5.0,
   n_windows = 200
 )
@@ -144,9 +146,9 @@ cat(sprintf("  200 windows × 5ms: MS1 idle = %.0f ms, duty = %.1f%%\n",
 stopifnot(sync_200$ms1_idle_ms > 400)  # Significant MS1 idle
 stopifnot(sync_200$sync_status == "ms1_idle")
 
-# 50 windows × 5ms = 250ms < 512ms transient → MS2 idle 262ms
+# 50 windows × 5ms = 250ms < 522ms total → MS2 idle 272ms
 sync_50 <- calculate_duty_cycle_sync(
-  ms1_time_ms = ms1_transient_240k,
+  ms1_time_ms = ms1_total_240k,
   ms2_scan_time_ms = 5.0,
   n_windows = 50
 )
@@ -155,9 +157,9 @@ cat(sprintf("  50 windows × 5ms:  MS2 idle = %.0f ms, duty = %.1f%%\n",
 stopifnot(sync_50$ms2_idle_ms > 200)  # Significant MS2 idle
 stopifnot(sync_50$sync_status == "ms2_idle")
 
-# Sync-optimal: ~102 windows → near zero idle
+# Sync-optimal: ~104 windows → near zero idle
 sync_opt <- calculate_duty_cycle_sync(
-  ms1_time_ms = ms1_transient_240k,
+  ms1_time_ms = ms1_total_240k,
   ms2_scan_time_ms = 5.0,
   n_windows = n_sync_expected_1
 )
@@ -173,17 +175,19 @@ cat("  PASS\n")
 cat("\nTest 5: MS1 resolution affects sync-optimal\n")
 
 ms1_trans_120k <- get_transient_time(120000, "orbitrap")  # 256 ms
-n_sync_120k <- as.integer(floor(ms1_trans_120k / 5.0))   # 51
+ms1_total_120k <- ms1_trans_120k + ms1_overhead_240k  # reuse Astral overhead
+n_sync_120k <- as.integer(floor(ms1_total_120k / 5.0))
 
 ms1_trans_480k <- get_transient_time(480000, "orbitrap")  # 1024 ms
-n_sync_480k <- as.integer(floor(ms1_trans_480k / 5.0))   # 204
+ms1_total_480k <- ms1_trans_480k + ms1_overhead_240k
+n_sync_480k <- as.integer(floor(ms1_total_480k / 5.0))
 
-cat(sprintf("  120K (%.0f ms transient): sync-optimal = %d windows\n",
-            ms1_trans_120k, n_sync_120k))
-cat(sprintf("  240K (%.0f ms transient): sync-optimal = %d windows\n",
-            ms1_transient_240k, n_sync_expected_1))
-cat(sprintf("  480K (%.0f ms transient): sync-optimal = %d windows\n",
-            ms1_trans_480k, n_sync_480k))
+cat(sprintf("  120K (%.0f ms total): sync-optimal = %d windows\n",
+            ms1_total_120k, n_sync_120k))
+cat(sprintf("  240K (%.0f ms total): sync-optimal = %d windows\n",
+            ms1_total_240k, n_sync_expected_1))
+cat(sprintf("  480K (%.0f ms total): sync-optimal = %d windows\n",
+            ms1_total_480k, n_sync_480k))
 
 stopifnot(n_sync_120k < n_sync_expected_1)
 stopifnot(n_sync_expected_1 < n_sync_480k)

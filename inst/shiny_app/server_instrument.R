@@ -175,20 +175,15 @@ server_instrument <- function(input, output, session, rv) {
     }
 
     if (is_parallel) {
-      # Parallel: show sync-optimal
-      ms1_trans_ms <- calc_result$ms1$transient_ms
-      if (is.null(ms1_trans_ms) || ms1_trans_ms < 10) {
-        ms1_res <- calc_result$ms1$resolution %||% 240000
-        ms1_trans_ms <- get_transient_time(ms1_res, "orbitrap")
-        if (is.na(ms1_trans_ms)) ms1_trans_ms <- calc_result$ms1$scan_time_ms
-      }
+      # Parallel: use total MS1 time (transient + overhead) for sync calculation
+      ms1_total_ms <- calc_result$ms1$scan_time_ms
       ms2_scan_ms <- calc_result$ms2$scan_time_ms
-      n_sync <- calculate_sync_optimal_windows(ms1_trans_ms, ms2_scan_ms)
+      n_sync <- calculate_sync_optimal_windows(ms1_total_ms, ms2_scan_ms)
       return(tags$div(
         class = "indicator-info",
         tags$span(class = "indicator-text", sprintf("Sync-optimal: %d windows", n_sync)),
         tags$br(),
-        tags$small(sprintf("MS1 %.0fms / MS2 %.1fms", ms1_trans_ms, ms2_scan_ms),
+        tags$small(sprintf("MS1 %.0fms / MS2 %.1fms", ms1_total_ms, ms2_scan_ms),
                    class = "text-muted")
       ))
     }
@@ -231,14 +226,9 @@ server_instrument <- function(input, output, session, rv) {
       ))
     }
 
-    ms1_trans_ms <- calc_result$ms1$transient_ms
-    if (is.null(ms1_trans_ms) || ms1_trans_ms < 10) {
-      ms1_res <- calc_result$ms1$resolution %||% 240000
-      ms1_trans_ms <- get_transient_time(ms1_res, "orbitrap")
-      if (is.na(ms1_trans_ms)) ms1_trans_ms <- calc_result$ms1$scan_time_ms
-    }
+    ms1_total_ms <- calc_result$ms1$scan_time_ms
     ms2_scan_ms <- calc_result$ms2$scan_time_ms
-    n_sync <- calculate_sync_optimal_windows(ms1_trans_ms, ms2_scan_ms)
+    n_sync <- calculate_sync_optimal_windows(ms1_total_ms, ms2_scan_ms)
 
     tags$div(
       tags$span(
@@ -267,16 +257,11 @@ server_instrument <- function(input, output, session, rv) {
       return(tags$div(class = "text-muted", "FWHM not available"))
     }
 
-    # Calculate DPPP at sync-optimal
-    ms1_trans_ms <- calc_result$ms1$transient_ms
-    if (is.null(ms1_trans_ms) || ms1_trans_ms < 10) {
-      ms1_res <- calc_result$ms1$resolution %||% 240000
-      ms1_trans_ms <- get_transient_time(ms1_res, "orbitrap")
-      if (is.na(ms1_trans_ms)) ms1_trans_ms <- calc_result$ms1$scan_time_ms
-    }
+    # Calculate DPPP at sync-optimal (use total MS1 time for cycle calculation)
+    ms1_total_ms <- calc_result$ms1$scan_time_ms
     ms2_scan_ms <- calc_result$ms2$scan_time_ms
-    n_sync <- calculate_sync_optimal_windows(ms1_trans_ms, ms2_scan_ms)
-    cycle_sec <- max(ms1_trans_ms, n_sync * ms2_scan_ms) / 1000
+    n_sync <- calculate_sync_optimal_windows(ms1_total_ms, ms2_scan_ms)
+    cycle_sec <- max(ms1_total_ms, n_sync * ms2_scan_ms) / 1000
     dppp_at_sync <- calculate_dppp(fwhm_median, cycle_sec)
 
     target_dppp <- input$target_dppp %||% 7.0
@@ -303,17 +288,12 @@ server_instrument <- function(input, output, session, rv) {
       return(tags$div(class = "text-muted", "Configure instrument to see sync detail"))
     }
 
-    ms1_trans_ms <- calc_result$ms1$transient_ms
-    if (is.null(ms1_trans_ms) || ms1_trans_ms < 10) {
-      ms1_res <- calc_result$ms1$resolution %||% 240000
-      ms1_trans_ms <- get_transient_time(ms1_res, "orbitrap")
-      if (is.na(ms1_trans_ms)) ms1_trans_ms <- calc_result$ms1$scan_time_ms
-    }
+    # Use total MS1 time (transient + overhead) for duty cycle calculation
+    ms1_total_ms <- calc_result$ms1$scan_time_ms
     ms2_scan_ms <- calc_result$ms2$scan_time_ms
-    ms1_overhead <- calc_result$ms1$overhead_ms %||% 10
     n_windows <- calc_result$window_count
 
-    sync <- calculate_duty_cycle_sync(ms1_trans_ms, ms2_scan_ms, n_windows)
+    sync <- calculate_duty_cycle_sync(ms1_total_ms, ms2_scan_ms, n_windows)
 
     # Badge color
     if (sync$duty_cycle_pct >= 95) {
@@ -333,7 +313,7 @@ server_instrument <- function(input, output, session, rv) {
     tags$div(
       style = "font-size: 12px; line-height: 1.8;",
       tags$div(
-        sprintf("MS1: %.0fms (Orbitrap %s)", ms1_trans_ms + ms1_overhead, ms1_res_label)
+        sprintf("MS1: %.0fms (Orbitrap %s)", ms1_total_ms, ms1_res_label)
       ),
       tags$div(
         sprintf("MS2: %d \u00d7 %.1fms = %.0fms",
@@ -753,20 +733,13 @@ server_instrument <- function(input, output, session, rv) {
     is_parallel <- result$instrument$cycle_calculation == "parallel"
     if (!is_parallel) return(NULL)
 
-    # Get MS1 transient time (Orbitrap MS1, even for Astral instruments)
-    # For Astral: MS1 is on Orbitrap, so transient_ms = Orbitrap transient at chosen resolution
-    ms1_trans_ms <- result$ms1$transient_ms
-    if (is.null(ms1_trans_ms) || ms1_trans_ms < 10) {
-      # Fallback: derive from resolution if transient_ms seems wrong (e.g., Astral detection time)
-      ms1_res <- result$ms1$resolution %||% 240000
-      ms1_trans_ms <- get_transient_time(ms1_res, "orbitrap")
-      if (is.na(ms1_trans_ms)) ms1_trans_ms <- result$ms1$scan_time_ms
-    }
+    # Use total MS1 time (transient + overhead) for duty cycle calculation
+    ms1_total_ms <- result$ms1$scan_time_ms
     ms2_scan_ms <- result$ms2$scan_time_ms
     n_windows <- result$window_count
 
     sync <- calculate_duty_cycle_sync(
-      ms1_time_ms = ms1_trans_ms,
+      ms1_time_ms = ms1_total_ms,
       ms2_scan_time_ms = ms2_scan_ms,
       n_windows = n_windows
     )
@@ -804,7 +777,7 @@ server_instrument <- function(input, output, session, rv) {
         tags$div(
           class = "text-muted", style = "font-size: 11px; margin-top: 6px;",
           sprintf("MS1: %.0f ms | MS2: %d x %.1f ms = %.0f ms",
-                  ms1_trans_ms, n_windows, ms2_scan_ms, sync$total_ms2_time_ms)
+                  ms1_total_ms, n_windows, ms2_scan_ms, sync$total_ms2_time_ms)
         ),
         tags$div(
           class = "text-muted", style = "font-size: 11px;",

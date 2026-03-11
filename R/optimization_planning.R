@@ -329,8 +329,10 @@ plan_optimization <- function(
   duty_cycle_sync <- NULL
 
   if (instrument_config$cycle_calculation == "parallel") {
-    # Reuse ms1_transient from Step 5 (already resolved via resolve_astral_ms1)
-    ms1_transient_ms <- ms1_transient  # from Step 5 parallel branch
+    # Use total MS1 time (transient + overhead) — consistent with cycle_time = max(MS1_total, MS2_total)
+    # During overhead (C-trap injection), neither analyzer produces useful signal,
+    # but Astral can still scan MS2, so overhead is part of the cycle budget.
+    ms1_total_ms <- ms1_time * 1000  # from Step 5: astral_ms1$scan_time_ms (e.g. 522ms)
 
     # MS2 scan time in ms
     ms2_scan_time_ms <- window_result$t_scan_ms
@@ -338,7 +340,7 @@ plan_optimization <- function(
     # For parallel instruments, sync-optimal is the PRIMARY constraint.
     # DPPP is easily met on Astral (cycle time << required), so the
     # meaningful optimization is maximizing duty cycle (no idle analyzer).
-    n_sync <- calculate_sync_optimal_windows(ms1_transient_ms, ms2_scan_time_ms)
+    n_sync <- calculate_sync_optimal_windows(ms1_total_ms, ms2_scan_time_ms)
     dppp_window_count <- window_count  # Save DPPP-based count for reference
 
     if (n_sync > 0 && n_sync <= max_windows) {
@@ -369,7 +371,7 @@ plan_optimization <- function(
     }
 
     duty_cycle_sync <- calculate_duty_cycle_sync(
-      ms1_time_ms = ms1_transient_ms,
+      ms1_time_ms = ms1_total_ms,
       ms2_scan_time_ms = ms2_scan_time_ms,
       n_windows = window_count
     )
