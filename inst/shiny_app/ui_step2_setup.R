@@ -160,6 +160,28 @@ step2_setup_ui <- function() {
         )
       ),
 
+      # --- Common: Window Count (all strategies) ---
+      div(class = "strategy-section",
+        tags$h4("Window Count", class = "section-title strategy-heading"),
+        checkboxInput(
+          inputId = "auto_windows",
+          label = "Auto Window Count (from DPPP optimization)",
+          value = TRUE
+        ),
+        conditionalPanel(
+          condition = "input.auto_windows",
+          uiOutput("auto_windows_info")
+        ),
+        conditionalPanel(
+          condition = "!input.auto_windows",
+          sliderInput(
+            inputId = "manual_n_windows",
+            label = "Windows per RT Bin",
+            min = 10, max = 200, value = 40, step = 5
+          )
+        )
+      ),
+
       # --- Strategy-specific parameters (inline conditionalPanels) ---
 
       # Greedy Strategy Parameters
@@ -175,25 +197,6 @@ step2_setup_ui <- function() {
               "1. Fixed m/z range = Windows x Min Width", tags$br(),
               "2. Slides along m/z axis to find optimal position", tags$br(),
               "3. Maximizes precursor count within fixed range"
-            )
-          ),
-
-          checkboxInput(
-            inputId = "greedy_auto_windows",
-            label = "Auto Window Count (from DPPP)",
-            value = TRUE
-          ),
-          # Show recommended windows when Auto is checked
-          conditionalPanel(
-            condition = "input.greedy_auto_windows",
-            uiOutput("greedy_auto_windows_info")
-          ),
-          conditionalPanel(
-            condition = "!input.greedy_auto_windows",
-            sliderInput(
-              inputId = "greedy_n_windows",
-              label = "Windows per RT Bin",
-              min = 10, max = 100, value = 40, step = 5
             )
           ),
 
@@ -245,7 +248,7 @@ step2_setup_ui <- function() {
           checkboxInput(
             inputId = "quantile_apply_smoothing",
             label = smoothing_label,
-            value = FALSE
+            value = TRUE
           ),
           helpText("P5-P95 covers 90% of precursors. WH smoothing prevents abrupt m/z jumps.",
                    style = "font-size: 10px;")
@@ -280,7 +283,7 @@ step2_setup_ui <- function() {
           checkboxInput(
             inputId = "outlier_apply_smoothing",
             label = smoothing_label,
-            value = FALSE
+            value = TRUE
           ),
           helpText("Mean +/- NxSD range. WH smoothing prevents abrupt m/z jumps.",
                    style = "font-size: 10px;")

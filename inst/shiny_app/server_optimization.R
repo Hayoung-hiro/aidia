@@ -212,24 +212,28 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       cat("[Shiny] Max Isolation Width:", input$max_isolation_width %||% 80, "Da\n")
 
       # Build typed strategy_config (validated by constructors)
+      # Common: resolve window count (auto or manual, for all strategies)
+      use_auto_windows <- isTRUE(input$auto_windows %||% TRUE)
+      manual_n_win <- input$manual_n_windows %||% 40
+
       strategy_cfg <- switch(input$mz_strategy,
         greedy = greedy_config(
-          auto_windows = isTRUE(input$greedy_auto_windows %||% TRUE),
-          n_windows = input$greedy_n_windows %||% 40,
+          auto_windows = use_auto_windows,
+          n_windows = manual_n_win,
           mz_step = input$greedy_mz_step %||% 0.5,
           apply_smoothing = isTRUE(input$greedy_apply_smoothing %||% TRUE)
         ),
         quantile = quantile_config(
           lower = input$quantile_lower %||% 0.05,
           upper = input$quantile_upper %||% 0.95,
-          apply_smoothing = isTRUE(input$quantile_apply_smoothing %||% FALSE)
+          apply_smoothing = isTRUE(input$quantile_apply_smoothing %||% TRUE)
         ),
         coverage = coverage_config(
           target = (input$target_coverage %||% 90) / 100
         ),
         outlier = outlier_config(
           threshold = input$outlier_threshold %||% 3.0,
-          apply_smoothing = isTRUE(input$outlier_apply_smoothing %||% FALSE)
+          apply_smoothing = isTRUE(input$outlier_apply_smoothing %||% TRUE)
         ),
         kde = kde_config(
           density_threshold = (input$kde_density_threshold %||% 10) / 100,
@@ -239,10 +243,18 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       cat("[Shiny] Strategy config:", input$mz_strategy, "\n")
       cat("[Shiny]  ", paste(names(as.list(strategy_cfg)), collapse = ", "), "\n")
 
+      # For non-greedy strategies, pass manual window count override
+      n_win_override <- if (!use_auto_windows && input$mz_strategy != "greedy") {
+        as.integer(manual_n_win)
+      } else {
+        NULL  # greedy handles it internally via greedy_config
+      }
+
       rv$optimized_windows <- optimize_windows(
         validated_data = rv$validated_data,
         optimization_plan = rv$optimization_plan,
         strategy_config = strategy_cfg,
+        n_windows_override = n_win_override,
         window_mode = input$window_mode %||% "density",
         rt_bin_width_min = rt_bin_width_final,
         rt_binning_mode = rt_binning_mode_final,

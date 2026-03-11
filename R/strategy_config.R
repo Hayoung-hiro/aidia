@@ -63,7 +63,7 @@ greedy_config <- function(auto_windows = TRUE,
 #'
 #' @param lower Numeric, lower quantile 0-1 (default: 0.05)
 #' @param upper Numeric, upper quantile 0-1 (default: 0.95)
-#' @param apply_smoothing Logical, apply boundary smoothing (default: FALSE)
+#' @param apply_smoothing Logical, apply boundary smoothing (default: TRUE)
 #' @param smoothing_window Integer, SG window size (default: 7). Only used when smoothing_method = "sg".
 #' @param polynomial_order Integer, SG polynomial order (default: 3). Only used when smoothing_method = "sg".
 #' @param smoothing_method Character, "whittaker" (default) or "sg" (Savitzky-Golay)
@@ -77,7 +77,7 @@ greedy_config <- function(auto_windows = TRUE,
 #' config <- quantile_config(lower = 0.10, upper = 0.90)
 quantile_config <- function(lower = 0.05,
                             upper = 0.95,
-                            apply_smoothing = FALSE,
+                            apply_smoothing = TRUE,
                             smoothing_window = 7,
                             polynomial_order = 3,
                             smoothing_method = "whittaker",
@@ -136,7 +136,7 @@ coverage_config <- function(target = 0.95,
 #' Uses mean +/- N*SD to define m/z range, removing outliers.
 #'
 #' @param threshold Numeric, SD multiplier (default: 3.0)
-#' @param apply_smoothing Logical, apply boundary smoothing (default: FALSE)
+#' @param apply_smoothing Logical, apply boundary smoothing (default: TRUE)
 #' @param smoothing_window Integer, SG window size (default: 7). Only used when smoothing_method = "sg".
 #' @param polynomial_order Integer, SG polynomial order (default: 3). Only used when smoothing_method = "sg".
 #' @param smoothing_method Character, "whittaker" (default) or "sg" (Savitzky-Golay)
@@ -150,7 +150,7 @@ coverage_config <- function(target = 0.95,
 #' config <- outlier_config(threshold = 2.5, apply_smoothing = TRUE)
 #' config <- outlier_config(smoothing_method = "sg")  # use legacy SG smoother
 outlier_config <- function(threshold = 3.0,
-                           apply_smoothing = FALSE,
+                           apply_smoothing = TRUE,
                            smoothing_window = 7,
                            polynomial_order = 3,
                            smoothing_method = "whittaker",
@@ -247,11 +247,11 @@ flatten_strategy_config <- function(config) {
 build_strategy_config <- function(mz_strategy,
                                   quantile_lower = 0.05,
                                   quantile_upper = 0.95,
-                                  quantile_apply_smoothing = FALSE,
+                                  quantile_apply_smoothing = TRUE,
                                   target_coverage = 0.95,
                                   coverage_mode = "narrowest",
                                   outlier_threshold = 3.0,
-                                  outlier_apply_smoothing = FALSE,
+                                  outlier_apply_smoothing = TRUE,
                                   mz_step = 0.5,
                                   n_windows_override = NULL,
                                   greedy_apply_smoothing = TRUE,

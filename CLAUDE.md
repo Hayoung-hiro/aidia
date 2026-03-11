@@ -216,9 +216,9 @@ Constructors: `greedy_config()`, `quantile_config()`, `coverage_config()`, `outl
 **LOCAL Strategies** (per-RT-bin, independent):
 | Strategy | Algorithm | Smoothing | Best For |
 |----------|-----------|:---:|----------|
-| **quantile** | P5-P95 percentiles | WH (default OFF) | Fast, robust |
+| **quantile** | P5-P95 percentiles | WH (default ON) | Fast, robust |
 | **coverage** | Minimum range for target % | N/A | Discovery, comprehensive |
-| **outlier** | Mean +/- 3 sigma | WH (default OFF) | High-throughput, inclusive |
+| **outlier** | Mean +/- 3 sigma | WH (default ON) | High-throughput, inclusive |
 
 Boundary smoothing uses Whittaker-Henderson (WH) by default with per-point `sqrt(n_precursors)` weights. Savitzky-Golay (SG) available via `smoothing_method = "sg"`. Smoothing is a post-processing option (`*_apply_smoothing` parameters), not a standalone strategy.
 
@@ -324,6 +324,7 @@ optimize_mz_ranges_newstrategy_internal <- function(data, rt_bins, ...) {
 | Skill | Description |
 |-------|-------------|
 | `verify-shiny-design` | CSS token compliance, shared API usage, typography hierarchy in Shiny app |
+| `verify-instrument-config` | JSON schema consistency, shared API usage, overhead plausibility, export format alignment |
 | `verify-implementation` | Run all verify skills sequentially, produce unified report |
 
 ---

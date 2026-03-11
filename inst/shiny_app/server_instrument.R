@@ -153,9 +153,9 @@ server_instrument <- function(input, output, session, rv) {
     }
   })
 
-  # --- Output: Greedy Auto Windows Info ---
+  # --- Output: Auto Windows Info (all strategies) ---
   # Shows the recommended window count when Auto mode is selected
-  output$greedy_auto_windows_info <- renderUI({
+  output$auto_windows_info <- renderUI({
     # Calculate recommended windows from DPPP target and cycle time
     calc_result <- cycle_time_result()
 
@@ -213,7 +213,7 @@ server_instrument <- function(input, output, session, rv) {
   # --- Output: Greedy m/z Range Display ---
   output$greedy_mz_range_display <- renderUI({
     # Get window count (from auto or manual)
-    if (isTRUE(input$greedy_auto_windows)) {
+    if (isTRUE(input$auto_windows %||% TRUE)) {
       # Priority: optimization plan > estimated > default
       n_windows <- rv$optimization_plan$n_windows_per_bin
 
@@ -230,7 +230,7 @@ server_instrument <- function(input, output, session, rv) {
 
       n_windows <- n_windows %||% 40
     } else {
-      n_windows <- input$greedy_n_windows %||% 40
+      n_windows <- input$manual_n_windows %||% 40
     }
 
     min_width <- input$min_isolation_width %||% 2

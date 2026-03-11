@@ -628,6 +628,48 @@ Values are a **lower bound** — useful for relative comparison, not absolute.
 3. Create event list: +1 at start, -1 at end
 4. Walk events tracking cumsum → density_max = peak, density_mean = time-weighted avg
 
+### Sync-Optimal as Primary Constraint — Justification (2026-03-11)
+
+**Conclusion:** Sync-optimal (`floor(MS1_transient / MS2_scan_time)`) is the correct and
+sufficient primary constraint for Astral window count optimization.
+
+**Reasoning:**
+1. DPPP is automatically satisfied on Astral (typical DPPP ≈ 29 at sync-optimal 102 windows,
+   target is 7.0) — DPPP is not a meaningful constraint
+2. The only optimization axis AIDIA controls is window count/width/placement
+3. Duty cycle is the only hardware efficiency metric responsive to window count
+4. Sync-optimal is the unique maximum of duty cycle (100%, no idle analyzer)
+
+**Out of scope (by design):**
+- **Sample load**: User-controlled experimental parameter. AIDIA cannot infer or adjust for it.
+  Low-input workflows (single-cell, <100 ng) may benefit from fewer, wider windows (nDIA paper:
+  8 Th > 2 Th at 10 ng), but this is the user's method design responsibility.
+- **Ion statistics / AGC underfilling**: Post-acquisition QC domain. Astral Zoom at 200 ng + 2 Th
+  frequently fails to reach 20,000-ion AGC target (JPR 2025) — detectable only from raw files,
+  not from DIA-NN report.parquet.
+- **Space charge**: Hardware physics. ~10³ same-m/z ions cause MR-TOF resolution degradation
+  (Stewart et al. 2024). No software-side mitigation.
+
+**Known Astral bottleneck hierarchy (literature 2024-2025):**
+
+| Tier | Bottleneck | AIDIA addressable? |
+|------|-----------|-------------------|
+| Hardware physics | nDIA: 0.5% ion beam sampling, space charge | No |
+| Method design | Window count/width/placement, cycle time | **Yes (sync-optimal)** |
+| Method design | Sample load → optimal window width | No (user responsibility) |
+| Workflow | Sample prep throughput (>180 SPD) | No |
+| Workflow | Short gradient peak capacity compression | No |
+| Analysis | Glycoproteomics software gap | No |
+| Analysis | Single-cell data completeness (~18%) | No |
+
+**References:**
+- Stewart et al. 2024, J Mass Spec — space charge in MR-TOF
+- Demichev et al. 2024, Nat Biotech — nDIA, sample-load-dependent window width
+- Mechtler group 2025, Nat Methods — single-cell 5,300 proteins, 18% completeness
+- Schilling et al. 2023, JPR — Astral quant evaluation, Orbitrap better dynamic range
+- JPR 2025 — Astral Zoom evaluation, AGC underfilling at 200 ng
+- MCP 2025 — TMT ratio compression on Astral (no MS3)
+
 ### Boxcar/MAP-MS (Deferred to v0.4.0)
 
 **Concept:** Multiple narrow MS1 windows (K segments) instead of single full-range MS1.
