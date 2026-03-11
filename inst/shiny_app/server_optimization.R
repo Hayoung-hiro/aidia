@@ -31,6 +31,24 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   # DPPP button visual sync is handled purely client-side in app.R
   # (no server round-trip needed for CSS class toggles)
 
+  # --- FZ Validation Plot (reactive to data + fz_offset) ---
+  output$fz_validation_plot <- renderPlot({
+    # Requires validated data
+    if (is.null(rv$validated_data)) return(NULL)
+
+    # Resolve FZ offset from UI inputs
+    fz_offset <- if (isTRUE(input$fz_offset_preset == "custom")) {
+      as.numeric(input$custom_fz_offset %||% 0.25)
+    } else {
+      as.numeric(input$fz_offset_preset %||% "0.25")
+    }
+
+    # Skip if FZ disabled
+    if (is.na(fz_offset) || fz_offset <= 0) return(NULL)
+
+    plot_fz_validation(rv$validated_data, fz_offset = fz_offset)
+  }, res = 96, bg = "transparent")
+
   # --- Strategy Preview Image ---
   output$strategy_preview_img <- renderUI({
     strategy <- input$mz_strategy

@@ -454,6 +454,11 @@ step2_setup_ui <- function() {
               )
             )
           )
+        ),
+        # FZ validation plot (shown when data is loaded and FZ is active)
+        conditionalPanel(
+          condition = "input.fz_offset_preset != '0'",
+          plotOutput("fz_validation_plot", height = "250px")
         )
       )
     )),
