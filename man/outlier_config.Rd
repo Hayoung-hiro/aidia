@@ -6,7 +6,7 @@
 \usage{
 outlier_config(
   threshold = 3,
-  apply_smoothing = FALSE,
+  apply_smoothing = TRUE,
   smoothing_window = 7,
   polynomial_order = 3,
   smoothing_method = "whittaker",
@@ -16,7 +16,7 @@ outlier_config(
 \arguments{
 \item{threshold}{Numeric, SD multiplier (default: 3.0)}
 
-\item{apply_smoothing}{Logical, apply boundary smoothing (default: FALSE)}
+\item{apply_smoothing}{Logical, apply boundary smoothing (default: TRUE)}
 
 \item{smoothing_window}{Integer, SG window size (default: 7). Only used when smoothing_method = "sg".}
 

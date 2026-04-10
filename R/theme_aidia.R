@@ -25,7 +25,7 @@ STRATEGY_PREFERRED_ORDER <- c("greedy", "kde", "quantile", "coverage", "outlier"
 #' Named vector of 5 colors for m/z optimization strategies.
 #' Based on ColorBrewer/Viridis principles for accessibility.
 #'
-#' @export
+#' @keywords internal
 aidia_strategy_colors <- c(
   greedy   = "#3498DB",  # Blue (GLOBAL)
   kde      = "#9B59B6",  # Purple (GLOBAL)
@@ -40,7 +40,7 @@ aidia_strategy_colors <- c(
 #'
 #' Used for non-strategy elements (text, backgrounds, annotations)
 #'
-#' @export
+#' @keywords internal
 aidia_colors <- list(
   primary   = "#2C3E50",  # Dark blue-gray (titles, text)
   secondary = "#7F8C8D",  # Gray (subtitles, annotations)
@@ -65,7 +65,7 @@ aidia_colors <- list(
 #' 5-color vector for charge state visualizations.
 #' Based on the AIDIA palette for visual consistency.
 #'
-#' @export
+#' @keywords internal
 aidia_charge_colors <- c(
   "#3498DB", "#27AE60", "#F39C12", "#E74C3C", "#9B59B6"
 )
@@ -201,7 +201,7 @@ format_strategy_label <- function(strategy_name) {
 #' @param ... Additional arguments passed to scale_color_manual()
 #'
 #' @return A ggplot2 scale object
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{
@@ -226,7 +226,7 @@ scale_color_strategy <- function(...) {
 #' @param ... Additional arguments passed to scale_fill_manual()
 #'
 #' @return A ggplot2 scale object
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{

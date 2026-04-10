@@ -15,3 +15,4 @@ Tibble with precursor data
 \description{
 Safe accessor function that handles different ValidatedData structures.
 }
+\keyword{internal}

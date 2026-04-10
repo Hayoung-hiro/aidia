@@ -137,7 +137,7 @@ export_windows_to_csv <- function(optimized_windows, output_file,
 
 #' Export Center Mass List (Generic Format)
 #'
-#' Creates a simple 4-column CSV with RT range and window center/width.
+#' Creates a 2-column CSV with window center mass and width.
 #' Compatible with various DIA method software.
 #'
 #' @param optimized_windows OptimizedWindows object
@@ -163,7 +163,7 @@ export_center_mass_list <- function(optimized_windows, output_file) {
 
 #' Export m/z Range List (Boundary Format)
 #'
-#' Creates a 4-column CSV with RT range and explicit m/z boundaries.
+#' Creates a single-column CSV with m/z start-end range pairs.
 #' 7 decimal places for precision. Useful for method verification.
 #'
 #' @param optimized_windows OptimizedWindows object

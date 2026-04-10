@@ -632,7 +632,7 @@ get_instrument_config <- function(preset_name) {
 #' @param preset_name Character, instrument preset name
 #'
 #' @return Character, analyzer type (e.g., "orbitrap", "astral")
-#' @export
+#' @keywords internal
 get_instrument_analyzer_type <- function(preset_name) {
   config <- get_instrument_config(preset_name)
   config$analyzer_type
@@ -1135,99 +1135,30 @@ calculate_cycle_time_from_experiment <- function(experiment_config,
   # 7. Generate Summary Report
   # =========================================================================
   if (verbose) {
-    if (language == "ko") {
-      cat("\n")
-      cat("+========================================================================+\n")
-      cat("|            \uc2e4\uc81c \uc2e4\ud5d8 \uc870\uac74 \uae30\ubc18 Cycle Time \uacc4\uc0b0                         |\n")
-      cat("|            Actual Experiment-Based Cycle Time Calculation              |\n")
-      cat("+========================================================================+\n")
-      cat("\n")
-      cat(sprintf("\uc7a5\ube44 \uc124\uc815 (Instrument): %s (%s)\n",
-                  base_config$name, toupper(analyzer_type)))
-      cat(sprintf("Cycle \uacc4\uc0b0 \ubaa8\ub4dc: %s\n\n", cycle_calculation))
-
-      cat("+-------------------------------------------------------------------------+\n")
-      cat("| MS1 \uc2a4\uce94 \ud30c\ub77c\ubbf8\ud130                                                       |\n")
-      cat("+-------------------------------------------------------------------------+\n")
-      cat(sprintf("|  Resolution:     %s\n", format(ms1_resolution, big.mark = ",")))
-      cat(sprintf("|  T_transient:    %.1f ms\n", ms1_transient))
-      cat(sprintf("|  Max IT:         %.1f ms (\uc785\ub825: %s)\n",
-                  ms1_it_resolved,
-                  ifelse(is.character(experiment_config$ms1$max_injection_time_ms),
-                         experiment_config$ms1$max_injection_time_ms,
-                         sprintf("%.1f ms", experiment_config$ms1$max_injection_time_ms %||% ms1_it_resolved))))
-      cat(sprintf("|  Overhead:       %.1f ms\n", ms1_overhead))
-      cat(sprintf("|  >> MS1 Scan Time: %.1f ms\n", ms1_scan_time_ms))
-      cat("+-------------------------------------------------------------------------+\n\n")
-
-      cat("+-------------------------------------------------------------------------+\n")
-      cat("| MS2 \uc2a4\uce94 \ud30c\ub77c\ubbf8\ud130                                                       |\n")
-      cat("+-------------------------------------------------------------------------+\n")
-      cat(sprintf("|  Resolution:     %s\n", format(ms2_resolution, big.mark = ",")))
-      cat(sprintf("|  T_transient:    %.1f ms\n", ms2_scan_info$transient_ms))
-      cat(sprintf("|  Max IT:         %.1f ms (\uc785\ub825: %s)\n",
-                  ms2_it_resolved,
-                  ifelse(is.character(experiment_config$ms2$max_injection_time_ms),
-                         experiment_config$ms2$max_injection_time_ms,
-                         sprintf("%.1f ms", experiment_config$ms2$max_injection_time_ms %||% ms2_it_resolved))))
-      cat(sprintf("|  Overhead:       %.1f ms\n", ms2_scan_info$overhead_ms))
-      cat(sprintf("|  >> MS2 Scan Time: %.1f ms (%.1f Hz)\n",
-                  ms2_scan_time_ms, theoretical_scan_rate_hz))
-      cat(sprintf("|  \ud6a8\uc728 \uc0c1\ud0dc:      %s\n", ms2_scan_info$efficiency_message))
-      cat("+-------------------------------------------------------------------------+\n\n")
-
-      cat("+-------------------------------------------------------------------------+\n")
-      cat("| DIA \uc708\ub3c4\uc6b0 \uc124\uc815                                                         |\n")
-      cat("+-------------------------------------------------------------------------+\n")
-      cat(sprintf("|  MS1 Scans/Cycle: %d %s\n", ms1_scans_per_cycle,
-                  ifelse(ms1_scans_per_cycle > 1, "(Boxcar)", ifelse(ms1_scans_per_cycle == 0, "(Parallel)", ""))))
-      cat(sprintf("|  MS2 Window \uc218:   %d \uac1c\n", window_count))
-      cat(sprintf("|  MS1 \ucd1d \uc2dc\uac04:     %.1f ms (= %d x %.1f ms)\n",
-                  ms1_total_time_ms, ms1_scans_per_cycle, ms1_scan_time_ms))
-      cat(sprintf("|  MS2 \ucd1d \uc2dc\uac04:     %.1f ms (= %d x %.1f ms)\n",
-                  ms2_total_time_ms, window_count, ms2_scan_time_ms))
-      cat("+-------------------------------------------------------------------------+\n\n")
-
-      cat("+=========================================================================+\n")
-      cat("|                    \ucd5c\uc885 Cycle Time \uacc4\uc0b0 \uacb0\uacfc                            |\n")
-      cat("+=========================================================================+\n")
-
-      if (ms1_scans_per_cycle == 0 || cycle_calculation == "parallel") {
-        cat(sprintf("|  Cycle Time = max(MS1, MS2 \ucd1d\ud569) = max(%.1f, %.1f) ms\n",
-                    ms1_scan_time_ms, ms2_total_time_ms))
-      } else if (ms1_scans_per_cycle > 1) {
-        cat(sprintf("|  Cycle Time = %dxMS1 + MS2 \ucd1d\ud569 = %.1f + %.1f ms (Boxcar)\n",
-                    ms1_scans_per_cycle, ms1_total_time_ms, ms2_total_time_ms))
-      } else {
-        cat(sprintf("|  Cycle Time = MS1 + MS2 \ucd1d\ud569 = %.1f + %.1f ms\n",
-                    ms1_scan_time_ms, ms2_total_time_ms))
-      }
-
-      cat("|                                                                         |\n")
-      cat(sprintf("|  >>> Cycle Time = %.1f ms = %.3f \ucd08 <<<\n",
-                  cycle_time_ms, cycle_time_sec))
-      cat("|                                                                         |\n")
-      cat(sprintf("|  \uc720\ud6a8 \uc2a4\uce94 \uc18d\ub3c4: %.1f windows/sec\n", effective_scan_rate_hz))
-      cat("+=========================================================================+\n\n")
-    } else {
-      # English version (abbreviated)
-      cat("\n")
-      cat("+========================================================================+\n")
-      cat("|            Experiment-Based Cycle Time Calculation                      |\n")
-      cat("+========================================================================+\n")
-      cat(sprintf("\nInstrument: %s (%s), Mode: %s\n\n",
-                  base_config$name, toupper(analyzer_type), cycle_calculation))
-
-      cat(sprintf("MS1: %dK res, IT=%.1f ms -> Scan=%.1f ms\n",
-                  ms1_resolution/1000, ms1_it_resolved, ms1_scan_time_ms))
-      cat(sprintf("MS2: %dK res, IT=%.1f ms -> Scan=%.1f ms (%.1f Hz)\n",
-                  ms2_resolution/1000, ms2_it_resolved, ms2_scan_time_ms, theoretical_scan_rate_hz))
-      cat(sprintf("Windows: %d x %.1f ms = %.1f ms\n\n",
-                  window_count, ms2_scan_time_ms, ms2_total_time_ms))
-
-      cat(sprintf(">>> CYCLE TIME = %.1f ms = %.3f sec <<<\n\n",
-                  cycle_time_ms, cycle_time_sec))
-    }
+    print_cycle_time_report(
+      language = language,
+      base_config = base_config,
+      analyzer_type = analyzer_type,
+      cycle_calculation = cycle_calculation,
+      ms1_resolution = ms1_resolution,
+      ms1_transient = ms1_transient,
+      ms1_it_resolved = ms1_it_resolved,
+      ms1_overhead = ms1_overhead,
+      ms1_scan_time_ms = ms1_scan_time_ms,
+      ms1_total_time_ms = ms1_total_time_ms,
+      ms1_scans_per_cycle = ms1_scans_per_cycle,
+      ms2_resolution = ms2_resolution,
+      ms2_it_resolved = ms2_it_resolved,
+      ms2_scan_info = ms2_scan_info,
+      ms2_scan_time_ms = ms2_scan_time_ms,
+      ms2_total_time_ms = ms2_total_time_ms,
+      window_count = window_count,
+      cycle_time_ms = cycle_time_ms,
+      cycle_time_sec = cycle_time_sec,
+      theoretical_scan_rate_hz = theoretical_scan_rate_hz,
+      effective_scan_rate_hz = effective_scan_rate_hz,
+      experiment_config = experiment_config
+    )
   }
 
   # =========================================================================
@@ -1460,4 +1391,122 @@ get_instrument_width_recommendations <- function(instrument_config) {
     min_width_da = instrument_config$recommended_min_width_da %||% 2,
     max_width_da = instrument_config$recommended_max_width_da %||% 80
   )
+}
+
+
+# =============================================================================
+# Verbose Report Helper (extracted from calculate_cycle_time_from_experiment)
+# =============================================================================
+
+#' Print Cycle Time Calculation Report
+#'
+#' Bilingual (Korean/English) formatted report for cycle time calculation.
+#' Extracted from calculate_cycle_time_from_experiment() for maintainability.
+#'
+#' @keywords internal
+print_cycle_time_report <- function(language, base_config, analyzer_type,
+                                     cycle_calculation, ms1_resolution,
+                                     ms1_transient, ms1_it_resolved,
+                                     ms1_overhead, ms1_scan_time_ms,
+                                     ms1_total_time_ms, ms1_scans_per_cycle,
+                                     ms2_resolution, ms2_it_resolved,
+                                     ms2_scan_info, ms2_scan_time_ms,
+                                     ms2_total_time_ms, window_count,
+                                     cycle_time_ms, cycle_time_sec,
+                                     theoretical_scan_rate_hz,
+                                     effective_scan_rate_hz,
+                                     experiment_config) {
+  if (language == "ko") {
+    cat("\n")
+    cat("+========================================================================+\n")
+    cat("|            \uc2e4\uc81c \uc2e4\ud5d8 \uc870\uac74 \uae30\ubc18 Cycle Time \uacc4\uc0b0                         |\n")
+    cat("|            Actual Experiment-Based Cycle Time Calculation              |\n")
+    cat("+========================================================================+\n")
+    cat("\n")
+    cat(sprintf("\uc7a5\ube44 \uc124\uc815 (Instrument): %s (%s)\n",
+                base_config$name, toupper(analyzer_type)))
+    cat(sprintf("Cycle \uacc4\uc0b0 \ubaa8\ub4dc: %s\n\n", cycle_calculation))
+
+    cat("+-------------------------------------------------------------------------+\n")
+    cat("| MS1 \uc2a4\uce94 \ud30c\ub77c\ubbf8\ud130                                                       |\n")
+    cat("+-------------------------------------------------------------------------+\n")
+    cat(sprintf("|  Resolution:     %s\n", format(ms1_resolution, big.mark = ",")))
+    cat(sprintf("|  T_transient:    %.1f ms\n", ms1_transient))
+    cat(sprintf("|  Max IT:         %.1f ms (\uc785\ub825: %s)\n",
+                ms1_it_resolved,
+                ifelse(is.character(experiment_config$ms1$max_injection_time_ms),
+                       experiment_config$ms1$max_injection_time_ms,
+                       sprintf("%.1f ms", experiment_config$ms1$max_injection_time_ms %||% ms1_it_resolved))))
+    cat(sprintf("|  Overhead:       %.1f ms\n", ms1_overhead))
+    cat(sprintf("|  >> MS1 Scan Time: %.1f ms\n", ms1_scan_time_ms))
+    cat("+-------------------------------------------------------------------------+\n\n")
+
+    cat("+-------------------------------------------------------------------------+\n")
+    cat("| MS2 \uc2a4\uce94 \ud30c\ub77c\ubbf8\ud130                                                       |\n")
+    cat("+-------------------------------------------------------------------------+\n")
+    cat(sprintf("|  Resolution:     %s\n", format(ms2_resolution, big.mark = ",")))
+    cat(sprintf("|  T_transient:    %.1f ms\n", ms2_scan_info$transient_ms))
+    cat(sprintf("|  Max IT:         %.1f ms (\uc785\ub825: %s)\n",
+                ms2_it_resolved,
+                ifelse(is.character(experiment_config$ms2$max_injection_time_ms),
+                       experiment_config$ms2$max_injection_time_ms,
+                       sprintf("%.1f ms", experiment_config$ms2$max_injection_time_ms %||% ms2_it_resolved))))
+    cat(sprintf("|  Overhead:       %.1f ms\n", ms2_scan_info$overhead_ms))
+    cat(sprintf("|  >> MS2 Scan Time: %.1f ms (%.1f Hz)\n",
+                ms2_scan_time_ms, theoretical_scan_rate_hz))
+    cat(sprintf("|  \ud6a8\uc728 \uc0c1\ud0dc:      %s\n", ms2_scan_info$efficiency_message))
+    cat("+-------------------------------------------------------------------------+\n\n")
+
+    cat("+-------------------------------------------------------------------------+\n")
+    cat("| DIA \uc708\ub3c4\uc6b0 \uc124\uc815                                                         |\n")
+    cat("+-------------------------------------------------------------------------+\n")
+    cat(sprintf("|  MS1 Scans/Cycle: %d %s\n", ms1_scans_per_cycle,
+                ifelse(ms1_scans_per_cycle > 1, "(Boxcar)", ifelse(ms1_scans_per_cycle == 0, "(Parallel)", ""))))
+    cat(sprintf("|  MS2 Window \uc218:   %d \uac1c\n", window_count))
+    cat(sprintf("|  MS1 \ucd1d \uc2dc\uac04:     %.1f ms (= %d x %.1f ms)\n",
+                ms1_total_time_ms, ms1_scans_per_cycle, ms1_scan_time_ms))
+    cat(sprintf("|  MS2 \ucd1d \uc2dc\uac04:     %.1f ms (= %d x %.1f ms)\n",
+                ms2_total_time_ms, window_count, ms2_scan_time_ms))
+    cat("+-------------------------------------------------------------------------+\n\n")
+
+    cat("+=========================================================================+\n")
+    cat("|                    \ucd5c\uc885 Cycle Time \uacc4\uc0b0 \uacb0\uacfc                            |\n")
+    cat("+=========================================================================+\n")
+
+    if (ms1_scans_per_cycle == 0 || cycle_calculation == "parallel") {
+      cat(sprintf("|  Cycle Time = max(MS1, MS2 \ucd1d\ud569) = max(%.1f, %.1f) ms\n",
+                  ms1_scan_time_ms, ms2_total_time_ms))
+    } else if (ms1_scans_per_cycle > 1) {
+      cat(sprintf("|  Cycle Time = %dxMS1 + MS2 \ucd1d\ud569 = %.1f + %.1f ms (Boxcar)\n",
+                  ms1_scans_per_cycle, ms1_total_time_ms, ms2_total_time_ms))
+    } else {
+      cat(sprintf("|  Cycle Time = MS1 + MS2 \ucd1d\ud569 = %.1f + %.1f ms\n",
+                  ms1_scan_time_ms, ms2_total_time_ms))
+    }
+
+    cat("|                                                                         |\n")
+    cat(sprintf("|  >>> Cycle Time = %.1f ms = %.3f \ucd08 <<<\n",
+                cycle_time_ms, cycle_time_sec))
+    cat("|                                                                         |\n")
+    cat(sprintf("|  \uc720\ud6a8 \uc2a4\uce94 \uc18d\ub3c4: %.1f windows/sec\n", effective_scan_rate_hz))
+    cat("+=========================================================================+\n\n")
+  } else {
+    # English version (abbreviated)
+    cat("\n")
+    cat("+========================================================================+\n")
+    cat("|            Experiment-Based Cycle Time Calculation                      |\n")
+    cat("+========================================================================+\n")
+    cat(sprintf("\nInstrument: %s (%s), Mode: %s\n\n",
+                base_config$name, toupper(analyzer_type), cycle_calculation))
+
+    cat(sprintf("MS1: %dK res, IT=%.1f ms -> Scan=%.1f ms\n",
+                ms1_resolution/1000, ms1_it_resolved, ms1_scan_time_ms))
+    cat(sprintf("MS2: %dK res, IT=%.1f ms -> Scan=%.1f ms (%.1f Hz)\n",
+                ms2_resolution/1000, ms2_it_resolved, ms2_scan_time_ms, theoretical_scan_rate_hz))
+    cat(sprintf("Windows: %d x %.1f ms = %.1f ms\n\n",
+                window_count, ms2_scan_time_ms, ms2_total_time_ms))
+
+    cat(sprintf(">>> CYCLE TIME = %.1f ms = %.3f sec <<<\n\n",
+                cycle_time_ms, cycle_time_sec))
+  }
 }

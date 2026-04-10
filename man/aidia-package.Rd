@@ -66,18 +66,19 @@ Also represents: "Your \strong{Aid} for DIA optimization"
 \section{m/z Optimization Strategies}{
 
 \itemize{
-\item \strong{greedy}: MacCoss Lab algorithm (recommended, with optional SG smoothing)
+\item \strong{greedy}: MacCoss Lab algorithm (recommended, WH smoothing default ON)
 \item \strong{kde}: Kernel Density Estimation for peak detection
-\item \strong{quantile}: P5-P95 percentiles (fast, robust, with optional SG smoothing)
+\item \strong{quantile}: P5-P95 percentiles (fast, robust, WH smoothing default ON)
 \item \strong{coverage}: Minimum range for target coverage
-\item \strong{outlier}: Mean +/- 3 sigma (inclusive, with optional SG smoothing)
+\item \strong{outlier}: Mean +/- 3 sigma (inclusive, WH smoothing default ON)
 }
 }
 
-\section{SG Smoothing Option}{
+\section{Boundary Smoothing}{
 
-Greedy, Quantile, and Outlier strategies support optional Savitzky-Golay
-smoothing to prevent abrupt m/z boundary jumps across RT bins.
+Greedy, Quantile, and Outlier strategies use Whittaker-Henderson (WH)
+smoothing by default to prevent abrupt m/z boundary jumps across RT bins.
+Savitzky-Golay (SG) available as an alternative via \code{smoothing_method = "sg"}.
 }
 
 \section{Window Modes}{
@@ -112,13 +113,13 @@ export_windows_to_csv(windows, "method.csv", data, plan)
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/KBSI/aidia}
-  \item Report bugs at \url{https://github.com/KBSI/aidia/issues}
+  \item \url{https://github.com/Hayoung-hiro/aidia}
+  \item Report bugs at \url{https://github.com/Hayoung-hiro/aidia/issues}
 }
 
 }
 \author{
-\strong{Maintainer}: KBSI Proteomics \email{proteomics@kbsi.re.kr}
+\strong{Maintainer}: Hayoung Lee \email{biryu32@gmail.com}
 
 }
 \keyword{internal}

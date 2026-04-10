@@ -109,12 +109,14 @@ print_info <- function(message, indent = 2) {
 #' @param na.rm Logical, remove NA values (default: TRUE)
 #'
 #' @return Named list with mean, median, sd, min, max, p25, p75
-#' @export
+#' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' data <- rnorm(1000, mean = 10, sd = 2)
 #' stats <- calculate_summary_stats(data)
 #' print(stats$mean)  # ~10
+#' }
 calculate_summary_stats <- function(x, na.rm = TRUE) {
   list(
     mean = mean(x, na.rm = na.rm),
@@ -138,7 +140,7 @@ calculate_summary_stats <- function(x, na.rm = TRUE) {
 #' @param na.rm Logical, remove NA values (default: TRUE)
 #'
 #' @return Numeric, coefficient of variation
-#' @export
+#' @keywords internal
 calculate_cv <- function(x, as_percentage = FALSE, na.rm = TRUE) {
   m <- mean(x, na.rm = na.rm)
   s <- sd(x, na.rm = na.rm)
@@ -169,7 +171,7 @@ calculate_cv <- function(x, as_percentage = FALSE, na.rm = TRUE) {
 #' @param validated_data ValidatedData object
 #'
 #' @return Tibble with precursor data
-#' @export
+#' @keywords internal
 get_precursor_data <- function(validated_data) {
   validate_input_type(validated_data, "ValidatedData", "validated_data")
 
@@ -188,7 +190,7 @@ get_precursor_data <- function(validated_data) {
 #' @param unit Character, "seconds" or "minutes" (default: "seconds")
 #'
 #' @return Numeric vector of FWHM values
-#' @export
+#' @keywords internal
 get_fwhm_values <- function(validated_data, unit = "seconds") {
   data <- get_precursor_data(validated_data)
 
@@ -246,12 +248,14 @@ seconds_to_minutes <- function(seconds) {
 #' Creates a simple timing utility for tracking execution time.
 #'
 #' @return List with start() and elapsed() functions
-#' @export
+#' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' timer <- create_timer()
 #' # ... do work ...
 #' elapsed <- timer$elapsed()  # seconds
+#' }
 create_timer <- function() {
   start_time <- Sys.time()
 
@@ -549,7 +553,7 @@ extract_before_after_metrics <- function(optimization_plan, optimized_windows) {
 #' @param file_path Character, path to input file
 #'
 #' @return Character, gradient name (e.g., "30min") or "unknown"
-#' @export
+#' @keywords internal
 extract_gradient_name <- function(file_path) {
   basename_file <- basename(file_path)
 

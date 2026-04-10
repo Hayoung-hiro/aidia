@@ -15,7 +15,7 @@
 #'
 #' @param data Data frame with RT.Apex, Precursor.Mz, FWHM columns
 #' @return List with quality_score, warnings, errors, details
-#' @export
+#' @keywords internal
 validate_data_quality <- function(data) {
 
   # Pipeline: Detection -> Validation -> Scoring

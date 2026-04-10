@@ -15,6 +15,6 @@ export_center_mass_list(optimized_windows, output_file)
 NULL (invisible), writes CSV file
 }
 \description{
-Creates a simple 4-column CSV with RT range and window center/width.
+Creates a 2-column CSV with window center mass and width.
 Compatible with various DIA method software.
 }

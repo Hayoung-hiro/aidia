@@ -13,7 +13,10 @@ List with start() and elapsed() functions
 Creates a simple timing utility for tracking execution time.
 }
 \examples{
+\dontrun{
 timer <- create_timer()
 # ... do work ...
 elapsed <- timer$elapsed()  # seconds
 }
+}
+\keyword{internal}

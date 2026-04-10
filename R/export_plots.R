@@ -23,7 +23,7 @@
 #' @param dpi Resolution in DPI (default: 300)
 #'
 #' @return Vector of file paths
-#' @export
+#' @keywords internal
 export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300) {
 
   # Use plot names directly from the list

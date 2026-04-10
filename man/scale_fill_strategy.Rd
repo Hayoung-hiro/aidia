@@ -23,3 +23,4 @@ ggplot(data, aes(x, y, fill = strategy)) +
   scale_fill_strategy()
 }
 }
+\keyword{internal}

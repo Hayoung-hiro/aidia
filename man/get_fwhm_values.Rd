@@ -17,3 +17,4 @@ Numeric vector of FWHM values
 \description{
 Extracts FWHM values and converts to seconds if needed.
 }
+\keyword{internal}
