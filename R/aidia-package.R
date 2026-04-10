@@ -1,3 +1,16 @@
+# Suppress R CMD check NOTEs for dplyr/ggplot2 non-standard evaluation
+utils::globalVariables(c(
+  ".compound", ".width", ".win_seq", "Precursor.Charge",
+  "angle_pos", "boundaries", "boundary", "charge", "ci_width",
+  "cycle", "cycle_label", "defect_end", "defect_start",
+  "facet_label", "gap", "load_ratio", "load_status",
+  "mean_count", "median_count", "median_dppp", "median_val",
+  "method", "observed", "precursor_count", "prev_end",
+  "q25", "q75", "relative_distance", "rt_bin", "rt_mid",
+  "sd_count", "temporal_density_max", "total_ci_width",
+  "xmax", "xmin", "ymax", "ymin"
+))
+
 #' AIDIA: Adaptive Isolation for DIA
 #'
 #' @description
@@ -48,16 +61,17 @@
 #'
 #' @section m/z Optimization Strategies:
 #' \itemize{
-#'   \item \strong{greedy}: MacCoss Lab algorithm (recommended, with optional SG smoothing)
+#'   \item \strong{greedy}: MacCoss Lab algorithm (recommended, WH smoothing default ON)
 #'   \item \strong{kde}: Kernel Density Estimation for peak detection
-#'   \item \strong{quantile}: P5-P95 percentiles (fast, robust, with optional SG smoothing)
+#'   \item \strong{quantile}: P5-P95 percentiles (fast, robust, WH smoothing default ON)
 #'   \item \strong{coverage}: Minimum range for target coverage
-#'   \item \strong{outlier}: Mean +/- 3 sigma (inclusive, with optional SG smoothing)
+#'   \item \strong{outlier}: Mean +/- 3 sigma (inclusive, WH smoothing default ON)
 #' }
 #'
-#' @section SG Smoothing Option:
-#' Greedy, Quantile, and Outlier strategies support optional Savitzky-Golay
-#' smoothing to prevent abrupt m/z boundary jumps across RT bins.
+#' @section Boundary Smoothing:
+#' Greedy, Quantile, and Outlier strategies use Whittaker-Henderson (WH)
+#' smoothing by default to prevent abrupt m/z boundary jumps across RT bins.
+#' Savitzky-Golay (SG) available as an alternative via \code{smoothing_method = "sg"}.
 #'
 #' @section Window Modes:
 #' \itemize{
@@ -99,6 +113,12 @@
 #' @importFrom stats median sd quantile ecdf density approx complete.cases setNames
 #' @importFrom utils read.csv write.csv read.delim head tail capture.output
 #' @importFrom grDevices pdf dev.off
+#' @importFrom tools file_ext toTitleCase
+#' @importFrom shiny runApp
+#' @importFrom bs4Dash bs4DashPage
+#' @importFrom shinyjs useShinyjs
+#' @importFrom shinybusy show_modal_spinner
+#' @importFrom DT renderDT
 #'
 #' @keywords internal
 "_PACKAGE"

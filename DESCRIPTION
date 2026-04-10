@@ -1,15 +1,17 @@
 Package: aidia
 Title: Adaptive Isolation for DIA - Your Aid for Window Optimization
-Version: 0.2.0
+Version: 0.4.0
 Authors@R:
-    person("KBSI", "Proteomics", , "proteomics@kbsi.re.kr", role = c("aut", "cre"))
+    person("Hayoung", "Lee", , "biryu32@gmail.com", role = c("aut", "cre"))
 Description: AIDIA (Adaptive Isolation for DIA) aids researchers in optimizing
     Data-Independent Acquisition isolation windows for mass spectrometry.
     Features RT-dependent adaptive m/z range optimization with 5 strategies
     (Greedy, KDE, Quantile, Coverage, Outlier), 3 window modes
-    (Variable, Fixed, Staggered), DPPP-based intelligent planning, technical
-    replicate consensus handling, and 22-column Thermo Xcalibur-compatible
-    method file export. Specifically optimized for Thermo Orbitrap instruments
+    (Variable, Fixed, Staggered), DPPP-based intelligent planning,
+    duty cycle synchronization for parallel instruments, bootstrap boundary
+    confidence intervals, 3 export formats (Thermo Xcalibur, Center Mass,
+    m/z Range), technical replicate consensus handling, and an interactive
+    Shiny dashboard. Optimized for Thermo Orbitrap instruments
     (Astral, Exploris, Fusion Lumos).
 License: MIT + file LICENSE
 Encoding: UTF-8
@@ -42,6 +44,5 @@ Suggests:
     testthat (>= 3.0.0),
     prospectr (>= 0.2.0)
 Config/testthat/edition: 3
-LazyData: true
-URL: https://github.com/KBSI/aidia
-BugReports: https://github.com/KBSI/aidia/issues
+URL: https://github.com/Hayoung-hiro/aidia
+BugReports: https://github.com/Hayoung-hiro/aidia/issues

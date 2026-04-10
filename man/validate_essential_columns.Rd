@@ -16,3 +16,4 @@ Logical, TRUE if all essential columns present (stops on error)
 Check if all essential columns are present in data.
 Used for early validation before processing.
 }
+\keyword{internal}

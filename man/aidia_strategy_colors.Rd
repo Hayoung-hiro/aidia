@@ -14,4 +14,4 @@ aidia_strategy_colors
 Named vector of 5 colors for m/z optimization strategies.
 Based on ColorBrewer/Viridis principles for accessibility.
 }
-\keyword{datasets}
+\keyword{internal}

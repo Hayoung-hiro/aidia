@@ -19,7 +19,10 @@ Computes comprehensive summary statistics for a numeric vector.
 Handles NA values gracefully and returns consistent structure.
 }
 \examples{
+\dontrun{
 data <- rnorm(1000, mean = 10, sd = 2)
 stats <- calculate_summary_stats(data)
 print(stats$mean)  # ~10
 }
+}
+\keyword{internal}

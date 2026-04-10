@@ -15,6 +15,6 @@ export_mz_range_list(optimized_windows, output_file)
 NULL (invisible), writes CSV file
 }
 \description{
-Creates a 4-column CSV with RT range and explicit m/z boundaries.
+Creates a single-column CSV with m/z start-end range pairs.
 7 decimal places for precision. Useful for method verification.
 }

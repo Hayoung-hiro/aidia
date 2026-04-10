@@ -16,3 +16,4 @@ List with quality_score, warnings, errors, details
 Pipeline-based quality validation with outlier detection, RT/m/z validation,
 and quality score calculation
 }
+\keyword{internal}

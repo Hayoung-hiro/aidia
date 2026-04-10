@@ -7,7 +7,7 @@
 quantile_config(
   lower = 0.05,
   upper = 0.95,
-  apply_smoothing = FALSE,
+  apply_smoothing = TRUE,
   smoothing_window = 7,
   polynomial_order = 3,
   smoothing_method = "whittaker",
@@ -19,7 +19,7 @@ quantile_config(
 
 \item{upper}{Numeric, upper quantile 0-1 (default: 0.95)}
 
-\item{apply_smoothing}{Logical, apply boundary smoothing (default: FALSE)}
+\item{apply_smoothing}{Logical, apply boundary smoothing (default: TRUE)}
 
 \item{smoothing_window}{Integer, SG window size (default: 7). Only used when smoothing_method = "sg".}
 

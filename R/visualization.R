@@ -420,7 +420,7 @@ generate_visualizations <- function(
 #' @param optimized_windows OptimizedWindows object from Stage 3
 #'
 #' @return List of summary statistics
-#' @export
+#' @keywords internal
 calculate_summary_statistics <- function(validated_data, optimization_plan, optimized_windows) {
 
   windows <- optimized_windows$windows

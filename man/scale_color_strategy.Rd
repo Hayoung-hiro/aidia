@@ -23,3 +23,4 @@ ggplot(data, aes(x, y, color = strategy)) +
   scale_color_strategy()
 }
 }
+\keyword{internal}

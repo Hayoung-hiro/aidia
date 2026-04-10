@@ -14,4 +14,4 @@ aidia_charge_colors
 5-color vector for charge state visualizations.
 Based on the AIDIA palette for visual consistency.
 }
-\keyword{datasets}
+\keyword{internal}

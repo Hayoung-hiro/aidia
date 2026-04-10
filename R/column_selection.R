@@ -20,7 +20,7 @@
 #' RT.Apex is computed in Stage 1 as midpoint of RT.Start and RT.Stop.
 #' All downstream stages use RT.Apex as the single RT reference.
 #'
-#' @export
+#' @keywords internal
 ESSENTIAL_COLUMNS <- c(
   "Precursor.Id",      # Unique identifier (required for tracking)
   "RT.Apex",           # Midpoint of RT.Start and RT.Stop (computed in Stage 1)
@@ -34,7 +34,7 @@ ESSENTIAL_COLUMNS <- c(
 #' These columns are created in Stage 1 if technical replicates are present.
 #' Keep them if available for QC reporting.
 #'
-#' @export
+#' @keywords internal
 QC_COLUMNS <- c(
   "Precursor.Charge",  # Charge state (visualization: FWHM by charge, optional)
   "Precursor.Quantity",  # Median intensity across replicates (for reference)
@@ -63,7 +63,7 @@ QC_COLUMNS <- c(
 #' @param verbose Logical, print column selection summary? (default: TRUE)
 #'
 #' @return Tibble with selected columns only
-#' @export
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{
@@ -154,7 +154,7 @@ select_essential_columns <- function(data, verbose = TRUE) {
 #' @param data Tibble to check
 #'
 #' @return Logical, TRUE if all essential columns present (stops on error)
-#' @export
+#' @keywords internal
 validate_essential_columns <- function(data) {
 
   available_columns <- colnames(data)

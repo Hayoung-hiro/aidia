@@ -19,3 +19,4 @@ Numeric, coefficient of variation
 \description{
 CV = SD / Mean, expressed as a proportion or percentage.
 }
+\keyword{internal}

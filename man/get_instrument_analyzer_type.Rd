@@ -15,3 +15,4 @@ Character, analyzer type (e.g., "orbitrap", "astral")
 \description{
 Returns the analyzer_type field from the instrument configuration.
 }
+\keyword{internal}

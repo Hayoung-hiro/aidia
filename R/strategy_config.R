@@ -41,6 +41,19 @@ greedy_config <- function(auto_windows = TRUE,
                           polynomial_order = 3,
                           smoothing_method = "whittaker",
                           whittaker_lambda = 10) {
+  validate_numeric_range(mz_step, min = 0.01, param_name = "mz_step")
+  if (!auto_windows && !is.null(n_windows)) {
+    validate_positive_integer(n_windows, param_name = "n_windows")
+  }
+  if (!smoothing_method %in% c("whittaker", "sg")) {
+    stop("smoothing_method must be 'whittaker' or 'sg'")
+  }
+  if (smoothing_method == "sg") {
+    validate_positive_integer(smoothing_window, param_name = "smoothing_window")
+    if (smoothing_window < 3 || smoothing_window %% 2 == 0) {
+      stop("smoothing_window must be odd and >= 3")
+    }
+  }
   structure(
     list(
       strategy = "greedy",

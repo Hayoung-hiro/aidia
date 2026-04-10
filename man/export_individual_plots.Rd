@@ -21,3 +21,4 @@ Vector of file paths
 \description{
 Exports each plot in the list to individual files with the specified format.
 }
+\keyword{internal}

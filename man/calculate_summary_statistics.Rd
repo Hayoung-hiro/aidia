@@ -23,3 +23,4 @@ List of summary statistics
 \description{
 Calculate Summary Statistics
 }
+\keyword{internal}

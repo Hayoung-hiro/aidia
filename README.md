@@ -4,7 +4,7 @@
 
 **Your Adaptive Aid for DIA Optimization**
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/Hayoung-hiro/aidia)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](https://github.com/Hayoung-hiro/aidia)
 [![R](https://img.shields.io/badge/R-%3E%3D%204.0.0-brightgreen.svg)](https://www.r-project.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -26,14 +26,15 @@ AIDIA aids researchers in optimizing DIA isolation windows through intelligent, 
 
 ## ✨ Key Features
 
-- 🎯 **5 Optimization Strategies**: Greedy, KDE, Quantile, Coverage, Outlier (with optional SG smoothing)
+- 🎯 **5 Optimization Strategies**: Greedy, KDE, Quantile, Coverage, Outlier
 - 📊 **3 Window Modes**: Variable (Density), Fixed, Staggered
 - 🔧 **Multi-Instrument Support**: Astral, Exploris, Orbitrap, TimsTOF
-- 📁 **22-Column Thermo Format**: Direct import to Xcalibur
+- 📁 **3 Export Formats**: Thermo 22-column CSV, Center Mass list, m/z Range list
 - 🧬 **Technical Replicate Handling**: Consensus-based with geometric CV filtering
-- ⚡ **High Performance**: Vectorized operations, 50-100× faster matching
+- ⚡ **Duty Cycle Sync**: Sync-optimal window count for parallel instruments (Astral)
 - 📈 **DPPP-Based Planning**: Quant mode (7.0) or ID mode (1.5)
-- 📉 **Savitzky-Golay Smoothing**: Smooth m/z boundaries across RT bins
+- 📉 **Boundary Smoothing**: Whittaker-Henderson (default) with optional Savitzky-Golay
+- 🔬 **Bootstrap CI**: Boundary uncertainty estimation via stratified resampling
 
 ---
 
@@ -77,15 +78,15 @@ aidia::run_aidia_app()
 
 ## 🎯 Optimization Strategies
 
-| Strategy | Algorithm | SG Smoothing | Use Case |
-|----------|-----------|--------------|----------|
-| **Greedy** | MacCoss Lab sliding | ✅ Optional | Recommended, maximize coverage |
+| Strategy | Algorithm | Smoothing | Use Case |
+|----------|-----------|-----------|----------|
+| **Greedy** | MacCoss Lab sliding | ✅ WH (default ON) | Recommended, maximize coverage |
 | **KDE** | Kernel Density Estimation | ❌ N/A | Peak-based optimization |
-| **Quantile** | P5-P95 percentiles | ✅ Optional | Fast, robust |
+| **Quantile** | P5-P95 percentiles | ✅ WH (default ON) | Fast, robust |
 | **Coverage** | Min range for target % | ❌ N/A | Discovery, comprehensive |
-| **Outlier** | Mean ± 3σ | ✅ Optional | High-throughput, inclusive |
+| **Outlier** | Mean ± 3σ | ✅ WH (default ON) | High-throughput, inclusive |
 
-> **SG Smoothing**: Savitzky-Golay smoothing prevents abrupt m/z boundary jumps across RT bins.
+> **Boundary Smoothing**: Whittaker-Henderson (WH) smoothing prevents abrupt m/z boundary jumps across RT bins. Savitzky-Golay (SG) available as an alternative.
 
 ### Window Modes
 
@@ -230,6 +231,6 @@ MIT License - See [LICENSE](LICENSE)
 
 *Aiding your DIA experiments*
 
-**Version 0.1.0**
+**Version 0.4.0**
 
 </div>

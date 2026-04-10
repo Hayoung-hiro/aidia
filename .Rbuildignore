@@ -25,3 +25,11 @@
 ^tests/manual$
 ^tests/manual/
 ^tests/test_cycle_time_calc\.R$
+^\.omc$
+^\.omc/
+^logo.*\.(jpg|png)$
+^screenshots$
+^screenshots/
+^setup\.R$
+^docs$
+^docs/

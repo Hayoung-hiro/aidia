@@ -13,4 +13,4 @@ aidia_colors
 \description{
 Used for non-strategy elements (text, backgrounds, annotations)
 }
-\keyword{datasets}
+\keyword{internal}

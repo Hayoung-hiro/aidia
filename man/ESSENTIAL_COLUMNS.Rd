@@ -23,4 +23,4 @@ Based on actual usage analysis across all stages:
 RT.Apex is computed in Stage 1 as midpoint of RT.Start and RT.Stop.
 All downstream stages use RT.Apex as the single RT reference.
 }
-\keyword{datasets}
+\keyword{internal}
