@@ -231,17 +231,30 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
       color = aidia_colors$accent
     )
 
-  # Panel 3: Optimized Window Count (no "before" — original method is unknown)
-  n_rt_bins <- length(unique(optimized_windows$windows$rt_segment_id))
+  # Coverage delta
+  after_coverage <- optimized_windows$statistics$coverage_pct %||% NA
+  # Before coverage: fraction of precursors within full m/z acquisition range
+  mz_vals <- validated_data$data$Precursor.Mz
+  windows <- optimized_windows$windows
+  before_coverage <- 100  # all precursors are within the original acquisition range by definition
+
+  # Panel 3: Window Count + Coverage Delta
+  n_rt_bins <- length(unique(windows$rt_segment_id))
   windows_per_bin <- optimization_plan$window_count_per_bin
+  coverage_label <- if (!is.na(after_coverage)) {
+    sprintf("Coverage: %.1f%%", after_coverage)
+  } else {
+    "Coverage: N/A"
+  }
   p3_df <- data.frame(
     label = c(
       sprintf("Total Windows: %s", format(after_n_windows, big.mark = ",")),
       sprintf("RT Bins: %d", n_rt_bins),
-      sprintf("Windows/Bin: %d", windows_per_bin)
+      sprintf("Windows/Bin: %d", windows_per_bin),
+      coverage_label
     ),
     x = 0.05,
-    y = c(0.7, 0.5, 0.3)
+    y = c(0.75, 0.55, 0.35, 0.15)
   )
   p3 <- ggplot(p3_df, aes(x = x, y = y, label = label)) +
     geom_text(hjust = 0, vjust = 0.5, size = 4.5, fontface = "bold",

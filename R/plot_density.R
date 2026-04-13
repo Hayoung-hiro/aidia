@@ -25,13 +25,15 @@
 #' @keywords internal
 plot_rt_mz_density_heatmap <- function(validated_data, bins = 150) {
 
-  cat("  Generating RT x m/z Density Heatmap...\n")
+  cat("  Generating RT x m/z Heatmap...\n")
 
-  # Extract precursor data
-  precursor_data <- validated_data$data %>%
-    select(RT.Apex, Precursor.Mz)
+  precursor_data <- validated_data$data
+  mz_range <- range(precursor_data$Precursor.Mz)
+  rt_range <- range(precursor_data$RT.Apex)
+  n_label <- format(nrow(precursor_data), big.mark = ",")
 
-  # Create 2D density heatmap
+  # KDE heatmap — matches S5 boundary grid style for visual continuity
+  # S1: "here is the bottleneck" → S5: "here is the solution (green boundaries)"
   p <- ggplot(precursor_data, aes(x = RT.Apex, y = Precursor.Mz)) +
     stat_density_2d(
       aes(fill = after_stat(density)),
@@ -39,19 +41,132 @@ plot_rt_mz_density_heatmap <- function(validated_data, bins = 150) {
       contour = FALSE,
       n = bins
     ) +
-    scale_fill_viridis_c(option = "plasma", name = "Density") +
+    scale_fill_viridis_c(
+      option = "inferno",
+      name = "Density",
+      guide = guide_colorbar(
+        barwidth = 1.2, barheight = 12,
+        title.position = "top"
+      )
+    ) +
     labs(
       title = "Precursor Density Distribution",
-      subtitle = sprintf("%s precursors analyzed",
-                        format(nrow(precursor_data), big.mark = ",")),
+      subtitle = sprintf(
+        "%s precursors | m/z %.0f\u2013%.0f Da | RT %.1f\u2013%.1f min",
+        n_label, mz_range[1], mz_range[2], rt_range[1], rt_range[2]
+      ),
       x = "Retention Time (min)",
-      y = "Precursor m/z (Da)",
-      caption = "Bright regions = high precursor concentration"
+      y = "m/z (Da)",
+      caption = "Bright regions = high precursor density | See Section 5 for optimized boundary overlay"
     ) +
     theme_aidia()
 
   return(p)
 }
+
+
+#' Plot 3D Precursor Intensity Surface
+#'
+#' Creates a 3D perspective plot showing summed precursor intensity as a
+#' surface above the RT x m/z plane. Complements the 2D density heatmap:
+#' - 2D heatmap (01a) shows WHERE precursors are concentrated (count)
+#' - 3D surface (01b) shows WHERE valuable signal is concentrated (intensity)
+#'
+#' Uses binned aggregation of Precursor.Quantity per RT x m/z grid cell.
+#' Falls back to count density if Precursor.Quantity is unavailable.
+#'
+#' @param validated_data ValidatedData object from Stage 1
+#' @param n_grid Number of grid points per axis (default: 60)
+#' @param theta Viewing angle (azimuth) in degrees (default: 35)
+#' @param phi Viewing angle (elevation) in degrees (default: 25)
+#' @return Invisible NULL (renders directly to device via plot3D::persp3D)
+#' @keywords internal
+plot_rt_mz_intensity_surface <- function(validated_data, n_grid = 50,
+                                         theta = -50, phi = 30) {
+
+  cat("  Generating 3D Intensity Surface (plot3D)...\n")
+
+  if (!requireNamespace("plot3D", quietly = TRUE)) {
+    stop("plot3D package is required. Install with: install.packages('plot3D')")
+  }
+
+  precursor_data <- validated_data$data
+  rt <- precursor_data$RT.Apex
+  mz <- precursor_data$Precursor.Mz
+  n_precursors <- format(nrow(precursor_data), big.mark = ",")
+
+  has_intensity <- "Precursor.Quantity" %in% names(precursor_data) &&
+    !all(is.na(precursor_data$Precursor.Quantity))
+
+  # Log-transform intensity at precursor level (MATLAB convention)
+  if (has_intensity) {
+    log_z <- log10(precursor_data$Precursor.Quantity + 1)
+    z_label <- "Summed Intensity"
+    main_title <- sprintf("Precursor Intensity Landscape (%s precursors)", n_precursors)
+  } else {
+    log_z <- rep(1, length(rt))  # uniform weight for count-based
+    z_label <- "Count"
+    main_title <- sprintf("Precursor Density Landscape (%s precursors)", n_precursors)
+  }
+
+  # Grid interpolation: scattered precursors → regular surface (MATLAB surf style)
+  if (requireNamespace("akima", quietly = TRUE)) {
+    grid_out <- akima::interp(
+      x = mz, y = rt, z = log_z,
+      nx = n_grid, ny = n_grid,
+      linear = TRUE
+    )
+    mz_grid <- grid_out$x
+    rt_grid <- grid_out$y
+    z_plot <- grid_out$z
+    # Replace NA (no data regions) with 0
+    z_plot[is.na(z_plot)] <- 0
+  } else {
+    # Fallback: binning (if akima not available)
+    mz_breaks <- seq(min(mz), max(mz), length.out = n_grid + 1)
+    rt_breaks <- seq(min(rt), max(rt), length.out = n_grid + 1)
+    mz_grid <- (mz_breaks[-1] + mz_breaks[-(n_grid + 1)]) / 2
+    rt_grid <- (rt_breaks[-1] + rt_breaks[-(n_grid + 1)]) / 2
+    mz_bin <- findInterval(mz, mz_breaks, all.inside = TRUE)
+    rt_bin <- findInterval(rt, rt_breaks, all.inside = TRUE)
+    z_plot <- matrix(0, nrow = n_grid, ncol = n_grid)
+    for (i in seq_along(mz_bin)) {
+      z_plot[mz_bin[i], rt_bin[i]] <- z_plot[mz_bin[i], rt_bin[i]] + log_z[i]
+    }
+  }
+
+  old_par <- par(mar = c(2, 2, 3, 4), bg = "white")
+  on.exit(par(old_par), add = TRUE)
+
+  # MATLAB surf() style: continuous surface, x=m/z, y=RT, z=log10(intensity)
+  plot3D::persp3D(
+    x = mz_grid, y = rt_grid, z = z_plot,
+    colvar = z_plot,
+    col = plot3D::jet.col(256),
+    colkey = list(side = 4, length = 0.6, width = 0.8,
+                  cex.axis = 0.8, cex.clab = 0.9),
+    theta = theta, phi = phi,
+    shade = 0.3,
+    border = NA,
+    facets = TRUE,
+    expand = 0.5,
+    bty = "b2",
+    xlab = "m/z (Da)",
+    ylab = "RT (min)",
+    zlab = sprintf("log10(%s)", z_label),
+    main = main_title,
+    cex.main = 1.1,
+    font.main = 2,
+    ticktype = "detailed",
+    cex.axis = 0.7,
+    cex.lab = 0.85,
+    NAcol = "transparent"
+  )
+
+  invisible(NULL)
+}
+
+
 
 # =============================================================================
 # Plot 2C: RT x m/z Density Heatmap with Optimized Window Overlay

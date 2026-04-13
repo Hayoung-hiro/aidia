@@ -98,9 +98,13 @@ generate_visualizations <- function(
   cat("  Generating Plot 1B+6: DPPP & Satisfaction Combined (legacy)...\n")
   plots$`plot1b_dppp_satisfaction_combined` <- plot_dppp_satisfaction_combined(optimization_plan, validated_data)
 
-  # Plot 2: RT x m/z Density Heatmap
-  cat("  Generating Plot 2: RT x m/z Density Heatmap...\n")
+  # Plot 2: RT x m/z Intensity/Density Heatmap
+  cat("  Generating Plot 2: RT x m/z Heatmap...\n")
   plots$`plot2_rt_mz_density_heatmap` <- plot_rt_mz_density_heatmap(validated_data)
+
+  # Plot 6: Satisfaction vs Cycle Time Curve
+  cat("  Generating Plot 6: Satisfaction Curve...\n")
+  plots$`plot6_satisfaction_curve` <- plot_satisfaction_curve(optimization_plan, validated_data)
 
   # Plot 2B: RT Histogram (supplementary — kept for individual export, removed from PDF)
   cat("  Generating Plot 2B: RT Histogram...\n")
@@ -212,11 +216,13 @@ generate_visualizations <- function(
   # Plot 12-14: Window Verification (Tiling, Alignment, FZ Zoom)
   # ===================================================================
 
-  # Plot 12: Tiling Coverage Map
-  cat("  Generating Plot 12: Tiling Coverage Map (Window Verification)...\n")
-  plots$`plot12_tiling_coverage_map` <- plot_tiling_coverage_map(
-    optimized_windows, validated_data
-  )
+  # Plot 12: Tiling Coverage Map (staggered mode only — shows cycle interleaving)
+  if (identical(optimized_windows$parameters$window_mode, "staggered")) {
+    cat("  Generating Plot 12: Tiling Coverage Map (Staggered Interleaving)...\n")
+    plots$`plot12_tiling_coverage_map` <- plot_tiling_coverage_map(
+      optimized_windows, validated_data
+    )
+  }
 
   # Plot 13: Alignment Density
   cat("  Generating Plot 13: Alignment Density (Precursor-Window Alignment)...\n")

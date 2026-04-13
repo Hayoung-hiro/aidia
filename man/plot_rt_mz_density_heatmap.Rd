@@ -4,7 +4,7 @@
 \alias{plot_rt_mz_density_heatmap}
 \title{Plot Precursor Density Distribution}
 \usage{
-plot_rt_mz_density_heatmap(validated_data, bins = 150)
+plot_rt_mz_density_heatmap(validated_data, bins = 150, use_intensity = TRUE)
 }
 \arguments{
 \item{validated_data}{ValidatedData object from Stage 1}

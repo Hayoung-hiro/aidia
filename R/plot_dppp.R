@@ -573,67 +573,168 @@ plot_dppp_diagnosis_table <- function(optimization_plan, validated_data) {
   fwhm_sec <- inputs$fwhm_data$FWHM_sec
   target_dppp <- inputs$target_dppp
   current_ct <- inputs$current_cycle_time
-  required_ct <- inputs$required_cycle_time
+  # Use actual cycle time (what the user will experience) instead of
+  # DPPP-required cycle time. For sequential instruments these are ~equal;
+  # for parallel (Astral), actual << required because sync constrains first.
+  planned_ct <- optimization_plan$actual_cycle_time_sec
 
-  # Calculate metrics at both operating points (compute each DPPP vector once)
-  km <- compute_dppp_key_metrics(fwhm_sec, current_ct, required_ct, target_dppp)
-  current_dppp  <- km$current_dppp
-  required_dppp <- km$required_dppp
-  current_sat   <- km$current_sat
-  required_sat  <- km$required_sat
+  # If current CT was auto-estimated (not user-provided), suppress Current column
+  ct_is_estimated <- optimization_plan$diagnosis$current_ct_is_estimated %||% FALSE
+  has_current <- !ct_is_estimated
+
+  if (has_current) {
+    km <- compute_dppp_key_metrics(fwhm_sec, current_ct, planned_ct, target_dppp)
+    current_dppp <- km$current_dppp
+    current_sat  <- km$current_sat
+  }
+  # Planned metrics (always computed)
+  dppp_planned <- calculate_dppp(fwhm_sec, planned_ct)
+  planned_dppp <- median(dppp_planned, na.rm = TRUE)
+  planned_sat  <- dppp_satisfaction_pct(dppp_planned, target_dppp)
 
   target_satisfaction <- (optimization_plan$parameters$target_satisfaction %||% 0.7) * 100
   n_precursors <- length(fwhm_sec)
   median_fwhm  <- median(fwhm_sec, na.rm = TRUE)
   window_count <- optimization_plan$window_count_per_bin
 
-  # Build table data
-  table_data <- data.frame(
-    Metric = c(
-      "Cycle Time (sec)",
-      "Median DPPP",
-      sprintf("Satisfaction (DPPP >= %.1f)", target_dppp),
-      "Windows per RT Bin"
-    ),
-    Current = c(
-      sprintf("%.2f", current_ct),
-      sprintf("%.1f", current_dppp),
-      sprintf("%.1f%%", current_sat),
-      "\u2014"
-    ),
-    Required = c(
-      sprintf("%.2f", required_ct),
-      sprintf("%.1f", required_dppp),
-      sprintf("%.1f%%", required_sat),
-      as.character(window_count)
-    ),
-    Target = c(
-      "\u2014",
-      sprintf(">= %.1f", target_dppp),
-      sprintf(">= %.0f%%", target_satisfaction),
-      "\u2014"
-    ),
-    stringsAsFactors = FALSE
-  )
+  # ---- Helper: build a styled tableGrob with dark header + alternating rows ----
+  make_table_grob <- function(df, fontsize_core = 11, fontsize_head = 12,
+                              verdict_col = NULL) {
+    n_r <- nrow(df)
+    n_c <- ncol(df)
 
-  # Verdict column
-  table_data$Verdict <- c(
-    ifelse(required_ct <= current_ct, "Feasible", "Needs longer CT"),
-    ifelse(required_dppp >= target_dppp, "Met", "Not met"),
-    ifelse(required_sat >= target_satisfaction, "Met", "Not met"),
+    # Default foreground: primary color for all cells
+    fg_matrix <- matrix(aidia_colors$primary, nrow = n_r, ncol = n_c)
+
+    # Color-code verdict column if specified
+    if (!is.null(verdict_col) && verdict_col <= n_c) {
+      fg_matrix[, verdict_col] <- vapply(df[[verdict_col]], function(v) {
+        if (grepl("Met|Feasible|Pass", v)) aidia_colors$success
+        else if (nchar(trimws(v)) == 0) aidia_colors$primary
+        else aidia_colors$accent
+      }, character(1), USE.NAMES = FALSE)
+    }
+
+    fontface_matrix <- matrix("plain", nrow = n_r, ncol = n_c)
+    if (!is.null(verdict_col) && verdict_col <= n_c) {
+      fontface_matrix[, verdict_col] <- "bold"
+    }
+
+    gridExtra::tableGrob(
+      df, rows = NULL,
+      theme = gridExtra::ttheme_minimal(
+        core = list(
+          fg_params = list(fontsize = fontsize_core, col = fg_matrix,
+                            fontface = fontface_matrix,
+                            hjust = 0, x = 0.05),
+          bg_params = list(
+            fill = rep(c("white", aidia_colors$grid), length.out = n_r),
+            col = aidia_colors$grid, lwd = 0.5
+          )
+        ),
+        colhead = list(
+          fg_params = list(fontsize = fontsize_head, col = "white",
+                            fontface = "bold", hjust = 0, x = 0.05),
+          bg_params = list(fill = aidia_colors$primary, col = "white", lwd = 1)
+        )
+      )
+    )
+  }
+
+  # ---- Table 1: DPPP Diagnosis ----
+  plan <- optimization_plan
+  is_parallel <- (plan$instrument$cycle_mode %||% "sequential") == "parallel"
+
+  metrics <- c("Cycle Time (sec)", "Median DPPP",
+               sprintf("Satisfaction (DPPP >= %.1f)", target_dppp),
+               "Windows per RT Bin")
+  dash <- "\u2014"
+  if (has_current) {
+    currents <- c(sprintf("%.2f", current_ct), sprintf("%.1f", current_dppp),
+                  sprintf("%.1f%%", current_sat), dash)
+  } else {
+    currents <- rep(dash, 4)
+  }
+  planneds <- c(sprintf("%.2f", planned_ct), sprintf("%.1f", planned_dppp),
+                sprintf("%.1f%%", planned_sat), as.character(window_count))
+  targets  <- c(dash, sprintf(">= %.1f", target_dppp),
+                sprintf(">= %.0f%%", target_satisfaction), dash)
+  verdicts <- c(
+    if (has_current) ifelse(planned_ct <= current_ct, "Feasible", "Needs longer CT") else "",
+    ifelse(planned_dppp >= target_dppp, "Met", "Not met"),
+    ifelse(planned_sat >= target_satisfaction, "Met", "Not met"),
     ""
   )
 
-  # Create styled table grob
-  table_grob <- gridExtra::tableGrob(
-    table_data,
-    rows = NULL,
+  # Duty cycle row for parallel instruments
+  if (is_parallel && !is.null(plan$duty_cycle_sync)) {
+    sync <- plan$duty_cycle_sync
+    sync_label <- if (sync$duty_cycle_pct >= 99.5) "synced"
+                  else if (sync$duty_cycle_pct >= 95) "near-sync"
+                  else "suboptimal"
+    metrics  <- c(metrics, "Duty Cycle")
+    currents <- c(currents, "\u2014")
+    planneds <- c(planneds, sprintf("%.1f%%", sync$duty_cycle_pct))
+    targets  <- c(targets, "\u2014")
+    verdicts <- c(verdicts, tools::toTitleCase(sync_label))
+  }
+
+  dppp_data <- data.frame(
+    Metric = metrics, Current = currents, Planned = planneds,
+    Target = targets, Verdict = verdicts, stringsAsFactors = FALSE
+  )
+
+  dppp_grob <- make_table_grob(dppp_data, verdict_col = 5)
+
+  # ---- Table 2: Instrument Configuration (user-input params only) ----
+  inst_name <- plan$instrument$name %||% plan$instrument$preset %||% "Unknown"
+  cycle_mode <- plan$instrument$cycle_mode %||% "sequential"
+  ms2_res <- plan$instrument$ms2_resolution
+
+  config_params <- c("Instrument", "Acquisition Mode", "MS2 Resolution")
+  config_values <- c(
+    inst_name,
+    tools::toTitleCase(cycle_mode),
+    if (!is.null(ms2_res)) format(ms2_res, big.mark = ",") else "\u2014"
+  )
+
+  # Feasibility verdict
+  feasible <- plan$feasibility$is_feasible %||% TRUE
+  feasibility_detail <- if (feasible) {
+    "Pass"
+  } else {
+    checks <- c(
+      if (!(plan$feasibility$cycle_time_ok %||% TRUE)) "cycle time" else NULL,
+      if (!(plan$feasibility$scan_rate_ok %||% TRUE)) "scan rate" else NULL,
+      if (!(plan$feasibility$window_range_ok %||% TRUE)) "window range" else NULL
+    )
+    paste("Fail:", paste(checks, collapse = ", "))
+  }
+  config_params <- c(config_params, "Feasibility")
+  config_values <- c(config_values, feasibility_detail)
+
+  config_data <- data.frame(
+    Parameter = config_params,
+    Value = config_values,
+    stringsAsFactors = FALSE
+  )
+
+  # Color feasibility and sync values
+  n_cfg <- nrow(config_data)
+  cfg_fg <- matrix(aidia_colors$primary, nrow = n_cfg, ncol = 2)
+  for (i in seq_len(n_cfg)) {
+    v <- config_data$Value[i]
+    if (grepl("^Pass", v)) cfg_fg[i, 2] <- aidia_colors$success
+    else if (grepl("^Fail", v)) cfg_fg[i, 2] <- aidia_colors$accent
+  }
+
+  config_grob <- gridExtra::tableGrob(
+    config_data, rows = NULL,
     theme = gridExtra::ttheme_minimal(
       core = list(
-        fg_params = list(fontsize = 11, col = aidia_colors$primary,
-                          hjust = 0, x = 0.05),
+        fg_params = list(fontsize = 11, col = cfg_fg, hjust = 0, x = 0.05),
         bg_params = list(
-          fill = c(rep(c("white", aidia_colors$grid), length.out = nrow(table_data))),
+          fill = rep(c("white", aidia_colors$grid), length.out = n_cfg),
           col = aidia_colors$grid, lwd = 0.5
         )
       ),
@@ -645,7 +746,7 @@ plot_dppp_diagnosis_table <- function(optimization_plan, validated_data) {
     )
   )
 
-  # Wrap in a page with title and context
+  # ---- Assemble full page ----
   title_grob <- grid::textGrob(
     "Acquisition Diagnosis",
     gp = grid::gpar(fontsize = 18, fontface = "bold", col = aidia_colors$primary)
@@ -659,13 +760,17 @@ plot_dppp_diagnosis_table <- function(optimization_plan, validated_data) {
   )
 
   # Direction note
-  ct_change <- required_ct - current_ct
-  direction_text <- if (ct_change < 0) {
-    sprintf("Cycle time must decrease by %.2f sec (%.0f%%) to meet targets",
-            abs(ct_change), abs(ct_change) / current_ct * 100)
+  if (has_current) {
+    ct_change <- planned_ct - current_ct
+    direction_text <- if (ct_change < 0) {
+      sprintf("Planned cycle time: %.2f sec (%.0f%% reduction from current %.2f sec)",
+              planned_ct, abs(ct_change) / current_ct * 100, current_ct)
+    } else {
+      sprintf("Targets already met at current settings (%.2f sec)", current_ct)
+    }
   } else {
-    sprintf("Cycle time can increase by %.2f sec -- targets already met at current settings",
-            ct_change)
+    direction_text <- sprintf("Planned cycle time: %.2f sec | %d windows per RT bin",
+                              planned_ct, window_count)
   }
   direction_grob <- grid::textGrob(
     direction_text,
@@ -675,11 +780,15 @@ plot_dppp_diagnosis_table <- function(optimization_plan, validated_data) {
   combined <- gridExtra::arrangeGrob(
     title_grob,
     subtitle_grob,
-    table_grob,
+    dppp_grob,
     direction_grob,
+    grid::textGrob("Instrument Configuration",
+                   gp = grid::gpar(fontsize = 14, fontface = "bold",
+                                   col = aidia_colors$primary)),
+    config_grob,
     ncol = 1,
-    heights = grid::unit(c(1.2, 0.8, 4, 0.8), "null"),
-    padding = grid::unit(1, "lines")
+    heights = grid::unit(c(1.0, 0.6, 3.5, 0.6, 0.8, 2.5), "null"),
+    padding = grid::unit(0.8, "lines")
   )
 
   return(combined)

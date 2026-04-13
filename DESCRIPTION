@@ -42,7 +42,11 @@ Imports:
     DT (>= 0.28)
 Suggests:
     testthat (>= 3.0.0),
-    prospectr (>= 0.2.0)
+    prospectr (>= 0.2.0),
+    hexbin,
+    MASS,
+    plot3D,
+    akima
 Config/testthat/edition: 3
 URL: https://github.com/Hayoung-hiro/aidia
 BugReports: https://github.com/Hayoung-hiro/aidia/issues

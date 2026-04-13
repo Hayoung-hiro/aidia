@@ -284,7 +284,15 @@ create_timer <- function() {
 #' @return S3 object
 #' @keywords internal
 create_s3_object <- function(data, class_name) {
-  structure(data, class = c(class_name, "list"))
+  obj <- structure(data, class = c(class_name, "list"))
+
+  # Auto-validate if a validator exists for this class
+  validator_fn <- paste0("validate_", class_name)
+  if (exists(validator_fn, mode = "function")) {
+    get(validator_fn)(obj)
+  }
+
+  obj
 }
 
 

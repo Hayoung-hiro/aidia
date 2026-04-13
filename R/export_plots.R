@@ -312,6 +312,108 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
 
 
 # =============================================================================
+# Data Quality Score Panel (Section 1 text block)
+# =============================================================================
+
+#' Draw Data Summary Table on PDF
+#'
+#' Clean tableGrob showing dataset statistics and quality score breakdown.
+#' Replaces the old text-based quality panel.
+#'
+#' @keywords internal
+.draw_data_quality_summary <- function(validated_data) {
+  grid::grid.newpage()
+
+  data <- validated_data$data
+  meta <- validated_data$metadata
+  vs <- validated_data$validation_status
+  fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
+
+  # Raw precursor count (before consensus)
+  n_raw <- meta$n_precursors_before %||% meta$n_precursors %||% nrow(data)
+  n_runs <- meta$n_runs %||% 1L
+  n_final <- nrow(data)
+
+  # FWHM outlier percentage
+  qd <- vs$quality_details %||% vs$details
+  fwhm_outlier_pct <- if (!is.null(qd$fwhm_outliers)) {
+    qd$fwhm_outliers$pct_outliers * 100
+  } else 0
+
+  # Build table
+  table_data <- data.frame(
+    Metric = c(
+      "Raw Precursors",
+      "Replicates",
+      "Consensus Precursors",
+      "m/z Range",
+      "RT Range",
+      "Median FWHM",
+      "Mean FWHM",
+      "FWHM Outliers"
+    ),
+    Value = c(
+      format(n_raw, big.mark = ","),
+      as.character(n_runs),
+      sprintf("%s (CV <= 30%%, filtered %s)",
+              format(n_final, big.mark = ","),
+              format(meta$n_filtered_cv %||% 0, big.mark = ",")),
+      sprintf("%.1f \u2013 %.1f Da",
+              min(data$Precursor.Mz), max(data$Precursor.Mz)),
+      sprintf("%.1f \u2013 %.1f min",
+              min(data$RT.Apex), max(data$RT.Apex)),
+      sprintf("%.1f sec", median(fwhm_sec)),
+      sprintf("%.1f sec", mean(fwhm_sec)),
+      sprintf("%.1f%%", fwhm_outlier_pct)
+    ),
+    stringsAsFactors = FALSE
+  )
+
+  n_r <- nrow(table_data)
+
+  table_grob <- gridExtra::tableGrob(
+    table_data,
+    rows = NULL,
+    theme = gridExtra::ttheme_minimal(
+      core = list(
+        fg_params = list(fontsize = 12, col = "black",
+                          hjust = 0, x = 0.05),
+        bg_params = list(
+          fill = rep(c("white", "gray95"), length.out = n_r),
+          col = "gray85", lwd = 0.5
+        )
+      ),
+      colhead = list(
+        fg_params = list(fontsize = 13, col = "white", fontface = "bold",
+                          hjust = 0, x = 0.05),
+        bg_params = list(fill = "gray20", col = "white", lwd = 1)
+      )
+    )
+  )
+
+  title_grob <- grid::textGrob(
+    "Data Summary",
+    gp = grid::gpar(fontsize = 18, fontface = "bold", col = "black")
+  )
+
+  combined <- gridExtra::arrangeGrob(
+    title_grob,
+    table_grob,
+    ncol = 1,
+    heights = grid::unit(c(1, 6), "null"),
+    padding = grid::unit(1, "lines")
+  )
+
+  grid::grid.draw(combined)
+}
+
+# =============================================================================
+# Instrument Metadata Footer (Section 2 text block)
+# =============================================================================
+
+#' Draw Instrument Metadata on PDF
+#' @keywords internal
+# =============================================================================
 # Create PDF Report (Structured)
 # =============================================================================
 
@@ -320,15 +422,15 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
 #' Creates a professionally structured AIDIA optimization report with
 #' cover page, parameter summary, and logically grouped plot sections.
 #'
-#' Report Structure (narrative-driven decision flow):
+#' Report Structure (5-section narrative):
 #'   Cover Page (AIDIA branding + key metrics)
 #'   Executive Summary (target-oriented scorecard with verdict)
 #'   Configuration Summary (parameter table)
-#'   S1. Input Data Characterization (heatmap, FWHM, charge)
-#'   S2. Acquisition Diagnosis (DPPP enhanced, distribution, satisfaction)
-#'   S3. Optimized Window Layout (Gantt, density overlay, load balance)
-#'   S4. Optimization Validation (impact summary, edge proximity, FZ zoom)
-#'   S5. Strategy Comparison (conditional: only when >= 2 strategies)
+#'   S1. Input Data Profile (intensity heatmap, FWHM, quality score panel)
+#'   S2. Acquisition Diagnosis (DPPP table, satisfaction curve, instrument metadata)
+#'   S3. Optimized Window Layout (tiling, load balance, m/z density)
+#'   S4. Optimization Validation (impact dashboard, edge proximity, FZ zoom)
+#'   S5. Strategy Comparison (conditional: table, width ridge, boundary grid)
 #'   A. Detailed Per-Strategy Analysis (appendix)
 #'   B. Adaptive RT Binning (conditional, only if adaptive mode)
 #'
@@ -360,47 +462,47 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   .draw_parameter_summary(optimization_plan, optimized_windows, validated_data)
   n_pages <- n_pages + 1
 
-  # --- Section 1: Input Data Characterization ---
-  # Broadest overview first (heatmap), then single-variable deep-dive (FWHM), then complexity
-  .draw_section_page(1, "Input Data Characterization",
-                     "Chromatographic quality, precursor landscape, and sample complexity")
+  # --- Section 1: Input Data Profile ---
+  .draw_section_page(1, "Input Data Profile",
+                     "Precursor distribution characteristics and chromatographic quality")
   n_pages <- n_pages + 1
   n <- .emit_section_plots(plots, c(
     "plot2_rt_mz_density_heatmap",
-    "plot0_fwhm_distribution",
-    "plot19_charge_mz"
+    "plot0_fwhm_distribution"
   ))
   n_pages <- n_pages + n
+  .draw_data_quality_summary(validated_data)
+  n_pages <- n_pages + 1
 
   # --- Section 2: Acquisition Diagnosis ---
-  # DPPP distribution + satisfaction trade-off (Plot 15 removed — redundant with 1B)
   .draw_section_page(2, "Acquisition Diagnosis",
-                     "Current DPPP status and cycle time trade-off space")
+                     "Current DPPP status, cycle time trade-off, and instrument parameters")
   n_pages <- n_pages + 1
   n <- .emit_section_plots(plots, c(
-    "plot1b_dppp_diagnosis_table"
+    "plot1b_dppp_diagnosis_table",
+    "plot6_satisfaction_curve"
   ))
   n_pages <- n_pages + n
 
   # --- Section 3: Optimized Window Layout ---
-  # Overview (heatmap + m/z range overlay), then dense bin detail, then load balance
   .draw_section_page(3, "Optimized Window Layout",
-                     "Isolation window design, density-adaptive boundaries, and precursor load distribution")
+                     "Isolation window tiling, density alignment, and precursor load balance")
   n_pages <- n_pages + 1
-  n <- .emit_section_plots(plots, c(
-    "plot2c_heatmap_with_mz_range",
-    "plot16_load_balance"
-  ))
+  s3_keys <- c("plot16_load_balance", "plot3_mz_density_overlay")
+  # Tiling coverage map: staggered mode only (shows cycle interleaving)
+  if (identical(optimized_windows$parameters$window_mode, "staggered")) {
+    s3_keys <- c("plot12_tiling_coverage_map", s3_keys)
+  }
+  n <- .emit_section_plots(plots, s3_keys)
   n_pages <- n_pages + n
 
   # --- Section 4: Optimization Validation ---
-  # Target achievement (6B moved here), boundary safety, forbidden zone
   validation_keys <- c("plot6b_impact_summary",
                        "plot17_edge_proximity",
                        "plot14_fz_zoom")
   if (any(validation_keys %in% names(plots))) {
     .draw_section_page(4, "Optimization Validation",
-                       "Target achievement, boundary safety, and forbidden zone verification")
+                       "Before/after comparison, boundary safety, and forbidden zone check")
     n_pages <- n_pages + 1
     n <- .emit_section_plots(plots, validation_keys)
     n_pages <- n_pages + n
@@ -409,7 +511,7 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   # --- Section 5: Strategy Comparison (CONDITIONAL: only when >= 2 strategies) ---
   strategy_keys <- c("plot8d_strategy_comparison_table",
                      "plot8a_strategy_width_ridge",
-                     "plot18_strategy_radar")
+                     "plot2c_heatmap_with_mz_range")
   if (any(strategy_keys %in% names(plots))) {
     .draw_section_page(5, "Strategy Comparison",
                        "Multi-strategy performance comparison across quality dimensions")
@@ -461,40 +563,10 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
 # Executive Summary — Target-Oriented Scorecard
 # =============================================================================
 
-#' Draw a single metric tile in the scorecard grid
-#' @keywords internal
-.draw_metric_tile <- function(label, target_text, actual_text, verdict = NULL,
-                              x, y, w = 0.22, h = 0.14) {
-  # Tile background
-  grid::grid.rect(x = x, y = y, width = w, height = h,
-            gp = grid::gpar(fill = "#f8f9fa", col = "#dee2e6", lwd = 1))
-  # Label
-
-  grid::grid.text(label, x = x, y = y + h * 0.35,
-            gp = grid::gpar(fontsize = 11, fontface = "bold",
-                       col = aidia_colors$primary))
-  # Target line (if provided)
-  if (!is.null(target_text) && nchar(target_text) > 0) {
-    grid::grid.text(target_text, x = x, y = y + h * 0.05,
-              gp = grid::gpar(fontsize = 10, col = aidia_colors$secondary))
-  }
-  # Actual value
-  grid::grid.text(actual_text, x = x, y = y - h * 0.2,
-            gp = grid::gpar(fontsize = 12, fontface = "bold",
-                       col = aidia_colors$primary))
-  # Verdict badge (check/cross)
-  if (!is.null(verdict)) {
-    badge_col <- if (verdict) aidia_colors$success else aidia_colors$warning
-    badge_text <- if (verdict) "Met" else "Not met"
-    grid::grid.text(badge_text, x = x, y = y - h * 0.42,
-              gp = grid::gpar(fontsize = 9, fontface = "bold", col = badge_col))
-  }
-}
-
-#' Draw Executive Summary Scorecard
+#' Draw Executive Summary Table
 #'
-#' Target-oriented scorecard showing verdict + 2x3 metric tiles +
-#' conditional recommendation. Replaces the previous narrative paragraphs.
+#' Clean tabular summary of optimization results: key metrics, targets,
+#' and verdict. Matches the Configuration Summary page style.
 #'
 #' @param optimization_plan OptimizationPlan object from Stage 2
 #' @param optimized_windows OptimizedWindows object from Stage 3
@@ -505,12 +577,6 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
                                     validated_data = NULL) {
   grid::grid.newpage()
 
-  # Header
-  grid::grid.text("Executive Summary",
-            x = 0.5, y = 0.95,
-            gp = grid::gpar(fontsize = 18, fontface = "bold",
-                       col = aidia_colors$primary))
-
   # Extract metrics via shared accessor
   m <- extract_before_after_metrics(optimization_plan, optimized_windows)
 
@@ -519,119 +585,104 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   if (!is.null(validated_data) && !is.na(m$new_ct) && !is.na(m$target_dppp)) {
     fwhm_sec <- ensure_fwhm_seconds(get_precursor_data(validated_data)$FWHM)
     dppp_vals <- calculate_dppp(fwhm_sec, m$new_ct)
-    after_sat <- dppp_satisfaction_pct(dppp_vals, m$target_dppp) / 100  # fraction
+    after_sat <- dppp_satisfaction_pct(dppp_vals, m$target_dppp) / 100
   }
   target_sat <- m$target_satisfaction
-  if (is.na(target_sat)) target_sat <- 0.7  # fallback default
+  if (is.na(target_sat)) target_sat <- 0.7
 
-  # --- Verdict Banner ---
   sat_met <- !is.na(after_sat) && after_sat >= target_sat
   dppp_met <- !is.na(m$new_dppp) && !is.na(m$target_dppp) && m$new_dppp >= m$target_dppp
 
-  verdict_text <- if (sat_met) "TARGET CONDITIONS MET" else "TARGET NOT FULLY MET"
-  verdict_col <- if (sat_met) aidia_colors$success else aidia_colors$warning
-  verdict_bg <- if (sat_met) "#e8f8f5" else "#fef9e7"
-  verdict_border <- if (sat_met) aidia_colors$success else aidia_colors$warning
-
-  # Verdict box
-  grid::grid.rect(x = 0.5, y = 0.83, width = 0.6, height = 0.08,
-            gp = grid::gpar(fill = verdict_bg, col = verdict_border, lwd = 2))
-  grid::grid.text(verdict_text, x = 0.5, y = 0.83,
-            gp = grid::gpar(fontsize = 16, fontface = "bold", col = verdict_col))
-
-  # --- 2x3 Metric Tiles ---
-  # Row 1 (y = 0.66): Target DPPP, Satisfaction, Coverage
-  # Row 2 (y = 0.48): Cycle Time, Windows, Mean Width
-  tile_x <- c(0.22, 0.50, 0.78)  # 3 columns
-
-  # Row 1
-  .draw_metric_tile(
-    label = "Target DPPP",
-    target_text = sprintf("Target: %.1f", m$target_dppp),
-    actual_text = sprintf("Actual: %.1f", m$new_dppp),
-    verdict = dppp_met,
-    x = tile_x[1], y = 0.66
-  )
-  .draw_metric_tile(
-    label = "Satisfaction",
-    target_text = sprintf("Target: %.0f%%", target_sat * 100),
-    actual_text = if (!is.na(after_sat)) sprintf("Actual: %.1f%%", after_sat * 100) else "N/A",
-    verdict = if (!is.na(after_sat)) sat_met else NULL,
-    x = tile_x[2], y = 0.66
-  )
-  coverage_text <- if (!is.na(m$coverage_pct) && m$coverage_pct > 0) {
-    sprintf("%.1f%%", m$coverage_pct)
-  } else {
-    "N/A"
-  }
-  .draw_metric_tile(
-    label = "Coverage",
-    target_text = "",
-    actual_text = sprintf("Achieved: %s", coverage_text),
-    verdict = NULL,
-    x = tile_x[3], y = 0.66
+  # Build table data
+  table_data <- data.frame(
+    Metric = c(
+      "Instrument",
+      "Strategy / Window Mode",
+      "Cycle Time",
+      "Target DPPP",
+      "Satisfaction",
+      "Coverage",
+      "Total Windows",
+      "Mean Window Width",
+      "Overall Verdict"
+    ),
+    Value = c(
+      sprintf("%s (%s)",
+              optimization_plan$instrument$name %||% "N/A",
+              optimization_plan$instrument$cycle_mode %||% "sequential"),
+      sprintf("%s / %s",
+              format_strategy_label(m$strategy),
+              tools::toTitleCase(m$window_mode)),
+      if (!is.na(m$new_ct)) sprintf("%.3f sec", m$new_ct) else "N/A",
+      sprintf("%.1f (actual: %.1f)", m$target_dppp, m$new_dppp),
+      if (!is.na(after_sat)) {
+        sprintf("%.1f%% (target: %.0f%%)", after_sat * 100, target_sat * 100)
+      } else "N/A",
+      if (!is.na(m$coverage_pct) && m$coverage_pct > 0) {
+        sprintf("%.1f%%", m$coverage_pct)
+      } else "N/A",
+      if (!is.na(m$windows_per_bin)) {
+        sprintf("%d (%d per RT bin)", m$n_windows, m$windows_per_bin)
+      } else as.character(m$n_windows),
+      if (!is.na(m$mean_width)) sprintf("%.1f Da", m$mean_width) else "N/A",
+      if (sat_met) "TARGET MET" else "TARGET NOT MET"
+    ),
+    stringsAsFactors = FALSE
   )
 
-  # Row 2
-  ct_text <- if (!is.na(m$new_ct)) sprintf("%.2f sec", m$new_ct) else "N/A"
-  .draw_metric_tile(
-    label = "Cycle Time",
-    target_text = "",
-    actual_text = ct_text,
-    verdict = NULL,
-    x = tile_x[1], y = 0.48
-  )
-  win_detail <- if (!is.na(m$windows_per_bin)) {
-    sprintf("%d (%d per bin)", m$n_windows, m$windows_per_bin)
-  } else {
-    as.character(m$n_windows)
-  }
-  .draw_metric_tile(
-    label = "Windows",
-    target_text = "",
-    actual_text = win_detail,
-    verdict = NULL,
-    x = tile_x[2], y = 0.48
-  )
-  width_text <- if (!is.na(m$mean_width)) sprintf("%.1f Da", m$mean_width) else "N/A"
-  .draw_metric_tile(
-    label = "Mean Width",
-    target_text = "",
-    actual_text = width_text,
-    verdict = NULL,
-    x = tile_x[3], y = 0.48
+  # Verdict row color
+  n_r <- nrow(table_data)
+  fg_colors <- rep("black", n_r)
+  fg_colors[n_r] <- if (sat_met) aidia_colors$success else aidia_colors$accent
+
+  table_grob <- gridExtra::tableGrob(
+    table_data,
+    rows = NULL,
+    theme = gridExtra::ttheme_minimal(
+      core = list(
+        fg_params = list(fontsize = 12, col = fg_colors,
+                          hjust = 0, x = 0.05),
+        bg_params = list(
+          fill = rep(c("white", "gray95"), length.out = n_r),
+          col = "gray85", lwd = 0.5
+        )
+      ),
+      colhead = list(
+        fg_params = list(fontsize = 13, col = "white", fontface = "bold",
+                          hjust = 0, x = 0.05),
+        bg_params = list(fill = "gray20", col = "white", lwd = 1)
+      )
+    )
   )
 
-  # --- Strategy / Mode Info ---
-  info_text <- sprintf("Strategy: %s  |  Window Mode: %s",
-                       format_strategy_label(m$strategy),
-                       tools::toTitleCase(m$window_mode))
-  grid::grid.text(info_text, x = 0.5, y = 0.37,
-            gp = grid::gpar(fontsize = 11, col = aidia_colors$secondary))
+  # Title
+  title_grob <- grid::textGrob(
+    "Executive Summary",
+    gp = grid::gpar(fontsize = 18, fontface = "bold", col = "black")
+  )
 
-  # --- Conditional Recommendation ---
+  # Recommendation
   rec_text <- if (sat_met) {
-    "Your target conditions are achievable with this configuration.\nApply the CSV method file to your instrument."
+    "Target conditions achieved. Apply the exported CSV method file to your instrument."
   } else if (!is.na(after_sat) && after_sat >= 0.5) {
-    "Close to target. Review the satisfaction curve (Section 2) to evaluate\ncycle time trade-offs for your use case."
+    "Close to target. Review the satisfaction curve (Section 2) for cycle time trade-offs."
   } else {
-    "Target not met with current parameters. Consider adjusting target DPPP,\nsatisfaction rate, or trying a different strategy."
+    "Target not met. Consider adjusting target DPPP, satisfaction, or strategy."
   }
+  rec_grob <- grid::textGrob(
+    rec_text,
+    gp = grid::gpar(fontsize = 11, fontface = "italic", col = "gray30")
+  )
 
-  rec_bg <- if (sat_met) "#e8f8f5" else "#fef9e7"
-  rec_border <- if (sat_met) aidia_colors$success else aidia_colors$warning
-  rec_col <- if (sat_met) "#16a085" else "#b7950b"
+  combined <- gridExtra::arrangeGrob(
+    title_grob,
+    table_grob,
+    rec_grob,
+    ncol = 1,
+    heights = grid::unit(c(1.2, 5, 0.8), "null"),
+    padding = grid::unit(1, "lines")
+  )
 
-  grid::grid.rect(x = 0.5, y = 0.26, width = 0.7, height = 0.1,
-            gp = grid::gpar(fill = rec_bg, col = rec_border, lwd = 1))
-  grid::grid.text(rec_text, x = 0.5, y = 0.26, just = "center",
-            gp = grid::gpar(fontsize = 11, fontface = "italic", col = rec_col,
-                       lineheight = 1.3))
-
-  # Bottom note
-  grid::grid.text("See subsequent sections for detailed analysis",
-            x = 0.5, y = 0.17,
-            gp = grid::gpar(fontsize = 9, col = aidia_colors$secondary,
-                       fontface = "italic"))
+  grid::grid.draw(combined)
 }
 

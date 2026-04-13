@@ -125,7 +125,8 @@ plan_optimization <- function(
   # Auto-estimate cycle_time if not provided
   # IMPORTANT: Use simple heuristic WITHOUT target_dppp to avoid current ~= recommended
   # The "current" cycle time should reflect a reasonable starting point, not the optimal value
-  if (is.null(current_cycle_time)) {
+  current_ct_is_estimated <- is.null(current_cycle_time)
+  if (current_ct_is_estimated) {
     # Use simple heuristic: gradient_length / 15, capped at 3.5 sec
     # This represents a typical DIA cycle time, NOT the optimal for target_dppp
     current_cycle_time <- estimate_cycle_time_from_gradient(
@@ -489,6 +490,7 @@ plan_optimization <- function(
       # Diagnosis
       diagnosis = list(
         current_cycle_time_sec = current_cycle_time,
+        current_ct_is_estimated = current_ct_is_estimated,
         current_satisfaction_ratio = diagnosis$satisfaction_ratio,
         current_dppp_mean = diagnosis$dppp_stats$mean,
         current_dppp_median = diagnosis$dppp_stats$median,

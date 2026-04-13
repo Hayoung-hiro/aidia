@@ -8,192 +8,92 @@
 # Reference: Improved design based on user feedback
 
 
-#' Plot Window Width Distribution by RT Segment
+#' Plot Window m/z Range Across RT Segments
 #'
-#' Creates a multi-panel visualization showing:
-#' - Blue line: Normalized density of precursor m/z distribution
-#' - Red line: Variable window width across m/z range
-#' - Dual y-axis for different scales
+#' Shows how the isolation window coverage band shifts across the gradient.
+#' Each RT segment's m/z range is shown as a ribbon (lower to upper boundary),
+#' with mean window width annotated. Reveals how the optimized window layout
+#' adapts to changing precursor distributions over time.
 #'
 #' @param optimized_windows OptimizedWindows object from Stage 3
 #' @param validated_data ValidatedData object from Stage 1
-#' @param max_segments_to_show Maximum number of RT segments to display (default: 6, NULL = all)
 #'
-#' @return ggplot object (combined grid)
+#' @return ggplot object
 #' @keywords internal
-#'
-#' @examples
-#' \dontrun{
-#' plot7 <- plot_window_width_distribution(optimized_windows, validated_data)
-#' # Show all segments
-#' plot7 <- plot_window_width_distribution(optimized_windows, validated_data, max_segments_to_show = NULL)
-#' }
-plot_window_width_distribution <- function(optimized_windows,
-                                            validated_data,
-                                            max_segments_to_show = 6,
-                                            selected_segment_ids = NULL) {
+plot_window_width_distribution <- function(optimized_windows, validated_data) {
 
-  cat("  Generating Plot 7: Window Width Distribution by RT Segment...\n")
+  cat("  Generating Plot 7: Window m/z Range Across RT Segments...\n")
 
-  # Extract data
   windows_data <- optimized_windows$windows
-  precursor_data <- validated_data$data
 
-  # Extract RT bin information from windows
-  rt_bins <- windows_data %>%
-    group_by(rt_segment_id) %>%
-    summarize(
+  # Per-RT-segment: m/z range, mean width, window count
+  seg_summary <- windows_data %>%
+    dplyr::group_by(rt_segment_id) %>%
+    dplyr::summarize(
+      rt_mid = mean(c(first(rt_start), first(rt_end))),
       rt_start = first(rt_start),
       rt_end = first(rt_end),
+      mz_lower = min(mz_start),
+      mz_upper = max(mz_end),
+      mean_width = mean(window_width),
+      width_sd = sd(window_width),
+      n_windows = dplyr::n(),
       .groups = "drop"
-    ) %>%
-    arrange(rt_segment_id)
-
-  # Select RT segments to display
-  n_segments <- nrow(rt_bins)
-  if (!is.null(selected_segment_ids)) {
-    # Explicit segment IDs provided (e.g., densest bin)
-    selected_segments <- selected_segment_ids
-    cat(sprintf("    Showing %d specified RT segment(s)\n", length(selected_segments)))
-  } else if (!is.null(max_segments_to_show) && n_segments > max_segments_to_show) {
-    selected_segments <- round(seq(1, n_segments, length.out = max_segments_to_show))
-    cat(sprintf("    Showing %d of %d RT segments (sampled evenly)\n",
-                max_segments_to_show, n_segments))
-  } else {
-    selected_segments <- 1:n_segments
-    cat(sprintf("    Showing all %d RT segments\n", n_segments))
-  }
-
-  # Filter data for selected segments
-  windows_filtered <- windows_data %>%
-    filter(rt_segment_id %in% selected_segments)
-
-  rt_bins_filtered <- rt_bins %>%
-    filter(rt_segment_id %in% selected_segments)
-
-  # Create plot list
-  plot_list <- list()
-
-  for (seg_id in selected_segments) {
-    # Get segment info
-    seg_info <- rt_bins_filtered %>%
-      filter(rt_segment_id == seg_id)
-
-    if (nrow(seg_info) == 0) next
-
-    # Get precursors for this segment
-    seg_precursors <- precursor_data %>%
-      filter(RT.Apex >= seg_info$rt_start,
-             RT.Apex < seg_info$rt_end)
-
-    # Get windows for this segment
-    seg_windows <- windows_filtered %>%
-      filter(rt_segment_id == seg_id) %>%
-      arrange(mz_start)
-
-    if (nrow(seg_windows) == 0 || nrow(seg_precursors) < 2) next  # Need at least 2 points for density
-
-    # Calculate normalized density using density()
-    mz_range <- range(seg_precursors$Precursor.Mz)
-    density_result <- density(seg_precursors$Precursor.Mz, n = 512, from = mz_range[1], to = mz_range[2])
-
-    # Normalize density to 0-1 range
-    density_df <- tibble(
-      mz = density_result$x,
-      density = density_result$y / max(density_result$y)
     )
 
-    # Prepare window width data for step function
-    # For each window, create step data: (mz_start -> mz_end) with constant window_width
-    window_steps <- seg_windows %>%
-      rowwise() %>%
-      mutate(
-        mz_seq = list(c(mz_start, mz_end)),
-        width_seq = list(c(window_width, window_width))
-      ) %>%
-      ungroup() %>%
-      select(mz_seq, width_seq) %>%
-      tidyr::unnest(cols = c(mz_seq, width_seq)) %>%
-      rename(mz = mz_seq, window_width = width_seq)
+  # Overall stats for subtitle
+  overall_range <- sprintf("%.0f\u2013%.0f Da",
+                           min(seg_summary$mz_lower), max(seg_summary$mz_upper))
+  overall_mean_w <- mean(seg_summary$mean_width)
 
-    # Calculate scaling factor for dual y-axis
-    max_width <- max(seg_windows$window_width, na.rm = TRUE)
-    scaling_factor <- 1.0 / max_width  # Scale width to 0-1 range
+  # Calculate span per segment
+  seg_summary$mz_span <- seg_summary$mz_upper - seg_summary$mz_lower
 
-    # Create plot with dual y-axis
-    p <- ggplot() +
-      # Normalized density (blue line, left y-axis)
-      geom_line(
-        data = density_df,
-        aes(x = mz, y = density, color = "Input Histogram"),
-        linewidth = 1.0,
-        alpha = 0.8
-      ) +
-      # Window width (red step function, right y-axis - scaled to 0-1)
-      geom_step(
-        data = window_steps,
-        aes(x = mz, y = window_width * scaling_factor, color = "Variable Windows"),
-        linewidth = 1.0,
-        direction = "hv"
-      ) +
-      # Manual color scale for legend
-      scale_color_manual(
-        name = NULL,
-        values = c("Input Histogram" = aidia_colors$before, "Variable Windows" = aidia_colors$after),
-        breaks = c("Input Histogram", "Variable Windows")
-      ) +
-      # Dual y-axis setup
-      scale_y_continuous(
-        name = "Normalized Density",
-        limits = c(0, 1.1),
-        breaks = seq(0, 1, by = 0.2),
-        sec.axis = sec_axis(
-          trans = ~ . / scaling_factor,
-          name = "Window Width (Da)",
-          breaks = seq(0, max_width, length.out = 5),
-          labels = function(x) sprintf("%.1f", x)
-        )
-      ) +
-      labs(
-        title = sprintf("RT%02d\n(%d precursors, %d windows)",
-                       seg_id, nrow(seg_precursors), nrow(seg_windows)),
-        x = "m/z (Da)"
-      ) +
-      theme_aidia() +
-      theme(
-        plot.title = element_text(size = 10, face = "bold"),
-        axis.title.x = element_text(size = 9),
-        axis.title.y.left = element_text(size = 9, color = aidia_colors$before),
-        axis.title.y.right = element_text(size = 9, color = aidia_colors$after),
-        axis.text = element_text(size = 8),
-        axis.text.y.left = element_text(color = aidia_colors$before),
-        axis.text.y.right = element_text(color = aidia_colors$after),
-        panel.grid.minor = element_blank(),
-        legend.position = "top",
-        legend.text = element_text(size = 8),
-        legend.key.width = unit(1.5, "cm"),
-        legend.spacing.x = unit(0.3, "cm")
+  p <- ggplot(seg_summary) +
+    # Color-encoded rectangles: fill = span width
+    geom_rect(
+      aes(xmin = rt_start, xmax = rt_end,
+          ymin = mz_lower, ymax = mz_upper,
+          fill = mz_span),
+      alpha = 0.7
+    ) +
+    # Upper and lower boundary lines
+    geom_step(aes(x = rt_start, y = mz_upper), color = aidia_colors$before_dark,
+              linewidth = 0.7, direction = "hv") +
+    geom_step(aes(x = rt_start, y = mz_lower), color = aidia_colors$before_dark,
+              linewidth = 0.7, direction = "hv") +
+    # Color scale: sequential, low span = narrow (blue) → high span = wide (amber)
+    scale_fill_gradient(
+      low = aidia_colors$before, high = aidia_colors$warning,
+      name = "Span (Da)"
+    ) +
+    scale_x_continuous(
+      breaks = scales::breaks_pretty(n = 8),
+      expand = expansion(mult = c(0.01, 0.01))
+    ) +
+    scale_y_continuous(
+      expand = expansion(mult = c(0.05, 0.05))
+    ) +
+    labs(
+      title = "Window m/z Coverage Across Gradient",
+      subtitle = sprintf(
+        "m/z range: %s | Mean width: %.1f Da | %d windows/bin",
+        overall_range, overall_mean_w, seg_summary$n_windows[1]
+      ),
+      x = "Retention Time (min)",
+      y = "m/z (Da)",
+      caption = sprintf(
+        "Fill color = m/z span per RT bin | %d RT bins",
+        nrow(seg_summary)
       )
+    ) +
+    theme_aidia() +
+    theme(
+      legend.position = "right",
+      legend.key.height = unit(0.8, "cm")
+    )
 
-    plot_list[[length(plot_list) + 1]] <- p
-  }
-
-  # Arrange all segments in a grid
-  n_plots <- length(plot_list)
-  if (n_plots == 0) {
-    stop("No valid RT segments found for plotting")
-  }
-
-  # Calculate grid dimensions
-  n_cols <- min(3, n_plots)
-  n_rows <- ceiling(n_plots / n_cols)
-
-  cat(sprintf("    Created %d panels (%d rows x %d cols)\n", n_plots, n_rows, n_cols))
-
-  # Create final grid with shared legend
-  final_plot <- do.call(gridExtra::arrangeGrob, c(plot_list, ncol = n_cols))
-
-  return(final_plot)
+  return(p)
 }
 
 

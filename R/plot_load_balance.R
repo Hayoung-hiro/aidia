@@ -67,11 +67,6 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data) {
   overall_mean <- mean(df$precursor_count)
   overall_cv <- sd(df$precursor_count) / overall_mean
 
-  # High-load threshold: >2x overall mean
-  high_load_threshold <- overall_mean * 2
-  n_high_load <- sum(df$precursor_count > high_load_threshold)
-  pct_high_load <- n_high_load / nrow(df) * 100
-
   # RT bin labels
   df$rt_label <- sprintf("RT %02d", df$rt_segment_id)
   df$rt_label <- factor(df$rt_label,
@@ -80,26 +75,7 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data) {
   segment_stats$rt_label <- factor(segment_stats$rt_label,
                                     levels = levels(df$rt_label))
 
-  # Color points: high-load windows highlighted
-  df$load_status <- ifelse(df$precursor_count > high_load_threshold,
-                            "high_load", "normal")
-
   p <- ggplot(df, aes(x = rt_label, y = precursor_count)) +
-    # High-load zone shading (above 2x mean)
-    annotate(
-      "rect",
-      xmin = -Inf, xmax = Inf,
-      ymin = high_load_threshold, ymax = Inf,
-      fill = aidia_colors$accent,
-      alpha = 0.08
-    ) +
-    # High-load threshold line
-    geom_hline(
-      yintercept = high_load_threshold,
-      linetype = "dashed",
-      color = aidia_colors$accent,
-      linewidth = 0.6
-    ) +
     # IQR ribbon
     geom_crossbar(
       data = segment_stats,
@@ -110,41 +86,23 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data) {
       linewidth = 0.4,
       width = 0.6
     ) +
-    # Individual window points — colored by load status
+    # Individual window points
     geom_jitter(
-      aes(color = load_status),
+      color = aidia_colors$primary,
       width = 0.18,
       size = 1.0,
       alpha = 0.5
-    ) +
-    scale_color_manual(
-      values = c("normal" = aidia_colors$primary,
-                  "high_load" = aidia_colors$accent),
-      guide = "none"
-    ) +
-    # High-load threshold label
-    annotate(
-      "text",
-      x = length(levels(df$rt_label)),
-      y = high_load_threshold,
-      label = sprintf("High load (>%.0f)", high_load_threshold),
-      hjust = 1.05, vjust = -0.5,
-      size = 3, fontface = "bold",
-      color = aidia_colors$accent
     ) +
     scale_y_continuous(expand = expansion(mult = c(0.02, 0.1))) +
     labs(
       title = "Precursor Load Balance Across Windows",
       subtitle = sprintf(
-        "Mean: %.1f precursors/window | CV: %.0f%% | %.1f%% windows above high-load threshold",
-        overall_mean, overall_cv * 100, pct_high_load
+        "Mean: %.1f precursors/window | CV: %.0f%% | %s total windows",
+        overall_mean, overall_cv * 100, format(nrow(windows), big.mark = ",")
       ),
       x = "RT Segment",
       y = "Precursors per Window",
-      caption = sprintf(
-        "Band = IQR (25th\u201375th) | High load = >2\u00d7 mean (%.0f) | %s total windows",
-        high_load_threshold, format(nrow(windows), big.mark = ",")
-      )
+      caption = "Band = IQR (25th\u201375th) | Lower CV = more uniform distribution"
     ) +
     theme_aidia() +
     theme(
