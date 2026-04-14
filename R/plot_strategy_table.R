@@ -139,7 +139,7 @@ plot_strategy_comparison_table <- function(windows_list) {
   )
 
   note_grob <- grid::textGrob(
-    "Note: Final quantification quality depends on sample complexity and downstream analysis software (DIA-NN, Spectronaut, etc.).\nNo single strategy is universally optimal - evaluate based on your analytical goals.",
+    "No single strategy is universally optimal. Evaluate based on your analytical goals and sample complexity.",
     gp = grid::gpar(fontsize = 8, col = aidia_colors$secondary, fontface = "italic"),
     just = "left",
     x = 0.02

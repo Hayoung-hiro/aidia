@@ -170,15 +170,9 @@ generate_visualizations <- function(
     windows_list, validated_data
   )
 
-  # Plot 5: Strategy Width Profile (overlay line chart — primary for PDF)
-  cat("  Generating Plot 5: Strategy Width Profile...\n")
-  plots$`plot5_strategy_width_profile` <- plot_strategy_width_profile(
-    windows_list, validated_data
-  )
-
-  # Plot 5 Legacy: Strategy Boundary Comparison (kept for individual export)
-  cat("  Generating Plot 5B: Strategy Boundary Comparison (legacy)...\n")
-  plots$`plot5b_strategy_boundary_comparison` <- plot_strategy_boundary_comparison(
+  # Strategy Width Profile (overlay line chart)
+  cat("  Generating S5-04: Strategy Width Profile...\n")
+  plots$`s5_04_width_profile` <- plot_strategy_width_profile(
     windows_list, validated_data
   )
 
@@ -266,29 +260,18 @@ generate_visualizations <- function(
   }
 
   # ===================================================================
-  # Plot 8: Strategy Width Comparison (Ridge, Box, CDF)
+  # S5: Strategy Comparison
   # ===================================================================
 
-  cat("\n  Preparing Plot 8: Strategy Width Comparison...\n")
+  cat("\n  Preparing S5: Strategy Comparison...\n")
 
-  # Plot 8A: Ridge plot (primary — included in PDF)
-  cat("  Generating Plot 8A: Ridge Plot...\n")
-  plots$`s5_02_strategy_ridge` <- plot_strategy_width_ridge(windows_list, validated_data)
-
-  # Plot 8B: Box plot (kept for individual export, removed from PDF)
-  cat("  Generating Plot 8B: Box Plot...\n")
-  plots$`plot8b_strategy_width_boxplot` <- plot_strategy_width_boxplot(windows_list, validated_data)
-
-  # Plot 8C: CDF plot (kept for individual export, removed from PDF)
-  cat("  Generating Plot 8C: CDF Plot...\n")
-  plots$`plot8c_strategy_width_cdf` <- plot_strategy_width_cdf(windows_list, validated_data)
-
-  # ===================================================================
-  # Plot 8D: Strategy Comparison Summary Table
-  # ===================================================================
-
-  cat("\n  Generating Plot 8D: Strategy Comparison Summary Table...\n")
+  # S5-01: Strategy Comparison Summary Table
+  cat("  Generating S5-01: Strategy Comparison Table...\n")
   plots$`s5_01_strategy_table` <- plot_strategy_comparison_table(windows_list)
+
+  # S5-02: Width Ridge Plot
+  cat("  Generating S5-02: Width Ridge Plot...\n")
+  plots$`s5_02_strategy_ridge` <- plot_strategy_width_ridge(windows_list, validated_data)
 
   # ===================================================================
   # Plot 15: Per-Precursor DPPP Distribution (Before vs After)
@@ -315,19 +298,10 @@ generate_visualizations <- function(
   plots$`s4_03_edge_proximity_spatial` <- plot_edge_proximity_spatial(optimized_windows, validated_data)
 
   # ===================================================================
-  # Plot 18: Strategy Radar Chart (Multi-Strategy only)
+  # S4-04: Charge State Distribution
   # ===================================================================
 
-  if (length(windows_list) >= 2) {
-    cat("  Generating Plot 18: Strategy Radar Chart...\n")
-    plots$`plot18_strategy_radar` <- plot_strategy_radar(windows_list, validated_data)
-  }
-
-  # ===================================================================
-  # Plot 19: Charge State x m/z Distribution
-  # ===================================================================
-
-  cat("  Generating Plot 19: Charge State x m/z Distribution...\n")
+  cat("  Generating S4-04: Charge State Distribution...\n")
   plots$`s4_04_charge_state` <- plot_charge_mz_distribution(optimized_windows, validated_data)
 
   cat(sprintf("\nOK All %d plots generated successfully\n\n", length(plots)))

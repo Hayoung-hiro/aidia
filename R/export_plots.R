@@ -513,7 +513,8 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   # --- Section 5: Strategy Comparison (CONDITIONAL: only when >= 2 strategies) ---
   strategy_keys <- c("s5_01_strategy_table",
                      "s5_02_strategy_ridge",
-                     "s5_03_heatmap_boundary")
+                     "s5_03_heatmap_boundary",
+                     "s5_04_width_profile")
   if (any(strategy_keys %in% names(plots))) {
     .draw_section_page(5, "Strategy Comparison",
                        "Multi-strategy performance comparison across quality dimensions")

@@ -44,14 +44,14 @@ tryCatch({
   cat("  FAIL:", e$message, "\n")
 })
 
-# Test 3: Strategy Boundary Comparison (need 2 strategies)
-cat("\n=== Test Plot 5: Strategy Boundary Comparison ===\n")
+# Test 3: Strategy Width Profile (need 2 strategies)
+cat("\n=== Test: Strategy Width Profile ===\n")
 tryCatch({
   wins_q <- optimize_windows(vd, plan, mz_strategy = "quantile", window_mode = "density")
   wl <- list(greedy = wins, quantile = wins_q)
-  p5 <- plot_strategy_boundary_comparison(wl, vd)
-  ggplot2::ggsave(file.path(outdir, "plot5_strategy_boundary_comparison.png"),
-                  p5, width = 16, height = 12, dpi = 120, bg = "white")
+  p5 <- plot_strategy_width_profile(wl, vd)
+  ggplot2::ggsave(file.path(outdir, "s5_04_width_profile.png"),
+                  p5, width = 16, height = 10, dpi = 120, bg = "white")
   cat("  OK saved\n")
 }, error = function(e) {
   cat("  FAIL:", e$message, "\n")

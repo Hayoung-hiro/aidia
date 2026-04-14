@@ -63,7 +63,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
     geom_line(
       data = upper_boundary,
       aes(x = rt, y = mz),
-      color = "#00FF00",  # Bright green
+      color = "white",
       linewidth = 1.2,
       linetype = "solid",
       inherit.aes = FALSE
@@ -73,7 +73,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
     geom_line(
       data = lower_boundary,
       aes(x = rt, y = mz),
-      color = "#00FF00",  # Bright green
+      color = "white",
       linewidth = 1.2,
       linetype = "solid",
       inherit.aes = FALSE
@@ -180,128 +180,12 @@ plot_density_with_mz_ranges_grid <- function(windows_list, validated_data, bins 
       gp = grid::gpar(fontsize = 16, fontface = "bold")
     ),
     bottom = grid::textGrob(
-      "Green lines = Optimized m/z boundaries | Bright regions = High precursor density",
+      "White lines = Optimized m/z boundaries | Bright regions = High precursor density",
       gp = grid::gpar(fontsize = 10, col = "gray40")
     )
   )
 
   return(combined_plot)
-}
-
-
-#' Plot Strategy Boundary Comparison (Faceted)
-#'
-#' Creates a faceted plot with one panel per strategy, showing upper and lower
-#' m/z boundaries as step lines across RT segments. This makes it easy to
-#' visually compare how different strategies define m/z ranges.
-#'
-#' @param windows_list Named list of OptimizedWindows objects for each strategy
-#' @param validated_data ValidatedData object from Stage 1
-#'
-#' @return ggplot object
-#' @keywords internal
-plot_strategy_boundary_comparison <- function(windows_list, validated_data) {
-
-  cat("  Generating Plot 5: Strategy Boundary Comparison...\n")
-
-  if (length(windows_list) < 2) {
-    return(create_insufficient_data_plot(
-      title = "Strategy Boundary Comparison",
-      message = "Need at least 2 strategies for comparison"
-    ))
-  }
-
-  # Collect boundary data from all strategies
-  boundary_list <- list()
-
-  for (strategy_name in names(windows_list)) {
-    opt_win <- windows_list[[strategy_name]]
-    mz_ranges <- opt_win$mz_optimization$mz_ranges
-
-    if (is.null(mz_ranges)) next
-
-    bd <- mz_ranges %>%
-      dplyr::select(rt_segment_id, rt_start, rt_end, mz_min, mz_max) %>%
-      dplyr::mutate(
-        rt_mid = (rt_start + rt_end) / 2,
-        strategy = strategy_name,
-        strategy_label = format_strategy_label(strategy_name),
-        mz_width = mz_max - mz_min
-      )
-
-    boundary_list[[strategy_name]] <- bd
-  }
-
-  if (length(boundary_list) == 0) {
-    return(create_insufficient_data_plot(
-      title = "Strategy Boundary Comparison",
-      message = "No m/z range data available"
-    ))
-  }
-
-  boundary_df <- safe_bind_rows(boundary_list)
-
-  # Order strategies consistently
-  ordered <- order_strategies(unique(boundary_df$strategy))
-  boundary_df$strategy_label <- factor(
-    boundary_df$strategy_label,
-    levels = format_strategy_label(ordered)
-  )
-
-  # Precursor m/z range for reference
-  mz_range <- range(validated_data$data$Precursor.Mz)
-
-  # Summary stats for subtitle
-  width_stats <- boundary_df %>%
-    dplyr::group_by(strategy) %>%
-    dplyr::summarize(mean_width = mean(mz_width), .groups = "drop")
-
-  p <- ggplot(boundary_df) +
-    # Shaded m/z range band between boundaries
-    geom_ribbon(
-      aes(x = rt_mid, ymin = mz_min, ymax = mz_max),
-      fill = aidia_colors$primary,
-      alpha = 0.15
-    ) +
-    # Upper boundary
-    geom_step(
-      aes(x = rt_mid, y = mz_max),
-      color = aidia_colors$accent,
-      linewidth = 0.8,
-      direction = "mid"
-    ) +
-    # Lower boundary
-    geom_step(
-      aes(x = rt_mid, y = mz_min),
-      color = aidia_colors$primary,
-      linewidth = 0.8,
-      direction = "mid"
-    ) +
-    # Data m/z range reference lines
-    geom_hline(yintercept = mz_range[1], linetype = "dotted",
-               color = "gray60", linewidth = 0.4) +
-    geom_hline(yintercept = mz_range[2], linetype = "dotted",
-               color = "gray60", linewidth = 0.4) +
-    # Facet by strategy
-    facet_wrap(~ strategy_label, ncol = 1, strip.position = "right") +
-    labs(
-      title = "Strategy m/z Boundary Comparison",
-      subtitle = sprintf(
-        "Comparing %d strategies across %d RT segments | Dotted = data m/z range",
-        length(windows_list), max(boundary_df$rt_segment_id)
-      ),
-      x = "Retention Time (min)",
-      y = "m/z (Da)",
-      caption = "Blue = lower boundary | Red = upper boundary | Shaded = covered range"
-    ) +
-    theme_aidia() +
-    theme(
-      strip.text.y.right = element_text(angle = 0, size = 10, face = "bold"),
-      panel.spacing = unit(0.3, "lines"),
-      panel.grid.minor = element_blank()
-    )
-
-  return(p)
 }
 
 
@@ -441,8 +325,7 @@ plot_strategy_width_profile <- function(windows_list, validated_data) {
         original_mean, stats_text
       ),
       x = "Retention Time (min)",
-      y = "m/z Width (Da)",
-      caption = "Gray band = original data range | Lines = optimized m/z width per strategy"
+      y = "m/z Width (Da)"
     ) +
     theme_aidia() +
     theme(

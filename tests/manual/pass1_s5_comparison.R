@@ -1,6 +1,5 @@
 # Pass 1: Section 5 — Strategy Comparison
-# Plots: 15 Comparison table, 16 Width ridge, 17 Boundary grid,
-#        18 m/z excluded, 19 Strategy width profile
+# Plots: s5_01 Table, s5_02 Ridge, s5_03 Boundary Grid, s5_04 Width Profile
 # Requires: Stage 1 + 2 + 3 (all 5 strategies)
 # Run: source("tests/manual/pass1_s5_comparison.R")
 
@@ -28,42 +27,33 @@ for (s in strategies) {
 
 cat("\n=== S5: Strategy Comparison ===\n")
 
-# 15. Strategy Comparison Table (plot8d)
-cat("[S5-15] Comparison Table\n")
+# S5-01: Strategy Comparison Table
+cat("[S5-01] Comparison Table\n")
 p <- plot_strategy_comparison_table(windows_list)
-png(file.path(outdir, "S5_15_comparison_table.png"),
+png(file.path(outdir, "s5_01_strategy_table.png"),
     width = 1400, height = 700, res = 150)
 grid::grid.draw(p)
 dev.off()
 
-# 16. Width Ridge Plot (plot8a)
-cat("[S5-16] Width Ridge\n")
+# S5-02: Width Ridge Plot
+cat("[S5-02] Width Ridge\n")
 p <- plot_strategy_width_ridge(windows_list, validated)
-ggsave(file.path(outdir, "S5_16_width_ridge.png"), p,
+ggsave(file.path(outdir, "s5_02_strategy_ridge.png"), p,
        width = 10, height = 7, dpi = 200, bg = "white")
 
-# 17. Boundary Grid Heatmap (plot2c)
-cat("[S5-17] Boundary Grid Heatmap\n")
+# S5-03: Boundary Grid Heatmap
+cat("[S5-03] Boundary Grid Heatmap\n")
 p <- plot_density_with_mz_ranges_grid(windows_list, validated)
-png(file.path(outdir, "S5_17_boundary_grid.png"),
+png(file.path(outdir, "s5_03_heatmap_boundary.png"),
     width = 1600, height = 1200, res = 150)
 grid::grid.draw(p)
 dev.off()
 
-# 18. m/z Excluded Regions (plot4 — greedy as representative)
-cat("[S5-18] m/z Excluded Regions\n")
-p <- plot_mz_distribution_with_exclusions(windows_list[["greedy"]], validated,
-                                           max_bins_to_show = 6)
-png(file.path(outdir, "S5_18_mz_excluded.png"),
-    width = 1600, height = 1000, res = 150)
-grid::grid.draw(p)
-dev.off()
-
-# 19. Strategy Width Profile (plot5)
-cat("[S5-19] Strategy Width Profile\n")
+# S5-04: Strategy Width Profile
+cat("[S5-04] Strategy Width Profile\n")
 p <- plot_strategy_width_profile(windows_list, validated)
-ggsave(file.path(outdir, "S5_19_strategy_width_profile.png"), p,
+ggsave(file.path(outdir, "s5_04_width_profile.png"), p,
        width = 10, height = 6, dpi = 200, bg = "white")
 
 cat("\n=== S5 Done ===\n")
-cat(paste(" ", list.files(outdir, pattern = "S5_")), sep = "\n")
+cat(paste(" ", list.files(outdir, pattern = "s5_")), sep = "\n")

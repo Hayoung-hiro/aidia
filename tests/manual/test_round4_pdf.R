@@ -29,7 +29,7 @@ cat("PDF:", viz$report_files$pdf_report, "\n")
 # Check key plot names exist
 expected_keys <- c(
   "plot1b_dppp_satisfaction_combined",
-  "plot5_strategy_boundary_comparison",
+  "s5_04_width_profile",
   "s3_02_load_balance",
   "s4_02_edge_proximity",
   "s5_03_heatmap_boundary"
@@ -41,7 +41,9 @@ for (k in expected_keys) {
 
 # Verify no old keys
 old_keys <- c("plot6_satisfaction_curve", "plot10_representative_bin",
-              "plot1b_dppp_comparison_enhanced", "plot5_coverage_map_2x2")
+              "plot1b_dppp_comparison_enhanced", "plot5_coverage_map_2x2",
+              "plot5b_strategy_boundary_comparison", "plot8b_strategy_width_boxplot",
+              "plot8c_strategy_width_cdf", "plot18_strategy_radar")
 for (k in old_keys) {
   if (k %in% names(viz$plots)) cat(sprintf("  WARNING: old key still present: %s\n", k))
 }

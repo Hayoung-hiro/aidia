@@ -36,7 +36,7 @@ plot_keys <- c(
   "s4_04_charge_state",
   "plot1b_dppp_satisfaction_combined",
   "s5_03_heatmap_boundary",
-  "plot5_strategy_boundary_comparison",
+  "s5_04_width_profile",
   "s3_02_load_balance",
   "s4_01_impact_summary",
   "s4_02_edge_proximity"
