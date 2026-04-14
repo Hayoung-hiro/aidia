@@ -63,30 +63,49 @@ plot_precursors_per_window <- function(optimized_windows,
     )
 
   n_bins <- length(unique(windows_counted$rt_segment_id))
-
-  # If more than 6 RT bins, show only the median segment
-  if (n_bins > 6) {
-    median_seg      <- select_median_rt_segment(windows_counted)
-    windows_counted <- windows_counted[windows_counted$rt_segment_id == median_seg, ,
-                                       drop = FALSE]
-    n_bins          <- 1
-    median_note     <- sprintf("Showing median RT segment (%d) only", median_seg)
-  } else {
-    median_note <- NULL
-  }
+  median_note <- NULL
 
   # ---- Summary statistics -------------------------------------------------
   mean_n   <- mean(windows_counted$n_precursors, na.rm = TRUE)
   min_n    <- min(windows_counted$n_precursors,  na.rm = TRUE)
   max_n    <- max(windows_counted$n_precursors,  na.rm = TRUE)
   n_wins   <- nrow(windows_counted)
+  cv_optimized <- if (mean_n > 0) sd(windows_counted$n_precursors, na.rm = TRUE) / mean_n else NA
 
+  # ---- Naive baseline: equal-width windows for comparison -----------------
+  naive_cv <- tryCatch({
+    # Generate equal-width windows per RT bin using the full m/z range
+    rt_bins <- unique(windows[, c("rt_start", "rt_end", "rt_segment_id")])
+    naive_windows_list <- lapply(seq_len(nrow(rt_bins)), function(i) {
+      bin_prec <- precursor_data[precursor_data$RT.Apex >= rt_bins$rt_start[i] &
+                                 precursor_data$RT.Apex <= rt_bins$rt_end[i], ]
+      if (nrow(bin_prec) < 2) return(NULL)
+      mz_range <- range(bin_prec$Precursor.Mz, na.rm = TRUE)
+      n_per_bin <- sum(windows$rt_segment_id == rt_bins$rt_segment_id[i])
+      if (n_per_bin < 1) return(NULL)
+      width <- diff(mz_range) / n_per_bin
+      starts <- mz_range[1] + (seq_len(n_per_bin) - 1) * width
+      data.frame(mz_start = starts, mz_end = starts + width,
+                 rt_start = rt_bins$rt_start[i], rt_end = rt_bins$rt_end[i],
+                 rt_segment_id = rt_bins$rt_segment_id[i])
+    })
+    naive_windows <- do.call(rbind, naive_windows_list)
+    naive_counted <- calculate_precursors_per_window(naive_windows, precursor_data)
+    naive_mean <- mean(naive_counted$n_precursors, na.rm = TRUE)
+    if (naive_mean > 0) sd(naive_counted$n_precursors, na.rm = TRUE) / naive_mean else NA
+  }, error = function(e) NA)
+
+  # Build subtitle with baseline comparison
   subtitle_text <- sprintf(
-    "%d windows | Mean: %.1f | Min: %d | Max: %d precursors/window",
+    "%d windows | Mean: %.1f | Range: %d\u2013%d precursors/window",
     n_wins, mean_n, min_n, max_n
   )
-  if (!is.null(median_note)) {
-    subtitle_text <- paste0(subtitle_text, "\n", median_note)
+  if (!is.na(cv_optimized) && !is.na(naive_cv)) {
+    cv_change <- (1 - cv_optimized / naive_cv) * 100
+    subtitle_text <- paste0(subtitle_text, sprintf(
+      "\nLoad CV: %.2f (equal-width baseline: %.2f, %.0f%% improvement)",
+      cv_optimized, naive_cv, cv_change
+    ))
   }
 
   # ---- Compute load ratio (vs mean) for color mapping ---------------------
@@ -211,15 +230,7 @@ plot_temporal_density <- function(evaluation_result) {
 
   n_bins <- length(unique(per_window$rt_segment_id))
 
-  # If more than 6 RT bins, show median segment only
-  if (n_bins > 6) {
-    median_seg  <- select_median_rt_segment(per_window)
-    per_window  <- per_window[per_window$rt_segment_id == median_seg, , drop = FALSE]
-    n_bins      <- 1
-    median_note <- sprintf("Showing median RT segment (%d) only", median_seg)
-  } else {
-    median_note <- NULL
-  }
+  median_note <- NULL
 
   # Summary statistics
   max_density  <- max(per_window$temporal_density_max, na.rm = TRUE)
@@ -227,13 +238,14 @@ plot_temporal_density <- function(evaluation_result) {
   median_density <- median(per_window$temporal_density_max, na.rm = TRUE)
   n_wins <- nrow(per_window)
 
+  # High-density windows (> 2x median) indicate deconvolution hotspots
+  n_high <- sum(per_window$temporal_density_max > 2 * median_density, na.rm = TRUE)
+  pct_high <- n_high / n_wins * 100
+
   subtitle_text <- sprintf(
-    "%d windows | Max density: %d | Median: %.1f | Mean: %.1f",
-    n_wins, max_density, median_density, mean_density
+    "%d windows | Max: %d | Median: %.1f | Mean: %.1f co-eluting | %.0f%% high-density (>2x median)",
+    n_wins, max_density, median_density, mean_density, pct_high
   )
-  if (!is.null(median_note)) {
-    subtitle_text <- paste0(subtitle_text, "\n", median_note)
-  }
 
   p <- ggplot2::ggplot(
     per_window,
