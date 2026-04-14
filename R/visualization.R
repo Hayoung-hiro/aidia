@@ -127,10 +127,10 @@ generate_visualizations <- function(
     optimized_windows, validated_data, max_segments_to_show = 6
   )
 
-  # S3-06: Precursor Distribution Across Windows
-  cat("  Generating S3-06: Precursor Distribution...\n")
+  # S2-05: Precursor Distribution Across Windows
+  cat("  Generating S2-05: Precursor Distribution...\n")
   plots$`s2_05_precursor_distribution` <- plot_precursors_per_window(
-    optimized_windows, validated_data
+    optimized_windows, validated_data, optimization_plan
   )
 
   # ===================================================================

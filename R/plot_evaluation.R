@@ -21,15 +21,19 @@
 #'
 #' Bar chart showing the number of precursors in each isolation window,
 #' colored by window width. Helps identify overloaded or empty windows.
+#' When optimization_plan is provided, computes a "before" baseline using
+#' the current cycle time's window count with equal-width placement.
 #'
 #' @param optimized_windows OptimizedWindows object from Stage 3
 #' @param validated_data ValidatedData object from Stage 1
+#' @param optimization_plan OptimizationPlan object from Stage 2 (optional, for baseline)
 #' @param max_windows Integer, max windows to show per RT bin (default: NULL = all)
 #'
 #' @return ggplot object
 #' @keywords internal
 plot_precursors_per_window <- function(optimized_windows,
                                        validated_data,
+                                       optimization_plan = NULL,
                                        max_windows = NULL) {
 
   cat("  Generating Evaluation Plot: Precursor Distribution Across Windows...\n")
@@ -72,39 +76,60 @@ plot_precursors_per_window <- function(optimized_windows,
   n_wins   <- nrow(windows_counted)
   cv_optimized <- if (mean_n > 0) sd(windows_counted$n_precursors, na.rm = TRUE) / mean_n else NA
 
-  # ---- Naive baseline: equal-width windows for comparison -----------------
-  naive_cv <- tryCatch({
-    # Generate equal-width windows per RT bin using the full m/z range
-    rt_bins <- unique(windows[, c("rt_start", "rt_end", "rt_segment_id")])
-    naive_windows_list <- lapply(seq_len(nrow(rt_bins)), function(i) {
-      bin_prec <- precursor_data[precursor_data$RT.Apex >= rt_bins$rt_start[i] &
-                                 precursor_data$RT.Apex <= rt_bins$rt_end[i], ]
+  # ---- Baseline: equal-width windows at current (pre-optimization) conditions
+  baseline_result <- tryCatch({
+    # Determine baseline window count from current acquisition conditions
+    if (!is.null(optimization_plan)) {
+      current_ct <- optimization_plan$diagnosis$current_cycle_time_sec
+      ms2_time <- optimization_plan$instrument$ms2_scan_time_ms / 1000
+      baseline_n_per_bin <- if (!is.na(current_ct) && !is.na(ms2_time) && ms2_time > 0) {
+        as.integer(floor(current_ct / ms2_time))
+      } else {
+        # Fallback: same count as optimized
+        optimized_windows$parameters$window_count_per_bin %||%
+          nrow(windows) / n_bins
+      }
+    } else {
+      baseline_n_per_bin <- nrow(windows) / n_bins
+    }
+
+    # Generate equal-width windows per RT bin using full m/z range
+    rt_bins_df <- unique(windows[, c("rt_start", "rt_end", "rt_segment_id")])
+    naive_windows_list <- lapply(seq_len(nrow(rt_bins_df)), function(i) {
+      bin_prec <- precursor_data[precursor_data$RT.Apex >= rt_bins_df$rt_start[i] &
+                                 precursor_data$RT.Apex <= rt_bins_df$rt_end[i], ]
       if (nrow(bin_prec) < 2) return(NULL)
       mz_range <- range(bin_prec$Precursor.Mz, na.rm = TRUE)
-      n_per_bin <- sum(windows$rt_segment_id == rt_bins$rt_segment_id[i])
-      if (n_per_bin < 1) return(NULL)
-      width <- diff(mz_range) / n_per_bin
-      starts <- mz_range[1] + (seq_len(n_per_bin) - 1) * width
+      n_win <- min(baseline_n_per_bin, 500L)
+      if (n_win < 1) return(NULL)
+      width <- diff(mz_range) / n_win
+      starts <- mz_range[1] + (seq_len(n_win) - 1) * width
       data.frame(mz_start = starts, mz_end = starts + width,
-                 rt_start = rt_bins$rt_start[i], rt_end = rt_bins$rt_end[i],
-                 rt_segment_id = rt_bins$rt_segment_id[i])
+                 rt_start = rt_bins_df$rt_start[i], rt_end = rt_bins_df$rt_end[i],
+                 rt_segment_id = rt_bins_df$rt_segment_id[i])
     })
     naive_windows <- do.call(rbind, naive_windows_list)
     naive_counted <- calculate_precursors_per_window(naive_windows, precursor_data)
     naive_mean <- mean(naive_counted$n_precursors, na.rm = TRUE)
-    if (naive_mean > 0) sd(naive_counted$n_precursors, na.rm = TRUE) / naive_mean else NA
-  }, error = function(e) NA)
+    naive_cv <- if (naive_mean > 0) sd(naive_counted$n_precursors, na.rm = TRUE) / naive_mean else NA
+    list(cv = naive_cv, n_per_bin = baseline_n_per_bin)
+  }, error = function(e) list(cv = NA, n_per_bin = NA))
 
   # Build subtitle with baseline comparison
   subtitle_text <- sprintf(
     "%d windows | Mean: %.1f | Range: %d\u2013%d precursors/window",
     n_wins, mean_n, min_n, max_n
   )
-  if (!is.na(cv_optimized) && !is.na(naive_cv)) {
-    cv_change <- (1 - cv_optimized / naive_cv) * 100
+  if (!is.na(cv_optimized) && !is.na(baseline_result$cv)) {
+    cv_change <- (1 - cv_optimized / baseline_result$cv) * 100
+    baseline_label <- if (!is.na(baseline_result$n_per_bin)) {
+      sprintf("before: %d win/bin, CV %.2f", baseline_result$n_per_bin, baseline_result$cv)
+    } else {
+      sprintf("equal-width CV: %.2f", baseline_result$cv)
+    }
     subtitle_text <- paste0(subtitle_text, sprintf(
-      "\nLoad CV: %.2f (equal-width baseline: %.2f, %.0f%% improvement)",
-      cv_optimized, naive_cv, cv_change
+      "\nLoad CV: %.2f (%s, %.0f%% improvement)",
+      cv_optimized, baseline_label, cv_change
     ))
   }
 
