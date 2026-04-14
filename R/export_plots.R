@@ -467,8 +467,8 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
                      "Precursor distribution characteristics and chromatographic quality")
   n_pages <- n_pages + 1
   n <- .emit_section_plots(plots, c(
-    "plot2_rt_mz_density_heatmap",
-    "plot0_fwhm_distribution"
+    "s1_01_density_heatmap",
+    "s1_02_fwhm_distribution"
   ))
   n_pages <- n_pages + n
   .draw_data_quality_summary(validated_data)
@@ -479,8 +479,8 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
                      "Current DPPP status, cycle time trade-off, and instrument parameters")
   n_pages <- n_pages + 1
   n <- .emit_section_plots(plots, c(
-    "plot1b_dppp_diagnosis_table",
-    "plot6_satisfaction_curve"
+    "s2_01_dppp_diagnosis",
+    "s2_02_satisfaction_curve"
   ))
   n_pages <- n_pages + n
 
@@ -488,30 +488,32 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   .draw_section_page(3, "Optimized Window Layout",
                      "Isolation window tiling, density alignment, and precursor load balance")
   n_pages <- n_pages + 1
-  s3_keys <- c("plot16_load_balance", "plot3_mz_density_overlay")
+  s3_keys <- c("s3_02_load_balance", "s3_03_mz_density")
   # Tiling coverage map: staggered mode only (shows cycle interleaving)
   if (identical(optimized_windows$parameters$window_mode, "staggered")) {
-    s3_keys <- c("plot12_tiling_coverage_map", s3_keys)
+    s3_keys <- c("s3_01_tiling_coverage", s3_keys)
   }
   n <- .emit_section_plots(plots, s3_keys)
   n_pages <- n_pages + n
 
   # --- Section 4: Optimization Validation ---
-  validation_keys <- c("plot6b_impact_summary",
-                       "plot17_edge_proximity",
-                       "plot14_fz_zoom")
+  validation_keys <- c("s4_01_impact_summary",
+                       "s4_02_edge_proximity",
+                       "s4_03_edge_proximity_spatial",
+                       "s4_04_charge_state",
+                       "s4_05_fz_validation")
   if (any(validation_keys %in% names(plots))) {
     .draw_section_page(4, "Optimization Validation",
-                       "Before/after comparison, boundary safety, and forbidden zone check")
+                       "Impact summary, boundary safety, forbidden zone, and charge state distribution")
     n_pages <- n_pages + 1
     n <- .emit_section_plots(plots, validation_keys)
     n_pages <- n_pages + n
   }
 
   # --- Section 5: Strategy Comparison (CONDITIONAL: only when >= 2 strategies) ---
-  strategy_keys <- c("plot8d_strategy_comparison_table",
-                     "plot8a_strategy_width_ridge",
-                     "plot2c_heatmap_with_mz_range")
+  strategy_keys <- c("s5_01_strategy_table",
+                     "s5_02_strategy_ridge",
+                     "s5_03_heatmap_boundary")
   if (any(strategy_keys %in% names(plots))) {
     .draw_section_page(5, "Strategy Comparison",
                        "Multi-strategy performance comparison across quality dimensions")
@@ -543,10 +545,19 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
     }
   }
 
-  # --- Appendix B: Adaptive RT Binning (conditional) ---
+  # --- Appendix B: FZ Boundary Zoom (micro view) ---
+  if ("s4_app_fz_zoom" %in% names(plots)) {
+    .draw_section_page("B", "FZ Boundary Zoom",
+                       "Zoomed view of precursor m/z density around a representative window boundary")
+    n_pages <- n_pages + 1
+    n <- .emit_section_plots(plots, "s4_app_fz_zoom")
+    n_pages <- n_pages + n
+  }
+
+  # --- Appendix C: Adaptive RT Binning (conditional) ---
   adaptive_keys <- grep("^plot11", names(plots), value = TRUE)
   if (length(adaptive_keys) > 0) {
-    .draw_section_page("B", "Adaptive RT Binning",
+    .draw_section_page("C", "Adaptive RT Binning",
                        "Change point detection validation and KS statistic trace")
     n_pages <- n_pages + 1
     for (key in adaptive_keys) {

@@ -157,7 +157,10 @@ theme_aidia <- function(base_size = 12, base_family = "") {
         fill = "gray95",
         color = NA
       ),
-      panel.spacing = unit(1, "lines")
+      panel.spacing = unit(1, "lines"),
+
+      # Plot margin — prevent label clipping (top, right, bottom, left)
+      plot.margin = margin(5, 15, 5, 5)
     )
 }
 

@@ -537,7 +537,8 @@ extract_before_after_metrics <- function(optimization_plan, optimized_windows) {
     new_dppp           = optimized_windows$dppp_verification$actual_dppp_median %||% NA_real_,
     target_dppp        = optimization_plan$parameters$target_dppp %||% NA_real_,
     orig_ct            = optimization_plan$diagnosis$current_cycle_time_sec %||% NA_real_,
-    new_ct             = optimized_windows$actual_cycle_time_sec %||%
+    new_ct             = optimized_windows$dppp_verification$actual_cycle_time_sec %||%
+                         optimization_plan$actual_cycle_time_sec %||%
                          optimization_plan$required_cycle_time_sec %||% NA_real_,
     strategy           = optimized_windows$parameters$mz_strategy %||% "unknown",
     window_mode        = optimized_windows$parameters$window_mode %||% "unknown",

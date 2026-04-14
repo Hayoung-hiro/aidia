@@ -3,8 +3,11 @@
 #
 # Purpose: Quantify how close precursors are to the nearest window boundary.
 #          Precursors near edges (< 1 Da) risk incomplete fragmentation due
-#          to quadrupole transmission roll-off. This metric directly motivates
-#          staggered window designs and helps evaluate boundary effect severity.
+#          to quadrupole transmission roll-off.
+#
+# Functions:
+#   - plot_edge_proximity(): Histogram with staggered simulation overlay
+#   - plot_edge_proximity_spatial(): RT x m/z scatter colored by edge zone
 #
 # Dependencies: ggplot2, dplyr
 
@@ -67,11 +70,9 @@ calculate_edge_distances <- function(precursor_data, windows) {
 
 #' Plot Window Edge Proximity Distribution
 #'
-#' Creates a histogram of relative edge distance (normalized to half-window-width).
-#' 0 = at boundary, 1 = at window center. Shows how many precursors are
-#' near boundaries and motivates staggered window placement.
-#'
-#' The danger threshold adapts to window width: min(1.0 Da, mean_width * 0.25).
+#' Histogram of relative edge distance (0 = boundary, 1 = center) with
+#' staggered mode simulation overlay. Shows how staggered boundary shifting
+#' reduces the fraction of precursors in the boundary zone.
 #'
 #' @param optimized_windows OptimizedWindows object from Stage 3
 #' @param validated_data ValidatedData object from Stage 1
@@ -89,7 +90,8 @@ plot_edge_proximity <- function(optimized_windows, validated_data) {
   edge_dist <- calculate_edge_distances(precursor_data, windows)
 
   # Remove NAs (unassigned precursors)
-  edge_dist_clean <- edge_dist[!is.na(edge_dist)]
+  matched <- !is.na(edge_dist)
+  edge_dist_clean <- edge_dist[matched]
 
   if (length(edge_dist_clean) < 2) {
     return(create_insufficient_data_plot(
@@ -98,99 +100,108 @@ plot_edge_proximity <- function(optimized_windows, validated_data) {
     ))
   }
 
-  # Calculate mean window width for adaptive threshold
   mean_width <- mean(get_window_widths(windows), na.rm = TRUE)
   half_width <- mean_width / 2
 
-  # Normalize to relative position: 0 = boundary, 1 = center
+  # Normalize to relative: 0 = boundary, 1 = center
   relative_dist <- pmin(edge_dist_clean / half_width, 1.0)
 
-  df <- data.frame(relative_distance = relative_dist)
+  # --- Simulate staggered effect ---
+  # Shift all boundaries by half window width (cycle 2)
+  shifted_windows <- windows
+  shifted_windows$mz_start <- shifted_windows$mz_start + half_width
+  shifted_windows$mz_end <- shifted_windows$mz_end + half_width
+  edge_dist_shifted <- calculate_edge_distances(precursor_data, shifted_windows)
 
-  # Adaptive danger threshold (relative to window width)
-  danger_rel <- 0.25  # Inner 25% from each edge = 50% of window is "danger"
-  n_danger <- sum(relative_dist < danger_rel)
-  pct_danger <- n_danger / length(relative_dist) * 100
-  n_center <- sum(relative_dist >= 0.5)
-  pct_center <- n_center / length(relative_dist) * 100
+  # Effective: best of two cycles per precursor
+  effective_dist <- pmax(edge_dist, edge_dist_shifted, na.rm = TRUE)
+  effective_matched <- !is.na(effective_dist)
+  effective_clean <- effective_dist[effective_matched]
+  effective_rel <- pmin(effective_clean / half_width, 1.0)
+
+  # --- Stats ---
+  danger_rel <- 0.25
+  pct_danger <- sum(relative_dist < danger_rel) / length(relative_dist) * 100
+  pct_center <- sum(relative_dist >= 0.5) / length(relative_dist) * 100
+  pct_danger_stag <- sum(effective_rel < danger_rel) / length(effective_rel) * 100
   median_rel <- median(relative_dist)
 
-  # Window mode for staggered recommendation
+  median_abs_da <- median(edge_dist_clean, na.rm = TRUE)
 
-  window_mode <- optimized_windows$parameters$window_mode %||% "density"
+  # Combined data frame for legend-mapped density lines
+  df_density <- data.frame(
+    relative_distance = c(relative_dist, effective_rel),
+    mode = factor(
+      rep(c("Current", "Staggered (sim.)"), c(length(relative_dist), length(effective_rel))),
+      levels = c("Current", "Staggered (sim.)", "Uniform")
+    )
+  )
+  df_current <- data.frame(relative_distance = relative_dist)
 
-  p <- ggplot(df, aes(x = relative_distance)) +
-    # Boundary zone shading (< 25% from edge)
-    annotate(
-      "rect",
-      xmin = 0, xmax = danger_rel,
-      ymin = -Inf, ymax = Inf,
-      fill = aidia_colors$accent,
-      alpha = 0.12
-    ) +
-    # Center zone shading (> 50% from edge)
-    annotate(
-      "rect",
-      xmin = 0.5, xmax = 1.0,
-      ymin = -Inf, ymax = Inf,
-      fill = aidia_colors$success,
-      alpha = 0.08
-    ) +
-    # Histogram
+  # Uniform reference as a dummy data frame for legend
+  df_uniform <- data.frame(
+    x = c(0, 1), y = c(1.0, 1.0),
+    mode = factor("Uniform", levels = c("Current", "Staggered (sim.)", "Uniform"))
+  )
+
+  p <- ggplot() +
+    # Boundary zone shading
+    annotate("rect", xmin = 0, xmax = danger_rel,
+             ymin = -Inf, ymax = Inf,
+             fill = aidia_colors$accent, alpha = 0.12) +
+    # Center zone shading
+    annotate("rect", xmin = 0.5, xmax = 1.0,
+             ymin = -Inf, ymax = Inf,
+             fill = aidia_colors$success, alpha = 0.08) +
+    # Uniform baseline (mapped to legend)
+    geom_line(data = df_uniform, aes(x = x, y = y, color = mode, linetype = mode),
+              linewidth = 0.5) +
+    # Histogram: current only
     geom_histogram(
-      aes(y = after_stat(density)),
-      bins = 40,
-      fill = aidia_colors$primary,
-      color = "white",
-      alpha = 0.7,
-      linewidth = 0.2
+      data = df_current,
+      aes(x = relative_distance, y = after_stat(density)),
+      bins = 40, fill = aidia_colors$before, color = "white",
+      alpha = 0.5, linewidth = 0.2
     ) +
+    # Density lines (mapped to legend)
     geom_density(
-      color = aidia_colors$primary,
-      linewidth = 0.8,
-      alpha = 0.6
+      data = df_density,
+      aes(x = relative_distance, color = mode, linetype = mode),
+      linewidth = 0.8
     ) +
-    # Danger threshold line
-    geom_vline(
-      xintercept = danger_rel,
-      linetype = "dashed",
-      color = aidia_colors$accent,
-      linewidth = 0.7
-    ) +
-    # Center boundary
-    geom_vline(
-      xintercept = 0.5,
-      linetype = "dashed",
-      color = aidia_colors$success,
-      linewidth = 0.5
-    ) +
+    # Threshold lines
+    geom_vline(xintercept = danger_rel, linetype = "dashed",
+               color = aidia_colors$accent, linewidth = 0.7) +
+    geom_vline(xintercept = 0.5, linetype = "dashed",
+               color = aidia_colors$success, linewidth = 0.5) +
     # Median line
-    geom_vline(
-      xintercept = median_rel,
-      linetype = "solid",
-      color = "gray30",
-      linewidth = 0.6
+    geom_vline(xintercept = median_rel, linetype = "solid",
+               color = "gray30", linewidth = 0.6) +
+    # Staggered improvement stats (annotation box)
+    annotate("label",
+             x = 0.97, y = Inf,
+             label = sprintf(
+               "Boundary: %.0f%% \u2192 %.0f%%\nCenter: %.0f%% \u2192 %.0f%%\nMedian: %.2f \u2192 %.2f",
+               pct_danger, pct_danger_stag,
+               pct_center, sum(effective_rel >= 0.5) / length(effective_rel) * 100,
+               median_rel, median(effective_rel)
+             ),
+             vjust = 1.2, hjust = 1, size = 3,
+             fill = "white", color = "gray40",
+             label.padding = unit(0.4, "lines"),
+             label.r = unit(0.15, "lines")) +
+    # Color + linetype scales (legend)
+    scale_color_manual(
+      name = NULL,
+      values = c("Current" = aidia_colors$before_dark,
+                 "Staggered (sim.)" = aidia_colors$success,
+                 "Uniform" = "gray50")
     ) +
-    # Zone labels
-    annotate(
-      "text",
-      x = danger_rel / 2, y = Inf,
-      label = sprintf("Boundary zone\n%.0f%%", pct_danger),
-      vjust = 1.8, size = 3, fontface = "bold",
-      color = aidia_colors$accent
-    ) +
-    annotate(
-      "text",
-      x = 0.75, y = Inf,
-      label = sprintf("Center zone\n%.0f%%", pct_center),
-      vjust = 1.8, size = 3, fontface = "bold",
-      color = aidia_colors$after_success
-    ) +
-    annotate(
-      "text",
-      x = median_rel, y = Inf,
-      label = sprintf("Median: %.2f", median_rel),
-      vjust = 3.5, hjust = -0.1, size = 3, color = "gray30"
+    scale_linetype_manual(
+      name = NULL,
+      values = c("Current" = "solid",
+                 "Staggered (sim.)" = "dashed",
+                 "Uniform" = "dotted")
     ) +
     scale_x_continuous(
       limits = c(0, 1),
@@ -200,23 +211,90 @@ plot_edge_proximity <- function(optimized_windows, validated_data) {
     ) +
     scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
     labs(
-      title = "Window Edge Proximity (Relative)",
-      subtitle = sprintf(
-        "Mean window width: %.1f Da | %.0f%% of precursors in boundary zone (<25%% from edge)",
-        mean_width, pct_danger
-      ),
+      title = "Window Edge Proximity",
+      subtitle = sprintf("%s precursors | Mean width: %.1f Da",
+                         format(length(edge_dist_clean), big.mark = ","), mean_width),
       x = "Relative Distance from Nearest Edge (0 = boundary, 1 = center)",
       y = "Density",
-      caption = if (window_mode != "staggered") {
-        "Staggered window mode shifts boundaries in alternating RT bins, reducing boundary-zone precursors"
-      } else {
-        "Staggered mode active: boundaries shift in alternating RT bins"
-      }
+      caption = sprintf("Current \u2192 Staggered (simulated, best of two offset cycles) | %s precursors",
+                        format(length(edge_dist_clean), big.mark = ","))
     ) +
     theme_aidia() +
     theme(
-      panel.grid.minor = element_blank()
+      panel.grid.minor = element_blank(),
+      legend.position = "bottom",
+      legend.key.width = unit(1, "cm"),
+      legend.text = element_text(size = 9),
+      legend.margin = margin(0, 0, 0, 0),
+      legend.box.margin = margin(-5, 0, 0, 0)
     )
+
+  return(p)
+}
+
+
+#' Plot Edge Proximity Spatial View (RT x m/z)
+#'
+#' Scatter plot of precursors on the RT x m/z plane, colored by edge
+#' proximity zone. Reveals WHERE boundary-zone precursors concentrate
+#' in the gradient and m/z space.
+#'
+#' @param optimized_windows OptimizedWindows object from Stage 3
+#' @param validated_data ValidatedData object from Stage 1
+#'
+#' @return ggplot object
+#' @keywords internal
+plot_edge_proximity_spatial <- function(optimized_windows, validated_data) {
+
+  cat("  Generating Edge Proximity Spatial View...\n")
+
+  windows <- optimized_windows$windows
+  precursor_data <- validated_data$data
+
+  edge_dist <- calculate_edge_distances(precursor_data, windows)
+
+  mean_width <- mean(get_window_widths(windows), na.rm = TRUE)
+  half_width <- mean_width / 2
+
+  # Build data frame with edge distance category
+  matched <- !is.na(edge_dist)
+  rel_dist <- pmin(edge_dist[matched] / half_width, 1.0)
+
+  df <- data.frame(
+    rt = precursor_data$RT.Apex[matched],
+    mz = precursor_data$Precursor.Mz[matched],
+    edge_rel = rel_dist,
+    zone = cut(rel_dist,
+               breaks = c(-Inf, 0.25, 0.5, Inf),
+               labels = c("Boundary (<25%)", "Middle (25-50%)", "Center (>50%)"))
+  )
+
+  pct_boundary <- sum(df$zone == "Boundary (<25%)") / nrow(df) * 100
+
+  # Sort: center first (background), boundary on top (foreground)
+  df <- df[order(-df$edge_rel), ]
+
+  p <- ggplot(df, aes(x = rt, y = mz, color = zone)) +
+    geom_point(size = 0.8, alpha = 0.5) +
+    scale_color_manual(
+      values = c(
+        "Boundary (<25%)" = aidia_colors$accent,
+        "Middle (25-50%)"  = "gray60",
+        "Center (>50%)"    = aidia_colors$success
+      ),
+      name = "Edge Proximity"
+    ) +
+    labs(
+      title = "Edge Proximity: Spatial Distribution",
+      subtitle = sprintf(
+        "%s precursors | %.0f%% in boundary zone | Mean width: %.1f Da",
+        format(nrow(df), big.mark = ","), pct_boundary, mean_width
+      ),
+      x = "Retention Time (min)",
+      y = "m/z (Da)"
+    ) +
+    theme_aidia() +
+    theme(legend.position = "right")
 
   return(p)
 }

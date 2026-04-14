@@ -83,14 +83,14 @@ generate_visualizations <- function(
 
   # Plot 0: FWHM Distribution (Fundamental Input)
   cat("  Generating Plot 0: FWHM Distribution (Fundamental Input)...\n")
-  plots$`plot0_fwhm_distribution` <- plot_fwhm_distribution(validated_data, optimization_plan)
+  plots$`s1_02_fwhm_distribution` <- plot_fwhm_distribution(validated_data, optimization_plan)
 
   # Plot 1: DPPP Comparison - Both versions
   cat("  Generating Plot 1A: DPPP Comparison (Simple)...\n")
   plots$`plot1a_dppp_comparison_simple` <- plot_dppp_comparison(optimization_plan, validated_data)
 
   # Plot 1B: Acquisition Diagnosis Table (primary for PDF)
-  plots$`plot1b_dppp_diagnosis_table` <- plot_dppp_diagnosis_table(optimization_plan, validated_data)
+  plots$`s2_01_dppp_diagnosis` <- plot_dppp_diagnosis_table(optimization_plan, validated_data)
 
   # Legacy versions (kept for individual export, not used in PDF)
   cat("  Generating Plot 1B curve: DPPP vs Cycle Time (legacy)...\n")
@@ -100,11 +100,11 @@ generate_visualizations <- function(
 
   # Plot 2: RT x m/z Intensity/Density Heatmap
   cat("  Generating Plot 2: RT x m/z Heatmap...\n")
-  plots$`plot2_rt_mz_density_heatmap` <- plot_rt_mz_density_heatmap(validated_data)
+  plots$`s1_01_density_heatmap` <- plot_rt_mz_density_heatmap(validated_data)
 
   # Plot 6: Satisfaction vs Cycle Time Curve
   cat("  Generating Plot 6: Satisfaction Curve...\n")
-  plots$`plot6_satisfaction_curve` <- plot_satisfaction_curve(optimization_plan, validated_data)
+  plots$`s2_02_satisfaction_curve` <- plot_satisfaction_curve(optimization_plan, validated_data)
 
   # Plot 2B: RT Histogram (supplementary — kept for individual export, removed from PDF)
   cat("  Generating Plot 2B: RT Histogram...\n")
@@ -113,7 +113,7 @@ generate_visualizations <- function(
 
   # Plot 3: m/z Density Overlay by RT Segment
   cat("  Generating Plot 3: m/z Density Overlay...\n")
-  plots$`plot3_mz_density_overlay` <- plot_mz_normalized_density(optimized_windows, validated_data)
+  plots$`s3_03_mz_density` <- plot_mz_normalized_density(optimized_windows, validated_data)
 
   # ===================================================================
   # Plot 4: Multi-Strategy m/z Range Optimization Comparison
@@ -184,7 +184,7 @@ generate_visualizations <- function(
 
   # Plot 6B: Optimization Impact Summary (Before/After Dashboard)
   cat("  Generating Plot 6B: Optimization Impact Summary...\n")
-  plots$`plot6b_impact_summary` <- plot_optimization_impact(optimization_plan, optimized_windows, validated_data)
+  plots$`s4_01_impact_summary` <- plot_optimization_impact(optimization_plan, optimized_windows, validated_data)
 
   # Plot 9: RT Bin Quality Heatmap (kept for individual export, removed from PDF)
   cat("  Generating Plot 9: RT Bin Quality Heatmap...\n")
@@ -194,7 +194,7 @@ generate_visualizations <- function(
 
   # Plot 2C: RT x m/z Heatmap with m/z Range Overlay (per-strategy grid)
   cat("  Generating Plot 2C: Heatmap with m/z Range (All Strategies)...\n")
-  plots$`plot2c_heatmap_with_mz_range` <- plot_density_with_mz_ranges_grid(
+  plots$`s5_03_heatmap_boundary` <- plot_density_with_mz_ranges_grid(
     windows_list, validated_data
   )
 
@@ -219,7 +219,7 @@ generate_visualizations <- function(
   # Plot 12: Tiling Coverage Map (staggered mode only — shows cycle interleaving)
   if (identical(optimized_windows$parameters$window_mode, "staggered")) {
     cat("  Generating Plot 12: Tiling Coverage Map (Staggered Interleaving)...\n")
-    plots$`plot12_tiling_coverage_map` <- plot_tiling_coverage_map(
+    plots$`s3_01_tiling_coverage` <- plot_tiling_coverage_map(
       optimized_windows, validated_data
     )
   }
@@ -230,14 +230,18 @@ generate_visualizations <- function(
     optimized_windows, validated_data
   )
 
-  # Plot 14: FZ Zoom-in (conditional: only when forbidden zone active)
-  fz_offset <- optimized_windows$parameters$fz_offset %||% 0
-  if (fz_offset > 0) {
-    cat("  Generating Plot 14: Forbidden Zone Zoom-in...\n")
-    plots$`plot14_fz_zoom` <- plot_fz_zoom(
-      optimized_windows, validated_data, fz_offset = fz_offset
-    )
-  }
+  # Plot 14: FZ Zoom-in (always-on: isotope envelope protection is default)
+  fz_offset <- optimized_windows$parameters$fz_offset %||% 0.25
+  cat("  Generating Plot 14: Forbidden Zone Zoom-in...\n")
+  plots$`s4_app_fz_zoom` <- plot_fz_zoom(
+    optimized_windows, validated_data, fz_offset = fz_offset
+  )
+
+  # Plot 14B: FZ Validation (mass defect histogram)
+  cat("  Generating Plot 14B: Forbidden Zone Validation...\n")
+  plots$`s4_05_fz_validation` <- plot_fz_validation(
+    validated_data, fz_offset = fz_offset
+  )
 
   # ===================================================================
   # Plot 7: Window Width Distribution by RT Segment (Multi-Strategy)
@@ -269,7 +273,7 @@ generate_visualizations <- function(
 
   # Plot 8A: Ridge plot (primary — included in PDF)
   cat("  Generating Plot 8A: Ridge Plot...\n")
-  plots$`plot8a_strategy_width_ridge` <- plot_strategy_width_ridge(windows_list, validated_data)
+  plots$`s5_02_strategy_ridge` <- plot_strategy_width_ridge(windows_list, validated_data)
 
   # Plot 8B: Box plot (kept for individual export, removed from PDF)
   cat("  Generating Plot 8B: Box Plot...\n")
@@ -284,7 +288,7 @@ generate_visualizations <- function(
   # ===================================================================
 
   cat("\n  Generating Plot 8D: Strategy Comparison Summary Table...\n")
-  plots$`plot8d_strategy_comparison_table` <- plot_strategy_comparison_table(windows_list)
+  plots$`s5_01_strategy_table` <- plot_strategy_comparison_table(windows_list)
 
   # ===================================================================
   # Plot 15: Per-Precursor DPPP Distribution (Before vs After)
@@ -298,14 +302,17 @@ generate_visualizations <- function(
   # ===================================================================
 
   cat("  Generating Plot 16: Precursor Load Balance...\n")
-  plots$`plot16_load_balance` <- plot_precursor_load_balance(optimized_windows, validated_data)
+  plots$`s3_02_load_balance` <- plot_precursor_load_balance(optimized_windows, validated_data)
 
   # ===================================================================
   # Plot 17: Window Edge Proximity
   # ===================================================================
 
   cat("  Generating Plot 17: Window Edge Proximity...\n")
-  plots$`plot17_edge_proximity` <- plot_edge_proximity(optimized_windows, validated_data)
+  plots$`s4_02_edge_proximity` <- plot_edge_proximity(optimized_windows, validated_data)
+
+  cat("  Generating Plot 17B: Edge Proximity Spatial View...\n")
+  plots$`s4_03_edge_proximity_spatial` <- plot_edge_proximity_spatial(optimized_windows, validated_data)
 
   # ===================================================================
   # Plot 18: Strategy Radar Chart (Multi-Strategy only)
@@ -321,7 +328,7 @@ generate_visualizations <- function(
   # ===================================================================
 
   cat("  Generating Plot 19: Charge State x m/z Distribution...\n")
-  plots$`plot19_charge_mz` <- plot_charge_mz_distribution(optimized_windows, validated_data)
+  plots$`s4_04_charge_state` <- plot_charge_mz_distribution(optimized_windows, validated_data)
 
   cat(sprintf("\nOK All %d plots generated successfully\n\n", length(plots)))
 

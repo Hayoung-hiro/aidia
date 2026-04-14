@@ -71,7 +71,8 @@ plot_fz_validation <- function(validated_data,
   # Build plot
   p <- ggplot(df, aes(x = frac_mz)) +
     # Histogram
-    geom_histogram(bins = n_bins, fill = "#3498DB", color = NA, alpha = 0.6) +
+    geom_histogram(bins = n_bins, fill = aidia_colors$before, color = "white",
+                   alpha = 0.6, linewidth = 0.1) +
 
     # FZ offset line
     geom_vline(xintercept = fz_offset, color = aidia_colors$success, linewidth = 1.2, linetype = "solid") +
@@ -93,7 +94,7 @@ plot_fz_validation <- function(validated_data,
     annotate("label", x = increment / 2, y = Inf,
              label = sprintf("%s (%.0f%% of peak density)", quality, density_ratio * 100),
              vjust = 1.5, size = 3.2, fontface = "bold",
-             fill = quality_color, color = "white", label.size = 0) +
+             fill = quality_color, color = "white") +
 
     labs(
       x = sprintf("m/z mod %.8f (mass defect cycle)", increment),
