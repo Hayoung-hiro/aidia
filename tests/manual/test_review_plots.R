@@ -33,13 +33,13 @@ cat("Generated", length(plots), "plots\n")
 plot_keys <- c(
   "s1_02_fwhm_distribution",
   "s1_01_density_heatmap",
-  "s4_04_charge_state",
+  "app_a_charge_state",
   "plot1b_dppp_satisfaction_combined",
-  "s5_03_heatmap_boundary",
-  "s5_04_width_profile",
-  "s3_02_load_balance",
-  "s4_01_impact_summary",
-  "s4_02_edge_proximity"
+  "s3_03_heatmap_boundary",
+  "s3_04_width_profile",
+  "s2_04_load_balance",
+  "s2_01_impact_summary",
+  "app_a_edge_proximity"
 )
 
 for (key in plot_keys) {

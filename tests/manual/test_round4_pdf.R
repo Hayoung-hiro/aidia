@@ -29,10 +29,10 @@ cat("PDF:", viz$report_files$pdf_report, "\n")
 # Check key plot names exist
 expected_keys <- c(
   "plot1b_dppp_satisfaction_combined",
-  "s5_04_width_profile",
-  "s3_02_load_balance",
-  "s4_02_edge_proximity",
-  "s5_03_heatmap_boundary"
+  "s3_04_width_profile",
+  "s2_04_load_balance",
+  "app_a_edge_proximity",
+  "s3_03_heatmap_boundary"
 )
 for (k in expected_keys) {
   status <- if (k %in% names(viz$plots)) "OK" else "MISSING"

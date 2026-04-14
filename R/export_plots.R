@@ -513,17 +513,17 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
 #' Creates a professionally structured AIDIA optimization report with
 #' cover page, parameter summary, and logically grouped plot sections.
 #'
-#' Report Structure (5-section narrative):
+#' Report Structure (3-section narrative + appendices):
 #'   Cover Page (AIDIA branding + key metrics)
 #'   Executive Summary (target-oriented scorecard with verdict)
 #'   Configuration Summary (parameter table)
-#'   S1. Input Data Profile (intensity heatmap, FWHM, quality score panel)
-#'   S2. Acquisition Diagnosis (DPPP table, satisfaction curve, instrument metadata)
-#'   S3. Optimized Window Layout (tiling, load balance, m/z density)
-#'   S4. Design Rationale (impact summary, edge proximity, FZ offset, charge state)
-#'   S5. Strategy Characteristics (conditional: table, width ridge, boundary grid, width profile)
-#'   A. Detailed Per-Strategy Analysis (appendix)
-#'   B. Adaptive RT Binning (conditional, only if adaptive mode)
+#'   S1. Data Profile & Diagnosis (heatmap, FWHM, m/z density, DPPP, satisfaction)
+#'   S2. Optimization Result (impact, window layout, load balance, temporal density)
+#'   S3. Strategy Characteristics (conditional: table, ridge, boundary grid, width profile)
+#'   A. Window Placement Details (edge proximity, charge state, FZ validation)
+#'   B. Per-Strategy Analysis (conditional: >= 2 strategies)
+#'   C. FZ Boundary Zoom
+#'   D. Adaptive RT Binning (conditional)
 #'
 #' @param plots Named list of ggplot/grob objects from generate_visualizations()
 #' @param validated_data ValidatedData object from Stage 1
@@ -553,106 +553,109 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   .draw_parameter_summary(optimization_plan, optimized_windows, validated_data)
   n_pages <- n_pages + 1
 
-  # --- Section 1: Input Data Profile ---
-  .draw_section_page(1, "Input Data Profile",
-                     "Precursor distribution characteristics and chromatographic quality")
+  # =====================================================================
+  # Section 1: Data Profile & Diagnosis
+  # =====================================================================
+  .draw_section_page(1, "Data Profile & Diagnosis",
+                     "Characteristics of the optimization space and why optimization is needed")
   n_pages <- n_pages + 1
+
   n <- .emit_section_plots(plots, c(
-    "s1_01_density_heatmap",
-    "s1_02_fwhm_distribution"
+    "s1_01_density_heatmap",     # RT x m/z optimization space
+    "s1_03_mz_density",          # m/z density per RT segment (non-uniform → adaptive needed)
+    "s1_02_fwhm_distribution"    # Peak width → DPPP implication
   ))
   n_pages <- n_pages + n
   .draw_data_quality_summary(validated_data)
   n_pages <- n_pages + 1
 
-  # --- Section 2: Acquisition Diagnosis ---
-  .draw_section_page(2, "Acquisition Diagnosis",
-                     "Current DPPP status, cycle time trade-off, and instrument parameters")
-  n_pages <- n_pages + 1
+  # Diagnosis: DPPP and satisfaction
   n <- .emit_section_plots(plots, c(
-    "s2_01_dppp_diagnosis",
-    "s2_02_satisfaction_curve"
+    "s1_04_dppp_diagnosis",      # Current DPPP state, target
+    "s1_05_satisfaction_curve"   # Cycle time trade-off
   ))
   n_pages <- n_pages + n
 
-  # --- Section 3: Optimized Window Layout ---
-  .draw_section_page(3, "Optimized Window Layout",
-                     "Isolation window tiling, density alignment, and precursor load balance")
+  # =====================================================================
+  # Section 2: Optimization Result
+  # =====================================================================
+  .draw_section_page(2, "Optimization Result",
+                     "What optimization changed: window layout, load balance, and predicted quality")
   n_pages <- n_pages + 1
-  s3_keys <- c("s3_02_load_balance", "s3_03_mz_density",
-                "s3_04_window_width", "s3_05_window_index",
-                "s3_06_precursor_distribution")
-  # Tiling coverage map: staggered mode only (shows cycle interleaving)
+
+  s2_keys <- c(
+    "s2_01_impact_summary",        # Before/after comparison (anchor)
+    "s2_02_window_layout",         # m/z range across gradient
+    "s2_03_window_index",          # Window arrangement per bin
+    "s2_04_load_balance",          # Load uniformity (summary)
+    "s2_05_precursor_distribution", # Per-window load (detail)
+    "s2_06_temporal_density"       # Co-elution complexity
+  )
+  # Tiling coverage map: staggered mode only
   if (identical(optimized_windows$parameters$window_mode, "staggered")) {
-    s3_keys <- c("s3_01_tiling_coverage", s3_keys)
+    s2_keys <- c("s2_tiling_coverage", s2_keys)
   }
-  n <- .emit_section_plots(plots, s3_keys)
+  n <- .emit_section_plots(plots, s2_keys)
   n_pages <- n_pages + n
 
-  # --- Section 4: Optimization Validation ---
-  validation_keys <- c("s4_01_impact_summary",
-                       "s4_02_edge_proximity",
-                       "s4_03_edge_proximity_spatial",
-                       "s4_04_charge_state",
-                       "s4_05_fz_validation",
-                       "s4_06_temporal_density")
-  if (any(validation_keys %in% names(plots))) {
-    .draw_section_page(4, "Design Rationale",
-                       "Why these constraints matter: cycle time, boundary effects, and isotope protection")
-    n_pages <- n_pages + 1
-    .draw_design_rationale_text(optimized_windows)
-    n_pages <- n_pages + 1
-    n <- .emit_section_plots(plots, validation_keys)
-    n_pages <- n_pages + n
-  }
-
-  # --- Section 5: Strategy Comparison (CONDITIONAL: only when >= 2 strategies) ---
-  strategy_keys <- c("s5_01_strategy_table",
-                     "s5_02_strategy_ridge",
-                     "s5_03_heatmap_boundary",
-                     "s5_04_width_profile")
+  # =====================================================================
+  # Section 3: Strategy Characteristics (conditional: >= 2 strategies)
+  # =====================================================================
+  strategy_keys <- c("s3_01_strategy_table",
+                     "s3_02_strategy_ridge",
+                     "s3_03_heatmap_boundary",
+                     "s3_04_width_profile")
   if (any(strategy_keys %in% names(plots))) {
-    .draw_section_page(5, "Strategy Characteristics",
+    .draw_section_page(3, "Strategy Characteristics",
                        "How each m/z optimization strategy shapes window placement and coverage")
     n_pages <- n_pages + 1
     n <- .emit_section_plots(plots, strategy_keys)
     n_pages <- n_pages + n
   }
 
-  # --- Appendix A: Detailed Per-Strategy Analysis (only when >= 2 strategies) ---
+  # =====================================================================
+  # Appendix A: Window Placement Details
+  # =====================================================================
+  placement_keys <- c("app_a_edge_proximity", "app_a_edge_spatial",
+                      "app_a_charge_state", "app_a_fz_validation")
+  if (any(placement_keys %in% names(plots))) {
+    .draw_section_page("A", "Window Placement Details",
+                       "Isotope boundary offset, edge proximity, and charge state analysis")
+    n_pages <- n_pages + 1
+    .draw_design_rationale_text(optimized_windows)
+    n_pages <- n_pages + 1
+    n <- .emit_section_plots(plots, placement_keys)
+    n_pages <- n_pages + n
+  }
+
+  # --- Appendix B: Per-Strategy Analysis (conditional: >= 2 strategies) ---
   per_strategy_keys <- grep("^plot4_", names(plots), value = TRUE)
   per_strategy_keys <- setdiff(per_strategy_keys, "plot4e_mz_width_all_strategies")
   if (length(per_strategy_keys) > 1) {
-    .draw_section_page("A", "Detailed Per-Strategy Analysis",
-                       "Per-strategy m/z excluded regions and coverage maps")
+    .draw_section_page("B", "Per-Strategy Analysis",
+                       "Per-strategy m/z excluded regions and width comparison")
     n_pages <- n_pages + 1
-
-    # Strategy m/z width comparison (grouped bar chart)
-    n <- .emit_section_plots(plots, c(
-      "plot4e_mz_width_all_strategies"
-    ))
+    n <- .emit_section_plots(plots, "plot4e_mz_width_all_strategies")
     n_pages <- n_pages + n
-
-    # Per-strategy plots in order
     for (key in per_strategy_keys) {
       .render_plot(plots[[key]])
       n_pages <- n_pages + 1
     }
   }
 
-  # --- Appendix B: FZ Boundary Zoom (micro view) ---
-  if ("s4_app_fz_zoom" %in% names(plots)) {
-    .draw_section_page("B", "FZ Boundary Zoom",
+  # --- Appendix C: FZ Boundary Zoom ---
+  if ("app_a_fz_zoom" %in% names(plots)) {
+    .draw_section_page("C", "FZ Boundary Zoom",
                        "Zoomed view of precursor m/z density around a representative window boundary")
     n_pages <- n_pages + 1
-    n <- .emit_section_plots(plots, "s4_app_fz_zoom")
+    n <- .emit_section_plots(plots, "app_a_fz_zoom")
     n_pages <- n_pages + n
   }
 
-  # --- Appendix C: Adaptive RT Binning (conditional) ---
+  # --- Appendix D: Adaptive RT Binning (conditional) ---
   adaptive_keys <- grep("^plot11", names(plots), value = TRUE)
   if (length(adaptive_keys) > 0) {
-    .draw_section_page("C", "Adaptive RT Binning",
+    .draw_section_page("D", "Adaptive RT Binning",
                        "Change point detection validation and KS statistic trace")
     n_pages <- n_pages + 1
     for (key in adaptive_keys) {
