@@ -408,11 +408,102 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
 }
 
 # =============================================================================
-# Instrument Metadata Footer (Section 2 text block)
+# Design Rationale Text (Section 4 intro)
 # =============================================================================
 
-#' Draw Instrument Metadata on PDF
+#' Draw Design Rationale Explanatory Text
+#'
+#' Provides accessible explanations of the three key design constraints
+#' (FZ offset, edge proximity, staggered mode) that inform window placement.
+#' Written for users who may not be familiar with these concepts.
+#'
+#' @param optimized_windows OptimizedWindows object from Stage 3
 #' @keywords internal
+.draw_design_rationale_text <- function(optimized_windows) {
+  grid::grid.newpage()
+
+  fz_offset <- optimized_windows$parameters$fz_offset %||% 0.25
+  window_mode <- optimized_windows$parameters$window_mode %||% "density"
+
+  # Build text blocks
+  blocks <- list()
+
+  blocks[[1]] <- list(
+    title = "Impact Summary",
+    body = paste(
+      "The first plot compares acquisition parameters before and after optimization.",
+      "Cycle time determines how many data points are acquired per chromatographic peak (DPPP),",
+      "which directly affects quantification precision.",
+      "Satisfaction indicates the fraction of precursors meeting the target DPPP."
+    )
+  )
+
+  blocks[[2]] <- list(
+    title = sprintf("Forbidden Zone (FZ) Offset: %.2f Da", fz_offset),
+    body = paste(
+      "In proteomics, most precursors carry 2+ or 3+ charges.",
+      "Their isotope envelopes repeat at intervals of ~0.5 Da (charge 2) or ~0.33 Da (charge 3),",
+      "clustering near integer m/z values.",
+      "If a window boundary falls on an isotope peak, the precursor is split across two windows,",
+      "reducing fragment ion signal and identification confidence.",
+      "",
+      "The FZ offset shifts all window boundaries away from integer m/z positions",
+      sprintf("by %.2f Da, placing them in the gaps between isotope clusters.", fz_offset),
+      "The FZ validation plot below confirms that boundaries avoid these danger zones."
+    )
+  )
+
+  blocks[[3]] <- list(
+    title = "Edge Proximity",
+    body = paste(
+      "Even with FZ offset, precursors near any window boundary are at risk.",
+      "Quadrupole transmission rolls off at the edges of the isolation window,",
+      "so precursors within ~1 Da of a boundary may have incomplete fragmentation.",
+      "",
+      "The edge proximity plots show how far each precursor sits from its nearest boundary.",
+      "A staggered acquisition (alternating boundary positions between cycles)",
+      "can rescue edge-zone precursors by placing them near the center in an alternate cycle."
+    )
+  )
+
+  blocks[[4]] <- list(
+    title = "Charge State Distribution",
+    body = paste(
+      "The charge state distribution confirms the dominance of 2+ and 3+ ions,",
+      "which justifies the FZ offset strategy.",
+      "If a dataset were dominated by singly-charged ions (unusual in bottom-up proteomics),",
+      "the FZ offset would be less critical."
+    )
+  )
+
+  # Render
+  y_pos <- 0.92
+  line_height <- 0.032
+
+  grid::grid.text("Design Rationale",
+            x = 0.05, y = 0.97, just = "left",
+            gp = grid::gpar(fontsize = 18, fontface = "bold", col = "black"))
+
+  for (block in blocks) {
+    # Title
+    grid::grid.text(block$title,
+              x = 0.05, y = y_pos, just = "left",
+              gp = grid::gpar(fontsize = 12, fontface = "bold",
+                         col = aidia_colors$primary))
+    y_pos <- y_pos - line_height
+
+    # Body — wrap long text
+    lines <- strwrap(block$body, width = 100)
+    for (line in lines) {
+      grid::grid.text(line,
+                x = 0.05, y = y_pos, just = "left",
+                gp = grid::gpar(fontsize = 10, col = "gray30"))
+      y_pos <- y_pos - line_height * 0.85
+    }
+    y_pos <- y_pos - line_height * 0.5
+  }
+}
+
 # =============================================================================
 # Create PDF Report (Structured)
 # =============================================================================
@@ -429,8 +520,8 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
 #'   S1. Input Data Profile (intensity heatmap, FWHM, quality score panel)
 #'   S2. Acquisition Diagnosis (DPPP table, satisfaction curve, instrument metadata)
 #'   S3. Optimized Window Layout (tiling, load balance, m/z density)
-#'   S4. Optimization Validation (impact dashboard, edge proximity, FZ zoom)
-#'   S5. Strategy Comparison (conditional: table, width ridge, boundary grid)
+#'   S4. Design Rationale (impact summary, edge proximity, FZ offset, charge state)
+#'   S5. Strategy Characteristics (conditional: table, width ridge, boundary grid, width profile)
 #'   A. Detailed Per-Strategy Analysis (appendix)
 #'   B. Adaptive RT Binning (conditional, only if adaptive mode)
 #'
@@ -488,7 +579,8 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   .draw_section_page(3, "Optimized Window Layout",
                      "Isolation window tiling, density alignment, and precursor load balance")
   n_pages <- n_pages + 1
-  s3_keys <- c("s3_02_load_balance", "s3_03_mz_density")
+  s3_keys <- c("s3_02_load_balance", "s3_03_mz_density",
+                "s3_04_window_width", "s3_05_window_index")
   # Tiling coverage map: staggered mode only (shows cycle interleaving)
   if (identical(optimized_windows$parameters$window_mode, "staggered")) {
     s3_keys <- c("s3_01_tiling_coverage", s3_keys)
@@ -503,8 +595,10 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
                        "s4_04_charge_state",
                        "s4_05_fz_validation")
   if (any(validation_keys %in% names(plots))) {
-    .draw_section_page(4, "Optimization Validation",
-                       "Impact summary, boundary safety, forbidden zone, and charge state distribution")
+    .draw_section_page(4, "Design Rationale",
+                       "Why these constraints matter: cycle time, boundary effects, and isotope protection")
+    n_pages <- n_pages + 1
+    .draw_design_rationale_text(optimized_windows)
     n_pages <- n_pages + 1
     n <- .emit_section_plots(plots, validation_keys)
     n_pages <- n_pages + n
@@ -516,19 +610,17 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
                      "s5_03_heatmap_boundary",
                      "s5_04_width_profile")
   if (any(strategy_keys %in% names(plots))) {
-    .draw_section_page(5, "Strategy Comparison",
-                       "Multi-strategy performance comparison across quality dimensions")
+    .draw_section_page(5, "Strategy Characteristics",
+                       "How each m/z optimization strategy shapes window placement and coverage")
     n_pages <- n_pages + 1
     n <- .emit_section_plots(plots, strategy_keys)
     n_pages <- n_pages + n
   }
 
-  # --- Appendix A: Detailed Per-Strategy Analysis ---
-  # Plot 7/7B removed — single-strategy views don't enable comparison;
-  # Ridge (8A) + Radar (18) provide cross-strategy comparison in Section 4
+  # --- Appendix A: Detailed Per-Strategy Analysis (only when >= 2 strategies) ---
   per_strategy_keys <- grep("^plot4_", names(plots), value = TRUE)
   per_strategy_keys <- setdiff(per_strategy_keys, "plot4e_mz_width_all_strategies")
-  if (length(per_strategy_keys) > 0) {
+  if (length(per_strategy_keys) > 1) {
     .draw_section_page("A", "Detailed Per-Strategy Analysis",
                        "Per-strategy m/z excluded regions and coverage maps")
     n_pages <- n_pages + 1

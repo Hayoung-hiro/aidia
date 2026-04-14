@@ -111,12 +111,24 @@ generate_visualizations <- function(
   plots$`plot2b_rt_histogram_continuous` <- plot_rt_histogram(validated_data)
   plots$`plot2b_rt_histogram_5min` <- plot_rt_histogram_binned(validated_data, bin_width_min = 5)
 
-  # Plot 3: m/z Density Overlay by RT Segment
-  cat("  Generating Plot 3: m/z Density Overlay...\n")
+  # S3-03: m/z Density Overlay by RT Segment
+  cat("  Generating S3-03: m/z Density Overlay...\n")
   plots$`s3_03_mz_density` <- plot_mz_normalized_density(optimized_windows, validated_data)
 
+  # S3-04: Window Width + Density Overlay (active strategy)
+  cat("  Generating S3-04: Window Width Distribution...\n")
+  plots$`s3_04_window_width` <- plot_window_width_distribution(
+    optimized_windows, validated_data, max_segments_to_show = 6
+  )
+
+  # S3-05: Window Index Width Bars (active strategy)
+  cat("  Generating S3-05: Window Index Width Bars...\n")
+  plots$`s3_05_window_index` <- plot_cumulative_window_count(
+    optimized_windows, validated_data, max_segments_to_show = 6
+  )
+
   # ===================================================================
-  # Plot 4: Multi-Strategy m/z Range Optimization Comparison
+  # Multi-Strategy m/z Range Optimization (for S5 + Appendix)
   # ===================================================================
 
   cat("\n  Preparing Plot 4: Multi-Strategy Comparison...\n")
