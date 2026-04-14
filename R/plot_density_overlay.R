@@ -63,7 +63,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
     geom_line(
       data = upper_boundary,
       aes(x = rt, y = mz),
-      color = "white",
+      color = "#66FF66",
       linewidth = 1.2,
       linetype = "solid",
       inherit.aes = FALSE
@@ -73,7 +73,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
     geom_line(
       data = lower_boundary,
       aes(x = rt, y = mz),
-      color = "white",
+      color = "#66FF66",
       linewidth = 1.2,
       linetype = "solid",
       inherit.aes = FALSE
@@ -180,7 +180,7 @@ plot_density_with_mz_ranges_grid <- function(windows_list, validated_data, bins 
       gp = grid::gpar(fontsize = 16, fontface = "bold")
     ),
     bottom = grid::textGrob(
-      "White lines = Optimized m/z boundaries | Bright regions = High precursor density",
+      "Green lines = Optimized m/z boundaries | Bright regions = High precursor density",
       gp = grid::gpar(fontsize = 10, col = "gray40")
     )
   )
@@ -283,7 +283,17 @@ plot_strategy_width_profile <- function(windows_list, validated_data) {
     format_strategy_label(ordered)
   )
 
+  # Segment labels at top
+  seg_labels <- ref_data %>%
+    dplyr::mutate(label = sprintf("RT%02d", seq_len(dplyr::n())))
+
   p <- ggplot() +
+    # RT bin boundaries (vertical guides)
+    geom_vline(
+      data = ref_data,
+      aes(xintercept = rt_start),
+      color = "gray80", linewidth = 0.3, linetype = "dotted"
+    ) +
     # Reference: original data width per RT bin (gray area)
     geom_ribbon(
       data = ref_data,
@@ -311,12 +321,18 @@ plot_strategy_width_profile <- function(windows_list, validated_data) {
       size = 1.5,
       alpha = 0.7
     ) +
+    # Segment labels at top
+    geom_text(
+      data = seg_labels,
+      aes(x = rt_mid, y = Inf, label = label),
+      vjust = 1.5, size = 2.8, color = "gray50"
+    ) +
     scale_color_manual(
       name   = "Strategy",
       values = strategy_color_map
     ) +
     scale_y_continuous(
-      expand = expansion(mult = c(0, 0.05))
+      expand = expansion(mult = c(0, 0.08))
     ) +
     labs(
       title = "Strategy m/z Width Profile Across RT Segments",
@@ -329,8 +345,7 @@ plot_strategy_width_profile <- function(windows_list, validated_data) {
     ) +
     theme_aidia() +
     theme(
-      legend.position = "top",
-      panel.grid.minor = element_blank()
+      legend.position = "top"
     )
 
   return(p)
