@@ -213,8 +213,8 @@ step2_setup_ui <- function() {
             tags$strong("Staggered mode (2-Cycle Interleaved):"),
             " Two acquisition cycles with 50% m/z offset. ",
             "Cycle 2 windows are shifted by half-width from Cycle 1. ",
-            "After demultiplexing (Skyline, DIA-NN), effective isolation = half nominal width. ",
-            "Window boundaries placed at mass defect forbidden zones for optimal quadrupole transmission."
+            "Precursors near a boundary in one cycle sit near the center in the other, ",
+            "mitigating quadrupole transmission roll-off at window edges."
           ),
           tags$div(
             class = "panel-accent", style = "margin-top: 8px;",
@@ -418,7 +418,7 @@ step2_setup_ui <- function() {
           column(6,
             selectInput(
               inputId = "fz_offset_preset",
-              label = "Forbidden Zone Placement (Recommended)",
+              label = "Isotope Boundary Offset (Recommended)",
               choices = c(
                 "Standard Proteomics (0.25) - Recommended" = "0.25",
                 "Phosphoproteomics (0.18)" = "0.18",
@@ -431,10 +431,10 @@ step2_setup_ui <- function() {
           column(6,
             div(style = "padding-top: 25px;",
               helpText(
-                "Snaps window boundaries to mass defect forbidden zones where ",
-                "peptide precursors cannot exist. Prevents quadrupole edge ",
-                "transmission loss and isotope envelope splitting. ",
-                "Enabled by default for optimal transmission efficiency.",
+                "Shifts window boundaries away from integer m/z positions ",
+                "where 2+ and 3+ isotope envelopes cluster. ",
+                "Prevents splitting isotope peaks across adjacent windows, ",
+                "which would reduce fragment ion signal and identification confidence.",
                 style = "font-size: 10px; line-height: 1.4;"
               )
             )
@@ -446,7 +446,7 @@ step2_setup_ui <- function() {
             column(4,
               numericInput(
                 inputId = "custom_fz_offset",
-                label = "Custom Forbidden Zone Offset",
+                label = "Custom Isotope Boundary Offset",
                 value = 0.2500,
                 min = 0.0001,
                 max = 0.9999,
@@ -455,7 +455,7 @@ step2_setup_ui <- function() {
             )
           )
         ),
-        # FZ validation plot (shown when data is loaded and FZ is active)
+        # Isotope boundary validation plot (shown when offset is active)
         conditionalPanel(
           condition = "input.fz_offset_preset != '0'",
           plotOutput("fz_validation_plot", height = "250px")
