@@ -151,7 +151,7 @@ step3_results_ui <- function() {
           div(style = "display: flex; flex-direction: column; gap: 8px;",
             downloadButton("download_pdf", "PDF Report",
                            class = "btn-info btn-block"),
-            downloadButton("download_batch_zip", "Batch Export (5 strategies, ZIP)",
+            downloadButton("download_batch_zip", "All Formats (ZIP)",
                            class = "btn-warning btn-block")
           )
         )

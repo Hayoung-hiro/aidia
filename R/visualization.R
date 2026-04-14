@@ -127,6 +127,25 @@ generate_visualizations <- function(
     optimized_windows, validated_data, max_segments_to_show = 6
   )
 
+  # S3-06: Precursor Distribution Across Windows
+  cat("  Generating S3-06: Precursor Distribution...\n")
+  plots$`s3_06_precursor_distribution` <- plot_precursors_per_window(
+    optimized_windows, validated_data
+  )
+
+  # ===================================================================
+  # In-Silico Evaluation (for S4 temporal density)
+  # ===================================================================
+
+  cat("\n  Running in-silico window evaluation...\n")
+  evaluation_result <- tryCatch(
+    evaluate_windows(optimized_windows, validated_data, optimization_plan),
+    error = function(e) {
+      cat("  [!] Evaluation failed:", e$message, "\n")
+      NULL
+    }
+  )
+
   # ===================================================================
   # Multi-Strategy m/z Range Optimization (for S5 + Appendix)
   # ===================================================================
@@ -315,6 +334,12 @@ generate_visualizations <- function(
 
   cat("  Generating S4-04: Charge State Distribution...\n")
   plots$`s4_04_charge_state` <- plot_charge_mz_distribution(optimized_windows, validated_data)
+
+  # S4-06: Temporal Density (Co-Elution Proxy)
+  if (!is.null(evaluation_result)) {
+    cat("  Generating S4-06: Temporal Density...\n")
+    plots$`s4_06_temporal_density` <- plot_temporal_density(evaluation_result)
+  }
 
   cat(sprintf("\nOK All %d plots generated successfully\n\n", length(plots)))
 

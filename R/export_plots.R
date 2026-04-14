@@ -580,7 +580,8 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
                      "Isolation window tiling, density alignment, and precursor load balance")
   n_pages <- n_pages + 1
   s3_keys <- c("s3_02_load_balance", "s3_03_mz_density",
-                "s3_04_window_width", "s3_05_window_index")
+                "s3_04_window_width", "s3_05_window_index",
+                "s3_06_precursor_distribution")
   # Tiling coverage map: staggered mode only (shows cycle interleaving)
   if (identical(optimized_windows$parameters$window_mode, "staggered")) {
     s3_keys <- c("s3_01_tiling_coverage", s3_keys)
@@ -593,7 +594,8 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
                        "s4_02_edge_proximity",
                        "s4_03_edge_proximity_spatial",
                        "s4_04_charge_state",
-                       "s4_05_fz_validation")
+                       "s4_05_fz_validation",
+                       "s4_06_temporal_density")
   if (any(validation_keys %in% names(plots))) {
     .draw_section_page(4, "Design Rationale",
                        "Why these constraints matter: cycle time, boundary effects, and isotope protection")
