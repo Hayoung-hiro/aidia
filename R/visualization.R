@@ -118,7 +118,7 @@ generate_visualizations <- function(
   # S3-04: Window Width + Density Overlay (active strategy)
   cat("  Generating S3-04: Window Width Distribution...\n")
   plots$`s3_04_window_width` <- plot_window_width_distribution(
-    optimized_windows, validated_data, max_segments_to_show = 6
+    optimized_windows, validated_data
   )
 
   # S3-05: Window Index Width Bars (active strategy)
@@ -260,7 +260,7 @@ generate_visualizations <- function(
     plot7_name <- sprintf("plot7_%s_window_width_distribution", strategy)
     cat(sprintf("  Generating Plot 7 (%s): Density + Width Overlay...\n", toupper(strategy)))
     plots[[plot7_name]] <- plot_window_width_distribution(
-      windows_list[[strategy]], validated_data, max_segments_to_show = 6
+      windows_list[[strategy]], validated_data
     )
 
     # Plot 7B: Window Index + Width bars
