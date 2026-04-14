@@ -127,6 +127,8 @@ server_downloads <- function(input, output, session, rv) {
         window_mode <- rv$optimized_windows$parameters$window_mode %||% "density"
         rt_bin_width <- rv$optimized_windows$parameters$rt_bin_width_min %||% 5
         rt_binning_mode <- rv$optimized_windows$parameters$rt_binning_mode %||% "fixed"
+        min_width_da <- rv$optimized_windows$parameters$min_isolation_width %||% 2
+        max_width_da <- rv$optimized_windows$parameters$max_isolation_width %||% 80
         fz_offset <- rv$optimized_windows$parameters$fz_offset %||% 0.25
 
         config_constructors <- list(
@@ -152,6 +154,8 @@ server_downloads <- function(input, output, session, rv) {
             window_mode = window_mode,
             rt_bin_width_min = rt_bin_width,
             rt_binning_mode = rt_binning_mode,
+            min_width_da = min_width_da,
+            max_width_da = max_width_da,
             fz_offset = fz_offset
           )
         }
@@ -205,6 +209,7 @@ server_downloads <- function(input, output, session, rv) {
         strategy <- rv$optimized_windows$parameters$mz_strategy %||% "custom"
         batch_dir <- file.path(tempdir(), paste0("aidia_export_", format(Sys.time(), "%Y%m%d_%H%M%S")))
         dir.create(batch_dir, recursive = TRUE, showWarnings = FALSE)
+        on.exit(unlink(batch_dir, recursive = TRUE), add = TRUE)
 
         cat(sprintf("[Shiny] Exporting %s strategy in 3 formats...\n", strategy))
 

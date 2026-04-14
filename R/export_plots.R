@@ -423,7 +423,6 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
   grid::grid.newpage()
 
   fz_offset <- optimized_windows$parameters$fz_offset %||% 0.25
-  window_mode <- optimized_windows$parameters$window_mode %||% "density"
 
   # Build text blocks
   blocks <- list()

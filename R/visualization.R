@@ -111,18 +111,18 @@ generate_visualizations <- function(
   plots$`plot2b_rt_histogram_continuous` <- plot_rt_histogram(validated_data)
   plots$`plot2b_rt_histogram_5min` <- plot_rt_histogram_binned(validated_data, bin_width_min = 5)
 
-  # S3-03: m/z Density Overlay by RT Segment
-  cat("  Generating S3-03: m/z Density Overlay...\n")
+  # S1-03: m/z Density Overlay by RT Segment
+  cat("  Generating S1-03: m/z Density Overlay...\n")
   plots$`s1_03_mz_density` <- plot_mz_normalized_density(optimized_windows, validated_data)
 
-  # S3-04: Window Width + Density Overlay (active strategy)
-  cat("  Generating S3-04: Window Width Distribution...\n")
+  # S2-02: Window m/z Range Across Gradient (active strategy)
+  cat("  Generating S2-02: Window m/z Range...\n")
   plots$`s2_02_window_layout` <- plot_window_width_distribution(
     optimized_windows, validated_data
   )
 
-  # S3-05: Window Index Width Bars (active strategy)
-  cat("  Generating S3-05: Window Index Width Bars...\n")
+  # S2-03: Window Index Width Bars (active strategy)
+  cat("  Generating S2-03: Window Index Width Bars...\n")
   plots$`s2_03_window_index` <- plot_cumulative_window_count(
     optimized_windows, validated_data, max_segments_to_show = 6
   )
@@ -329,15 +329,15 @@ generate_visualizations <- function(
   plots$`app_a_edge_spatial` <- plot_edge_proximity_spatial(optimized_windows, validated_data)
 
   # ===================================================================
-  # S4-04: Charge State Distribution
+  # App-A: Charge State Distribution
   # ===================================================================
 
-  cat("  Generating S4-04: Charge State Distribution...\n")
+  cat("  Generating App-A: Charge State Distribution...\n")
   plots$`app_a_charge_state` <- plot_charge_mz_distribution(optimized_windows, validated_data)
 
-  # S4-06: Temporal Density (Co-Elution Proxy)
+  # S2-06: Temporal Density (Co-Elution Proxy)
   if (!is.null(evaluation_result)) {
-    cat("  Generating S4-06: Temporal Density...\n")
+    cat("  Generating S2-06: Temporal Density...\n")
     plots$`s2_06_temporal_density` <- plot_temporal_density(evaluation_result)
   }
 
