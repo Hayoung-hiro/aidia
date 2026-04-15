@@ -201,7 +201,8 @@ plot_density_with_mz_ranges_grid <- function(windows_list, validated_data, bins 
 #'
 #' @return ggplot object
 #' @keywords internal
-plot_strategy_width_profile <- function(windows_list, validated_data) {
+plot_strategy_width_profile <- function(windows_list, validated_data,
+                                        active_strategy = NULL) {
 
   cat("  Generating Plot 5: Strategy Width Profile (Overlay)...\n")
 
@@ -283,6 +284,20 @@ plot_strategy_width_profile <- function(windows_list, validated_data) {
     format_strategy_label(ordered)
   )
 
+  # Active strategy emphasis: linewidth, size, alpha
+  lw_vals <- setNames(rep(0.6, length(ordered)), ordered)
+  sz_vals <- setNames(rep(1.0, length(ordered)), ordered)
+  al_vals <- setNames(rep(0.45, length(ordered)), ordered)
+  if (!is.null(active_strategy) && active_strategy %in% ordered) {
+    lw_vals[active_strategy] <- 1.4
+    sz_vals[active_strategy] <- 2.5
+    al_vals[active_strategy] <- 1.0
+  } else {
+    lw_vals[] <- 0.9
+    sz_vals[] <- 1.5
+    al_vals[] <- 0.85
+  }
+
   # Segment labels at top
   seg_labels <- ref_data %>%
     dplyr::mutate(label = sprintf("RT%02d", seq_len(dplyr::n())))
@@ -308,18 +323,16 @@ plot_strategy_width_profile <- function(windows_list, validated_data) {
       linewidth = 0.6,
       linetype = "dashed"
     ) +
-    # Strategy width lines
+    # Strategy width lines — active strategy emphasized
     geom_line(
       data = width_df,
-      aes(x = rt_mid, y = mz_width, color = strategy_label),
-      linewidth = 0.9,
-      alpha = 0.85
+      aes(x = rt_mid, y = mz_width, color = strategy_label,
+          linewidth = strategy, alpha = strategy),
     ) +
     geom_point(
       data = width_df,
-      aes(x = rt_mid, y = mz_width, color = strategy_label),
-      size = 1.5,
-      alpha = 0.7
+      aes(x = rt_mid, y = mz_width, color = strategy_label,
+          size = strategy, alpha = strategy),
     ) +
     # Segment labels at top
     geom_text(
@@ -331,6 +344,9 @@ plot_strategy_width_profile <- function(windows_list, validated_data) {
       name   = "Strategy",
       values = strategy_color_map
     ) +
+    scale_linewidth_manual(values = lw_vals, guide = "none") +
+    scale_size_manual(values = sz_vals, guide = "none") +
+    scale_alpha_manual(values = al_vals, guide = "none") +
     scale_y_continuous(
       expand = expansion(mult = c(0, 0.08))
     ) +

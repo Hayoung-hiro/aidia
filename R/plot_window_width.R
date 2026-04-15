@@ -41,16 +41,52 @@ plot_window_width_distribution <- function(optimized_windows, validated_data) {
       .groups = "drop"
     )
 
+  # Full precursor m/z range (baseline: what equal-width would cover)
+  precursor_data <- validated_data$data
+  data_mz_min <- min(precursor_data$Precursor.Mz, na.rm = TRUE)
+  data_mz_max <- max(precursor_data$Precursor.Mz, na.rm = TRUE)
+  data_mz_span <- data_mz_max - data_mz_min
+
   # Overall stats for subtitle
   overall_range <- sprintf("%.0f\u2013%.0f Da",
                            min(seg_summary$mz_lower), max(seg_summary$mz_upper))
   overall_mean_w <- mean(seg_summary$mean_width)
 
-  # Calculate span per segment
+  # Calculate span per segment and coverage vs full range
   seg_summary$mz_span <- seg_summary$mz_upper - seg_summary$mz_lower
+  mean_coverage_pct <- mean(seg_summary$mz_span) / data_mz_span * 100
+
+  # RT extent for baseline band
+  rt_min <- min(seg_summary$rt_start)
+  rt_max <- max(seg_summary$rt_end)
 
   p <- ggplot(seg_summary) +
-    # Color-encoded rectangles: fill = span width
+    # Baseline: full precursor m/z range (gray band)
+    annotate(
+      "rect",
+      xmin = rt_min, xmax = rt_max,
+      ymin = data_mz_min, ymax = data_mz_max,
+      fill = aidia_colors$before_muted, alpha = 0.20
+    ) +
+    annotate(
+      "segment",
+      x = rt_min, xend = rt_max, y = data_mz_min, yend = data_mz_min,
+      color = aidia_colors$before_muted_dark, linetype = "dashed", linewidth = 0.4
+    ) +
+    annotate(
+      "segment",
+      x = rt_min, xend = rt_max, y = data_mz_max, yend = data_mz_max,
+      color = aidia_colors$before_muted_dark, linetype = "dashed", linewidth = 0.4
+    ) +
+    # Baseline label
+    annotate(
+      "text",
+      x = rt_max, y = data_mz_max,
+      label = sprintf("Full range: %.0f Da", data_mz_span),
+      hjust = 1.05, vjust = -0.3,
+      size = 3, color = aidia_colors$before_muted_dark, fontface = "italic"
+    ) +
+    # Optimized: color-encoded rectangles per RT bin
     geom_rect(
       aes(xmin = rt_start, xmax = rt_end,
           ymin = mz_lower, ymax = mz_upper,
@@ -58,9 +94,9 @@ plot_window_width_distribution <- function(optimized_windows, validated_data) {
       alpha = 0.7
     ) +
     # Upper and lower boundary lines
-    geom_step(aes(x = rt_start, y = mz_upper), color = aidia_colors$before_dark,
+    geom_step(aes(x = rt_start, y = mz_upper), color = aidia_colors$after_dark,
               linewidth = 0.7, direction = "hv") +
-    geom_step(aes(x = rt_start, y = mz_lower), color = aidia_colors$before_dark,
+    geom_step(aes(x = rt_start, y = mz_lower), color = aidia_colors$after_dark,
               linewidth = 0.7, direction = "hv") +
     # Color scale: sequential, low span = narrow (blue) → high span = wide (amber)
     scale_fill_gradient(
@@ -77,13 +113,14 @@ plot_window_width_distribution <- function(optimized_windows, validated_data) {
     labs(
       title = "Window m/z Coverage Across Gradient",
       subtitle = sprintf(
-        "m/z range: %s | Mean width: %.1f Da | %d windows/bin",
-        overall_range, overall_mean_w, seg_summary$n_windows[1]
+        "Optimized: %s (%.0f%% of full %.0f Da range) | Mean width: %.1f Da | %d windows/bin",
+        overall_range, mean_coverage_pct, data_mz_span,
+        overall_mean_w, seg_summary$n_windows[1]
       ),
       x = "Retention Time (min)",
       y = "m/z (Da)",
       caption = sprintf(
-        "Fill color = m/z span per RT bin | %d RT bins",
+        "Gray band = full precursor range (baseline) | Colored = optimized coverage | %d RT bins",
         nrow(seg_summary)
       )
     ) +
@@ -189,16 +226,15 @@ plot_cumulative_window_count <- function(optimized_windows,
     mz_min <- min(seg_windows$mz_start)
     mz_max <- max(seg_windows$mz_end)
 
-    # Create plot with stacked bars showing window width
+    # Equal-width reference: what each window would be if all were the same size
+    equal_width <- (mz_max - mz_min) / nrow(seg_windows)
+
+    # Create plot with clean bars
     p <- ggplot(rect_data) +
-      # Draw rectangles for each window
-      # X: m/z position (mz_start ~ mz_end)
-      # Y: window index (stacked vertically)
-      # Rectangle width (horizontal length) represents window_width visually
       geom_rect(
         aes(
           xmin = mz_start,
-          xmax = mz_start + window_width,  # Width = window_width
+          xmax = mz_start + window_width,
           ymin = window_index - 0.4,
           ymax = window_index + 0.4
         ),
@@ -216,8 +252,8 @@ plot_cumulative_window_count <- function(optimized_windows,
         expand = expansion(mult = c(0.02, 0.02))
       ) +
       labs(
-        title = sprintf("RT%02d, with %d windows\n(total width: %.1f Da, mean width: %.1f Da)",
-                       seg_id, nrow(seg_windows), total_width, mean_width),
+        title = sprintf("RT%02d: %d win | equal: %.1f Da, mean: %.1f Da",
+                       seg_id, nrow(seg_windows), equal_width, mean_width),
         x = "m/z (Da)",
         y = "Window Index"
       ) +

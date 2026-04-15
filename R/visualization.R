@@ -203,10 +203,13 @@ generate_visualizations <- function(
     windows_list, validated_data
   )
 
+  # Active strategy for S3 highlighting
+  active_strategy <- optimized_windows$parameters$mz_strategy
+
   # Strategy Width Profile (overlay line chart)
   cat("  Generating S5-04: Strategy Width Profile...\n")
   plots$`s3_04_width_profile` <- plot_strategy_width_profile(
-    windows_list, validated_data
+    windows_list, validated_data, active_strategy = active_strategy
   )
 
   # Plot 6B: Optimization Impact Summary (Before/After Dashboard)
@@ -300,11 +303,11 @@ generate_visualizations <- function(
 
   # S5-01: Strategy Comparison Summary Table
   cat("  Generating S5-01: Strategy Comparison Table...\n")
-  plots$`s3_01_strategy_table` <- plot_strategy_comparison_table(windows_list)
+  plots$`s3_01_strategy_table` <- plot_strategy_comparison_table(windows_list, active_strategy = active_strategy)
 
   # S5-02: Width Ridge Plot
   cat("  Generating S5-02: Width Ridge Plot...\n")
-  plots$`s3_02_strategy_ridge` <- plot_strategy_width_ridge(windows_list, validated_data)
+  plots$`s3_02_strategy_ridge` <- plot_strategy_width_ridge(windows_list, validated_data, active_strategy = active_strategy)
 
   # ===================================================================
   # Plot 15: Per-Precursor DPPP Distribution (Before vs After)
@@ -318,7 +321,7 @@ generate_visualizations <- function(
   # ===================================================================
 
   cat("  Generating Plot 16: Precursor Load Balance...\n")
-  plots$`s2_04_load_balance` <- plot_precursor_load_balance(optimized_windows, validated_data)
+  plots$`s2_04_load_balance` <- plot_precursor_load_balance(optimized_windows, validated_data, optimization_plan)
 
   # ===================================================================
   # Plot 17: Window Edge Proximity
