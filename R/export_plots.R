@@ -324,21 +324,7 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
 .draw_data_quality_summary <- function(validated_data) {
   grid::grid.newpage()
 
-  data <- validated_data$data
-  meta <- validated_data$metadata
-  vs <- validated_data$validation_status
-  fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
-
-  # Raw precursor count (before consensus)
-  n_raw <- meta$n_precursors_before %||% meta$n_precursors %||% nrow(data)
-  n_runs <- meta$n_runs %||% 1L
-  n_final <- nrow(data)
-
-  # FWHM outlier percentage
-  qd <- vs$quality_details %||% vs$details
-  fwhm_outlier_pct <- if (!is.null(qd$fwhm_outliers)) {
-    qd$fwhm_outliers$pct_outliers * 100
-  } else 0
+  s <- compute_data_summary(validated_data)
 
   # Build table
   table_data <- data.frame(
@@ -353,18 +339,16 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
       "FWHM Outliers"
     ),
     Value = c(
-      format(n_raw, big.mark = ","),
-      as.character(n_runs),
+      format(s$n_raw, big.mark = ","),
+      as.character(s$n_runs),
       sprintf("%s (CV <= 30%%, filtered %s)",
-              format(n_final, big.mark = ","),
-              format(meta$n_filtered_cv %||% 0, big.mark = ",")),
-      sprintf("%.1f \u2013 %.1f Da",
-              min(data$Precursor.Mz), max(data$Precursor.Mz)),
-      sprintf("%.1f \u2013 %.1f min",
-              min(data$RT.Apex), max(data$RT.Apex)),
-      sprintf("%.1f sec", median(fwhm_sec)),
-      sprintf("%.1f sec", mean(fwhm_sec)),
-      sprintf("%.1f%%", fwhm_outlier_pct)
+              format(s$n_final, big.mark = ","),
+              format(s$n_filtered_cv, big.mark = ",")),
+      sprintf("%.1f \u2013 %.1f Da", s$mz_min, s$mz_max),
+      sprintf("%.1f \u2013 %.1f min", s$rt_min, s$rt_max),
+      sprintf("%.1f sec", s$fwhm_median_sec),
+      sprintf("%.1f sec", s$fwhm_mean_sec),
+      sprintf("%.1f%%", s$fwhm_outlier_pct)
     ),
     stringsAsFactors = FALSE
   )
@@ -483,7 +467,13 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
             x = 0.05, y = 0.97, just = "left",
             gp = grid::gpar(fontsize = 18, fontface = "bold", col = "black"))
 
+  y_min <- 0.03
   for (block in blocks) {
+    if (y_pos < y_min) {
+      warning("Design rationale text overflow: content truncated at block '",
+              block$title, "'", call. = FALSE)
+      break
+    }
     # Title
     grid::grid.text(block$title,
               x = 0.05, y = y_pos, just = "left",
@@ -494,6 +484,7 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
     # Body — wrap long text
     lines <- strwrap(block$body, width = 100)
     for (line in lines) {
+      if (y_pos < y_min) break
       grid::grid.text(line,
                 x = 0.05, y = y_pos, just = "left",
                 gp = grid::gpar(fontsize = 10, col = "gray30"))
@@ -628,13 +619,12 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   }
 
   # --- Appendix B: Per-Strategy Analysis (conditional: >= 2 strategies) ---
-  per_strategy_keys <- grep("^plot4_", names(plots), value = TRUE)
-  per_strategy_keys <- setdiff(per_strategy_keys, "plot4e_mz_width_all_strategies")
+  per_strategy_keys <- grep("^app_b_.*_mz_excluded$", names(plots), value = TRUE)
   if (length(per_strategy_keys) > 1) {
     .draw_section_page("B", "Per-Strategy Analysis",
                        "Per-strategy m/z excluded regions and width comparison")
     n_pages <- n_pages + 1
-    n <- .emit_section_plots(plots, "plot4e_mz_width_all_strategies")
+    n <- .emit_section_plots(plots, "app_b_width_all_strategies")
     n_pages <- n_pages + n
     for (key in per_strategy_keys) {
       .render_plot(plots[[key]])
@@ -652,7 +642,7 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   }
 
   # --- Appendix D: Adaptive RT Binning (conditional) ---
-  adaptive_keys <- grep("^plot11", names(plots), value = TRUE)
+  adaptive_keys <- grep("^app_d_", names(plots), value = TRUE)
   if (length(adaptive_keys) > 0) {
     .draw_section_page("D", "Adaptive RT Binning",
                        "Change point detection validation and KS statistic trace")

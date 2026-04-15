@@ -2,6 +2,45 @@
 
 server_downloads <- function(input, output, session, rv) {
 
+  # --- Helper: Build windows_list for all 5 strategies ---
+  .build_all_strategy_windows <- function(rv, notify_fn = NULL) {
+    current_strategy <- rv$optimized_windows$parameters$mz_strategy
+    window_mode     <- rv$optimized_windows$parameters$window_mode %||% "density"
+    rt_bin_width    <- rv$optimized_windows$parameters$rt_bin_width_min %||% 5
+    rt_binning_mode <- rv$optimized_windows$parameters$rt_binning_mode %||% "fixed"
+    min_width_da    <- rv$optimized_windows$parameters$min_isolation_width %||% 2
+    max_width_da    <- rv$optimized_windows$parameters$max_isolation_width %||% 80
+    fz_offset       <- rv$optimized_windows$parameters$fz_offset %||% 0.25
+
+    config_constructors <- list(
+      greedy = greedy_config, kde = kde_config, quantile = quantile_config,
+      coverage = coverage_config, outlier = outlier_config
+    )
+
+    windows_list <- list()
+    for (strategy in STRATEGY_PREFERRED_ORDER) {
+      if (!is.null(current_strategy) && strategy == current_strategy) {
+        windows_list[[strategy]] <- rv$optimized_windows
+        next
+      }
+      if (is.function(notify_fn)) {
+        notify_fn(strategy, which(STRATEGY_PREFERRED_ORDER == strategy))
+      }
+      windows_list[[strategy]] <- optimize_windows(
+        validated_data   = rv$validated_data,
+        optimization_plan = rv$optimization_plan,
+        strategy_config  = config_constructors[[strategy]](),
+        window_mode      = window_mode,
+        rt_bin_width_min = rt_bin_width,
+        rt_binning_mode  = rt_binning_mode,
+        min_width_da     = min_width_da,
+        max_width_da     = max_width_da,
+        fz_offset        = fz_offset
+      )
+    }
+    windows_list
+  }
+
   # --- Helper: Build project name from sample/condition inputs ---
   build_project_name <- function(default = "shiny_export") {
     parts <- c(trimws(input$sample_name %||% ""),
@@ -123,42 +162,12 @@ server_downloads <- function(input, output, session, rv) {
         if (!dir.exists(viz_output_dir)) dir.create(viz_output_dir, recursive = TRUE)
 
         # Build windows_list for all 5 strategies (reuse current result)
-        current_strategy <- rv$optimized_windows$parameters$mz_strategy
-        window_mode <- rv$optimized_windows$parameters$window_mode %||% "density"
-        rt_bin_width <- rv$optimized_windows$parameters$rt_bin_width_min %||% 5
-        rt_binning_mode <- rv$optimized_windows$parameters$rt_binning_mode %||% "fixed"
-        min_width_da <- rv$optimized_windows$parameters$min_isolation_width %||% 2
-        max_width_da <- rv$optimized_windows$parameters$max_isolation_width %||% 80
-        fz_offset <- rv$optimized_windows$parameters$fz_offset %||% 0.25
-
-        config_constructors <- list(
-          greedy = greedy_config, kde = kde_config, quantile = quantile_config,
-          coverage = coverage_config, outlier = outlier_config
-        )
-
-        windows_list <- list()
-        for (strategy in STRATEGY_PREFERRED_ORDER) {
-          if (!is.null(current_strategy) && strategy == current_strategy) {
-            windows_list[[strategy]] <- rv$optimized_windows
-            next
-          }
+        windows_list <- .build_all_strategy_windows(rv, notify_fn = function(strategy, idx) {
           showNotification(
-            sprintf("PDF: optimizing %s (%d/5)...", strategy,
-                    which(STRATEGY_PREFERRED_ORDER == strategy)),
+            sprintf("PDF: optimizing %s (%d/5)...", strategy, idx),
             id = "pdf_progress", duration = NULL, type = "message"
           )
-          windows_list[[strategy]] <- optimize_windows(
-            validated_data = rv$validated_data,
-            optimization_plan = rv$optimization_plan,
-            strategy_config = config_constructors[[strategy]](),
-            window_mode = window_mode,
-            rt_bin_width_min = rt_bin_width,
-            rt_binning_mode = rt_binning_mode,
-            min_width_da = min_width_da,
-            max_width_da = max_width_da,
-            fz_offset = fz_offset
-          )
-        }
+        })
 
         showNotification("PDF: generating plots...",
                          id = "pdf_progress", duration = NULL, type = "message")

@@ -210,6 +210,49 @@ get_fwhm_values <- function(validated_data, unit = "seconds") {
 }
 
 
+#' Compute Data Summary Statistics
+#'
+#' Returns raw (unformatted) summary statistics from a ValidatedData object.
+#' Single source of truth consumed by both the PDF report and Shiny UI.
+#'
+#' @param validated_data ValidatedData object from Stage 1
+#'
+#' @return Named list with: n_raw, n_runs, n_final, n_filtered_cv,
+#'   mz_min, mz_max, rt_min, rt_max, fwhm_median_sec, fwhm_mean_sec,
+#'   fwhm_outlier_pct
+#' @keywords internal
+compute_data_summary <- function(validated_data) {
+  data <- validated_data$data
+  meta <- validated_data$metadata
+  vs   <- validated_data$validation_status
+
+  fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
+
+  n_raw   <- meta$n_precursors_before %||% meta$n_precursors %||% nrow(data)
+  n_runs  <- meta$n_runs %||% 1L
+  n_final <- nrow(data)
+
+  qd <- vs$quality_details %||% vs$details
+  fwhm_outlier_pct <- if (!is.null(qd$fwhm_outliers)) {
+    qd$fwhm_outliers$pct_outliers * 100
+  } else 0
+
+  list(
+    n_raw            = n_raw,
+    n_runs           = n_runs,
+    n_final          = n_final,
+    n_filtered_cv    = meta$n_filtered_cv %||% 0,
+    mz_min           = min(data$Precursor.Mz, na.rm = TRUE),
+    mz_max           = max(data$Precursor.Mz, na.rm = TRUE),
+    rt_min           = min(data$RT.Apex, na.rm = TRUE),
+    rt_max           = max(data$RT.Apex, na.rm = TRUE),
+    fwhm_median_sec  = median(fwhm_sec, na.rm = TRUE),
+    fwhm_mean_sec    = mean(fwhm_sec, na.rm = TRUE),
+    fwhm_outlier_pct = fwhm_outlier_pct
+  )
+}
+
+
 # =============================================================================
 # Data Structure Conversion
 # =============================================================================

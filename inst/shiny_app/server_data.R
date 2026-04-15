@@ -458,7 +458,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
   output$data_summary <- renderTable({
     req(rv$validated_data)
 
-    data <- rv$validated_data$data
+    s <- compute_data_summary(rv$validated_data)
 
     data.frame(
       Metric = c(
@@ -468,10 +468,10 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
         "Median FWHM (sec)"
       ),
       Value = c(
-        format(nrow(data), big.mark = ","),
-        sprintf("%.1f - %.1f", min(data$RT.Apex), max(data$RT.Apex)),
-        sprintf("%.1f - %.1f", min(data$Precursor.Mz), max(data$Precursor.Mz)),
-        sprintf("%.2f", rv$median_fwhm_sec)
+        format(s$n_final, big.mark = ","),
+        sprintf("%.1f - %.1f", s$rt_min, s$rt_max),
+        sprintf("%.1f - %.1f", s$mz_min, s$mz_max),
+        sprintf("%.2f", s$fwhm_median_sec)
       )
     )
   })

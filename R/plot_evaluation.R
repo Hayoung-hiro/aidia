@@ -28,13 +28,17 @@
 #' @param validated_data ValidatedData object from Stage 1
 #' @param optimization_plan OptimizationPlan object from Stage 2 (optional, for baseline)
 #' @param max_windows Integer, max windows to show per RT bin (default: NULL = all)
+#' @param evaluation_result Optional list from \code{evaluate_windows()}.
+#'   When provided, per-window precursor counts are taken from its
+#'   \code{per_window} component instead of being recomputed.
 #'
 #' @return ggplot object
 #' @keywords internal
 plot_precursors_per_window <- function(optimized_windows,
                                        validated_data,
                                        optimization_plan = NULL,
-                                       max_windows = NULL) {
+                                       max_windows = NULL,
+                                       evaluation_result = NULL) {
 
   cat("  Generating Evaluation Plot: Precursor Distribution Across Windows...\n")
 
@@ -42,7 +46,23 @@ plot_precursors_per_window <- function(optimized_windows,
   precursor_data <- validated_data$data
 
   # ---- Count precursors per window (2D RT+mz matching) --------------------
-  windows_counted <- calculate_precursors_per_window(windows, precursor_data)
+  # Reuse evaluation result when available to avoid O(n_windows * n_precursors) work
+  if (!is.null(evaluation_result) && !is.null(evaluation_result$per_window) &&
+      nrow(evaluation_result$per_window) > 0) {
+    pw <- evaluation_result$per_window
+    # per_window rows are 1:1 with input windows — attach RT columns
+    windows_counted <- data.frame(
+      mz_start      = pw$mz_start,
+      mz_end        = pw$mz_end,
+      rt_start      = windows$rt_start,
+      rt_end        = windows$rt_end,
+      rt_segment_id = pw$rt_segment_id,
+      n_precursors  = pw$n_precursors,
+      stringsAsFactors = FALSE
+    )
+  } else {
+    windows_counted <- calculate_precursors_per_window(windows, precursor_data)
+  }
 
   if (nrow(windows_counted) < 1) {
     return(create_insufficient_data_plot(
@@ -93,7 +113,7 @@ plot_precursors_per_window <- function(optimized_windows,
       baseline_n_per_bin <- nrow(windows) / n_bins
     }
 
-    # Generate equal-width windows per RT bin using full m/z range
+    # Generate equal-width windows per RT bin using canonical fixed-window generator
     rt_bins_df <- unique(windows[, c("rt_start", "rt_end", "rt_segment_id")])
     naive_windows_list <- lapply(seq_len(nrow(rt_bins_df)), function(i) {
       bin_prec <- precursor_data[precursor_data$RT.Apex >= rt_bins_df$rt_start[i] &
@@ -102,11 +122,15 @@ plot_precursors_per_window <- function(optimized_windows,
       mz_range <- range(bin_prec$Precursor.Mz, na.rm = TRUE)
       n_win <- min(baseline_n_per_bin, 500L)
       if (n_win < 1) return(NULL)
-      width <- diff(mz_range) / n_win
-      starts <- mz_range[1] + (seq_len(n_win) - 1) * width
-      data.frame(mz_start = starts, mz_end = starts + width,
-                 rt_start = rt_bins_df$rt_start[i], rt_end = rt_bins_df$rt_end[i],
-                 rt_segment_id = rt_bins_df$rt_segment_id[i])
+      bin_windows <- generate_fixed_windows_internal(
+        mz_min = mz_range[1], mz_max = mz_range[2],
+        n_windows = n_win, min_width_da = 1, max_width_da = 500,
+        fz_offset = 0
+      )
+      bin_windows$rt_start      <- rt_bins_df$rt_start[i]
+      bin_windows$rt_end        <- rt_bins_df$rt_end[i]
+      bin_windows$rt_segment_id <- rt_bins_df$rt_segment_id[i]
+      bin_windows
     })
     naive_windows <- do.call(rbind, naive_windows_list)
     naive_counted <- calculate_precursors_per_window(naive_windows, precursor_data)
@@ -235,10 +259,13 @@ plot_precursors_per_window <- function(optimized_windows,
 #'
 #' @param evaluation_result List returned by \code{evaluate_windows()}.
 #'   Must contain \code{per_window} with \code{temporal_density_max} column.
+#' @param baseline_density Optional list with \code{median}, \code{mean},
+#'   \code{max}, \code{n_per_bin} from baseline (equal-width) windows.
+#'   When provided, the subtitle includes a before/after comparison.
 #'
 #' @return ggplot object
 #' @keywords internal
-plot_temporal_density <- function(evaluation_result) {
+plot_temporal_density <- function(evaluation_result, baseline_density = NULL) {
 
   cat("  Generating Evaluation Plot: Precursor Temporal Density...\n")
 
@@ -271,6 +298,16 @@ plot_temporal_density <- function(evaluation_result) {
     "%d windows | Max: %d | Median: %.1f | Mean: %.1f co-eluting | %.0f%% high-density (>2x median)",
     n_wins, max_density, median_density, mean_density, pct_high
   )
+
+  # Append baseline comparison when available
+  if (!is.null(baseline_density) && !is.na(baseline_density$median)) {
+    change_pct <- (1 - median_density / baseline_density$median) * 100
+    subtitle_text <- paste0(subtitle_text, sprintf(
+      "\nBaseline (equal-width, %d win/bin): median %.1f | %.0f%% %s",
+      baseline_density$n_per_bin, baseline_density$median,
+      abs(change_pct), if (change_pct > 0) "reduction" else "increase"
+    ))
+  }
 
   p <- ggplot2::ggplot(
     per_window,
