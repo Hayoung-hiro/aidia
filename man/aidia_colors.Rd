@@ -5,12 +5,13 @@
 \alias{aidia_colors}
 \title{General purpose color palette for AIDIA plots}
 \format{
-An object of class \code{list} of length 14.
+An object of class \code{list} of length 15.
 }
 \usage{
 aidia_colors
 }
 \description{
-Used for non-strategy elements (text, backgrounds, annotations)
+Used for non-strategy elements (text, backgrounds, annotations).
+High-contrast, publication-ready palette.
 }
 \keyword{internal}

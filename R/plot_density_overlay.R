@@ -63,7 +63,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
     geom_line(
       data = upper_boundary,
       aes(x = rt, y = mz),
-      color = "#66FF66",
+      color = aidia_colors$success,
       linewidth = 1.2,
       linetype = "solid",
       inherit.aes = FALSE
@@ -73,7 +73,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
     geom_line(
       data = lower_boundary,
       aes(x = rt, y = mz),
-      color = "#66FF66",
+      color = aidia_colors$success,
       linewidth = 1.2,
       linetype = "solid",
       inherit.aes = FALSE

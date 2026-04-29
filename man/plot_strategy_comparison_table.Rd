@@ -4,10 +4,17 @@
 \alias{plot_strategy_comparison_table}
 \title{Plot Strategy Comparison Summary Table}
 \usage{
-plot_strategy_comparison_table(windows_list)
+plot_strategy_comparison_table(
+  windows_list,
+  active_strategy = NULL,
+  base_size = 11
+)
 }
 \arguments{
 \item{windows_list}{Named list of OptimizedWindows objects (one per strategy)}
+
+\item{active_strategy}{Character, the user's selected strategy key (optional).
+When provided, the corresponding row is highlighted with bold text and accent color.}
 }
 \value{
 grob object (tableGrob)
@@ -24,7 +31,7 @@ on sample complexity and downstream analysis software.
 }
 \examples{
 \dontrun{
-p <- plot_strategy_comparison_table(windows_list)
+p <- plot_strategy_comparison_table(windows_list, active_strategy = "greedy")
 grid::grid.draw(p)
 ggsave("strategy_comparison.png", p, width = 12, height = 6)
 }

@@ -199,9 +199,9 @@ plot_precursors_per_window <- function(optimized_windows,
     # data beyond these bounds still renders at the extreme color.
     ggplot2::scale_fill_gradient2(
       name     = "Load\nRatio",
-      low      = "#2166ac",
-      mid      = "#f7f7f7",
-      high     = "#b2182b",
+      low      = aidia_colors$before,
+      mid      = "white",
+      high     = aidia_colors$accent,
       midpoint = 1.0,
       limits   = c(
         min(0.2, min(windows_counted$load_ratio, na.rm = TRUE)),

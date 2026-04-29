@@ -142,7 +142,7 @@ plot_rt_mz_intensity_surface <- function(validated_data, n_grid = 50,
   plot3D::persp3D(
     x = mz_grid, y = rt_grid, z = z_plot,
     colvar = z_plot,
-    col = plot3D::jet.col(256),
+    col = viridis::inferno(256),
     colkey = list(side = 4, length = 0.6, width = 0.8,
                   cex.axis = 0.8, cex.clab = 0.9),
     theta = theta, phi = phi,
@@ -221,7 +221,7 @@ plot_heatmap_with_windows <- function(optimized_windows, validated_data, bins = 
     geom_vline(
       xintercept = sort(unique(c(windows$rt_start, max(windows$rt_end)))),
       linetype = "dashed",
-      color = "cyan",
+      color = aidia_colors$warning,
       linewidth = 0.5,
       alpha = 0.6
     ) +

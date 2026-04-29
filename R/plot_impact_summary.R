@@ -17,7 +17,7 @@
 #' @keywords internal
 .impact_bar_chart <- function(current_value, planned_value, title, y_label,
                               value_format = "%.2f", y_limits = NULL,
-                              has_current = TRUE) {
+                              has_current = TRUE, base_size = 10) {
   if (has_current && !is.na(current_value)) {
     df <- data.frame(
       state = factor(c("Current", "Planned"), levels = c("Current", "Planned")),
@@ -45,7 +45,7 @@
     scale_fill_identity() +
     scale_y_continuous(limits = y_limits, expand = expansion(mult = c(0, 0.05))) +
     labs(title = title, x = NULL, y = y_label) +
-    theme_aidia(base_size = 10) +
+    theme_aidia(base_size = base_size) +
     theme(
       axis.text.x = element_text(size = 11, face = "bold"),
       panel.grid.major.x = element_blank()
@@ -79,7 +79,8 @@
 #' p <- plot_optimization_impact(optimization_plan, optimized_windows, validated_data)
 #' grid::grid.draw(p)
 #' }
-plot_optimization_impact <- function(optimization_plan, optimized_windows, validated_data) {
+plot_optimization_impact <- function(optimization_plan, optimized_windows, validated_data,
+                                     base_size = 10) {
 
   cat("  Generating Optimization Impact Summary...\n")
 
@@ -117,7 +118,8 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
     title = "Cycle Time",
     y_label = "Seconds",
     value_format = "%.2f s",
-    has_current = has_current
+    has_current = has_current,
+    base_size = base_size
   )
 
   # --- Panel 2: DPPP Satisfaction ---
@@ -128,7 +130,8 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
     y_label = "%",
     value_format = "%.1f%%",
     y_limits = c(0, 118),
-    has_current = has_current
+    has_current = has_current,
+    base_size = base_size
   ) +
     geom_hline(
       yintercept = target_sat * 100,

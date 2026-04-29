@@ -83,7 +83,7 @@ plot_rt_histogram <- function(validated_data, bins = 50) {
       xmax = peak_rt_end,
       ymin = 0,
       ymax = peak_count,
-      fill = "yellow",
+      fill = aidia_colors$warning,
       alpha = 0.3
     ) +
 

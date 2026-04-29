@@ -395,7 +395,7 @@ plot_dppp_comparison_enhanced <- function(optimization_plan, validated_data,
 #' @return gtable object (gridExtra)
 #' @keywords internal
 plot_dppp_satisfaction_combined <- function(optimization_plan, validated_data,
-                                            n_points = 80) {
+                                            n_points = 80, base_size = 12) {
 
   cat("  Generating Plot 1B+6: DPPP & Satisfaction vs Cycle Time...\n")
 
@@ -496,7 +496,7 @@ plot_dppp_satisfaction_combined <- function(optimization_plan, validated_data,
            "DPPP = 1.7 \u00d7 FWHM / cycle_time | Median FWHM: %.1f sec | %s precursors",
            median(fwhm_sec), format(length(fwhm_sec), big.mark = ",")),
          y = "Median DPPP") +
-    theme_aidia() +
+    theme_aidia(base_size = base_size) +
     theme(axis.title.x = element_blank(),
           axis.text.x = element_blank(),
           axis.ticks.x = element_blank(),
@@ -540,7 +540,7 @@ plot_dppp_satisfaction_combined <- function(optimization_plan, validated_data,
          caption = sprintf(
            "Target: DPPP >= %.1f, Satisfaction >= %.0f%% | Shorter cycle time = higher DPPP",
            target_dppp, target_satisfaction)) +
-    theme_aidia() +
+    theme_aidia(base_size = base_size) +
     theme(plot.margin = margin(0, 10, 5, 10))
 
   # --- Combine with shared x-axis ---
@@ -565,7 +565,8 @@ plot_dppp_satisfaction_combined <- function(optimization_plan, validated_data,
 #'
 #' @return gtable (gridExtra::tableGrob)
 #' @keywords internal
-plot_dppp_diagnosis_table <- function(optimization_plan, validated_data) {
+plot_dppp_diagnosis_table <- function(optimization_plan, validated_data,
+                                      base_size = 11) {
 
   cat("  Generating Plot 1B: Acquisition Diagnosis Table...\n")
 
@@ -684,7 +685,8 @@ plot_dppp_diagnosis_table <- function(optimization_plan, validated_data) {
     Target = targets, Verdict = verdicts, stringsAsFactors = FALSE
   )
 
-  dppp_grob <- make_table_grob(dppp_data, verdict_col = 5)
+  dppp_grob <- make_table_grob(dppp_data, verdict_col = 5,
+                                fontsize_core = base_size, fontsize_head = base_size + 1)
 
   # ---- Table 2: Instrument Configuration (user-input params only) ----
   inst_name <- plan$instrument$name %||% plan$instrument$preset %||% "Unknown"
@@ -732,14 +734,14 @@ plot_dppp_diagnosis_table <- function(optimization_plan, validated_data) {
     config_data, rows = NULL,
     theme = gridExtra::ttheme_minimal(
       core = list(
-        fg_params = list(fontsize = 11, col = cfg_fg, hjust = 0, x = 0.05),
+        fg_params = list(fontsize = base_size, col = cfg_fg, hjust = 0, x = 0.05),
         bg_params = list(
           fill = rep(c("white", aidia_colors$grid), length.out = n_cfg),
           col = aidia_colors$grid, lwd = 0.5
         )
       ),
       colhead = list(
-        fg_params = list(fontsize = 12, col = "white", fontface = "bold",
+        fg_params = list(fontsize = base_size + 1, col = "white", fontface = "bold",
                           hjust = 0, x = 0.05),
         bg_params = list(fill = aidia_colors$primary, col = "white", lwd = 1)
       )
@@ -749,14 +751,14 @@ plot_dppp_diagnosis_table <- function(optimization_plan, validated_data) {
   # ---- Assemble full page ----
   title_grob <- grid::textGrob(
     "Acquisition Diagnosis",
-    gp = grid::gpar(fontsize = 18, fontface = "bold", col = aidia_colors$primary)
+    gp = grid::gpar(fontsize = base_size + 7, fontface = "bold", col = aidia_colors$primary)
   )
   subtitle_grob <- grid::textGrob(
     sprintf(
       "DPPP = 1.7 x FWHM / cycle_time | Median FWHM: %.1f sec | %s precursors",
       median_fwhm, format(n_precursors, big.mark = ",")
     ),
-    gp = grid::gpar(fontsize = 11, col = aidia_colors$secondary)
+    gp = grid::gpar(fontsize = base_size, col = aidia_colors$secondary)
   )
 
   # Direction note
@@ -774,7 +776,7 @@ plot_dppp_diagnosis_table <- function(optimization_plan, validated_data) {
   }
   direction_grob <- grid::textGrob(
     direction_text,
-    gp = grid::gpar(fontsize = 11, fontface = "italic", col = aidia_colors$secondary)
+    gp = grid::gpar(fontsize = base_size, fontface = "italic", col = aidia_colors$secondary)
   )
 
   combined <- gridExtra::arrangeGrob(
@@ -783,7 +785,7 @@ plot_dppp_diagnosis_table <- function(optimization_plan, validated_data) {
     dppp_grob,
     direction_grob,
     grid::textGrob("Instrument Configuration",
-                   gp = grid::gpar(fontsize = 14, fontface = "bold",
+                   gp = grid::gpar(fontsize = base_size + 3, fontface = "bold",
                                    col = aidia_colors$primary)),
     config_grob,
     ncol = 1,

@@ -4,11 +4,15 @@
 \alias{plot_temporal_density}
 \title{Plot Precursor Temporal Density Across Windows}
 \usage{
-plot_temporal_density(evaluation_result)
+plot_temporal_density(evaluation_result, baseline_density = NULL)
 }
 \arguments{
 \item{evaluation_result}{List returned by \code{evaluate_windows()}.
 Must contain \code{per_window} with \code{temporal_density_max} column.}
+
+\item{baseline_density}{Optional list with \code{median}, \code{mean},
+\code{max}, \code{n_per_bin} from baseline (equal-width) windows.
+When provided, the subtitle includes a before/after comparison.}
 }
 \value{
 ggplot object

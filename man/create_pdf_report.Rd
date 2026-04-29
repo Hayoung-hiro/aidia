@@ -28,15 +28,15 @@ Creates a professionally structured AIDIA optimization report with
 cover page, parameter summary, and logically grouped plot sections.
 }
 \details{
-Report Structure (5-section narrative):
+Report Structure (3-section narrative + appendices):
 Cover Page (AIDIA branding + key metrics)
 Executive Summary (target-oriented scorecard with verdict)
 Configuration Summary (parameter table)
-S1. Input Data Profile (intensity heatmap, FWHM, quality score panel)
-S2. Acquisition Diagnosis (DPPP table, satisfaction curve, instrument metadata)
-S3. Optimized Window Layout (tiling, load balance, m/z density)
-S4. Optimization Validation (impact dashboard, edge proximity, FZ zoom)
-S5. Strategy Comparison (conditional: table, width ridge, boundary grid)
-A. Detailed Per-Strategy Analysis (appendix)
-B. Adaptive RT Binning (conditional, only if adaptive mode)
+S1. Data Profile & Diagnosis (heatmap, FWHM, m/z density, DPPP, satisfaction)
+S2. Optimization Result (impact, window layout, load balance, temporal density)
+S3. Strategy Characteristics (conditional: table, ridge, boundary grid, width profile)
+A. Window Placement Details (edge proximity, charge state, FZ validation)
+B. Per-Strategy Analysis (conditional: >= 2 strategies)
+C. FZ Boundary Zoom
+D. Adaptive RT Binning (conditional)
 }

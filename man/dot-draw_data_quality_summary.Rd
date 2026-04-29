@@ -2,11 +2,12 @@
 % Please edit documentation in R/export_plots.R
 \name{.draw_data_quality_summary}
 \alias{.draw_data_quality_summary}
-\title{Draw Data Quality Score Panel on PDF}
+\title{Draw Data Summary Table on PDF}
 \usage{
 .draw_data_quality_summary(validated_data)
 }
 \description{
-Draw Data Quality Score Panel on PDF
+Clean tableGrob showing dataset statistics and quality score breakdown.
+Replaces the old text-based quality panel.
 }
 \keyword{internal}

@@ -21,7 +21,8 @@
 #' grid::grid.draw(p)
 #' ggsave("strategy_comparison.png", p, width = 12, height = 6)
 #' }
-plot_strategy_comparison_table <- function(windows_list, active_strategy = NULL) {
+plot_strategy_comparison_table <- function(windows_list, active_strategy = NULL,
+                                           base_size = 11) {
 
   cat("  Generating Strategy Comparison Table...\n")
 
@@ -111,7 +112,7 @@ plot_strategy_comparison_table <- function(windows_list, active_strategy = NULL)
     if (length(active_idx) == 1) {
       row_fontfaces[active_idx] <- "bold"
       row_colors[active_idx] <- aidia_colors$success
-      row_bg[active_idx] <- "#EEFAF6"
+      row_bg[active_idx] <- aidia_colors$highlight_bg
     }
   }
 
@@ -122,7 +123,7 @@ plot_strategy_comparison_table <- function(windows_list, active_strategy = NULL)
     theme = gridExtra::ttheme_minimal(
       core = list(
         fg_params = list(
-          fontsize = 10,
+          fontsize = base_size - 1,
           col = row_colors,
           fontface = row_fontfaces
         ),
@@ -134,7 +135,7 @@ plot_strategy_comparison_table <- function(windows_list, active_strategy = NULL)
       ),
       colhead = list(
         fg_params = list(
-          fontsize = 11,
+          fontsize = base_size,
           col = "white",
           fontface = "bold"
         ),
@@ -145,7 +146,7 @@ plot_strategy_comparison_table <- function(windows_list, active_strategy = NULL)
         )
       ),
       rowhead = list(
-        fg_params = list(fontsize = 10)
+        fg_params = list(fontsize = base_size - 1)
       )
     )
   )
@@ -153,12 +154,12 @@ plot_strategy_comparison_table <- function(windows_list, active_strategy = NULL)
   # Add title and note
   title_grob <- grid::textGrob(
     "Strategy Comparison Summary",
-    gp = grid::gpar(fontsize = 14, fontface = "bold", col = aidia_colors$primary)
+    gp = grid::gpar(fontsize = base_size + 3, fontface = "bold", col = aidia_colors$primary)
   )
 
   note_grob <- grid::textGrob(
     "No single strategy is universally optimal. Evaluate based on your analytical goals and sample complexity.",
-    gp = grid::gpar(fontsize = 8, col = aidia_colors$secondary, fontface = "italic"),
+    gp = grid::gpar(fontsize = base_size - 3, col = aidia_colors$secondary, fontface = "italic"),
     just = "left",
     x = 0.02
   )

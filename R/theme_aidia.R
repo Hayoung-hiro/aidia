@@ -58,7 +58,9 @@ aidia_colors <- list(
   # Before/After gray variant (density overlays)
   before_muted      = "#B0BEC5",  # Cool gray fill
   before_muted_dark = "#78909C",  # Darker gray outline
-  after_success     = "#1E7A64"   # Dark teal (after condition)
+  after_success     = "#1E7A64",  # Dark teal (after condition)
+  # Table highlight
+  highlight_bg      = "#E8F5F0"   # Very light teal (active row bg)
 )
 
 #' Charge-state color palette for AIDIA

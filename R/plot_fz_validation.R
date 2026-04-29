@@ -25,6 +25,7 @@
 plot_fz_validation <- function(validated_data,
                                fz_offset = 0.25,
                                n_bins = 100) {
+  cat("  Generating FZ Validation plot...\n")
 
   # Extract precursor m/z values via shared accessor
   mz_values <- get_precursor_data(validated_data)$Precursor.Mz

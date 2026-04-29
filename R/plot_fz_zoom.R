@@ -31,6 +31,7 @@ plot_fz_zoom <- function(optimized_windows,
                           boundary_index = NULL,
                           fz_offset = 0.25,
                           zoom_range_da = 5) {
+  cat("  Generating FZ Zoom plot...\n")
 
   windows <- optimized_windows$windows
   precursor_data <- validated_data$data

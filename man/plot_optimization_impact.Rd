@@ -4,7 +4,12 @@
 \alias{plot_optimization_impact}
 \title{Plot Optimization Impact Summary (Before/After Dashboard)}
 \usage{
-plot_optimization_impact(optimization_plan, optimized_windows, validated_data)
+plot_optimization_impact(
+  optimization_plan,
+  optimized_windows,
+  validated_data,
+  base_size = 10
+)
 }
 \arguments{
 \item{optimization_plan}{OptimizationPlan object from Stage 2}
@@ -17,18 +22,21 @@ plot_optimization_impact(optimization_plan, optimized_windows, validated_data)
 grob object (from gridExtra::arrangeGrob)
 }
 \description{
-Creates a 2x2 panel dashboard showing the impact of optimization:
+Creates a 3-panel dashboard showing the impact of optimization:
 \itemize{
-\item Panel 1: Cycle time before/after
-\item Panel 2: DPPP satisfaction before/after
-\item Panel 3: Window count before/after
-\item Panel 4: Key metrics summary table
+\item Panel 1: Cycle time (current vs planned, or planned only if CT estimated)
+\item Panel 2: DPPP satisfaction (current vs planned, with target line)
+\item Panel 3: Configuration and results summary table
 }
+}
+\details{
+When the current cycle time is auto-estimated (not user-provided),
+the "Current" bar is omitted and only the planned result is shown.
 }
 \examples{
 \dontrun{
 p <- plot_optimization_impact(optimization_plan, optimized_windows, validated_data)
-ggsave("impact_summary.png", p, width = 10, height = 8)
+grid::grid.draw(p)
 }
 }
 \keyword{internal}
