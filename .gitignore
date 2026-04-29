@@ -36,6 +36,7 @@ env/
 
 # Claude Code
 .claude/
+.omc/
 
 # IDE files
 .vscode/
