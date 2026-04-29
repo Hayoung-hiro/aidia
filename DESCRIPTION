@@ -43,6 +43,7 @@ Imports:
 Suggests:
     testthat (>= 3.0.0),
     prospectr (>= 0.2.0),
+    patchwork (>= 1.2.0),
     hexbin,
     MASS,
     plot3D,
