@@ -18,4 +18,3 @@ Integer, sync-optimal window count
 Returns the window count that minimizes idle time by matching total MS2
 time to MS1 total scan time: n_sync = floor(ms1_time / ms2_scan_time).
 }
-\keyword{internal}

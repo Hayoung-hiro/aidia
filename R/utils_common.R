@@ -220,7 +220,7 @@ get_fwhm_values <- function(validated_data, unit = "seconds") {
 #' @return Named list with: n_raw, n_runs, n_final, n_filtered_cv,
 #'   mz_min, mz_max, rt_min, rt_max, fwhm_median_sec, fwhm_mean_sec,
 #'   fwhm_outlier_pct
-#' @keywords internal
+#' @export
 compute_data_summary <- function(validated_data) {
   data <- validated_data$data
   meta <- validated_data$metadata
@@ -353,7 +353,7 @@ create_s3_object <- function(data, class_name) {
 #' @param message Character, message to display (default: "Insufficient data")
 #'
 #' @return A ggplot object with centered text message
-#' @keywords internal
+#' @export
 create_insufficient_data_plot <- function(title,
                                           subtitle = "Not enough data points",
                                           message = "Insufficient data\n(need at least 2 data points)") {

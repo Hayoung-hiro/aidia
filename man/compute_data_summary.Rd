@@ -18,4 +18,3 @@ fwhm_outlier_pct
 Returns raw (unformatted) summary statistics from a ValidatedData object.
 Single source of truth consumed by both the PDF report and Shiny UI.
 }
-\keyword{internal}

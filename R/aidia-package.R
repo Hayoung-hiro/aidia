@@ -145,7 +145,7 @@ NULL
 #' @return \code{x} if not \code{NULL}, otherwise \code{y}.
 #' @name op-null-default
 #' @rdname null-default
-#' @keywords internal
+#' @export
 `%||%` <- function(x, y) {
   if (is.null(x)) y else x
 }

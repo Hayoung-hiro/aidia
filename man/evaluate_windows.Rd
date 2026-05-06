@@ -35,4 +35,3 @@ quantify how well a set of optimized DIA isolation windows distributes the
 precursors observed in the input data. Intended for internal use by the
 Shiny app and batch export workflows.
 }
-\keyword{internal}

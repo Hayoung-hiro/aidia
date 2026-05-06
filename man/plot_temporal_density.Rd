@@ -26,4 +26,3 @@ greater deconvolution difficulty. Uses geom_rect with diverging fill.
 \strong{Important:} Values are a \strong{lower bound} because only
 successfully identified precursors are counted (survivor bias).
 }
-\keyword{internal}

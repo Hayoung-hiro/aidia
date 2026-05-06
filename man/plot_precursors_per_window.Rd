@@ -34,4 +34,3 @@ colored by window width. Helps identify overloaded or empty windows.
 When optimization_plan is provided, computes a "before" baseline using
 the current cycle time's window count with equal-width placement.
 }
-\keyword{internal}

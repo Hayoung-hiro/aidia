@@ -32,4 +32,3 @@ Cycle time = max(MS1_time, n_windows * MS2_time). If total MS2 time does
 not match MS1 total scan time, one analyzer idles. This function quantifies
 the sync quality.
 }
-\keyword{internal}

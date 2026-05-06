@@ -16,4 +16,3 @@ List with min_width_da and max_width_da
 Reads recommended_min_width_da and recommended_max_width_da from the
 instrument JSON configuration. Falls back to sensible defaults.
 }
-\keyword{internal}
