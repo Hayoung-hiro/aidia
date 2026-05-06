@@ -1322,6 +1322,7 @@ resolve_astral_ms1 <- function(instrument_config, ms1_resolution = NULL) {
 #'     \item{sync_status}{Character, "synced" / "ms1_idle" / "ms2_idle"}
 #'     \item{n_sync_optimal}{Integer, window count for perfect sync}
 #'   }
+#' @export
 #' @keywords internal
 calculate_duty_cycle_sync <- function(ms1_time_ms, ms2_scan_time_ms, n_windows) {
   total_ms2_ms <- n_windows * ms2_scan_time_ms
@@ -1370,6 +1371,7 @@ calculate_duty_cycle_sync <- function(ms1_time_ms, ms2_scan_time_ms, n_windows) 
 #' @param ms2_scan_time_ms Numeric, single MS2 scan time in milliseconds
 #'
 #' @return Integer, sync-optimal window count
+#' @export
 #' @keywords internal
 calculate_sync_optimal_windows <- function(ms1_time_ms, ms2_scan_time_ms) {
   if (ms2_scan_time_ms <= 0) return(1L)
@@ -1385,6 +1387,7 @@ calculate_sync_optimal_windows <- function(ms1_time_ms, ms2_scan_time_ms) {
 #' @param instrument_config List, instrument config from get_instrument_config()
 #'
 #' @return List with min_width_da and max_width_da
+#' @export
 #' @keywords internal
 get_instrument_width_recommendations <- function(instrument_config) {
   list(

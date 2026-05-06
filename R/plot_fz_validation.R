@@ -21,6 +21,7 @@
 #' @param n_bins Integer, number of histogram bins (default: 100)
 #'
 #' @return A ggplot object
+#' @export
 #' @keywords internal
 plot_fz_validation <- function(validated_data,
                                fz_offset = 0.25,

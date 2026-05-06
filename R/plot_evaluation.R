@@ -33,6 +33,7 @@
 #'   \code{per_window} component instead of being recomputed.
 #'
 #' @return ggplot object
+#' @export
 #' @keywords internal
 plot_precursors_per_window <- function(optimized_windows,
                                        validated_data,
@@ -264,6 +265,7 @@ plot_precursors_per_window <- function(optimized_windows,
 #'   When provided, the subtitle includes a before/after comparison.
 #'
 #' @return ggplot object
+#' @export
 #' @keywords internal
 plot_temporal_density <- function(evaluation_result, baseline_density = NULL) {
 
