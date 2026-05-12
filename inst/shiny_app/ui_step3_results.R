@@ -149,6 +149,16 @@ step3_results_ui <- function() {
           solidHeader = TRUE,
           width = 4,
           div(style = "display: flex; flex-direction: column; gap: 8px;",
+            radioButtons(
+              inputId  = "pdf_report_template",
+              label    = "PDF scope:",
+              choices  = c(
+                "Full report (all plots)"        = "full",
+                "Quick summary (essential, faster)" = "minimal"
+              ),
+              selected = "full",
+              inline   = FALSE
+            ),
             downloadButton("download_pdf", "PDF Report",
                            class = "btn-info btn-block"),
             downloadButton("download_batch_zip", "All Formats (ZIP)",

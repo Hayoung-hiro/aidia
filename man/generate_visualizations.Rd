@@ -13,7 +13,8 @@ generate_visualizations(
   create_individual_plots = TRUE,
   plot_format = "png",
   plot_dpi = 300,
-  windows_list = NULL
+  windows_list = NULL,
+  report_template = "full"
 )
 }
 \arguments{
@@ -34,11 +35,17 @@ generate_visualizations(
 \item{plot_dpi}{Numeric, plot resolution (default: 300)}
 
 \item{windows_list}{Optional: Pre-computed windows for all strategies}
+
+\item{report_template}{Character, name of report template
+(\code{"full"} = ~44 plots, default; \code{"minimal"} = ~7 essential plots).
+See \code{names(REPORT_TEMPLATES)} for available templates.}
 }
 \value{
 VisualizationResult object
 }
 \description{
-Main orchestration function that generates all plots, PDF report,
-and individual plot exports.
+Main orchestration function that generates plots, PDF report, and
+individual plot exports. As of v0.4.1, this function is registry-driven:
+plot definitions live in \code{R/plot_registry.R} and report templates
+select a subset of them.
 }

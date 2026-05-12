@@ -102,7 +102,7 @@ plot_fwhm_distribution <- function(validated_data, optimization_plan = NULL) {
     target_dppp <- optimization_plan$parameters$target_dppp
 
     # DPPP at median FWHM with required cycle time
-    dppp_at_median <- 1.7 * median_fwhm / target_ct
+    dppp_at_median <- calculate_dppp(median_fwhm, target_ct)
 
     p <- p +
       annotate(

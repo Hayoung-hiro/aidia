@@ -665,9 +665,8 @@ summary.ValidatedData <- function(object, ...) {
 
   if (!is.null(object$metadata$fwhm_stats)) {
     cat("\nFWHM Statistics:\n")
-    cat(sprintf("  Mean: %.3f min (%.1f sec)\n",
-                object$metadata$fwhm_stats$mean,
-                object$metadata$fwhm_stats$mean * 60))
+    mean_sec <- ensure_fwhm_seconds(object$metadata$fwhm_stats$mean)
+    cat(sprintf("  Mean: %.3f min (%.1f sec)\n", mean_sec / 60, mean_sec))
     cat(sprintf("  Median: %.3f min\n", object$metadata$fwhm_stats$median))
     cat(sprintf("  SD: %.3f min\n", object$metadata$fwhm_stats$sd))
   }

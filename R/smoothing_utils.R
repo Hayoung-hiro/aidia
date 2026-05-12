@@ -269,3 +269,222 @@ smooth_mz_boundaries <- function(
   return(smoothed)
 }
 
+
+# =============================================================================
+# S3 Post-processor: apply_smoothing()
+# =============================================================================
+#
+# Decouples boundary smoothing from strategy-specific m/z computation. Each
+# strategy method returns RAW (unsmoothed) boundaries from
+# optimize_mz_ranges(); apply_smoothing() is the dispatched post-processor.
+#
+# Dispatch table:
+#   greedy_config()   -> WH/SG + fixed-width re-centering
+#   quantile_config() -> WH/SG (controlled by config$quantile_apply_smoothing)
+#   outlier_config()  -> WH/SG (controlled by config$outlier_apply_smoothing)
+#   kde_config()      -> no-op (KDE produces inherently smooth boundaries)
+#   coverage_config() -> no-op (narrowest-range semantics)
+
+
+#' Apply Boundary Smoothing to m/z Ranges (S3 Generic)
+#'
+#' Post-processor invoked after \code{\link{optimize_mz_ranges}}. Dispatches
+#' on the class of \code{config} to apply strategy-appropriate smoothing
+#' (Whittaker-Henderson or Savitzky-Golay) to \code{mz_min} / \code{mz_max}
+#' across RT bins, then recalculates coverage.
+#'
+#' Strategies without sharp boundary semantics (kde, coverage) provide no-op
+#' methods that return \code{mz_ranges} unchanged.
+#'
+#' @param config A strategy_config object.
+#' @param mz_ranges Data frame returned by \code{optimize_mz_ranges()}.
+#' @param precursor_data Data frame for coverage recalculation after smoothing.
+#' @param n_windows_per_bin Integer, used by greedy strategy for width constraint.
+#' @param min_width_da Numeric, used by greedy strategy for width constraint.
+#' @param ... Additional arguments.
+#'
+#' @return Data frame of smoothed m/z ranges (same shape as input).
+#' @export
+#' @keywords internal
+apply_smoothing <- function(config, mz_ranges, precursor_data,
+                             n_windows_per_bin = 10, min_width_da = 2, ...) {
+  UseMethod("apply_smoothing")
+}
+
+
+# -----------------------------------------------------------------------------
+# No-op methods for kde and coverage
+# -----------------------------------------------------------------------------
+
+#' @rdname apply_smoothing
+#' @export
+apply_smoothing.kde_config <- function(config, mz_ranges, precursor_data,
+                                        n_windows_per_bin = 10,
+                                        min_width_da = 2, ...) {
+  # KDE produces inherently smooth boundaries; no further smoothing applied.
+  mz_ranges
+}
+
+#' @rdname apply_smoothing
+#' @export
+apply_smoothing.coverage_config <- function(config, mz_ranges, precursor_data,
+                                             n_windows_per_bin = 10,
+                                             min_width_da = 2, ...) {
+  # Coverage strategy uses narrowest-range semantics; smoothing would
+  # contradict the "minimum range to cover target" guarantee.
+  mz_ranges
+}
+
+
+# -----------------------------------------------------------------------------
+# Active methods for greedy / quantile / outlier
+# -----------------------------------------------------------------------------
+
+#' @rdname apply_smoothing
+#' @export
+apply_smoothing.greedy_config <- function(config, mz_ranges, precursor_data,
+                                           n_windows_per_bin = 10,
+                                           min_width_da = 2, ...) {
+  if (!isTRUE(config$greedy_apply_smoothing)) return(mz_ranges)
+  if (nrow(mz_ranges) < 3) {
+    cat("     Skipping smoothing (need at least 3 RT bins)\n")
+    return(mz_ranges)
+  }
+
+  smoothed <- .smooth_mz_ranges_internal(
+    mz_ranges = mz_ranges,
+    precursor_data = precursor_data,
+    method = config$smoothing_method,
+    sg_window = config$smoothing_window,
+    sg_poly = config$polynomial_order,
+    wh_lambda = config$whittaker_lambda
+  )
+
+  # Greedy invariant: width must remain ~ n_windows * min_width
+  mz_range_per_cycle <- n_windows_per_bin * min_width_da
+  for (i in seq_len(nrow(smoothed))) {
+    width_after <- smoothed$mz_max[i] - smoothed$mz_min[i]
+    if (width_after < mz_range_per_cycle * 0.95) {
+      center <- (smoothed$mz_min[i] + smoothed$mz_max[i]) / 2
+      smoothed$mz_min[i] <- center - mz_range_per_cycle / 2
+      smoothed$mz_max[i] <- center + mz_range_per_cycle / 2
+      smoothed$mz_width[i] <- mz_range_per_cycle
+    }
+  }
+
+  .recalculate_coverage(smoothed, precursor_data)
+}
+
+#' @rdname apply_smoothing
+#' @export
+apply_smoothing.quantile_config <- function(config, mz_ranges, precursor_data,
+                                              n_windows_per_bin = 10,
+                                              min_width_da = 2, ...) {
+  if (!isTRUE(config$quantile_apply_smoothing)) return(mz_ranges)
+  if (nrow(mz_ranges) < 3) return(mz_ranges)
+
+  smoothed <- .smooth_mz_ranges_internal(
+    mz_ranges = mz_ranges,
+    precursor_data = precursor_data,
+    method = config$smoothing_method,
+    sg_window = config$smoothing_window,
+    sg_poly = config$polynomial_order,
+    wh_lambda = config$whittaker_lambda
+  )
+  cat("  -> Smoothing applied successfully\n\n")
+  .recalculate_coverage(smoothed, precursor_data)
+}
+
+#' @rdname apply_smoothing
+#' @export
+apply_smoothing.outlier_config <- function(config, mz_ranges, precursor_data,
+                                             n_windows_per_bin = 10,
+                                             min_width_da = 2, ...) {
+  if (!isTRUE(config$outlier_apply_smoothing)) return(mz_ranges)
+  if (nrow(mz_ranges) < 3) return(mz_ranges)
+
+  smoothed <- .smooth_mz_ranges_internal(
+    mz_ranges = mz_ranges,
+    precursor_data = precursor_data,
+    method = config$smoothing_method,
+    sg_window = config$smoothing_window,
+    sg_poly = config$polynomial_order,
+    wh_lambda = config$whittaker_lambda
+  )
+  cat("  -> Smoothing applied successfully\n\n")
+  .recalculate_coverage(smoothed, precursor_data)
+}
+
+
+# -----------------------------------------------------------------------------
+# Default: unknown strategy_config subclass
+# -----------------------------------------------------------------------------
+
+#' @rdname apply_smoothing
+#' @export
+apply_smoothing.default <- function(config, mz_ranges, ...) {
+  if (inherits(config, "strategy_config")) {
+    # Unknown sub-class but is a strategy_config - default to no-op
+    return(mz_ranges)
+  }
+  stop("config must be a strategy_config object.")
+}
+
+
+# -----------------------------------------------------------------------------
+# Internal helpers
+# -----------------------------------------------------------------------------
+
+#' Smooth mz_min and mz_max columns of an mz_ranges data frame
+#' @keywords internal
+.smooth_mz_ranges_internal <- function(mz_ranges, precursor_data, method,
+                                        sg_window, sg_poly, wh_lambda) {
+  n_bins <- nrow(mz_ranges)
+
+  if (method == "whittaker") {
+    bin_weights <- sqrt(pmax(mz_ranges$n_precursors_covered, 1))
+    cat(sprintf("     WH params: lambda=%.0f, weights=sqrt(n_precursors)\n",
+                wh_lambda))
+    mz_min_smooth <- smooth_boundaries(mz_ranges$mz_min, method = "whittaker",
+                                        weights = bin_weights, lambda = wh_lambda)
+    mz_max_smooth <- smooth_boundaries(mz_ranges$mz_max, method = "whittaker",
+                                        weights = bin_weights, lambda = wh_lambda)
+  } else {
+    adaptive_window <- min(sg_window, floor(n_bins * 0.7))
+    if (adaptive_window %% 2 == 0) adaptive_window <- adaptive_window + 1
+    adaptive_window <- max(3, adaptive_window)
+    adaptive_poly <- min(sg_poly, adaptive_window - 2)
+    adaptive_poly <- max(1, adaptive_poly)
+    cat(sprintf("     SG params: window=%d, poly_order=%d\n",
+                adaptive_window, adaptive_poly))
+    mz_min_smooth <- smooth_boundaries(mz_ranges$mz_min, method = "sg",
+                                        window_size = adaptive_window,
+                                        poly_order = adaptive_poly)
+    mz_max_smooth <- smooth_boundaries(mz_ranges$mz_max, method = "sg",
+                                        window_size = adaptive_window,
+                                        poly_order = adaptive_poly)
+  }
+
+  mz_ranges$mz_min <- mz_min_smooth
+  mz_ranges$mz_max <- mz_max_smooth
+  mz_ranges$mz_width <- mz_max_smooth - mz_min_smooth
+  mz_ranges
+}
+
+#' Recalculate per-bin coverage after boundary modification
+#' @keywords internal
+.recalculate_coverage <- function(mz_ranges, precursor_data) {
+  for (i in seq_len(nrow(mz_ranges))) {
+    bin_data <- precursor_data %>%
+      dplyr::filter(RT.Apex >= mz_ranges$rt_start[i] &
+                    RT.Apex <= mz_ranges$rt_end[i])
+    if (nrow(bin_data) > 0) {
+      mz_values <- bin_data$Precursor.Mz
+      covered <- sum(mz_values >= mz_ranges$mz_min[i] &
+                     mz_values <= mz_ranges$mz_max[i])
+      mz_ranges$n_precursors_covered[i] <- covered
+      mz_ranges$coverage_ratio[i] <- covered / length(mz_values)
+    }
+  }
+  mz_ranges
+}

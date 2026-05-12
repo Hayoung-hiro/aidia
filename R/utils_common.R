@@ -605,7 +605,7 @@ extract_before_after_metrics <- function(optimization_plan, optimized_windows) {
 #' @param file_path Character, path to input file
 #'
 #' @return Character, gradient name (e.g., "30min") or "unknown"
-#' @keywords internal
+#' @export
 extract_gradient_name <- function(file_path) {
   basename_file <- basename(file_path)
 

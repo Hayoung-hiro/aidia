@@ -102,8 +102,8 @@ data <- create_validated_dataset("path/to/report.parquet")
 config <- get_instrument_config("astral")
 plan <- plan_optimization(data, config, target_dppp = 7.0)
 
-# Generate optimized windows
-windows <- optimize_windows(data, plan, mz_strategy = "greedy")
+# Generate optimized windows (using typed strategy_config)
+windows <- optimize_windows(data, plan, strategy_config = greedy_config())
 
 # Export method file
 export_windows_to_csv(windows, "method.csv", data, plan)

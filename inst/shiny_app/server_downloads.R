@@ -172,6 +172,9 @@ server_downloads <- function(input, output, session, rv) {
         showNotification("PDF: generating plots...",
                          id = "pdf_progress", duration = NULL, type = "message")
 
+        report_template_choice <- input$pdf_report_template %||% "full"
+        cat(sprintf("[Shiny] PDF report_template = '%s'\n", report_template_choice))
+
         viz_result <- generate_visualizations(
           validated_data = rv$validated_data,
           optimization_plan = rv$optimization_plan,
@@ -179,7 +182,8 @@ server_downloads <- function(input, output, session, rv) {
           output_dir = viz_output_dir,
           create_pdf = FALSE,
           create_individual_plots = FALSE,
-          windows_list = windows_list
+          windows_list = windows_list,
+          report_template = report_template_choice
         )
 
         cat("[Shiny] Creating structured PDF...\n")

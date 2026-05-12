@@ -15,4 +15,3 @@ Character, gradient name (e.g., "30min") or "unknown"
 \description{
 Parses gradient duration from DIA-NN report filenames (e.g., "30min", "60min").
 }
-\keyword{internal}

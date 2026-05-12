@@ -12,10 +12,14 @@ NULL
 
 #' Canonical strategy display order
 #'
-#' Preferred ordering of strategies for facets, legends, and comparisons.
-#' GLOBAL strategies first (greedy, kde), then LOCAL (quantile, coverage, outlier).
+#' Preferred ordering of the five m/z optimization strategies for facets,
+#' legends, comparisons, and multi-strategy iteration. GLOBAL strategies
+#' first (greedy, kde), then LOCAL (quantile, coverage, outlier).
 #'
-#' @keywords internal
+#' Exported because callers (Shiny multi-strategy download, scripts) iterate
+#' over this vector to ensure consistent strategy ordering.
+#'
+#' @export
 STRATEGY_PREFERRED_ORDER <- c("greedy", "kde", "quantile", "coverage", "outlier")
 
 # Strategy Color Palette (colorblind-safe) ---------------------------------

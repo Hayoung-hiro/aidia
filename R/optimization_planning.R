@@ -784,13 +784,8 @@ calculate_cycle_time_internal <- function(n_windows, cycle_mode, ms1_time,
   t_scan_sec <- scan_time_info$t_scan_ms / 1000  # ms to sec
   total_ms2_time <- n_windows * t_scan_sec
 
-  if (cycle_mode == "parallel") {
-    # MS2 during MS1
-    cycle_time <- max(ms1_time, total_ms2_time)
-  } else {
-    # MS1 then MS2
-    cycle_time <- ms1_time + total_ms2_time
-  }
+  # Cycle time via canonical helper (avoids inline duplication of the formula)
+  cycle_time <- simple_cycle_time(ms1_time, total_ms2_time, cycle_mode)
 
   return(cycle_time)
 }
