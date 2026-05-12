@@ -41,7 +41,7 @@
 #' @keywords internal
 REPORT_TEMPLATES <- list(
   full = list(
-    description = "All plots — current default behavior (~44 plots with 5 strategies)"
+    description = "All plots - current default behavior (~44 plots with 5 strategies)"
   ),
   minimal = list(
     description = "Essential plots for quick preview (~7 plots)"
@@ -275,7 +275,7 @@ PLOT_REGISTRY <- list(
   ),
 
   # ---------------------------------------------------------------------------
-  # Appendix B: Per-Strategy Details (app_b_*) — multi-strategy expansion
+  # Appendix B: Per-Strategy Details (app_b_*) - multi-strategy expansion
   # ---------------------------------------------------------------------------
 
   list(

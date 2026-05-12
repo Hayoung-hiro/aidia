@@ -215,7 +215,7 @@ export_publication_figures <- function(
       # Validate all keys exist
       missing <- setdiff(plot_keys, names(plots))
       if (length(missing) > 0) {
-        warning(sprintf("  [!] %s: missing plots: %s — skipping",
+        warning(sprintf("  [!] %s: missing plots: %s - skipping",
                         fig_name, paste(missing, collapse = ", ")))
         next
       }
@@ -296,7 +296,7 @@ export_publication_figures <- function(
   if (inherits(p, "ggplot")) {
     p + theme_aidia(base_size = base_size)
   } else {
-    # grob/gtable — cannot override theme post-hoc
+    # grob/gtable - cannot override theme post-hoc
     p
   }
 }
