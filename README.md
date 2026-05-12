@@ -28,7 +28,7 @@ AIDIA aids researchers in optimizing DIA isolation windows through intelligent, 
 
 ## ✨ Key Features
 
-- 🎯 **5 Optimization Strategies**: Greedy, KDE, Quantile, Coverage, Outlier
+- 🎯 **5 Optimization Strategies**: Greedy, KDE, Quantile, Coverage, Outlier (S3-dispatched; add a new strategy with one constructor + one method)
 - 📊 **3 Window Modes**: Density (variable), Fixed, Staggered
 - 🔧 **Verified Instruments**: Astral, Exploris, Q Exactive, Eclipse, Fusion Lumos (Thermo Orbitrap)
 - 📁 **3 Method Export Formats**: Thermo 22-column CSV, Center Mass list, m/z Range list
@@ -40,6 +40,7 @@ AIDIA aids researchers in optimizing DIA isolation windows through intelligent, 
 - 🔬 **Bootstrap CI**: Boundary uncertainty estimation via stratified resampling
 - 🧭 **Baseline Comparisons**: Optimized vs equal-width baseline overlay in load balance, window coverage, and temporal density plots
 - 📑 **Structured PDF Report**: 3-section + appendices layout with active-strategy highlighting in cross-strategy comparison plots
+- ⚡ **Quick Preview Template**: `report_template = "minimal"` generates 7 essential plots in ~12 sec (~70% faster than full report) for rapid parameter iteration
 
 ---
 
@@ -62,14 +63,24 @@ library(aidia)
 validated <- create_validated_dataset("data/report.parquet")
 plan <- plan_optimization(validated, current_cycle_time = 3.5,
                           instrument_preset = "astral", target_dppp = 7.0)
-windows <- optimize_windows(validated, plan, rt_bin_width_min = 5,
-                            mz_strategy = "greedy", window_mode = "density")
+
+# v0.4.1+: pass a typed strategy_config (flat `mz_strategy = "..."` params
+# still work but are deprecated and will be removed in v0.6.0).
+windows <- optimize_windows(validated, plan,
+                            strategy_config = greedy_config(),
+                            rt_bin_width_min = 5,
+                            window_mode = "density")
 
 # Export method file (Thermo Xcalibur 22-column CSV)
 export_windows_to_csv(windows, "output/method.csv", validated, plan)
 
-# Generate report plots + multi-page PDF
+# Full report (44 plots + multi-page PDF, default)
 viz <- generate_visualizations(validated, plan, windows, output_dir = "output/")
+
+# Quick preview (7 essential plots, ~70% faster — useful during parameter tuning)
+viz_quick <- generate_visualizations(validated, plan, windows,
+                                      output_dir = "output/",
+                                      report_template = "minimal")
 
 # Export selected plots for manuscript submission (JPR single column, PDF)
 export_publication_figures(
@@ -89,6 +100,11 @@ export_publication_figures(
 # Launch interactive UI
 aidia::run_aidia_app()
 ```
+
+Step 3 ("Results") exposes a **"PDF scope"** radio next to the download button:
+
+- **Full report (all plots)** — default, ~42 sec for 5 strategies
+- **Quick summary (essential, faster)** — 7 plots, ~12 sec for rapid iteration
 
 ---
 
@@ -182,8 +198,9 @@ aidia::run_aidia_app()
 ### Visualization Outputs (Stage 4)
 
 - **Multi-page PDF** report (3 sections + appendices, journal-ready narrative)
-- 30+ ggplot/grob objects exposed via `viz$plots` (key naming: `s{section}_{order}_{name}` and `app_{appendix}_{name}`)
+- 44 (full template) or 7 (minimal template) ggplot/grob objects exposed via `viz$plots` (key naming: `s{section}_{order}_{name}` and `app_{appendix}_{name}`)
 - Optional individual PNGs per plot
+- **Registry-driven**: see `PLOT_REGISTRY` for the catalogue; add a new plot by inserting one list entry instead of editing the orchestrator
 
 ### Publication Figures
 
@@ -214,8 +231,10 @@ Output formats: PDF (cairo), SVG, TIFF (LZW), PNG @ 600 DPI. Multi-panel assembl
 | Stage 1: Validation | ~2 sec | ValidatedData |
 | Stage 2: Planning | <1 sec | OptimizationPlan |
 | Stage 3: Optimization (×6) | ~20 sec | 6 window sets |
-| Stage 4: Visualization | ~25 sec | 30+ plots + PDF |
-| **Total** | **~50 sec** | Complete analysis |
+| Stage 4: Visualization (`"full"`) | ~25 sec | 44 plots + multi-page PDF |
+| Stage 4: Visualization (`"minimal"`) | ~12 sec | 7 essential plots + short PDF |
+| **Total (full)** | **~50 sec** | Complete analysis |
+| **Total (minimal)** | **~35 sec** | Quick preview |
 
 *Benchmark: 90min gradient, 27K precursors*
 
