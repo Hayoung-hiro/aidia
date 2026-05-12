@@ -412,3 +412,19 @@ Optional (Suggests in DESCRIPTION):
 **v2.0** (2025-11): GLOBAL/LOCAL m/z optimization, technical replicates, TDD review
 
 **v1.x** (2025-10): Initial 4-stage pipeline
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+GitHub issues at `Hayoung-hiro/aidia` via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout. Domain glossary at `docs/domain-knowledge.md` (existing). ADRs at `docs/adr/`. See `docs/agents/domain.md`.
