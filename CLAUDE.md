@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**AIDIA v0.3.0** (Adaptive Isolation for DIA) - R package for optimizing Data-Independent Acquisition (DIA) isolation windows for mass spectrometry. Uses DIA-NN results to generate optimized RT-dependent isolation windows for **Thermo Fisher Orbitrap** instruments.
+**AIDIA v0.4.1** (Adaptive Isolation for DIA) - R package for optimizing Data-Independent Acquisition (DIA) isolation windows for mass spectrometry. Uses DIA-NN results to generate optimized RT-dependent isolation windows for **Thermo Fisher Orbitrap** instruments.
 
 **Status**: Development (4-stage pipeline complete, modular architecture)
 
@@ -105,7 +105,8 @@ Stage 4: Visualization (Plots Only)
   Output: Plots + PDF report
   Main:   generate_visualizations()
   File:   R/visualization.R (orchestrator)
-          R/plot_*.R (15 modular plot files)
+          R/plot_*.R (25 modular plot files, dispatched via PLOT_REGISTRY)
+          R/plot_registry.R (registry + full/minimal report templates)
 ```
 
 **Design Principle**: Stage 3 handles all data export. Stage 4 is visualization-only.
@@ -134,12 +135,13 @@ Canonical functions that ALL entry points (main.R, Shiny app) must use:
 | `estimate_window_count_preview()` | `R/dppp.R` | Quick window count from FWHM/DPPP/MS2 |
 | `extract_gradient_name()` | `R/utils_common.R` | Parse gradient name from file path |
 | `estimate_cycle_time()` | `R/utils_common.R` | Estimate cycle time from gradient length |
-| `is_orbitrap_instrument()` | `R/instrument_utils.R` | Data-driven from JSON `analyzer_type` |
-| `is_astral_instrument()` | `R/instrument_utils.R` | Data-driven from JSON `analyzer_type` |
+| `is_orbitrap_instrument()` | `R/instrument_config.R` | Data-driven from JSON `analyzer_type` |
+| `is_astral_instrument()` | `R/instrument_config.R` | Data-driven from JSON `analyzer_type` |
 | `export_windows_to_csv()` | `R/export_methods.R` | Unified 22-column Thermo CSV (z=0) |
-| `calculate_duty_cycle_sync()` | `R/instrument_utils.R` | Duty cycle % and idle times for parallel instruments |
-| `calculate_sync_optimal_windows()` | `R/instrument_utils.R` | Sync-optimal window count for parallel instruments |
-| `get_instrument_width_recommendations()` | `R/instrument_utils.R` | Per-instrument min/max width from JSON |
+| `calculate_duty_cycle_sync()` | `R/cycle_time.R` | Duty cycle % and idle times for parallel instruments |
+| `calculate_sync_optimal_windows()` | `R/cycle_time.R` | Sync-optimal window count for parallel instruments |
+| `simple_cycle_time()` | `R/cycle_time.R` | Lightweight cycle time helper (max/+ dispatch by mode) |
+| `get_instrument_width_recommendations()` | `R/instrument_config.R` | Per-instrument min/max width from JSON |
 | `calculate_precursor_temporal_density()` | `R/precursor_matching.R` | Sweepline co-elution density (lower bound) |
 
 **Rule**: Never inline FWHM conversion (`median < 1 → *60`) or window count formulas. Always use shared functions.
@@ -195,7 +197,7 @@ cycle_time <- max(MS1_time, n_windows * MS2_time)
 cycle_time <- MS1_time + (n_windows * MS2_time)
 ```
 
-Resolution-to-transient time conversion is handled by `R/instrument_utils.R` (1,299 lines) with per-instrument lookup tables.
+Resolution-to-transient time conversion is handled by `R/cycle_time.R` with per-instrument lookup tables. Instrument metadata (JSON I/O, classification predicates, width recommendations) lives in `R/instrument_config.R`.
 
 ### Strategy Config Objects
 
@@ -315,7 +317,7 @@ optimize_mz_ranges_newstrategy_internal <- function(data, rt_bins, ...) {
 ### Adding a New Instrument
 
 1. Add to `inst/config/instruments.json` with scan times, cycle calculation mode, and `analyzer_type`
-2. Add resolution/transient lookup table in `R/instrument_utils.R` (if Orbitrap)
+2. Add resolution/transient lookup table in `R/cycle_time.R` (if Orbitrap)
 3. Add to Shiny `selectInput` choices in `inst/shiny_app/ui_step2_setup.R`
 4. Instrument classification (`is_orbitrap_instrument()` etc.) is automatic from JSON `analyzer_type`
 
