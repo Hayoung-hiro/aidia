@@ -4,12 +4,18 @@
 \alias{plot_precursor_load_balance}
 \title{Plot Precursor Load Balance Across Windows}
 \usage{
-plot_precursor_load_balance(optimized_windows, validated_data)
+plot_precursor_load_balance(
+  optimized_windows,
+  validated_data,
+  optimization_plan = NULL
+)
 }
 \arguments{
 \item{optimized_windows}{OptimizedWindows object from Stage 3}
 
 \item{validated_data}{ValidatedData object from Stage 1}
+
+\item{optimization_plan}{OptimizationPlan object from Stage 2 (optional, for baseline)}
 }
 \value{
 ggplot object

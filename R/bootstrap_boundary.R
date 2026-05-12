@@ -99,12 +99,9 @@ bootstrap_boundary_ci <- function(validated_data,
                 format(nrow(precursor_data), big.mark = ",")))
   }
 
-  # Flatten strategy config for optimize_mz_ranges_internal
-  sc <- as.list(strategy_config)
-
   # Calculate observed boundaries (the "real" result)
   observed_ranges <- compute_mz_boundaries_quiet(
-    precursor_data, rt_stats, sc, optimization_plan
+    precursor_data, rt_stats, strategy_config, optimization_plan
   )
 
   # =========================================================================
@@ -138,7 +135,7 @@ bootstrap_boundary_ci <- function(validated_data,
 
     # Recalculate boundaries with resampled data
     boot_ranges <- tryCatch(
-      compute_mz_boundaries_quiet(resampled_data, rt_stats, sc, optimization_plan),
+      compute_mz_boundaries_quiet(resampled_data, rt_stats, strategy_config, optimization_plan),
       error = function(e) NULL
     )
 
@@ -229,36 +226,29 @@ bootstrap_boundary_ci <- function(validated_data,
 #'
 #' @param precursor_data Data frame with rt_group and Precursor.Mz
 #' @param rt_stats RT statistics data frame
-#' @param sc Flattened strategy config list
+#' @param strategy_config A strategy_config object (typed)
 #' @param optimization_plan OptimizationPlan object
 #'
 #' @return Data frame with mz_min, mz_max, n_precursors_covered per RT bin
 #' @keywords internal
-compute_mz_boundaries_quiet <- function(precursor_data, rt_stats, sc, optimization_plan) {
-  invisible(capture.output(
-    result <- optimize_mz_ranges_internal(
+compute_mz_boundaries_quiet <- function(precursor_data, rt_stats, strategy_config,
+                                          optimization_plan) {
+  invisible(capture.output({
+    result <- optimize_mz_ranges(
+      strategy_config,
       precursor_data = precursor_data,
       rt_stats = rt_stats,
-      strategy = sc$strategy,
-      target_coverage = sc$target_coverage %||% 0.95,
-      quantile_lower = sc$quantile_lower %||% 0.05,
-      quantile_upper = sc$quantile_upper %||% 0.95,
-      outlier_threshold = sc$outlier_threshold %||% 3.0,
-      smoothing_window = sc$smoothing_window %||% 7,
-      polynomial_order = sc$polynomial_order %||% 3,
       n_windows_per_bin = optimization_plan$window_count_per_bin,
-      min_width_da = 2,
-      mz_step = sc$mz_step %||% 0.5,
-      greedy_apply_smoothing = sc$greedy_apply_smoothing %||% TRUE,
-      kde_density_threshold = sc$kde_density_threshold %||% 0.1,
-      kde_min_coverage = sc$kde_min_coverage %||% 0.80,
-      quantile_apply_smoothing = sc$quantile_apply_smoothing %||% FALSE,
-      outlier_apply_smoothing = sc$outlier_apply_smoothing %||% FALSE,
-      coverage_mode = sc$coverage_mode %||% "narrowest",
-      smoothing_method = sc$smoothing_method %||% "sg",
-      whittaker_lambda = sc$whittaker_lambda %||% 10
+      min_width_da = 2
     )
-  ))
+    result <- apply_smoothing(
+      strategy_config,
+      mz_ranges = result,
+      precursor_data = precursor_data,
+      n_windows_per_bin = optimization_plan$window_count_per_bin,
+      min_width_da = 2
+    )
+  }))
   result
 }
 

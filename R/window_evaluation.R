@@ -36,7 +36,7 @@
 #'       overloaded_windows, width_violations, and high_cv_bins (RT bin IDs)}
 #'   }
 #'
-#' @keywords internal
+#' @export
 evaluate_windows <- function(optimized_windows,
                              validated_data,
                              optimization_plan) {

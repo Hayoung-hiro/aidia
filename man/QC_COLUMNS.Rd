@@ -14,4 +14,4 @@ QC_COLUMNS
 These columns are created in Stage 1 if technical replicates are present.
 Keep them if available for QC reporting.
 }
-\keyword{internal}
+\keyword{datasets}

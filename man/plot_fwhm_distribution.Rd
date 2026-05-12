@@ -9,20 +9,15 @@ plot_fwhm_distribution(validated_data, optimization_plan = NULL)
 \arguments{
 \item{validated_data}{ValidatedData object from Stage 1}
 
-\item{optimization_plan}{OptimizationPlan object (optional, for cycle time annotation)}
+\item{optimization_plan}{OptimizationPlan object (optional, for DPPP annotation)}
 }
 \value{
 ggplot object
 }
 \description{
-Shows chromatographic peak width distribution - the fundamental input
-driving the entire DPPP optimization. Displays histogram with density overlay,
-median, P15 (critical percentile for DPPP), and optional cycle time context.
-}
-\details{
-Purpose: Understand the underlying FWHM distribution that determines
-the target cycle time. P15 (15th percentile) is the critical threshold
-used in DPPP calculations (1.7 * P15_FWHM / cycle_time).
+Shows chromatographic peak width distribution — the fundamental input
+driving DPPP optimization. Displays histogram with density overlay,
+median marker, and DPPP context when optimization_plan is provided.
 }
 \examples{
 \dontrun{

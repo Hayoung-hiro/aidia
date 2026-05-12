@@ -28,6 +28,7 @@ plot_alignment_density <- function(optimized_windows,
                                     rt_segment_id = NULL,
                                     bw_adjust = 1.0,
                                     base_size = 12) {
+  cat("  Generating Alignment Density plot...\n")
 
   windows <- optimized_windows$windows
   precursor_data <- validated_data$data

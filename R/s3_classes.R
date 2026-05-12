@@ -222,8 +222,10 @@ validate_OptimizationPlan <- function(x) {
   }
 
   # Check diagnosis fields
-  required_diag <- c("current_cycle_time_sec", "current_satisfaction_ratio",
-                      "current_dppp_mean")
+  required_diag <- c("current_cycle_time_sec", "current_ct_is_estimated",
+                      "current_satisfaction_ratio", "current_dppp_mean",
+                      "current_dppp_median", "current_dppp_sd",
+                      "n_satisfied", "n_total")
   missing_diag <- setdiff(required_diag, names(x$diagnosis))
   if (length(missing_diag) > 0) {
     stop(sprintf("OptimizationPlan$diagnosis missing: %s",
@@ -231,8 +233,30 @@ validate_OptimizationPlan <- function(x) {
   }
 
   # Check feasibility fields
+  required_feas <- c("is_feasible", "cycle_time_ok", "scan_rate_ok", "window_range_ok")
+  missing_feas <- setdiff(required_feas, names(x$feasibility))
+  if (length(missing_feas) > 0) {
+    stop(sprintf("OptimizationPlan$feasibility missing: %s",
+                 paste(missing_feas, collapse = ", ")), call. = FALSE)
+  }
   if (!is.logical(x$feasibility$is_feasible)) {
     stop("feasibility$is_feasible must be logical", call. = FALSE)
+  }
+
+  # Check instrument fields
+  required_inst <- c("preset", "name", "cycle_mode")
+  missing_inst <- setdiff(required_inst, names(x$instrument))
+  if (length(missing_inst) > 0) {
+    stop(sprintf("OptimizationPlan$instrument missing: %s",
+                 paste(missing_inst, collapse = ", ")), call. = FALSE)
+  }
+
+  # Check parameters fields
+  required_params <- c("target_dppp", "target_satisfaction")
+  missing_params <- setdiff(required_params, names(x$parameters))
+  if (length(missing_params) > 0) {
+    stop(sprintf("OptimizationPlan$parameters missing: %s",
+                 paste(missing_params, collapse = ", ")), call. = FALSE)
   }
 
   invisible(x)
@@ -641,9 +665,8 @@ summary.ValidatedData <- function(object, ...) {
 
   if (!is.null(object$metadata$fwhm_stats)) {
     cat("\nFWHM Statistics:\n")
-    cat(sprintf("  Mean: %.3f min (%.1f sec)\n",
-                object$metadata$fwhm_stats$mean,
-                object$metadata$fwhm_stats$mean * 60))
+    mean_sec <- ensure_fwhm_seconds(object$metadata$fwhm_stats$mean)
+    cat(sprintf("  Mean: %.3f min (%.1f sec)\n", mean_sec / 60, mean_sec))
     cat(sprintf("  Median: %.3f min\n", object$metadata$fwhm_stats$median))
     cat(sprintf("  SD: %.3f min\n", object$metadata$fwhm_stats$sd))
   }

@@ -7,7 +7,9 @@
 plot_precursors_per_window(
   optimized_windows,
   validated_data,
-  max_windows = NULL
+  optimization_plan = NULL,
+  max_windows = NULL,
+  evaluation_result = NULL
 )
 }
 \arguments{
@@ -15,7 +17,13 @@ plot_precursors_per_window(
 
 \item{validated_data}{ValidatedData object from Stage 1}
 
+\item{optimization_plan}{OptimizationPlan object from Stage 2 (optional, for baseline)}
+
 \item{max_windows}{Integer, max windows to show per RT bin (default: NULL = all)}
+
+\item{evaluation_result}{Optional list from \code{evaluate_windows()}.
+When provided, per-window precursor counts are taken from its
+\code{per_window} component instead of being recomputed.}
 }
 \value{
 ggplot object
@@ -23,5 +31,6 @@ ggplot object
 \description{
 Bar chart showing the number of precursors in each isolation window,
 colored by window width. Helps identify overloaded or empty windows.
+When optimization_plan is provided, computes a "before" baseline using
+the current cycle time's window count with equal-width placement.
 }
-\keyword{internal}

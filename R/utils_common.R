@@ -210,6 +210,49 @@ get_fwhm_values <- function(validated_data, unit = "seconds") {
 }
 
 
+#' Compute Data Summary Statistics
+#'
+#' Returns raw (unformatted) summary statistics from a ValidatedData object.
+#' Single source of truth consumed by both the PDF report and Shiny UI.
+#'
+#' @param validated_data ValidatedData object from Stage 1
+#'
+#' @return Named list with: n_raw, n_runs, n_final, n_filtered_cv,
+#'   mz_min, mz_max, rt_min, rt_max, fwhm_median_sec, fwhm_mean_sec,
+#'   fwhm_outlier_pct
+#' @export
+compute_data_summary <- function(validated_data) {
+  data <- validated_data$data
+  meta <- validated_data$metadata
+  vs   <- validated_data$validation_status
+
+  fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
+
+  n_raw   <- meta$n_precursors_before %||% meta$n_precursors %||% nrow(data)
+  n_runs  <- meta$n_runs %||% 1L
+  n_final <- nrow(data)
+
+  qd <- vs$quality_details %||% vs$details
+  fwhm_outlier_pct <- if (!is.null(qd$fwhm_outliers)) {
+    qd$fwhm_outliers$pct_outliers * 100
+  } else 0
+
+  list(
+    n_raw            = n_raw,
+    n_runs           = n_runs,
+    n_final          = n_final,
+    n_filtered_cv    = meta$n_filtered_cv %||% 0,
+    mz_min           = min(data$Precursor.Mz, na.rm = TRUE),
+    mz_max           = max(data$Precursor.Mz, na.rm = TRUE),
+    rt_min           = min(data$RT.Apex, na.rm = TRUE),
+    rt_max           = max(data$RT.Apex, na.rm = TRUE),
+    fwhm_median_sec  = median(fwhm_sec, na.rm = TRUE),
+    fwhm_mean_sec    = mean(fwhm_sec, na.rm = TRUE),
+    fwhm_outlier_pct = fwhm_outlier_pct
+  )
+}
+
+
 # =============================================================================
 # Data Structure Conversion
 # =============================================================================
@@ -284,7 +327,15 @@ create_timer <- function() {
 #' @return S3 object
 #' @keywords internal
 create_s3_object <- function(data, class_name) {
-  structure(data, class = c(class_name, "list"))
+  obj <- structure(data, class = c(class_name, "list"))
+
+  # Auto-validate if a validator exists for this class
+  validator_fn <- paste0("validate_", class_name)
+  if (exists(validator_fn, mode = "function")) {
+    get(validator_fn)(obj)
+  }
+
+  obj
 }
 
 
@@ -302,7 +353,7 @@ create_s3_object <- function(data, class_name) {
 #' @param message Character, message to display (default: "Insufficient data")
 #'
 #' @return A ggplot object with centered text message
-#' @keywords internal
+#' @export
 create_insufficient_data_plot <- function(title,
                                           subtitle = "Not enough data points",
                                           message = "Insufficient data\n(need at least 2 data points)") {
@@ -529,7 +580,8 @@ extract_before_after_metrics <- function(optimization_plan, optimized_windows) {
     new_dppp           = optimized_windows$dppp_verification$actual_dppp_median %||% NA_real_,
     target_dppp        = optimization_plan$parameters$target_dppp %||% NA_real_,
     orig_ct            = optimization_plan$diagnosis$current_cycle_time_sec %||% NA_real_,
-    new_ct             = optimized_windows$actual_cycle_time_sec %||%
+    new_ct             = optimized_windows$dppp_verification$actual_cycle_time_sec %||%
+                         optimization_plan$actual_cycle_time_sec %||%
                          optimization_plan$required_cycle_time_sec %||% NA_real_,
     strategy           = optimized_windows$parameters$mz_strategy %||% "unknown",
     window_mode        = optimized_windows$parameters$window_mode %||% "unknown",
@@ -553,7 +605,7 @@ extract_before_after_metrics <- function(optimization_plan, optimized_windows) {
 #' @param file_path Character, path to input file
 #'
 #' @return Character, gradient name (e.g., "30min") or "unknown"
-#' @keywords internal
+#' @export
 extract_gradient_name <- function(file_path) {
   basename_file <- basename(file_path)
 

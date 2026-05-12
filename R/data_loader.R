@@ -101,8 +101,9 @@ load_diann_data <- function(file_path, rt_min = 0, rt_max = NULL,
               min(data$Precursor.Mz), max(data$Precursor.Mz)))
   cat(sprintf("  RT range: %.1f - %.1f minutes\n",
               min(data$RT.Start), max(data$RT.Start)))
+  fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
   cat(sprintf("  Mean FWHM: %.2f minutes (%.1f seconds)\n",
-              mean(data$FWHM), mean(data$FWHM) * 60))
+              mean(fwhm_sec) / 60, mean(fwhm_sec)))
 
   return(data)
 }

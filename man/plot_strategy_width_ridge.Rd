@@ -4,12 +4,16 @@
 \alias{plot_strategy_width_ridge}
 \title{Plot 8A: Ridge Plot - Window Width Distribution by Strategy}
 \usage{
-plot_strategy_width_ridge(windows_list, validated_data)
+plot_strategy_width_ridge(windows_list, validated_data, active_strategy = NULL)
 }
 \arguments{
 \item{windows_list}{Named list of OptimizedWindows objects (quantile, smoothing, outlier, coverage)}
 
 \item{validated_data}{ValidatedData object from Stage 1}
+
+\item{active_strategy}{Character, the user's selected strategy key (optional).
+When provided, the active strategy ridge is fully opaque with a bold label,
+while others are dimmed.}
 }
 \value{
 ggplot object

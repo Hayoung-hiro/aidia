@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_charge_mz.R
 \name{plot_charge_mz_distribution}
 \alias{plot_charge_mz_distribution}
-\title{Plot Charge State x m/z Distribution (Violin)}
+\title{Plot Charge State Distribution (Bar Chart)}
 \usage{
 plot_charge_mz_distribution(optimized_windows, validated_data)
 }
@@ -16,9 +16,8 @@ kept for API compatibility with visualization.R dispatcher)}
 ggplot object
 }
 \description{
-Creates violin plots of precursor m/z distribution per charge state,
-showing the density shape, median, and count per charge. No window
-boundaries are overlaid because windows are RT-dependent and a single
-snapshot would be misleading.
+Creates a bar chart of precursor charge state percentages with count
+labels. Highlights the fraction of multi-charged (z >= 2) precursors
+that benefit from FZ offset boundary placement.
 }
 \keyword{internal}

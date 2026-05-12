@@ -89,36 +89,36 @@ plot_mz_distribution_with_exclusions <- function(optimized_windows,
       annotate("rect",
                xmin = original_min, xmax = optimized_min,
                ymin = 0, ymax = Inf,
-               fill = "red", alpha = 0.2) +
+               fill = aidia_colors$accent, alpha = 0.2) +
 
       # Excluded region: High tail (right)
       annotate("rect",
                xmin = optimized_max, xmax = original_max,
                ymin = 0, ymax = Inf,
-               fill = "red", alpha = 0.2) +
+               fill = aidia_colors$accent, alpha = 0.2) +
 
       # Kept region (optimized range)
       annotate("rect",
                xmin = optimized_min, xmax = optimized_max,
                ymin = 0, ymax = Inf,
-               fill = "green", alpha = 0.05) +
+               fill = aidia_colors$success, alpha = 0.05) +
 
       # Density curve
-      geom_line(color = "navy", linewidth = 1) +
+      geom_line(color = aidia_colors$primary, linewidth = 1) +
 
       # Boundary lines
       geom_vline(xintercept = optimized_min, linetype = "dashed",
-                 color = "darkgreen", linewidth = 0.8) +
+                 color = aidia_colors$after_success, linewidth = 0.8) +
       geom_vline(xintercept = optimized_max, linetype = "dashed",
-                 color = "darkgreen", linewidth = 0.8) +
+                 color = aidia_colors$after_success, linewidth = 0.8) +
 
       # Labels
       annotate("text", x = optimized_min, y = Inf,
                label = sprintf("%.1f", optimized_min),
-               hjust = 1.1, vjust = 1.5, size = 3, color = "darkgreen") +
+               hjust = 1.1, vjust = 1.5, size = 3, color = aidia_colors$after_success) +
       annotate("text", x = optimized_max, y = Inf,
                label = sprintf("%.1f", optimized_max),
-               hjust = -0.1, vjust = 1.5, size = 3, color = "darkgreen") +
+               hjust = -0.1, vjust = 1.5, size = 3, color = aidia_colors$after_success) +
 
       labs(
         title = sprintf("RT Bin %02d: %.1f-%.1f min", bin_id,

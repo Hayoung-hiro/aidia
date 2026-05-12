@@ -1,5 +1,30 @@
 # aidia 0.4.0
 
+## Reporting redesign and publication export
+
+* `export_publication_figures()` and `get_journal_preset()`:
+  re-render any subset of plots at journal-specific dimensions and
+  theme sizing. Presets cover JPR, MCP, Anal Chem, Nature Methods,
+  Proteomics, and JASMS for single/1.5/double column widths
+* PDF/SVG/TIFF (LZW)/PNG @ 600 DPI output, with optional multi-panel
+  assembly and A/B/C tagging via `patchwork` (Suggests)
+* `compute_data_summary()`: shared data statistics consumed by both
+  the PDF report and the Shiny data summary panel
+* Plot infrastructure prepared for publication rendering: `base_size`
+  parameter on table/grob plots, `aidia_colors` token replacement of
+  hardcoded fills/lines
+* Reporting redesign: 3-section + appendices PDF structure with
+  unified plot key naming (`s{section}_{order}_{name}`,
+  `app_{appendix}_{name}`)
+* Baseline comparisons added to S2 plots: full m/z range overlay on
+  window coverage, dodged Baseline vs Optimized load balance with CV
+  delta, equal-width temporal density before/after subtitle
+* Active strategy highlighting on S3 cross-strategy plots: bold table
+  row, fully opaque ridge with selected marker, emphasized width
+  profile line and points
+
+## v0.4.0 baseline (Astral sync-first UX + strategy unification)
+
 * Conditional Step 2 layout: parallel instruments get sync-first Section A;
   sequential instruments keep DPPP layout
 * Sync-first hero: sync-optimal window count as primary metric for Astral

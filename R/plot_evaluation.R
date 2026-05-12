@@ -21,16 +21,24 @@
 #'
 #' Bar chart showing the number of precursors in each isolation window,
 #' colored by window width. Helps identify overloaded or empty windows.
+#' When optimization_plan is provided, computes a "before" baseline using
+#' the current cycle time's window count with equal-width placement.
 #'
 #' @param optimized_windows OptimizedWindows object from Stage 3
 #' @param validated_data ValidatedData object from Stage 1
+#' @param optimization_plan OptimizationPlan object from Stage 2 (optional, for baseline)
 #' @param max_windows Integer, max windows to show per RT bin (default: NULL = all)
+#' @param evaluation_result Optional list from \code{evaluate_windows()}.
+#'   When provided, per-window precursor counts are taken from its
+#'   \code{per_window} component instead of being recomputed.
 #'
 #' @return ggplot object
-#' @keywords internal
+#' @export
 plot_precursors_per_window <- function(optimized_windows,
                                        validated_data,
-                                       max_windows = NULL) {
+                                       optimization_plan = NULL,
+                                       max_windows = NULL,
+                                       evaluation_result = NULL) {
 
   cat("  Generating Evaluation Plot: Precursor Distribution Across Windows...\n")
 
@@ -38,7 +46,23 @@ plot_precursors_per_window <- function(optimized_windows,
   precursor_data <- validated_data$data
 
   # ---- Count precursors per window (2D RT+mz matching) --------------------
-  windows_counted <- calculate_precursors_per_window(windows, precursor_data)
+  # Reuse evaluation result when available to avoid O(n_windows * n_precursors) work
+  if (!is.null(evaluation_result) && !is.null(evaluation_result$per_window) &&
+      nrow(evaluation_result$per_window) > 0) {
+    pw <- evaluation_result$per_window
+    # per_window rows are 1:1 with input windows — attach RT columns
+    windows_counted <- data.frame(
+      mz_start      = pw$mz_start,
+      mz_end        = pw$mz_end,
+      rt_start      = windows$rt_start,
+      rt_end        = windows$rt_end,
+      rt_segment_id = pw$rt_segment_id,
+      n_precursors  = pw$n_precursors,
+      stringsAsFactors = FALSE
+    )
+  } else {
+    windows_counted <- calculate_precursors_per_window(windows, precursor_data)
+  }
 
   if (nrow(windows_counted) < 1) {
     return(create_insufficient_data_plot(
@@ -63,30 +87,74 @@ plot_precursors_per_window <- function(optimized_windows,
     )
 
   n_bins <- length(unique(windows_counted$rt_segment_id))
-
-  # If more than 6 RT bins, show only the median segment
-  if (n_bins > 6) {
-    median_seg      <- select_median_rt_segment(windows_counted)
-    windows_counted <- windows_counted[windows_counted$rt_segment_id == median_seg, ,
-                                       drop = FALSE]
-    n_bins          <- 1
-    median_note     <- sprintf("Showing median RT segment (%d) only", median_seg)
-  } else {
-    median_note <- NULL
-  }
+  median_note <- NULL
 
   # ---- Summary statistics -------------------------------------------------
   mean_n   <- mean(windows_counted$n_precursors, na.rm = TRUE)
   min_n    <- min(windows_counted$n_precursors,  na.rm = TRUE)
   max_n    <- max(windows_counted$n_precursors,  na.rm = TRUE)
   n_wins   <- nrow(windows_counted)
+  cv_optimized <- if (mean_n > 0) sd(windows_counted$n_precursors, na.rm = TRUE) / mean_n else NA
 
+  # ---- Baseline: equal-width windows at current (pre-optimization) conditions
+  baseline_result <- tryCatch({
+    # Determine baseline window count from current acquisition conditions
+    if (!is.null(optimization_plan)) {
+      current_ct <- optimization_plan$diagnosis$current_cycle_time_sec
+      ms2_time <- optimization_plan$instrument$ms2_scan_time_ms / 1000
+      baseline_n_per_bin <- if (!is.na(current_ct) && !is.na(ms2_time) && ms2_time > 0) {
+        as.integer(floor(current_ct / ms2_time))
+      } else {
+        # Fallback: same count as optimized
+        optimized_windows$parameters$window_count_per_bin %||%
+          nrow(windows) / n_bins
+      }
+    } else {
+      baseline_n_per_bin <- nrow(windows) / n_bins
+    }
+
+    # Generate equal-width windows per RT bin using canonical fixed-window generator
+    rt_bins_df <- unique(windows[, c("rt_start", "rt_end", "rt_segment_id")])
+    naive_windows_list <- lapply(seq_len(nrow(rt_bins_df)), function(i) {
+      bin_prec <- precursor_data[precursor_data$RT.Apex >= rt_bins_df$rt_start[i] &
+                                 precursor_data$RT.Apex <= rt_bins_df$rt_end[i], ]
+      if (nrow(bin_prec) < 2) return(NULL)
+      mz_range <- range(bin_prec$Precursor.Mz, na.rm = TRUE)
+      n_win <- min(baseline_n_per_bin, 500L)
+      if (n_win < 1) return(NULL)
+      bin_windows <- generate_fixed_windows_internal(
+        mz_min = mz_range[1], mz_max = mz_range[2],
+        n_windows = n_win, min_width_da = 1, max_width_da = 500,
+        fz_offset = 0
+      )
+      bin_windows$rt_start      <- rt_bins_df$rt_start[i]
+      bin_windows$rt_end        <- rt_bins_df$rt_end[i]
+      bin_windows$rt_segment_id <- rt_bins_df$rt_segment_id[i]
+      bin_windows
+    })
+    naive_windows <- do.call(rbind, naive_windows_list)
+    naive_counted <- calculate_precursors_per_window(naive_windows, precursor_data)
+    naive_mean <- mean(naive_counted$n_precursors, na.rm = TRUE)
+    naive_cv <- if (naive_mean > 0) sd(naive_counted$n_precursors, na.rm = TRUE) / naive_mean else NA
+    list(cv = naive_cv, n_per_bin = baseline_n_per_bin)
+  }, error = function(e) list(cv = NA, n_per_bin = NA))
+
+  # Build subtitle with baseline comparison
   subtitle_text <- sprintf(
-    "%d windows | Mean: %.1f | Min: %d | Max: %d precursors/window",
+    "%d windows | Mean: %.1f | Range: %d\u2013%d precursors/window",
     n_wins, mean_n, min_n, max_n
   )
-  if (!is.null(median_note)) {
-    subtitle_text <- paste0(subtitle_text, "\n", median_note)
+  if (!is.na(cv_optimized) && !is.na(baseline_result$cv)) {
+    cv_change <- (1 - cv_optimized / baseline_result$cv) * 100
+    baseline_label <- if (!is.na(baseline_result$n_per_bin)) {
+      sprintf("before: %d win/bin, CV %.2f", baseline_result$n_per_bin, baseline_result$cv)
+    } else {
+      sprintf("equal-width CV: %.2f", baseline_result$cv)
+    }
+    subtitle_text <- paste0(subtitle_text, sprintf(
+      "\nLoad CV: %.2f (%s, %.0f%% improvement)",
+      cv_optimized, baseline_label, cv_change
+    ))
   }
 
   # ---- Compute load ratio (vs mean) for color mapping ---------------------
@@ -131,9 +199,9 @@ plot_precursors_per_window <- function(optimized_windows,
     # data beyond these bounds still renders at the extreme color.
     ggplot2::scale_fill_gradient2(
       name     = "Load\nRatio",
-      low      = "#2166ac",
-      mid      = "#f7f7f7",
-      high     = "#b2182b",
+      low      = aidia_colors$before,
+      mid      = "white",
+      high     = aidia_colors$accent,
       midpoint = 1.0,
       limits   = c(
         min(0.2, min(windows_counted$load_ratio, na.rm = TRUE)),
@@ -191,10 +259,13 @@ plot_precursors_per_window <- function(optimized_windows,
 #'
 #' @param evaluation_result List returned by \code{evaluate_windows()}.
 #'   Must contain \code{per_window} with \code{temporal_density_max} column.
+#' @param baseline_density Optional list with \code{median}, \code{mean},
+#'   \code{max}, \code{n_per_bin} from baseline (equal-width) windows.
+#'   When provided, the subtitle includes a before/after comparison.
 #'
 #' @return ggplot object
-#' @keywords internal
-plot_temporal_density <- function(evaluation_result) {
+#' @export
+plot_temporal_density <- function(evaluation_result, baseline_density = NULL) {
 
   cat("  Generating Evaluation Plot: Precursor Temporal Density...\n")
 
@@ -211,15 +282,7 @@ plot_temporal_density <- function(evaluation_result) {
 
   n_bins <- length(unique(per_window$rt_segment_id))
 
-  # If more than 6 RT bins, show median segment only
-  if (n_bins > 6) {
-    median_seg  <- select_median_rt_segment(per_window)
-    per_window  <- per_window[per_window$rt_segment_id == median_seg, , drop = FALSE]
-    n_bins      <- 1
-    median_note <- sprintf("Showing median RT segment (%d) only", median_seg)
-  } else {
-    median_note <- NULL
-  }
+  median_note <- NULL
 
   # Summary statistics
   max_density  <- max(per_window$temporal_density_max, na.rm = TRUE)
@@ -227,12 +290,23 @@ plot_temporal_density <- function(evaluation_result) {
   median_density <- median(per_window$temporal_density_max, na.rm = TRUE)
   n_wins <- nrow(per_window)
 
+  # High-density windows (> 2x median) indicate deconvolution hotspots
+  n_high <- sum(per_window$temporal_density_max > 2 * median_density, na.rm = TRUE)
+  pct_high <- n_high / n_wins * 100
+
   subtitle_text <- sprintf(
-    "%d windows | Max density: %d | Median: %.1f | Mean: %.1f",
-    n_wins, max_density, median_density, mean_density
+    "%d windows | Max: %d | Median: %.1f | Mean: %.1f co-eluting | %.0f%% high-density (>2x median)",
+    n_wins, max_density, median_density, mean_density, pct_high
   )
-  if (!is.null(median_note)) {
-    subtitle_text <- paste0(subtitle_text, "\n", median_note)
+
+  # Append baseline comparison when available
+  if (!is.null(baseline_density) && !is.na(baseline_density$median)) {
+    change_pct <- (1 - median_density / baseline_density$median) * 100
+    subtitle_text <- paste0(subtitle_text, sprintf(
+      "\nBaseline (equal-width, %d win/bin): median %.1f | %.0f%% %s",
+      baseline_density$n_per_bin, baseline_density$median,
+      abs(change_pct), if (change_pct > 0) "reduction" else "increase"
+    ))
   }
 
   p <- ggplot2::ggplot(

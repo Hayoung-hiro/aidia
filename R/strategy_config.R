@@ -66,7 +66,7 @@ greedy_config <- function(auto_windows = TRUE,
       smoothing_method = smoothing_method,
       whittaker_lambda = whittaker_lambda
     ),
-    class = c("strategy_config", "list")
+    class = c("greedy_config", "global_strategy_config", "strategy_config", "list")
   )
 }
 
@@ -110,7 +110,7 @@ quantile_config <- function(lower = 0.05,
       smoothing_method = smoothing_method,
       whittaker_lambda = whittaker_lambda
     ),
-    class = c("strategy_config", "list")
+    class = c("quantile_config", "local_strategy_config", "strategy_config", "list")
   )
 }
 
@@ -140,7 +140,7 @@ coverage_config <- function(target = 0.95,
       target_coverage = target,
       coverage_mode = mode
     ),
-    class = c("strategy_config", "list")
+    class = c("coverage_config", "local_strategy_config", "strategy_config", "list")
   )
 }
 
@@ -180,7 +180,7 @@ outlier_config <- function(threshold = 3.0,
       smoothing_method = smoothing_method,
       whittaker_lambda = whittaker_lambda
     ),
-    class = c("strategy_config", "list")
+    class = c("outlier_config", "local_strategy_config", "strategy_config", "list")
   )
 }
 
@@ -208,7 +208,7 @@ kde_config <- function(density_threshold = 0.1,
       kde_density_threshold = density_threshold,
       kde_min_coverage = min_coverage
     ),
-    class = c("strategy_config", "list")
+    class = c("kde_config", "global_strategy_config", "strategy_config", "list")
   )
 }
 

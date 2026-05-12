@@ -12,10 +12,14 @@ NULL
 
 #' Canonical strategy display order
 #'
-#' Preferred ordering of strategies for facets, legends, and comparisons.
-#' GLOBAL strategies first (greedy, kde), then LOCAL (quantile, coverage, outlier).
+#' Preferred ordering of the five m/z optimization strategies for facets,
+#' legends, comparisons, and multi-strategy iteration. GLOBAL strategies
+#' first (greedy, kde), then LOCAL (quantile, coverage, outlier).
 #'
-#' @keywords internal
+#' Exported because callers (Shiny multi-strategy download, scripts) iterate
+#' over this vector to ensure consistent strategy ordering.
+#'
+#' @export
 STRATEGY_PREFERRED_ORDER <- c("greedy", "kde", "quantile", "coverage", "outlier")
 
 # Strategy Color Palette (colorblind-safe) ---------------------------------
@@ -23,41 +27,44 @@ STRATEGY_PREFERRED_ORDER <- c("greedy", "kde", "quantile", "coverage", "outlier"
 #' Strategy color palette for AIDIA
 #'
 #' Named vector of 5 colors for m/z optimization strategies.
-#' Based on ColorBrewer/Viridis principles for accessibility.
+#' Muted, publication-ready palette (colorblind-safe).
 #'
 #' @keywords internal
 aidia_strategy_colors <- c(
-  greedy   = "#3498DB",  # Blue (GLOBAL)
-  kde      = "#9B59B6",  # Purple (GLOBAL)
-  quantile = "#1ABC9C",  # Teal (LOCAL)
-  coverage = "#E74C3C",  # Red (LOCAL)
-  outlier  = "#F39C12"   # Orange (LOCAL)
+  greedy   = "#4878A8",  # Steel blue (GLOBAL)
+  kde      = "#7B68AE",  # Muted purple (GLOBAL)
+  quantile = "#2D9B83",  # Sage teal (LOCAL)
+  coverage = "#C75B5B",  # Dusty red (LOCAL)
+  outlier  = "#D4923A"   # Amber (LOCAL)
 )
 
 # General Color Constants ---------------------------------------------------
 
 #' General purpose color palette for AIDIA plots
 #'
-#' Used for non-strategy elements (text, backgrounds, annotations)
+#' Used for non-strategy elements (text, backgrounds, annotations).
+#' High-contrast, publication-ready palette.
 #'
 #' @keywords internal
 aidia_colors <- list(
-  primary   = "#2C3E50",  # Dark blue-gray (titles, text)
-  secondary = "#7F8C8D",  # Gray (subtitles, annotations)
-  accent    = "#E74C3C",  # Red (highlights, targets)
-  success   = "#27AE60",  # Green (satisfied region)
-  warning   = "#F39C12",  # Orange (caution)
-  grid      = "#ECF0F1",  # Light gray (grid lines)
+  primary   = "gray10",   # Near-black (titles, primary text)
+  secondary = "gray40",   # Dark gray (subtitles, annotations)
+  accent    = "#C75B5B",  # Dusty red (highlights, targets)
+  success   = "#2D9B83",  # Sage teal (satisfied, met)
+  warning   = "#D4923A",  # Amber (caution)
+  grid      = "gray90",   # Light gray (table stripes)
   bg        = "#FFFFFF",  # White background
   # Before/After comparison pair
-  before      = "steelblue",   # Current/input state (fill)
-  before_dark = "steelblue4",  # Current state (outline, text)
-  after       = "coral",       # Optimized/required state (fill)
-  after_dark  = "coral4",      # Optimized state (outline, text)
+  before      = "#4878A8",  # Steel blue (current state fill)
+  before_dark = "#2C5F8A",  # Dark steel (outline, text)
+  after       = "#C75B5B",  # Dusty red (optimized state fill)
+  after_dark  = "#8B3A3A",  # Dark red (outline, text)
   # Before/After gray variant (density overlays)
-  before_muted      = "#BDC3C7",  # Light gray fill
-  before_muted_dark = "#95A5A6",  # Darker gray outline
-  after_success     = "#1E8449"   # Dark green outline (after condition)
+  before_muted      = "#B0BEC5",  # Cool gray fill
+  before_muted_dark = "#78909C",  # Darker gray outline
+  after_success     = "#1E7A64",  # Dark teal (after condition)
+  # Table highlight
+  highlight_bg      = "#E8F5F0"   # Very light teal (active row bg)
 )
 
 #' Charge-state color palette for AIDIA
@@ -67,7 +74,7 @@ aidia_colors <- list(
 #'
 #' @keywords internal
 aidia_charge_colors <- c(
-  "#3498DB", "#27AE60", "#F39C12", "#E74C3C", "#9B59B6"
+  "#4878A8", "#2D9B83", "#D4923A", "#C75B5B", "#7B68AE"
 )
 
 # Theme Function ------------------------------------------------------------
@@ -90,69 +97,76 @@ aidia_charge_colors <- c(
 theme_aidia <- function(base_size = 12, base_family = "") {
   theme_minimal(base_size = base_size, base_family = base_family) +
     theme(
-      # Text elements
+      # Text elements — high-contrast, publication-ready
       plot.title = element_text(
         face = "bold",
-        size = base_size + 2,
-        color = aidia_colors$primary,
-        margin = margin(b = 8)
+        size = base_size + 1,
+        color = "black",
+        margin = margin(b = 4)
       ),
       plot.subtitle = element_text(
-        size = base_size - 1,
-        color = aidia_colors$secondary,
-        margin = margin(b = 10)
+        size = base_size - 1.5,
+        color = "gray30",
+        margin = margin(b = 8)
       ),
       plot.caption = element_text(
         size = base_size - 3,
-        color = aidia_colors$secondary,
-        hjust = 1,  # Right-aligned
-        margin = margin(t = 10)
+        color = "gray45",
+        hjust = 1,
+        margin = margin(t = 8)
       ),
 
-      # Axis elements
+      # Axis elements — bold axis lines, visible ticks
       axis.title = element_text(
         size = base_size - 1,
-        color = aidia_colors$primary,
+        color = "black",
         face = "bold"
       ),
       axis.text = element_text(
         size = base_size - 2,
-        color = aidia_colors$primary
+        color = "black"
+      ),
+      axis.line = element_line(
+        color = "black",
+        linewidth = 0.4
+      ),
+      axis.ticks = element_line(
+        color = "black",
+        linewidth = 0.3
       ),
 
       # Legend elements
       legend.title = element_text(
         face = "bold",
         size = base_size - 2,
-        color = aidia_colors$primary
+        color = "black"
       ),
       legend.text = element_text(
         size = base_size - 3,
-        color = aidia_colors$primary
+        color = "gray20"
       ),
       legend.position = "right",
 
-      # Panel elements
-      panel.grid.major = element_line(
-        color = aidia_colors$grid,
-        linewidth = 0.3
-      ),
-      panel.grid.minor = element_blank(),
-      panel.background = element_rect(fill = "transparent", color = NA),
-      plot.background = element_rect(fill = "transparent", color = NA),
+      # Panel elements — no grid lines (clean publication style)
+      panel.grid = element_blank(),
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "white", color = NA),
 
-      # Facet elements (better spacing for multi-panel plots)
+      # Facet elements
       strip.text = element_text(
         face = "bold",
         size = base_size - 1,
-        color = aidia_colors$primary,
+        color = "black",
         margin = margin(b = 5, t = 5)
       ),
       strip.background = element_rect(
-        fill = aidia_colors$grid,
+        fill = "gray95",
         color = NA
       ),
-      panel.spacing = unit(1, "lines")
+      panel.spacing = unit(1, "lines"),
+
+      # Plot margin — prevent label clipping (top, right, bottom, left)
+      plot.margin = margin(5, 15, 5, 5)
     )
 }
 

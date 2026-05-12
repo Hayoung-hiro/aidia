@@ -34,7 +34,7 @@ ESSENTIAL_COLUMNS <- c(
 #' These columns are created in Stage 1 if technical replicates are present.
 #' Keep them if available for QC reporting.
 #'
-#' @keywords internal
+#' @export
 QC_COLUMNS <- c(
   "Precursor.Charge",  # Charge state (visualization: FWHM by charge, optional)
   "Precursor.Quantity",  # Median intensity across replicates (for reference)

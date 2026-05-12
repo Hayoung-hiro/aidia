@@ -4,7 +4,7 @@
 \alias{plot_dppp_diagnosis_table}
 \title{Acquisition Diagnosis Summary Table}
 \usage{
-plot_dppp_diagnosis_table(optimization_plan, validated_data)
+plot_dppp_diagnosis_table(optimization_plan, validated_data, base_size = 11)
 }
 \arguments{
 \item{optimization_plan}{OptimizationPlan object from Stage 2}

@@ -5,18 +5,10 @@
 # Generates optimized windows + comprehensive visualization for all strategies
 # =============================================================================
 
-library(arrow)
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-
-# Source all modules
-source("R/utils_common.R")
-source("R/instrument_utils.R")
-source("R/data_validation.R")
-source("R/optimization_planning.R")
-source("R/window_optimization.R")
-source("R/visualization.R")
+library(aidia)
+# aidia's Imports (arrow, dplyr, tidyr, ggplot2, tibble, etc.) are auto-loaded
+# into the package namespace by library(aidia). Functions main.R uses are
+# all exported — see ?aidia for the public API.
 
 # =============================================================================
 # Main Function: Process All Parquet Files with Visualization

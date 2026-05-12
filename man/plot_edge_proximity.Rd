@@ -15,11 +15,8 @@ plot_edge_proximity(optimized_windows, validated_data)
 ggplot object
 }
 \description{
-Creates a histogram of relative edge distance (normalized to half-window-width).
-0 = at boundary, 1 = at window center. Shows how many precursors are
-near boundaries and motivates staggered window placement.
-}
-\details{
-The danger threshold adapts to window width: min(1.0 Da, mean_width * 0.25).
+Histogram of relative edge distance (0 = boundary, 1 = center) with
+staggered mode simulation overlay. Shows how staggered boundary shifting
+reduces the fraction of precursors in the boundary zone.
 }
 \keyword{internal}

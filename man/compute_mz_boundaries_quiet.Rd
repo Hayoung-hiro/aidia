@@ -4,14 +4,19 @@
 \alias{compute_mz_boundaries_quiet}
 \title{Compute m/z Boundaries Without Console Output}
 \usage{
-compute_mz_boundaries_quiet(precursor_data, rt_stats, sc, optimization_plan)
+compute_mz_boundaries_quiet(
+  precursor_data,
+  rt_stats,
+  strategy_config,
+  optimization_plan
+)
 }
 \arguments{
 \item{precursor_data}{Data frame with rt_group and Precursor.Mz}
 
 \item{rt_stats}{RT statistics data frame}
 
-\item{sc}{Flattened strategy config list}
+\item{strategy_config}{A strategy_config object (typed)}
 
 \item{optimization_plan}{OptimizationPlan object}
 }

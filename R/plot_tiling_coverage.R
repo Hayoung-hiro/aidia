@@ -29,6 +29,7 @@ plot_tiling_coverage_map <- function(optimized_windows,
                                      rt_segment_id = NULL,
                                      show_loop_n = TRUE,
                                      base_size = 12) {
+  cat("  Generating Tiling Coverage Map...\n")
 
   windows <- optimized_windows$windows
 

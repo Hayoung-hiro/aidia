@@ -31,7 +31,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   # DPPP button visual sync is handled purely client-side in app.R
   # (no server round-trip needed for CSS class toggles)
 
-  # --- FZ Validation Plot (reactive to data + fz_offset) ---
+  # --- Isotope Boundary Validation Plot (reactive to data + fz_offset) ---
   output$fz_validation_plot <- renderPlot({
     # Requires validated data
     if (is.null(rv$validated_data)) return(NULL)
@@ -396,7 +396,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       tags$div(
         tags$div(
           tags$strong("2-Cycle Interleaved: "),
-          sprintf("C1: %d + C2: %d windows (forbidden zone: %.4f)", n_cycle1, n_cycle2, fz_val)
+          sprintf("C1: %d + C2: %d windows (isotope offset: %.4f)", n_cycle1, n_cycle2, fz_val)
         ),
         render_loop_n_badge(windows)
       )
@@ -659,10 +659,11 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
   # --- Precursors-per-Window Plot ---
   output$plot_precursors_per_window <- renderPlot({
-    req(rv$optimized_windows, rv$validated_data)
+    req(rv$optimized_windows, rv$validated_data, rv$optimization_plan)
     plot_precursors_per_window(
       optimized_windows = rv$optimized_windows,
-      validated_data = rv$validated_data
+      validated_data = rv$validated_data,
+      optimization_plan = rv$optimization_plan
     )
   })
 

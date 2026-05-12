@@ -19,4 +19,3 @@ x \%||\% y
 If \code{x} is \code{NULL}, return \code{y}; otherwise return \code{x}.
 Provides compatibility for R < 4.4.0 where base \code{\%||\%} is unavailable.
 }
-\keyword{internal}

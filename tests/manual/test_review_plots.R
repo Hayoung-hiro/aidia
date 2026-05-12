@@ -31,15 +31,15 @@ cat("Generated", length(plots), "plots\n")
 
 # Export individual plots for review
 plot_keys <- c(
-  "plot0_fwhm_distribution",
-  "plot2_rt_mz_density_heatmap",
-  "plot19_charge_mz",
+  "s1_02_fwhm_distribution",
+  "s1_01_density_heatmap",
+  "app_a_charge_state",
   "plot1b_dppp_satisfaction_combined",
-  "plot2c_heatmap_with_mz_range",
-  "plot5_strategy_boundary_comparison",
-  "plot16_load_balance",
-  "plot6b_impact_summary",
-  "plot17_edge_proximity"
+  "s3_03_heatmap_boundary",
+  "s3_04_width_profile",
+  "s2_04_load_balance",
+  "s2_01_impact_summary",
+  "app_a_edge_proximity"
 )
 
 for (key in plot_keys) {

@@ -25,4 +25,3 @@ low-density gap between precursor clusters.
 Unlike simple \code{mz \%\% 1}, this uses the true mass defect periodicity
 so that the FZ offset position is correctly aligned regardless of m/z range.
 }
-\keyword{internal}

@@ -146,8 +146,15 @@ Canonical functions that ALL entry points (main.R, Shiny app) must use:
 
 ### S3 Class Hierarchy
 
-Defined in `R/s3_classes.R` (766 lines). Each stage produces a typed S3 object:
+Defined in `R/s3_classes.R`. Each stage produces a typed S3 object:
 - `ValidatedData` → `OptimizationPlan` → `OptimizedWindows`
+
+### S3 Object Field Policy
+
+1. **Reuse over create**: Before adding a new field to any S3 object, check if an existing field already serves the same purpose. Avoid duplication across `diagnosis`, `instrument`, `parameters`, etc.
+2. **Validator required**: New fields must be added to the corresponding validator in `R/s3_classes.R` (`validate_OptimizationPlan`, etc.). `create_s3_object()` calls the validator automatically — missing fields cause immediate `stop()`.
+3. **No silent fallback for validated fields**: Consumers must not use `%||%` fallback for fields guaranteed by the validator. If the validator checks it, access it directly.
+4. **Contract tests**: `tests/testthat/test_s3_contracts.R` verifies field existence and producer-consumer agreement. Add a test case when adding a new field.
 
 ### Shiny App Module Structure
 
@@ -405,3 +412,19 @@ Optional (Suggests in DESCRIPTION):
 **v2.0** (2025-11): GLOBAL/LOCAL m/z optimization, technical replicates, TDD review
 
 **v1.x** (2025-10): Initial 4-stage pipeline
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+GitHub issues at `Hayoung-hiro/aidia` via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout. Domain glossary at `docs/domain-knowledge.md` (existing). ADRs at `docs/adr/`. See `docs/agents/domain.md`.

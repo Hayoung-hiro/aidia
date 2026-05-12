@@ -4,7 +4,11 @@
 \alias{plot_strategy_width_profile}
 \title{Plot Strategy m/z Width Profile (Overlay Line Chart)}
 \usage{
-plot_strategy_width_profile(windows_list, validated_data)
+plot_strategy_width_profile(
+  windows_list,
+  validated_data,
+  active_strategy = NULL
+)
 }
 \arguments{
 \item{windows_list}{Named list of OptimizedWindows objects for each strategy}

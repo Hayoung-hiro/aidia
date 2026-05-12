@@ -11,7 +11,12 @@ An object of class \code{character} of length 5.
 STRATEGY_PREFERRED_ORDER
 }
 \description{
-Preferred ordering of strategies for facets, legends, and comparisons.
-GLOBAL strategies first (greedy, kde), then LOCAL (quantile, coverage, outlier).
+Preferred ordering of the five m/z optimization strategies for facets,
+legends, comparisons, and multi-strategy iteration. GLOBAL strategies
+first (greedy, kde), then LOCAL (quantile, coverage, outlier).
 }
-\keyword{internal}
+\details{
+Exported because callers (Shiny multi-strategy download, scripts) iterate
+over this vector to ensure consistent strategy ordering.
+}
+\keyword{datasets}

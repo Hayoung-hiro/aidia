@@ -91,8 +91,8 @@ utils::globalVariables(c(
 #' config <- get_instrument_config("astral")
 #' plan <- plan_optimization(data, config, target_dppp = 7.0)
 #'
-#' # Generate optimized windows
-#' windows <- optimize_windows(data, plan, mz_strategy = "greedy")
+#' # Generate optimized windows (using typed strategy_config)
+#' windows <- optimize_windows(data, plan, strategy_config = greedy_config())
 #'
 #' # Export method file
 #' export_windows_to_csv(windows, "method.csv", data, plan)
@@ -145,7 +145,7 @@ NULL
 #' @return \code{x} if not \code{NULL}, otherwise \code{y}.
 #' @name op-null-default
 #' @rdname null-default
-#' @keywords internal
+#' @export
 `%||%` <- function(x, y) {
   if (is.null(x)) y else x
 }

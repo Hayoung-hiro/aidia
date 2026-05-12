@@ -63,7 +63,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
     geom_line(
       data = upper_boundary,
       aes(x = rt, y = mz),
-      color = "#00FF00",  # Bright green
+      color = aidia_colors$success,
       linewidth = 1.2,
       linetype = "solid",
       inherit.aes = FALSE
@@ -73,7 +73,7 @@ plot_density_with_mz_range <- function(optimized_windows, validated_data, bins =
     geom_line(
       data = lower_boundary,
       aes(x = rt, y = mz),
-      color = "#00FF00",  # Bright green
+      color = aidia_colors$success,
       linewidth = 1.2,
       linetype = "solid",
       inherit.aes = FALSE
@@ -189,122 +189,6 @@ plot_density_with_mz_ranges_grid <- function(windows_list, validated_data, bins 
 }
 
 
-#' Plot Strategy Boundary Comparison (Faceted)
-#'
-#' Creates a faceted plot with one panel per strategy, showing upper and lower
-#' m/z boundaries as step lines across RT segments. This makes it easy to
-#' visually compare how different strategies define m/z ranges.
-#'
-#' @param windows_list Named list of OptimizedWindows objects for each strategy
-#' @param validated_data ValidatedData object from Stage 1
-#'
-#' @return ggplot object
-#' @keywords internal
-plot_strategy_boundary_comparison <- function(windows_list, validated_data) {
-
-  cat("  Generating Plot 5: Strategy Boundary Comparison...\n")
-
-  if (length(windows_list) < 2) {
-    return(create_insufficient_data_plot(
-      title = "Strategy Boundary Comparison",
-      message = "Need at least 2 strategies for comparison"
-    ))
-  }
-
-  # Collect boundary data from all strategies
-  boundary_list <- list()
-
-  for (strategy_name in names(windows_list)) {
-    opt_win <- windows_list[[strategy_name]]
-    mz_ranges <- opt_win$mz_optimization$mz_ranges
-
-    if (is.null(mz_ranges)) next
-
-    bd <- mz_ranges %>%
-      dplyr::select(rt_segment_id, rt_start, rt_end, mz_min, mz_max) %>%
-      dplyr::mutate(
-        rt_mid = (rt_start + rt_end) / 2,
-        strategy = strategy_name,
-        strategy_label = format_strategy_label(strategy_name),
-        mz_width = mz_max - mz_min
-      )
-
-    boundary_list[[strategy_name]] <- bd
-  }
-
-  if (length(boundary_list) == 0) {
-    return(create_insufficient_data_plot(
-      title = "Strategy Boundary Comparison",
-      message = "No m/z range data available"
-    ))
-  }
-
-  boundary_df <- safe_bind_rows(boundary_list)
-
-  # Order strategies consistently
-  ordered <- order_strategies(unique(boundary_df$strategy))
-  boundary_df$strategy_label <- factor(
-    boundary_df$strategy_label,
-    levels = format_strategy_label(ordered)
-  )
-
-  # Precursor m/z range for reference
-  mz_range <- range(validated_data$data$Precursor.Mz)
-
-  # Summary stats for subtitle
-  width_stats <- boundary_df %>%
-    dplyr::group_by(strategy) %>%
-    dplyr::summarize(mean_width = mean(mz_width), .groups = "drop")
-
-  p <- ggplot(boundary_df) +
-    # Shaded m/z range band between boundaries
-    geom_ribbon(
-      aes(x = rt_mid, ymin = mz_min, ymax = mz_max),
-      fill = aidia_colors$primary,
-      alpha = 0.15
-    ) +
-    # Upper boundary
-    geom_step(
-      aes(x = rt_mid, y = mz_max),
-      color = aidia_colors$accent,
-      linewidth = 0.8,
-      direction = "mid"
-    ) +
-    # Lower boundary
-    geom_step(
-      aes(x = rt_mid, y = mz_min),
-      color = aidia_colors$primary,
-      linewidth = 0.8,
-      direction = "mid"
-    ) +
-    # Data m/z range reference lines
-    geom_hline(yintercept = mz_range[1], linetype = "dotted",
-               color = "gray60", linewidth = 0.4) +
-    geom_hline(yintercept = mz_range[2], linetype = "dotted",
-               color = "gray60", linewidth = 0.4) +
-    # Facet by strategy
-    facet_wrap(~ strategy_label, ncol = 1, strip.position = "right") +
-    labs(
-      title = "Strategy m/z Boundary Comparison",
-      subtitle = sprintf(
-        "Comparing %d strategies across %d RT segments | Dotted = data m/z range",
-        length(windows_list), max(boundary_df$rt_segment_id)
-      ),
-      x = "Retention Time (min)",
-      y = "m/z (Da)",
-      caption = "Blue = lower boundary | Red = upper boundary | Shaded = covered range"
-    ) +
-    theme_aidia() +
-    theme(
-      strip.text.y.right = element_text(angle = 0, size = 10, face = "bold"),
-      panel.spacing = unit(0.3, "lines"),
-      panel.grid.minor = element_blank()
-    )
-
-  return(p)
-}
-
-
 #' Plot Strategy m/z Width Profile (Overlay Line Chart)
 #'
 #' Creates an overlay line chart showing m/z width per RT segment for all
@@ -317,7 +201,8 @@ plot_strategy_boundary_comparison <- function(windows_list, validated_data) {
 #'
 #' @return ggplot object
 #' @keywords internal
-plot_strategy_width_profile <- function(windows_list, validated_data) {
+plot_strategy_width_profile <- function(windows_list, validated_data,
+                                        active_strategy = NULL) {
 
   cat("  Generating Plot 5: Strategy Width Profile (Overlay)...\n")
 
@@ -399,7 +284,31 @@ plot_strategy_width_profile <- function(windows_list, validated_data) {
     format_strategy_label(ordered)
   )
 
+  # Active strategy emphasis: linewidth, size, alpha
+  lw_vals <- setNames(rep(0.6, length(ordered)), ordered)
+  sz_vals <- setNames(rep(1.0, length(ordered)), ordered)
+  al_vals <- setNames(rep(0.45, length(ordered)), ordered)
+  if (!is.null(active_strategy) && active_strategy %in% ordered) {
+    lw_vals[active_strategy] <- 1.4
+    sz_vals[active_strategy] <- 2.5
+    al_vals[active_strategy] <- 1.0
+  } else {
+    lw_vals[] <- 0.9
+    sz_vals[] <- 1.5
+    al_vals[] <- 0.85
+  }
+
+  # Segment labels at top
+  seg_labels <- ref_data %>%
+    dplyr::mutate(label = sprintf("RT%02d", seq_len(dplyr::n())))
+
   p <- ggplot() +
+    # RT bin boundaries (vertical guides)
+    geom_vline(
+      data = ref_data,
+      aes(xintercept = rt_start),
+      color = "gray80", linewidth = 0.3, linetype = "dotted"
+    ) +
     # Reference: original data width per RT bin (gray area)
     geom_ribbon(
       data = ref_data,
@@ -414,25 +323,32 @@ plot_strategy_width_profile <- function(windows_list, validated_data) {
       linewidth = 0.6,
       linetype = "dashed"
     ) +
-    # Strategy width lines
+    # Strategy width lines — active strategy emphasized
     geom_line(
       data = width_df,
-      aes(x = rt_mid, y = mz_width, color = strategy_label),
-      linewidth = 0.9,
-      alpha = 0.85
+      aes(x = rt_mid, y = mz_width, color = strategy_label,
+          linewidth = strategy, alpha = strategy),
     ) +
     geom_point(
       data = width_df,
-      aes(x = rt_mid, y = mz_width, color = strategy_label),
-      size = 1.5,
-      alpha = 0.7
+      aes(x = rt_mid, y = mz_width, color = strategy_label,
+          size = strategy, alpha = strategy),
+    ) +
+    # Segment labels at top
+    geom_text(
+      data = seg_labels,
+      aes(x = rt_mid, y = Inf, label = label),
+      vjust = 1.5, size = 2.8, color = "gray50"
     ) +
     scale_color_manual(
       name   = "Strategy",
       values = strategy_color_map
     ) +
+    scale_linewidth_manual(values = lw_vals, guide = "none") +
+    scale_size_manual(values = sz_vals, guide = "none") +
+    scale_alpha_manual(values = al_vals, guide = "none") +
     scale_y_continuous(
-      expand = expansion(mult = c(0, 0.05))
+      expand = expansion(mult = c(0, 0.08))
     ) +
     labs(
       title = "Strategy m/z Width Profile Across RT Segments",
@@ -441,13 +357,11 @@ plot_strategy_width_profile <- function(windows_list, validated_data) {
         original_mean, stats_text
       ),
       x = "Retention Time (min)",
-      y = "m/z Width (Da)",
-      caption = "Gray band = original data range | Lines = optimized m/z width per strategy"
+      y = "m/z Width (Da)"
     ) +
     theme_aidia() +
     theme(
-      legend.position = "top",
-      panel.grid.minor = element_blank()
+      legend.position = "top"
     )
 
   return(p)

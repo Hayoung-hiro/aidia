@@ -14,10 +14,14 @@
 #'
 #' @param windows_list Named list of OptimizedWindows objects (quantile, smoothing, outlier, coverage)
 #' @param validated_data ValidatedData object from Stage 1
+#' @param active_strategy Character, the user's selected strategy key (optional).
+#'   When provided, the active strategy ridge is fully opaque with a bold label,
+#'   while others are dimmed.
 #'
 #' @return ggplot object
 #' @keywords internal
-plot_strategy_width_ridge <- function(windows_list, validated_data) {
+plot_strategy_width_ridge <- function(windows_list, validated_data,
+                                      active_strategy = NULL) {
 
   cat("  Generating Plot 8A: Ridge Plot (Window Width by Strategy)...\n")
 
@@ -29,7 +33,8 @@ plot_strategy_width_ridge <- function(windows_list, validated_data) {
       mutate(
         strategy = strategy,
         strategy_label = factor(format_strategy_label(strategy),
-                               levels = format_strategy_label(strategy_names))
+                               levels = format_strategy_label(strategy_names)),
+        is_active = identical(strategy, active_strategy)
       )
   }) %>%
     safe_bind_rows()
@@ -52,11 +57,28 @@ plot_strategy_width_ridge <- function(windows_list, validated_data) {
       .groups = "drop"
     )
 
+  # Per-strategy alpha: active = full, others = dimmed
+  alpha_values <- setNames(
+    ifelse(strategy_names == active_strategy, 0.85, 0.4),
+    strategy_names
+  )
+  if (is.null(active_strategy)) alpha_values[] <- 0.7
+
+  # Y-axis label formatting: bold + marker for active strategy
+  y_labels <- format_strategy_label(strategy_names)
+  if (!is.null(active_strategy)) {
+    active_label <- format_strategy_label(active_strategy)
+    y_labels[y_labels == active_label] <- paste0("\u25b6 ", active_label, " (selected)")
+  }
+  y_label_map <- setNames(y_labels, format_strategy_label(strategy_names))
+  y_face <- ifelse(format_strategy_label(strategy_names) ==
+                     format_strategy_label(active_strategy %||% ""), "bold", "plain")
+
   # Create ridge plot using ggridges
-  p <- ggplot(strategy_data, aes(x = window_width, y = strategy_label, fill = strategy)) +
+  p <- ggplot(strategy_data, aes(x = window_width, y = strategy_label,
+                                  fill = strategy, alpha = strategy)) +
     # Ridge density plot
     geom_density_ridges(
-      alpha = 0.7,
       scale = 0.9,
       rel_min_height = 0.01,
       quantile_lines = TRUE,
@@ -65,189 +87,26 @@ plot_strategy_width_ridge <- function(windows_list, validated_data) {
     # Color scheme (using theme_aidia's scale)
     scale_fill_strategy(guide = "none") +
     scale_color_strategy(guide = "none") +
+    scale_alpha_manual(values = alpha_values, guide = "none") +
     scale_x_continuous(
       breaks = seq(0, 100, by = 10),
       labels = function(x) sprintf("%.0f", x)
     ) +
+    scale_y_discrete(labels = y_label_map) +
     labs(
       title = "Window Width Distribution Comparison",
-      subtitle = "Ridge plot showing density curves for each m/z optimization strategy",
+      subtitle = sprintf("%s precursors | %d strategies | Vertical line = median",
+                         format(nrow(validated_data$data), big.mark = ","),
+                         length(strategy_names)),
       x = "Window Width (Da)",
       y = "Strategy"
     ) +
     theme_aidia() +
     theme(
-      plot.title = element_text(face = "bold"),
-      axis.text.y = element_text(face = "bold"),
-      panel.grid.minor = element_blank(),
+      axis.text.y = element_text(
+        face = y_face
+      ),
       panel.grid.major.y = element_blank()
-    )
-
-  return(p)
-}
-
-
-#' Plot 8B: Box Plot - Window Width Statistical Summary
-#'
-#' Shows box plots with statistical summaries for each strategy
-#' Includes median, quartiles, and outliers
-#'
-#' @param windows_list Named list of OptimizedWindows objects
-#' @param validated_data ValidatedData object from Stage 1
-#'
-#' @return ggplot object
-#' @keywords internal
-plot_strategy_width_boxplot <- function(windows_list, validated_data) {
-
-  cat("  Generating Plot 8B: Box Plot (Window Width by Strategy)...\n")
-
-  # Extract window width data from all strategies
-  strategy_names <- names(windows_list)
-  strategy_data <- lapply(strategy_names, function(strategy) {
-    windows_list[[strategy]]$windows %>%
-      select(window_width) %>%
-      mutate(strategy = strategy)
-  }) %>%
-    safe_bind_rows()
-
-  # Calculate statistics for annotation
-  stats_summary <- strategy_data %>%
-    group_by(strategy) %>%
-    summarize(
-      n = n(),
-      mean = mean(window_width),
-      median = median(window_width),
-      q1 = quantile(window_width, 0.25),
-      q3 = quantile(window_width, 0.75),
-      min = min(window_width),
-      max = max(window_width),
-      cv = sd(window_width) / mean(window_width),
-      .groups = "drop"
-    )
-
-  # Create box plot with formatted labels
-  strategy_data_formatted <- strategy_data %>%
-    mutate(strategy_label = factor(format_strategy_label(strategy),
-                                   levels = format_strategy_label(strategy_names)))
-
-  p <- ggplot(strategy_data_formatted, aes(x = strategy_label, y = window_width, fill = strategy)) +
-    # Box plot
-    geom_boxplot(
-      alpha = 0.7,
-      outlier.shape = 21,
-      outlier.size = 1.5,
-      outlier.stroke = 0.5
-    ) +
-    # Add mean points
-    stat_summary(
-      fun = mean,
-      geom = "point",
-      shape = 23,
-      size = 3,
-      fill = "white",
-      color = "black"
-    ) +
-    # Color scheme (using theme_aidia's scale)
-    scale_fill_strategy(guide = "none") +
-    scale_y_continuous(
-      breaks = seq(0, 100, by = 10),
-      labels = function(x) sprintf("%.1f", x)
-    ) +
-    labs(
-      title = "Window Width Statistical Comparison",
-      subtitle = "Box plot with median (line), mean (diamond), and outliers\nLower/Upper hinges = 25th/75th percentiles",
-      x = "Strategy",
-      y = "Window Width (Da)"
-    ) +
-    theme_aidia() +
-    theme(
-      plot.title = element_text(size = 12, face = "bold"),
-      plot.subtitle = element_text(size = 8, lineheight = 1.2),
-      axis.title = element_text(size = 10),
-      axis.text = element_text(size = 9),
-      axis.text.x = element_text(face = "bold"),
-      panel.grid.minor = element_blank(),
-      panel.grid.major.x = element_blank()
-    )
-
-  return(p)
-}
-
-
-#' Plot 8C: CDF - Cumulative Distribution Function
-#'
-#' Shows cumulative distribution of window widths for each strategy
-#' Useful for comparing distributions statistically
-#'
-#' @param windows_list Named list of OptimizedWindows objects
-#' @param validated_data ValidatedData object from Stage 1
-#'
-#' @return ggplot object
-#' @keywords internal
-plot_strategy_width_cdf <- function(windows_list, validated_data) {
-
-  cat("  Generating Plot 8C: CDF (Window Width by Strategy)...\n")
-
-  # Extract window width data from all strategies
-  strategy_names <- names(windows_list)
-  strategy_data <- lapply(strategy_names, function(strategy) {
-    windows_list[[strategy]]$windows %>%
-      select(window_width) %>%
-      mutate(strategy = strategy)
-  }) %>%
-    safe_bind_rows()
-
-  # Calculate statistics for annotation
-  stats_summary <- strategy_data %>%
-    group_by(strategy) %>%
-    summarize(
-      median = median(window_width),
-      mean = mean(window_width),
-      .groups = "drop"
-    )
-
-  # Create CDF plot
-  p <- ggplot(strategy_data, aes(x = window_width, color = strategy)) +
-    # CDF lines
-    stat_ecdf(
-      geom = "step",
-      linewidth = 1.2,
-      pad = FALSE
-    ) +
-    # Add median reference lines (vertical)
-    geom_vline(
-      data = stats_summary,
-      aes(xintercept = median, color = strategy),
-      linetype = "dashed",
-      linewidth = 0.5,
-      alpha = 0.5
-    ) +
-    # Color scheme (using theme_aidia's scale)
-    scale_color_strategy() +
-    scale_x_continuous(
-      breaks = seq(0, 100, by = 10),
-      labels = function(x) sprintf("%.0f", x)
-    ) +
-    scale_y_continuous(
-      breaks = seq(0, 1, by = 0.1),
-      labels = scales::percent_format(accuracy = 1)
-    ) +
-    labs(
-      title = "Cumulative Distribution Function (CDF)",
-      subtitle = "Shows cumulative probability of window width\nDashed lines indicate median width for each strategy",
-      x = "Window Width (Da)",
-      y = "Cumulative Probability"
-    ) +
-    theme_aidia() +
-    theme(
-      plot.title = element_text(size = 12, face = "bold"),
-      plot.subtitle = element_text(size = 8, lineheight = 1.2),
-      axis.title = element_text(size = 10),
-      axis.text = element_text(size = 9),
-      legend.position = "right",
-      legend.title = element_text(size = 9, face = "bold"),
-      legend.text = element_text(size = 8),
-      panel.grid.minor = element_blank()
     )
 
   return(p)

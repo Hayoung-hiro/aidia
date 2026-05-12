@@ -96,61 +96,14 @@ ggsave(
 )
 cat("✅ Plot 8A saved\n\n")
 
-# Plot 8B: Box Plot
-cat("Generating Plot 8B: Box Plot...\n")
-plot8b <- plot_strategy_width_boxplot(windows_list, validated_data)
-ggsave(
-  file.path(output_dir, "plot8b_strategy_width_boxplot.png"),
-  plot8b,
-  width = 10,
-  height = 7,
-  dpi = 300,
-  bg = "white"
-)
-cat("✅ Plot 8B saved\n\n")
-
-# Plot 8C: CDF Plot
-cat("Generating Plot 8C: CDF Plot...\n")
-plot8c <- plot_strategy_width_cdf(windows_list, validated_data)
-ggsave(
-  file.path(output_dir, "plot8c_strategy_width_cdf.png"),
-  plot8c,
-  width = 10,
-  height = 7,
-  dpi = 300,
-  bg = "white"
-)
-cat("✅ Plot 8C saved\n\n")
-
-# Plot 8: Combined 3-panel
-cat("Generating Plot 8 Combined: 3-panel comparison...\n")
-plot8_combined <- plot_strategy_width_comparison_combined(windows_list, validated_data)
-ggsave(
-  file.path(output_dir, "plot8_combined_strategy_comparison.png"),
-  plot8_combined,
-  width = 10,
-  height = 15,
-  dpi = 300,
-  bg = "white"
-)
-cat("✅ Plot 8 Combined saved\n\n")
-
 # =============================================================================
 # Summary
 # =============================================================================
 
 cat("\n")
-cat("╔════════════════════════════════════════════════════════════════╗\n")
-cat("║           PLOT 8 TEST COMPLETE                                 ║\n")
-cat("╚════════════════════════════════════════════════════════════════╝\n\n")
-
+cat("=== PLOT 8 (Ridge) TEST COMPLETE ===\n\n")
 cat("Generated Files:\n")
-cat("─────────────────────────────────────────────────────────────────\n")
-cat("  ✅ plot8a_strategy_width_ridge.png\n")
-cat("  ✅ plot8b_strategy_width_boxplot.png\n")
-cat("  ✅ plot8c_strategy_width_cdf.png\n")
-cat("  ✅ plot8_combined_strategy_comparison.png\n")
-
+cat("  plot8a_strategy_width_ridge.png\n")
 cat("\n")
 cat("Output Directory:\n")
 cat(sprintf("  %s\n", output_dir))

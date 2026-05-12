@@ -7,7 +7,8 @@
 plot_dppp_satisfaction_combined(
   optimization_plan,
   validated_data,
-  n_points = 80
+  n_points = 80,
+  base_size = 12
 )
 }
 \arguments{

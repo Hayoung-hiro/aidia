@@ -2,38 +2,22 @@
 % Please edit documentation in R/plot_window_width.R
 \name{plot_window_width_distribution}
 \alias{plot_window_width_distribution}
-\title{Plot Window Width Distribution by RT Segment}
+\title{Plot Window m/z Range Across RT Segments}
 \usage{
-plot_window_width_distribution(
-  optimized_windows,
-  validated_data,
-  max_segments_to_show = 6,
-  selected_segment_ids = NULL
-)
+plot_window_width_distribution(optimized_windows, validated_data)
 }
 \arguments{
 \item{optimized_windows}{OptimizedWindows object from Stage 3}
 
 \item{validated_data}{ValidatedData object from Stage 1}
-
-\item{max_segments_to_show}{Maximum number of RT segments to display (default: 6, NULL = all)}
 }
 \value{
-ggplot object (combined grid)
+ggplot object
 }
 \description{
-Creates a multi-panel visualization showing:
-\itemize{
-\item Blue line: Normalized density of precursor m/z distribution
-\item Red line: Variable window width across m/z range
-\item Dual y-axis for different scales
-}
-}
-\examples{
-\dontrun{
-plot7 <- plot_window_width_distribution(optimized_windows, validated_data)
-# Show all segments
-plot7 <- plot_window_width_distribution(optimized_windows, validated_data, max_segments_to_show = NULL)
-}
+Shows how the isolation window coverage band shifts across the gradient.
+Each RT segment's m/z range is shown as a ribbon (lower to upper boundary),
+with mean window width annotated. Reveals how the optimized window layout
+adapts to changing precursor distributions over time.
 }
 \keyword{internal}

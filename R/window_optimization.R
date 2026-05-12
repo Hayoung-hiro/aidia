@@ -151,32 +151,49 @@ optimize_windows <- function(
   print_header("Stage 3: Window Optimization", width = 55)
 
   # ===================================================================
-  # Step 0: Unpack strategy_config if provided
+  # Step 0: Resolve strategy_config (typed) vs flat params (deprecated)
   # ===================================================================
-  if (!is.null(strategy_config)) {
+  if (is.null(strategy_config)) {
+    # Legacy path: caller passed flat params. Build a typed config from
+    # them so the rest of the pipeline runs through S3 dispatch uniformly.
+    .Deprecated(
+      msg = paste0(
+        "Calling optimize_windows() with flat strategy parameters is ",
+        "deprecated. Use strategy_config = ", mz_strategy, "_config(...) ",
+        "instead. Flat parameters will be removed in v0.6.0."
+      )
+    )
+    strategy_config <- build_strategy_config(
+      mz_strategy = mz_strategy,
+      quantile_lower = quantile_lower,
+      quantile_upper = quantile_upper,
+      quantile_apply_smoothing = quantile_apply_smoothing,
+      target_coverage = target_coverage,
+      coverage_mode = coverage_mode,
+      outlier_threshold = outlier_threshold,
+      outlier_apply_smoothing = outlier_apply_smoothing,
+      mz_step = mz_step,
+      n_windows_override = n_windows_override,
+      greedy_apply_smoothing = greedy_apply_smoothing,
+      kde_density_threshold = kde_density_threshold,
+      kde_min_coverage = kde_min_coverage,
+      smoothing_window = smoothing_window,
+      polynomial_order = polynomial_order,
+      smoothing_method = smoothing_method,
+      whittaker_lambda = whittaker_lambda
+    )
+  } else {
     if (!inherits(strategy_config, "strategy_config")) {
-      stop("strategy_config must be created by greedy_config(), quantile_config(), etc.")
+      stop("strategy_config must be created by greedy_config(), quantile_config(), ",
+           "coverage_config(), outlier_config(), or kde_config().")
     }
-    sc <- as.list(strategy_config)
-    mz_strategy <- sc$strategy
-    # Unpack strategy-specific params, keeping non-strategy params from function args
-    if (!is.null(sc$quantile_lower)) quantile_lower <- sc$quantile_lower
-    if (!is.null(sc$quantile_upper)) quantile_upper <- sc$quantile_upper
-    if (!is.null(sc$quantile_apply_smoothing)) quantile_apply_smoothing <- sc$quantile_apply_smoothing
-    if (!is.null(sc$target_coverage)) target_coverage <- sc$target_coverage
-    if (!is.null(sc$coverage_mode)) coverage_mode <- sc$coverage_mode
-    if (!is.null(sc$outlier_threshold)) outlier_threshold <- sc$outlier_threshold
-    if (!is.null(sc$outlier_apply_smoothing)) outlier_apply_smoothing <- sc$outlier_apply_smoothing
-    if (!is.null(sc$mz_step)) mz_step <- sc$mz_step
-    if (!is.null(sc$greedy_apply_smoothing)) greedy_apply_smoothing <- sc$greedy_apply_smoothing
-    if (!is.null(sc$kde_density_threshold)) kde_density_threshold <- sc$kde_density_threshold
-    if (!is.null(sc$kde_min_coverage)) kde_min_coverage <- sc$kde_min_coverage
-    if (!is.null(sc$smoothing_window)) smoothing_window <- sc$smoothing_window
-    if (!is.null(sc$polynomial_order)) polynomial_order <- sc$polynomial_order
-    if (!is.null(sc$smoothing_method)) smoothing_method <- sc$smoothing_method
-    if (!is.null(sc$whittaker_lambda)) whittaker_lambda <- sc$whittaker_lambda
-    # n_windows_override: only set from greedy config
-    if ("n_windows_override" %in% names(sc)) n_windows_override <- sc$n_windows_override
+  }
+
+  # Derived values needed downstream (window_mode dispatch, output naming).
+  mz_strategy <- strategy_config$strategy
+  # n_windows override: only present on greedy_config
+  if ("n_windows_override" %in% names(strategy_config)) {
+    n_windows_override <- strategy_config$n_windows_override
   }
 
   # ===================================================================
@@ -276,29 +293,23 @@ optimize_windows <- function(
     # Step 3: m/z Range Optimization
     print_step(3, "m/z Range Optimization")
 
-    mz_ranges <- optimize_mz_ranges_internal(
+    mz_ranges <- optimize_mz_ranges(
+      strategy_config,
       precursor_data = precursor_data,
       rt_stats = rt_stats,
-      strategy = mz_strategy,
-      target_coverage = target_coverage,
-      quantile_lower = quantile_lower,
-      quantile_upper = quantile_upper,
-      outlier_threshold = outlier_threshold,
-      smoothing_window = smoothing_window,
-      polynomial_order = polynomial_order,
       n_windows_per_bin = n_windows_per_bin,
       min_width_da = min_width_da,
-      mz_step = mz_step,
-      greedy_apply_smoothing = greedy_apply_smoothing,
-      kde_density_threshold = kde_density_threshold,
-      kde_min_coverage = kde_min_coverage,
-      quantile_apply_smoothing = quantile_apply_smoothing,
-      outlier_apply_smoothing = outlier_apply_smoothing,
-      coverage_mode = coverage_mode,
       mz_range_min = mz_range_min,
-      mz_range_max = mz_range_max,
-      smoothing_method = smoothing_method,
-      whittaker_lambda = whittaker_lambda
+      mz_range_max = mz_range_max
+    )
+
+    # Post-processor: boundary smoothing (S3-dispatched; no-op for kde/coverage)
+    mz_ranges <- apply_smoothing(
+      strategy_config,
+      mz_ranges = mz_ranges,
+      precursor_data = precursor_data,
+      n_windows_per_bin = n_windows_per_bin,
+      min_width_da = min_width_da
     )
 
     print_info(sprintf("Optimized m/z ranges for %d RT bins", nrow(mz_ranges)))

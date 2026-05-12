@@ -17,6 +17,7 @@ test_output/
 !inst/shiny_app/www/*.png
 !inst/shiny_app/www/strategy_previews/*.png
 *.rds
+!tests/testthat/fixtures/*.rds
 *.RData
 
 # R temporary files
@@ -36,6 +37,7 @@ env/
 
 # Claude Code
 .claude/
+.omc/
 
 # IDE files
 .vscode/
@@ -60,3 +62,6 @@ desktop.ini
 output/
 results_*/
 final_test*/
+
+# npx skills install cache (manifest is tracked via skills-lock.json)
+.agents/

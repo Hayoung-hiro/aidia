@@ -30,6 +30,7 @@
 plot_rt_changepoint_validation <- function(validated_data,
                                            optimized_windows,
                                            fixed_bin_width = 5) {
+  cat("  Generating RT Change Point Validation plot...\n")
 
   precursor_data <- validated_data$data
 

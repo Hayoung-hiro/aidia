@@ -2,7 +2,7 @@
 % Please edit documentation in R/export_plots.R
 \name{.draw_executive_summary}
 \alias{.draw_executive_summary}
-\title{Draw Executive Summary Scorecard}
+\title{Draw Executive Summary Table}
 \usage{
 .draw_executive_summary(
   optimization_plan,
@@ -18,7 +18,7 @@
 \item{validated_data}{ValidatedData object from Stage 1 (for satisfaction calc)}
 }
 \description{
-Target-oriented scorecard showing verdict + 2x3 metric tiles +
-conditional recommendation. Replaces the previous narrative paragraphs.
+Clean tabular summary of optimization results: key metrics, targets,
+and verdict. Matches the Configuration Summary page style.
 }
 \keyword{internal}

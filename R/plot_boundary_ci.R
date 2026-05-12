@@ -28,6 +28,7 @@
 #' }
 plot_boundary_ci <- function(ci_result, validated_data,
                              show_median = FALSE, bins = 50) {
+  cat("  Generating Boundary CI plot...\n")
 
   if (!inherits(ci_result, "boundary_ci")) {
     stop("ci_result must be a boundary_ci object from bootstrap_boundary_ci()")
@@ -173,6 +174,7 @@ plot_boundary_ci <- function(ci_result, validated_data,
 #' @return ggplot object
 #' @export
 plot_boundary_ci_width <- function(ci_result) {
+  cat("  Generating Boundary CI Width plot...\n")
 
   if (!inherits(ci_result, "boundary_ci")) {
     stop("ci_result must be a boundary_ci object")
@@ -260,6 +262,7 @@ plot_boundary_ci_width <- function(ci_result) {
 plot_boundary_ci_comparison <- function(ci_a, ci_b,
                                         label_a = "SG",
                                         label_b = "Whittaker") {
+  cat("  Generating Boundary CI Comparison plot...\n")
 
   # Combine CI width data from both methods
   build_df <- function(ci_result, label) {

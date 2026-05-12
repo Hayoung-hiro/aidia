@@ -85,11 +85,6 @@ for (strategy_name in names(strategy_configs)) {
   ))
 }
 
-# Strategy boundary comparison (faceted)
-p_compare <- plot_strategy_boundary_comparison(windows_list, validated)
-ggsave(file.path(output_dir, "preview_comparison.png"), p_compare,
-       width = 10, height = 12, dpi = 150, bg = "white")
-
 # Strategy width profile (overlay)
 p_width <- plot_strategy_width_profile(windows_list, validated)
 ggsave(file.path(output_dir, "preview_width_profile.png"), p_width,

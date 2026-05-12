@@ -9,17 +9,20 @@
 #' on sample complexity and downstream analysis software.
 #'
 #' @param windows_list Named list of OptimizedWindows objects (one per strategy)
+#' @param active_strategy Character, the user's selected strategy key (optional).
+#'   When provided, the corresponding row is highlighted with bold text and accent color.
 #'
 #' @return grob object (tableGrob)
 #' @keywords internal
 #'
 #' @examples
 #' \dontrun{
-#' p <- plot_strategy_comparison_table(windows_list)
+#' p <- plot_strategy_comparison_table(windows_list, active_strategy = "greedy")
 #' grid::grid.draw(p)
 #' ggsave("strategy_comparison.png", p, width = 12, height = 6)
 #' }
-plot_strategy_comparison_table <- function(windows_list) {
+plot_strategy_comparison_table <- function(windows_list, active_strategy = NULL,
+                                           base_size = 11) {
 
   cat("  Generating Strategy Comparison Table...\n")
 
@@ -97,6 +100,22 @@ plot_strategy_comparison_table <- function(windows_list) {
     ) %>%
     select(Strategy, Coverage, `Mean Width`, Windows, `Range Utilization`)
 
+  # Per-row styling: highlight active strategy
+  n_r <- nrow(display_table)
+  row_fontfaces <- rep("plain", n_r)
+  row_colors <- rep(aidia_colors$primary, n_r)
+  row_bg <- rep(c("#FFFFFF", aidia_colors$grid), length.out = n_r)
+
+  if (!is.null(active_strategy)) {
+    active_label <- format_strategy_label(active_strategy)
+    active_idx <- which(display_table$Strategy == active_label)
+    if (length(active_idx) == 1) {
+      row_fontfaces[active_idx] <- "bold"
+      row_colors[active_idx] <- aidia_colors$success
+      row_bg[active_idx] <- aidia_colors$highlight_bg
+    }
+  }
+
   # Create tableGrob with AIDIA colors
   table_grob <- gridExtra::tableGrob(
     display_table,
@@ -104,19 +123,19 @@ plot_strategy_comparison_table <- function(windows_list) {
     theme = gridExtra::ttheme_minimal(
       core = list(
         fg_params = list(
-          fontsize = 10,
-          col = aidia_colors$primary,
-          fontface = "plain"
+          fontsize = base_size - 1,
+          col = row_colors,
+          fontface = row_fontfaces
         ),
         bg_params = list(
-          fill = c(rep(c("#FFFFFF", aidia_colors$grid), length.out = nrow(display_table))),
+          fill = row_bg,
           col = aidia_colors$grid,
           lwd = 1
         )
       ),
       colhead = list(
         fg_params = list(
-          fontsize = 11,
+          fontsize = base_size,
           col = "white",
           fontface = "bold"
         ),
@@ -127,7 +146,7 @@ plot_strategy_comparison_table <- function(windows_list) {
         )
       ),
       rowhead = list(
-        fg_params = list(fontsize = 10)
+        fg_params = list(fontsize = base_size - 1)
       )
     )
   )
@@ -135,12 +154,12 @@ plot_strategy_comparison_table <- function(windows_list) {
   # Add title and note
   title_grob <- grid::textGrob(
     "Strategy Comparison Summary",
-    gp = grid::gpar(fontsize = 14, fontface = "bold", col = aidia_colors$primary)
+    gp = grid::gpar(fontsize = base_size + 3, fontface = "bold", col = aidia_colors$primary)
   )
 
   note_grob <- grid::textGrob(
-    "Note: Final quantification quality depends on sample complexity and downstream analysis software (DIA-NN, Spectronaut, etc.).\nNo single strategy is universally optimal - evaluate based on your analytical goals.",
-    gp = grid::gpar(fontsize = 8, col = aidia_colors$secondary, fontface = "italic"),
+    "No single strategy is universally optimal. Evaluate based on your analytical goals and sample complexity.",
+    gp = grid::gpar(fontsize = base_size - 3, col = aidia_colors$secondary, fontface = "italic"),
     just = "left",
     x = 0.02
   )
