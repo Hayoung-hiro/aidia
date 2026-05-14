@@ -9,7 +9,7 @@ results <- run_complete_pipeline(
   target_dppp = 7.0,
   target_satisfaction = 0.70,
   mz_strategies = c("quantile", "smoothing", "outlier", "coverage"),
-  window_mode = "variable",
+  window_mode = "density",
   rt_bin_width_min = 5,
   create_plots = TRUE,
   create_pdf = TRUE,

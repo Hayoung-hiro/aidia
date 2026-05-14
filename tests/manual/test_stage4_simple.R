@@ -45,7 +45,7 @@ run_pipeline <- function(data_file, cycle_time, target_dppp, instrument,
     optimization_plan = plan,
     rt_bin_width_min = rt_bin_width,
     mz_strategy = mz_strategy,
-    window_mode = "variable"
+    window_mode = "density"
   )
 
   list(

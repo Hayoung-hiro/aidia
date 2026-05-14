@@ -59,7 +59,7 @@ test1_result <- tryCatch({
     optimization_plan = plan,
     rt_bin_width_min = 5,
     mz_strategy = "quantile",
-    window_mode = "variable"
+    window_mode = "density"
   )
 
   cat("\n✓ TEST 1 PASSED\n")
@@ -117,7 +117,7 @@ test2_result <- tryCatch({
     rt_bin_width_min = 5,
     mz_strategy = "coverage",
     target_coverage = 0.95,
-    window_mode = "variable"
+    window_mode = "density"
   )
 
   cat("\n✓ TEST 2 PASSED\n")

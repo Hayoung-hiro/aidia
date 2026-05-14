@@ -43,7 +43,7 @@ optimized_windows <- optimize_windows(
   optimization_plan = optimization_plan,
   rt_bin_width_min = 5,
   mz_strategy = "quantile",  # Using quantile strategy (P5-P95)
-  window_mode = "variable",
+  window_mode = "density",
   quantile_lower = 0.05,
   quantile_upper = 0.95
 )
