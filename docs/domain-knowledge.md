@@ -684,3 +684,285 @@ sufficient primary constraint for Astral window count optimization.
 - `plan_ms1_segmentation()` function to define K segments
 - Modified export format for Xcalibur with MS1 segment table
 - `ms1_scans_per_cycle` field in instruments.json already has placeholder (0 for parallel)
+
+---
+
+## Acquisition Capacity vs Identification Yield (terminology)
+
+When discussing how "well" an acquisition method uses the instrument, AIDIA
+distinguishes two orthogonal axes. **"Efficiency" is not used as an umbrella
+term** for either of these — it collides with the existing
+`it_optimization$parallel_filling_efficiency` field and with ADR-0001's
+definition of duty cycle as *the* hardware efficiency metric for parallel
+instruments.
+
+### Axis 1: Acquisition Capacity (time-budget utilization)
+
+How the hardware's time budget was spent during a gradient. Does **not**
+involve identification outcomes — pure timer accounting.
+
+| Metric | Source | Already in AIDIA? |
+|--------|--------|-------------------|
+| Duty cycle (parallel only) | `duty_cycle_sync$duty_cycle_pct` | Yes (v0.3.1) |
+| Scan-time limiting factor | `scan_time$limiting_factor` (`"transient"` / `"injection_time"`) | Yes |
+| Parallel filling efficiency | `it_optimization$parallel_filling_efficiency` | Yes |
+
+The capacity story is built from **existing fields**, not new computation.
+New work here is *exposure* (UI + plot), not measurement.
+
+### Axis 2: Identification Yield (outcome per resource)
+
+Identified precursors per unit of acquisition resource. **Requires DIA-NN
+`*.stats.tsv`** (or graceful fallback). This is the only axis introducing
+new measurement.
+
+| Metric | Definition | Source |
+|--------|-----------|--------|
+| Precursors per minute | `precursors_identified / gradient_length_min` | stats.tsv + gradient |
+| Precursors per scan slot | `precursors_identified / total_scan_slots` | stats.tsv + capacity |
+
+Yield is an **outcome metric, not an efficiency metric**. Reporting it as
+"% efficient" is misleading (typical values 0.1–5% would look catastrophic).
+Always reported with absolute units (per minute / per scan slot), never as
+a normalized %.
+
+### Composite / "Limiting factor" — derived view, not S3 field
+
+A single `bottleneck_summary` (string + one-sentence message) is derived
+on demand at print/plot time from the two axes above. It is **not** stored
+as a separate S3 field — to avoid stale composite values diverging from
+their underlying inputs.
+
+The existing `scan_time$limiting_factor` keeps its narrow scope (transient
+vs IT within a single MS2 scan). A higher-level bottleneck classification
+(capacity-bound vs yield-bound) is a separate, derived concept.
+
+### What "efficiency" means in AIDIA going forward
+
+- ✅ `parallel_filling_efficiency` — IT/(transient+overhead+IT) for parallel instruments (existing)
+- ✅ `duty_cycle` — parallel-instrument analyzer-pair synchronization (existing)
+- ❌ "Acquisition Efficiency" as a single number — **rejected** (ambiguous)
+- ❌ `id / scan_slot * 100` as "% efficiency" — **rejected** (misleading magnitude)
+
+### Rejected: Gradient-span utilization (RT range / LC method length)
+
+A "fraction of LC method actually populated with peptides" metric was considered
+and rejected. Reason: every LC method has structurally unavoidable dead zones
+at both ends — column equilibration before the first peptide elutes, and wash
+/ re-equilibration after the last peptide. Reporting these as "wasted scan
+slots" would penalize a correctly designed method. Inefficiency *within* the
+peptide-bearing region is already captured by `evaluate_windows()$quality_flags$empty_windows`.
+
+Additionally, `R/rt_binning.R:128` defines `rt_range <- range(precursor_data$RT.Apex)`,
+so AIDIA's generated method active region is automatically clipped to the
+data-driven RT span — LC dead zones are excluded by construction.
+
+### Why AIDIA cannot measure "actual acquired scan count"
+
+AIDIA reads DIA-NN `report.parquet` + optional `*.stats.tsv` — **never the
+raw mass-spec file**. See [ADR-0004](adr/0004-result-driven-input-no-raw-file.md)
+for the full rationale. Therefore the literal "acquired MS2 scan count" is not
+available; only an estimate from `gradient_length_s × actual_scan_rate_hz`
+based on the method AIDIA produced.
+
+This matters because DIA scan count is not fully deterministic:
+- **AGC dynamic IT**: when ion target is reached before `max_IT`, the scan
+  shortens, freeing time for additional cycles
+- **Lock mass scans**: periodic calibration scans displace regular MS2
+- **Software retries / gradient drift**: rare but possible
+
+For most fixed-IT DIA methods the variation is small (<5%), but it is not zero.
+AIDIA-derived "scan slot count" should be reported as an **estimate**, never
+as a measured value.
+
+### Capacity KPIs (v0.4.x — to be implemented)
+
+Four "did I use the instrument well?" KPIs, all derived from existing
+`OptimizationPlan` + `OptimizedWindows` + `evaluate_windows()` fields. **No new
+S3 nested struct.** A single `get_capacity_kpis(plan, windows, evaluation)`
+function returns them.
+
+| KPI | Definition | Source field |
+|-----|-----------|--------------|
+| Filled window ratio (%) | `1 - empty_windows / total_windows` | `evaluate_windows()$quality_flags` |
+| DPPP headroom (×) | `diagnosis$current_dppp_median / target_dppp` | `OptimizationPlan$diagnosis` + `$parameters` |
+| Cycle time headroom (%) | `(required - actual) / required × 100` | `OptimizationPlan` top-level |
+| Window count headroom (%) | `(max_windows - n_windows) / max_windows × 100` | `$parameters` + `$window_count_per_bin` |
+
+Interpretation:
+- Filled 95% / DPPP 30× / Cycle 0% / Window 5% → cycle/window saturated, DPPP has slack → can lengthen IT or narrow windows
+- Filled 60% / DPPP 2× / Cycle 40% / Window 30% → underutilized → can pack more windows or shorten cycle
+
+**Implementation pattern**: `get_capacity_kpis(plan, windows, evaluation)` is
+a **derive-only function**, never stored in an S3 object. This follows the
+existing `evaluate_windows()` precedent — lazy-computed in
+`build_visualization_context()` for plots and cached as a Shiny reactive.
+No changes to `OptimizationPlan` / `OptimizedWindows` validators, no new S3
+class. Eliminates stale-data risk by construction.
+
+**Color system (hybrid)**: Capacity KPIs do not all share the same "higher
+is better" semantics, so a single traffic-light palette is wrong. AIDIA uses:
+
+- **Monotonic KPI** (`filled_window_ratio`): existing AIDIA traffic light —
+  green ≥90%, yellow 70–90%, red <70%. Consistent with the "ValueBox target
+  coloring" rule in CLAUDE.md.
+- **Two-sided KPIs** (3 headroom indicators): information grades — `Bad` (red,
+  infeasible), `OK` (green, healthy use), `Info` (blue, slack available
+  → not a problem, capacity available for other tradeoffs).
+
+Mapping `Info` to blue (not yellow) prevents users from misreading "DPPP
+headroom 30×" on Astral as a problem. A short caption ("Info indicators
+mean available capacity, not a defect") sits below the KPI strip.
+
+Default thresholds (revisitable as real-world data accumulates):
+
+| KPI | Bad | Warn | OK | Info |
+|-----|-----|------|----|------|
+| `filled_window_ratio` | <70% | 70–90% | ≥90% | — |
+| `dppp_headroom_x` | <1× | — | 1–2× | ≥2× |
+| `cycle_time_headroom_pct` | <0% | — | 0–15% | ≥15% |
+| `window_count_headroom_pct` | — | — | 0–30% | ≥30% |
+
+**Thresholds are tunable, not hardcoded.** `get_capacity_kpis()` accepts a
+`thresholds = capacity_kpi_thresholds()` argument. The constructor returns
+the table above as a named nested list; users override by passing modified
+values:
+
+```r
+custom <- capacity_kpi_thresholds(
+  filled_window_ratio = list(bad = 0.60, warn = 0.85),
+  dppp_headroom_x     = list(bad = 1.0,  info = 3.0)
+)
+kpis <- get_capacity_kpis(plan, windows, evaluation, thresholds = custom)
+```
+
+The Shiny UI uses defaults in v0.4.x. As real datasets accumulate, the
+defaults may be retuned by editing `capacity_kpi_thresholds()` in
+`R/capacity_kpis.R`. If a future need for per-deployment customization
+emerges, the thresholds list can migrate to `inst/config/` JSON (mirroring
+the `instruments.json` pattern) without breaking the function signature.
+
+**Visualization form (Shiny only — not in PDF report)**:
+- Four semicircular gauges (speedometer style) with the KPI value rendered
+  inside the dial. Colored arc segments mark `Bad / Warn / OK / Info`
+  regions per the threshold table; a tick marker shows current position.
+- Implemented as a single `ggplot` with `coord_polar()` + `facet_wrap`,
+  no `ggforce` / `gridExtra` / `patchwork` dependency added.
+- A one-line `bottleneck_summary` text sits above or below the gauge
+  strip in Shiny, derived from the four KPI states by a small rule-based
+  function (`summarize_bottleneck(kpis, thresholds)`).
+
+**PDF report intentionally excludes the KPI dashboard.** Capacity KPIs are
+an *operational/interactive* diagnostic, not a publication artifact —
+AIDIA's PDF report is a collection of distributional/statistical figures
+appropriate for method-design write-ups. The KPI plot has **no entry in
+`PLOT_REGISTRY`**; `plot_capacity_kpis()` is called only from Shiny. This
+deliberately breaks the "all plots go through the registry" convention
+because the registry's purpose is PDF assembly, and these KPIs are not
+part of that artifact.
+
+**Instrument-type context (Shiny header line above gauges)**: KPIs are
+universal across sequential and parallel instruments, but a one-line
+header gives readers the right interpretive frame:
+
+- Sequential (Exploris, QE, etc.): `"Sequential instrument — DPPP-bound at target {target_dppp}."`
+- Parallel (Astral, Astral Zoom): `"Parallel instrument — sync {duty_cycle_pct}% ({n_actual} / {n_sync_optimal} sync-optimal). DPPP-bound metrics may show high headroom."`
+
+Rationale: `cycle_time_headroom` is computed against DPPP-derived
+`required_cycle_time` (`R/optimization_planning.R:214`), but parallel
+instruments are typically sync-optimal-bound, not DPPP-bound — so large
+headroom values are *expected*, not a defect. The header line provides
+this context without changing the KPI set itself. Sync-first hero in
+Step 2 covers method-design context; Step 3 header covers
+diagnostic-time context.
+
+### Bottleneck Summary — Rule Set
+
+`summarize_bottleneck(kpis, thresholds)` returns a single-line English
+message describing the dominant condition. Rules are evaluated in
+priority order; the first matching rule wins.
+
+| # | Condition | Message |
+|---|-----------|---------|
+| 1 | `dppp_headroom == Bad` (≡ `cycle_headroom == Bad`) | `"DPPP target not met — cycle too long for required peak sampling. Reduce window count or shorten transient."` |
+| 2 | `filled_ratio == Bad` (<70%) | `"Many empty windows — review m/z strategy or RT binning."` |
+| 3 | `filled_ratio == Warn` (70–90%) AND no other `Bad` | `"Some empty windows — consider tightening m/z strategy."` |
+| 4 | `cycle_headroom == OK` AND `window_headroom == OK` AND `dppp_headroom == Info` | `"Cycle and windows near ceiling with DPPP slack — IT or m/z width tradeoff available."` |
+| 5 | `cycle_headroom == Info` AND `window_headroom == Info` | `"Underutilized — add more windows or shorten cycle."` |
+| 6 | `dppp_headroom == Info (≥2×)` AND cycle/window/filled all `OK` | `"Large DPPP headroom — opportunity to lengthen IT for better ion statistics."` |
+| 7 | All `OK` | `"Well balanced."` |
+| 8 | (fallback) | `"See individual KPIs for details."` |
+
+**Notes on rule design**:
+
+- Rules #1 and the `cycle_headroom < 0%` Bad condition are mathematically
+  equivalent (DPPP = 1.7 × FWHM / cycle_time → headroom signs match).
+  Treated as one rule to avoid duplicate messaging.
+- Message language is English only in v0.4.x (matches AIDIA's
+  English-output convention per CLAUDE.md). i18n is deferred.
+- For parallel instruments, rule #6 will fire frequently because DPPP is
+  structurally satisfied. The Step 3 instrument-context header line
+  ("DPPP-bound metrics may show high headroom") sets the expectation, so
+  no special parallel-branch message is added — the rule stays uniform.
+- Edge case: when `evaluate_windows()` fails, `filled_ratio = NA` and
+  rules #2/#3 are skipped (NA-safe condition checks).
+
+### Shiny Step 3 Placement
+
+Capacity KPI dashboard lives in its **own bs4Dash box** below the existing
+"Result Summary" `valueBox` row in Step 3, with explicit section labels to
+separate two concerns:
+
+```
+[Result Summary]                            ← existing valueBoxes (absolute values)
+  Cycle Time | DPPP | Windows               ← traffic-light coloring
+  
+[Acquisition Capacity Diagnostics]          ← NEW collapsible box (default OPEN)
+  Header line:  instrument-type context     ← e.g. "Parallel — sync 100% …"
+  4 gauges:     Filled | DPPP | Cycle | Win ← information-grade coloring
+  Footer line:  bottleneck summary message  ← 1-line English actionable hint
+```
+
+- `box(title = "Acquisition Capacity Diagnostics", collapsible = TRUE, collapsed = FALSE, width = 12, ...)`
+- Section labels justify the two coexisting color systems (traffic light
+  for absolutes, information grades for utilization).
+- Existing `summary_box_*` value boxes remain unchanged — no regression
+  to current UX.
+
+### Edge Case Handling
+
+| Case | Trigger | Handling |
+|------|---------|----------|
+| `evaluate_windows()` fails | tryCatch wraps the call | `filled_ratio = NA`. Fourth gauge renders gray "N/A" segment, center text "N/A". Bottleneck rules #2/#3 skipped (NA-safe). Other three KPIs unaffected. |
+| Spec-limited windows | `plan$it_optimization$is_spec_limited == TRUE` | `window_count_headroom = 0%`. Gauge color stays `OK` (hardware ceiling is normal operation, not a defect). Gauge label appends "(spec-limited)". |
+| Extreme DPPP headroom | Astral commonly reports ≥30× | Gauge visual cap = 5× (≥2× is `Info` anyway, so 5× saturates the dial). Center text shows actual value (e.g. "30×"). Gauge end region labeled "≥5×". |
+| Header context source | `is.null(plan$duty_cycle_sync)` → sequential | Sequential: `sprintf("Sequential instrument — DPPP-bound at target %.1f.", plan$parameters$target_dppp)`. Parallel: `sprintf("Parallel instrument — sync %d%% (%d / %d sync-optimal). DPPP-bound metrics may show high headroom.", round(plan$duty_cycle_sync$duty_cycle_pct), plan$window_count_per_bin, plan$duty_cycle_sync$n_sync_optimal)`. |
+| All KPIs NA | Cascading failures | Header context still renders. All four gauges show "N/A". Bottleneck falls through to rule #8: `"See individual KPIs for details."` |
+
+### Validation Plan
+
+**Threshold sanity check** (Part A — `tests/manual/test_capacity_kpis_real.R`):
+
+Datasets: `C:/Users/Odyssey/Desktop/Variable_DIA_raw/Diann_res/Batch3/`
+covering 30 / 60 min gradients × Fixed / Variable windows × Greedy /
+Staggered strategies × with / without empirical FZ. Used for first-pass
+sanity check of default thresholds — confirm no KPI lands in absurd
+states (e.g., all `Bad` when method is known healthy). Default thresholds
+are revised in a follow-up commit if a clear miscalibration emerges.
+
+**Unit tests** (`tests/testthat/test-capacity-kpis.R`): 11 cases —
+4 KPI calculations, 4 classification boundary checks, 8 bottleneck rule
+firing checks, NA-safe behavior, spec-limited handling, sequential vs
+parallel header context.
+
+**Shiny integration** (manual checklist): Step 3 dashboard renders,
+4 gauges + header + footer present, sequential / parallel header
+branches correctly, collapsible toggle works, dark mode colors intact.
+
+Identification-yield axis (precursors per minute, etc.) is a **separate
+concern** and not part of these KPIs — see "Acquisition Capacity vs
+Identification Yield" above. As a consequence of [ADR-0004](adr/0004-result-driven-input-no-raw-file.md)
+(no raw-file input), `*.stats.tsv` parsing is **not** added in v0.4.x —
+all four capacity KPIs are computable from `report.parquet` + AIDIA's own
+optimization outputs.
+
