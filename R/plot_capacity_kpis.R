@@ -57,27 +57,6 @@
   )
 }
 
-#' Grade -> dark fill color (inner ring + center text)
-#' @keywords internal
-#' @noRd
-.capacity_grade_colors <- c(
-  Bad     = "#C75B5B",
-  Warn    = "#D4923A",
-  OK      = "#2D9B83",
-  Info    = "#4878A8",
-  "NA"    = "#B0BEC5"
-)
-
-#' Grade -> light tint color (outer-rim zone band)
-#' @keywords internal
-#' @noRd
-.capacity_zone_tints <- c(
-  Bad  = "#F4D6D6",
-  Warn = "#F4E4C9",
-  OK   = "#C7E8DE",
-  Info = "#C5D6E8"
-)
-
 #' Per-KPI normalized zone bands (in 0..1 units)
 #'
 #' Each KPI's zone bands are computed from its threshold table and the
@@ -258,7 +237,7 @@ plot_capacity_kpis <- function(kpis,
     if (is.null(poly)) return(NULL)
     poly$kpi   <- panel_factor[match(nm, kpi_names)]
     poly$group <- paste0("fill_", nm)
-    poly$fill  <- unname(.capacity_grade_colors[[grade]])
+    poly$fill  <- unname(aidia_capacity_grade_colors[[grade]])
     poly
   })
   fill_df <- do.call(rbind, Filter(Negate(is.null), fill_rows))
@@ -274,7 +253,7 @@ plot_capacity_kpis <- function(kpis,
       if (is.null(poly)) next
       poly$kpi   <- panel_factor[match(nm, kpi_names)]
       poly$group <- paste0("zone_", nm, "_", bands$grade[i])
-      poly$fill  <- unname(.capacity_zone_tints[bands$grade[i]])
+      poly$fill  <- unname(aidia_capacity_zone_tints[bands$grade[i]])
       zone_rows[[length(zone_rows) + 1L]] <- poly
     }
   }
@@ -291,7 +270,7 @@ plot_capacity_kpis <- function(kpis,
       text_color <- "#78909C"
     } else {
       label      <- spec$fmt(val)
-      text_color <- unname(.capacity_grade_colors[[grade]])
+      text_color <- unname(aidia_capacity_grade_colors[[grade]])
     }
 
     data.frame(

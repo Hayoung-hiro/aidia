@@ -721,14 +721,15 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   output$capacity_bottleneck <- renderUI({
     kpis <- cached_capacity_kpis()
     msg  <- summarize_bottleneck(kpis)
+    accent_color <- unname(aidia_capacity_grade_colors[["Info"]])
     tags$div(
       class = "panel-raised",
-      style = paste(
+      style = sprintf(paste(
         "padding: 8px 12px;",
         "margin-top: 6px;",
         "font-size: 13px;",
-        "border-left: 3px solid #4878A8;"
-      ),
+        "border-left: 3px solid %s;"
+      ), accent_color),
       icon("lightbulb"),
       tags$strong(" Bottleneck: "),
       msg
