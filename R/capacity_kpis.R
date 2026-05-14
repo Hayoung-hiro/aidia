@@ -364,10 +364,11 @@ classify_capacity_kpi <- function(value, kpi_name, thresholds) {
 #'   \item Filled ratio `Bad` (skipped when `filled_window_ratio` is `NA`).
 #'   \item Filled ratio `Warn` with no other `Bad`
 #'     (skipped when `filled_window_ratio` is `NA`).
-#'   \item Cycle `OK` and window `OK` and DPPP `Info` -- ceiling with DPPP
-#'     slack, IT / m/z tradeoff available.
+#'   \item Cycle `OK` and window `OK` and DPPP `Info`, filled not confirmed
+#'     `OK` -- ceiling with DPPP slack, IT / m/z tradeoff available.
 #'   \item Cycle `Info` and window `Info` -- underutilized.
-#'   \item DPPP `Info` and the remaining three are `OK` -- DPPP-only slack.
+#'   \item DPPP `Info` and cycle, window, filled all `OK` -- DPPP-only slack;
+#'     lengthen IT.
 #'   \item All `OK` -- well balanced.
 #'   \item Fallback message.
 #' }
@@ -403,9 +404,13 @@ summarize_bottleneck <- function(kpis,
     return("Some empty windows - consider tightening m/z strategy.")
   }
 
-  # Rule 4 -- cycle / window at ceiling with DPPP slack
+  # Rule 4 -- cycle / window at ceiling with DPPP slack, filled NOT confirmed
+  # OK. filled = OK falls through to rule 6, which recommends IT-only
+  # adjustment because m/z width tightening is unnecessary when windows are
+  # already well filled. filled = NA reaches rule 4 because the m/z tradeoff
+  # remains a valid recommendation when filling is unknown.
   if (identical(cycle, "OK") && identical(win, "OK") &&
-      identical(dppp, "Info")) {
+      identical(dppp, "Info") && !identical(filled, "OK")) {
     return("Cycle and windows near ceiling with DPPP slack - IT or m/z width tradeoff available.")
   }
 
@@ -414,10 +419,10 @@ summarize_bottleneck <- function(kpis,
     return("Underutilized - add more windows or shorten cycle.")
   }
 
-  # Rule 6 -- DPPP-only slack
+  # Rule 6 -- DPPP-only slack with all other axes confirmed OK
   if (identical(dppp, "Info") &&
       identical(cycle, "OK") && identical(win, "OK") &&
-      (identical(filled, "OK") || !filled_known)) {
+      identical(filled, "OK")) {
     return("Large DPPP headroom - opportunity to lengthen IT for better ion statistics.")
   }
 

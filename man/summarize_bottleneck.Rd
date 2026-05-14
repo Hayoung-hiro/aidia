@@ -28,10 +28,11 @@ Set" for the full table.
 \item Filled ratio \code{Bad} (skipped when \code{filled_window_ratio} is \code{NA}).
 \item Filled ratio \code{Warn} with no other \code{Bad}
 (skipped when \code{filled_window_ratio} is \code{NA}).
-\item Cycle \code{OK} and window \code{OK} and DPPP \code{Info} -- ceiling with DPPP
-slack, IT / m/z tradeoff available.
+\item Cycle \code{OK} and window \code{OK} and DPPP \code{Info}, filled not confirmed
+\code{OK} -- ceiling with DPPP slack, IT / m/z tradeoff available.
 \item Cycle \code{Info} and window \code{Info} -- underutilized.
-\item DPPP \code{Info} and the remaining three are \code{OK} -- DPPP-only slack.
+\item DPPP \code{Info} and cycle, window, filled all \code{OK} -- DPPP-only slack;
+lengthen IT.
 \item All \code{OK} -- well balanced.
 \item Fallback message.
 }

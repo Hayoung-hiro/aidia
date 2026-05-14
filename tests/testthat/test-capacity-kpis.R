@@ -259,16 +259,23 @@ test_that("rule 5: cycle=Info & win=Info -> underutilized", {
   expect_equal(msg, MSG_R5)
 })
 
-test_that("rule 6: dppp=Info & all-OK is subsumed by rule 4 (first-match wins)", {
-  # Per docs/domain-knowledge.md the 8-rule table is evaluated in priority
-  # order. Rule 6's conditions (filled=OK, dppp=Info, cycle=OK, win=OK) are
-  # a strict subset of rule 4's, so rule 4 always wins. The rule-6 branch
-  # remains in summarize_bottleneck() for forward compatibility and is
-  # exercised when rule 4 is refined later. Asserting the documented
-  # priority here rather than asserting rule 6 fires under any input.
+test_that("rule 6: dppp=Info with filled/cycle/win all OK -> IT-only advice", {
+  # filled = OK distinguishes rule 6 from rule 4. Rule 4 now requires
+  # filled != "OK", so this input falls through to rule 6.
   msg <- summarize_bottleneck(make_kpis(filled = "OK", dppp = "Info",
                                         cycle = "OK", win = "OK"))
-  expect_equal(msg, MSG_R4)
+  expect_equal(msg, MSG_R6)
+})
+
+test_that("rule 4 vs rule 6: filled NA -> rule 4, filled OK -> rule 6", {
+  # Same dppp/cycle/win pattern; filled state alone routes the message.
+  msg_4 <- summarize_bottleneck(make_kpis(filled = "NA", dppp = "Info",
+                                          cycle = "OK", win = "OK"))
+  expect_equal(msg_4, MSG_R4)
+
+  msg_6 <- summarize_bottleneck(make_kpis(filled = "OK", dppp = "Info",
+                                          cycle = "OK", win = "OK"))
+  expect_equal(msg_6, MSG_R6)
 })
 
 test_that("rule 7: all OK -> well balanced", {

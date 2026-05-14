@@ -887,7 +887,7 @@ priority order; the first matching rule wins.
 | 1 | `dppp_headroom == Bad` (≡ `cycle_headroom == Bad`) | `"DPPP target not met — cycle too long for required peak sampling. Reduce window count or shorten transient."` |
 | 2 | `filled_ratio == Bad` (<70%) | `"Many empty windows — review m/z strategy or RT binning."` |
 | 3 | `filled_ratio == Warn` (70–90%) AND no other `Bad` | `"Some empty windows — consider tightening m/z strategy."` |
-| 4 | `cycle_headroom == OK` AND `window_headroom == OK` AND `dppp_headroom == Info` | `"Cycle and windows near ceiling with DPPP slack — IT or m/z width tradeoff available."` |
+| 4 | `cycle_headroom == OK` AND `window_headroom == OK` AND `dppp_headroom == Info` AND `filled_ratio != OK` | `"Cycle and windows near ceiling with DPPP slack — IT or m/z width tradeoff available."` |
 | 5 | `cycle_headroom == Info` AND `window_headroom == Info` | `"Underutilized — add more windows or shorten cycle."` |
 | 6 | `dppp_headroom == Info (≥2×)` AND cycle/window/filled all `OK` | `"Large DPPP headroom — opportunity to lengthen IT for better ion statistics."` |
 | 7 | All `OK` | `"Well balanced."` |
@@ -900,10 +900,18 @@ priority order; the first matching rule wins.
   Treated as one rule to avoid duplicate messaging.
 - Message language is English only in v0.4.x (matches AIDIA's
   English-output convention per CLAUDE.md). i18n is deferred.
-- For parallel instruments, rule #6 will fire frequently because DPPP is
-  structurally satisfied. The Step 3 instrument-context header line
-  ("DPPP-bound metrics may show high headroom") sets the expectation, so
-  no special parallel-branch message is added — the rule stays uniform.
+- Rule #4 carries the `filled_ratio != OK` clause to keep it disjoint from
+  rule #6 under `first-match` priority. Concretely: `filled = NA` (eval
+  failed) routes to rule #4 because an m/z tradeoff is still a valid
+  recommendation when filling is unknown; `filled = OK` routes to rule #6
+  because tightening m/z is unnecessary when windows are already filled.
+  `filled = Bad / Warn` are absorbed earlier by rules #2 / #3, so rule #4
+  in practice only fires for `filled = NA`.
+- For parallel instruments, rule #6 will fire frequently when filling is
+  confirmed OK because DPPP is structurally satisfied. The Step 3
+  instrument-context header line ("DPPP-bound metrics may show high
+  headroom") sets the expectation, so no special parallel-branch message
+  is added — the rule stays uniform.
 - Edge case: when `evaluate_windows()` fails, `filled_ratio = NA` and
   rules #2/#3 are skipped (NA-safe condition checks).
 
