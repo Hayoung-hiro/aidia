@@ -1,7 +1,7 @@
 ^data$
 ^data/
-^publication$
-^publication/
+^archive$
+^archive/
 ^scripts$
 ^scripts/
 ^output
