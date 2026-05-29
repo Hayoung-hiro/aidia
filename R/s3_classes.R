@@ -205,7 +205,7 @@ validate_OptimizationPlan <- function(x) {
   # Check required fields
   required_fields <- c("window_count_per_bin", "required_cycle_time_sec",
                        "actual_cycle_time_sec", "diagnosis", "feasibility",
-                       "instrument")
+                       "instrument", "scan_time")
   missing_fields <- setdiff(required_fields, names(x))
   if (length(missing_fields) > 0) {
     stop(sprintf("OptimizationPlan missing required fields: %s",
@@ -244,11 +244,16 @@ validate_OptimizationPlan <- function(x) {
   }
 
   # Check instrument fields
-  required_inst <- c("preset", "name", "cycle_mode")
+  required_inst <- c("preset", "name", "cycle_mode", "ms1_time_sec", "ms2_time_sec")
   missing_inst <- setdiff(required_inst, names(x$instrument))
   if (length(missing_inst) > 0) {
     stop(sprintf("OptimizationPlan$instrument missing: %s",
                  paste(missing_inst, collapse = ", ")), call. = FALSE)
+  }
+
+  # Check scan_time fields (consumed by Stage 3 cycle-time re-verification)
+  if (is.null(x$scan_time$t_scan_ms)) {
+    stop("OptimizationPlan$scan_time missing: t_scan_ms", call. = FALSE)
   }
 
   # Check parameters fields

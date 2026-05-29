@@ -228,7 +228,7 @@ compute_data_summary <- function(validated_data) {
 
   fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
 
-  n_raw   <- meta$n_precursors_before %||% meta$n_precursors %||% nrow(data)
+  n_raw   <- meta$n_precursors_before %||% meta$n_precursors
   n_runs  <- meta$n_runs %||% 1L
   n_final <- nrow(data)
 
@@ -587,7 +587,7 @@ extract_before_after_metrics <- function(optimization_plan, optimized_windows) {
     window_mode        = optimized_windows$parameters$window_mode %||% "unknown",
     target_satisfaction = optimization_plan$parameters$target_satisfaction %||% NA_real_,
     n_windows          = nrow(optimized_windows$windows) %||% 0L,
-    windows_per_bin    = optimization_plan$window_count_per_bin %||% NA_integer_,
+    windows_per_bin    = optimization_plan$window_count_per_bin,
     coverage_pct       = coverage_pct,
     mean_width         = mean_width
   )
