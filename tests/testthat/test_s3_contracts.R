@@ -34,8 +34,11 @@ test_that("OptimizationPlan validator catches missing diagnosis fields", {
     instrument = list(
       preset = "exploris",
       name = "Exploris 480",
-      cycle_mode = "sequential"
+      cycle_mode = "sequential",
+      ms1_time_sec = 0.05,
+      ms2_time_sec = 0.05
     ),
+    scan_time = list(t_scan_ms = 50),
     parameters = list(
       target_dppp = 7.0,
       target_satisfaction = 0.85
@@ -64,6 +67,7 @@ test_that("OptimizationPlan validator rejects missing current_ct_is_estimated", 
                        scan_rate_ok = TRUE, window_range_ok = TRUE),
     instrument = list(preset = "exploris", name = "Exploris 480",
                       cycle_mode = "sequential"),
+    scan_time = list(t_scan_ms = 50),
     parameters = list(target_dppp = 7.0, target_satisfaction = 0.85)
   ), class = c("OptimizationPlan", "list"))
 
@@ -84,6 +88,7 @@ test_that("OptimizationPlan validator rejects missing feasibility sub-fields", {
     feasibility = list(is_feasible = TRUE),  # missing sub-checks
     instrument = list(preset = "exploris", name = "Exploris 480",
                       cycle_mode = "sequential"),
+    scan_time = list(t_scan_ms = 50),
     parameters = list(target_dppp = 7.0, target_satisfaction = 0.85)
   ), class = c("OptimizationPlan", "list"))
 
@@ -104,6 +109,7 @@ test_that("OptimizationPlan validator rejects missing instrument fields", {
     feasibility = list(is_feasible = TRUE, cycle_time_ok = TRUE,
                        scan_rate_ok = TRUE, window_range_ok = TRUE),
     instrument = list(preset = "exploris"),  # missing name, cycle_mode
+    scan_time = list(t_scan_ms = 50),
     parameters = list(target_dppp = 7.0, target_satisfaction = 0.85)
   ), class = c("OptimizationPlan", "list"))
 

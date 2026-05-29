@@ -810,6 +810,8 @@ calculate_cycle_time_internal <- function(n_windows, cycle_mode, ms1_time,
 #' @param ms1_time_sec MS1 scan time in seconds
 #' @param base_ms2_time_sec Base MS2/IT time in seconds (from instrument config)
 #' @param max_windows Instrument spec maximum windows
+#' @param resolution MS2 resolution for accurate scan-time (default 30000)
+#' @param analyzer_type Analyzer type for scan-time (default "orbitrap")
 #'
 #' @return List with IT optimization results
 #' @keywords internal

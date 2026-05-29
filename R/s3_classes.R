@@ -166,6 +166,7 @@ as_ValidatedData.data.frame <- function(x, ...) {
 #' @param feasibility List with feasibility assessment
 #' @param instrument List with instrument configuration
 #' @param parameters List with planning parameters
+#' @param scan_time List with MS2 scan-time breakdown (e.g. t_scan_ms)
 #'
 #' @return OptimizationPlan S3 object
 #' @keywords internal
@@ -176,7 +177,8 @@ new_OptimizationPlan <- function(window_count_per_bin,
                                   recommendation = list(),
                                   feasibility = list(),
                                   instrument = list(),
-                                  parameters = list()) {
+                                  parameters = list(),
+                                  scan_time = list()) {
   structure(
     list(
       window_count_per_bin = window_count_per_bin,
@@ -186,7 +188,8 @@ new_OptimizationPlan <- function(window_count_per_bin,
       recommendation = recommendation,
       feasibility = feasibility,
       instrument = instrument,
-      parameters = parameters
+      parameters = parameters,
+      scan_time = scan_time
     ),
     class = c("OptimizationPlan", "list")
   )
