@@ -166,6 +166,7 @@ as_ValidatedData.data.frame <- function(x, ...) {
 #' @param feasibility List with feasibility assessment
 #' @param instrument List with instrument configuration
 #' @param parameters List with planning parameters
+#' @param scan_time List with MS2 scan-time breakdown (e.g. t_scan_ms)
 #'
 #' @return OptimizationPlan S3 object
 #' @keywords internal
@@ -176,7 +177,8 @@ new_OptimizationPlan <- function(window_count_per_bin,
                                   recommendation = list(),
                                   feasibility = list(),
                                   instrument = list(),
-                                  parameters = list()) {
+                                  parameters = list(),
+                                  scan_time = list()) {
   structure(
     list(
       window_count_per_bin = window_count_per_bin,
@@ -186,7 +188,8 @@ new_OptimizationPlan <- function(window_count_per_bin,
       recommendation = recommendation,
       feasibility = feasibility,
       instrument = instrument,
-      parameters = parameters
+      parameters = parameters,
+      scan_time = scan_time
     ),
     class = c("OptimizationPlan", "list")
   )
@@ -205,7 +208,7 @@ validate_OptimizationPlan <- function(x) {
   # Check required fields
   required_fields <- c("window_count_per_bin", "required_cycle_time_sec",
                        "actual_cycle_time_sec", "diagnosis", "feasibility",
-                       "instrument")
+                       "instrument", "scan_time")
   missing_fields <- setdiff(required_fields, names(x))
   if (length(missing_fields) > 0) {
     stop(sprintf("OptimizationPlan missing required fields: %s",
@@ -244,11 +247,16 @@ validate_OptimizationPlan <- function(x) {
   }
 
   # Check instrument fields
-  required_inst <- c("preset", "name", "cycle_mode")
+  required_inst <- c("preset", "name", "cycle_mode", "ms1_time_sec", "ms2_time_sec")
   missing_inst <- setdiff(required_inst, names(x$instrument))
   if (length(missing_inst) > 0) {
     stop(sprintf("OptimizationPlan$instrument missing: %s",
                  paste(missing_inst, collapse = ", ")), call. = FALSE)
+  }
+
+  # Check scan_time fields (consumed by Stage 3 cycle-time re-verification)
+  if (is.null(x$scan_time$t_scan_ms)) {
+    stop("OptimizationPlan$scan_time missing: t_scan_ms", call. = FALSE)
   }
 
   # Check parameters fields

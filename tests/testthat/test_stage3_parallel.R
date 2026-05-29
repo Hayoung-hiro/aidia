@@ -11,7 +11,8 @@ test_that("Staggered mode respects offset and boundary-array integrity", {
   class(validated_data) <- c("ValidatedData", "list")
   optimization_plan <- list(
     window_count_per_bin = 5,
-    instrument = list(preset = "test", cycle_mode = "serial", ms1_time_sec = 0.5, ms2_time_sec = 0.05),
+    instrument = list(preset = "test", cycle_mode = "sequential", ms1_time_sec = 0.5, ms2_time_sec = 0.05),
+    scan_time = list(t_scan_ms = 50),
     required_cycle_time_sec = 2.0
   )
   class(optimization_plan) <- c("OptimizationPlan", "list")
@@ -71,7 +72,8 @@ test_that("Centered coverage strategy runs", {
   class(validated_data) <- c("ValidatedData", "list")
   optimization_plan <- list(
     window_count_per_bin = 5,
-    instrument = list(preset = "test", cycle_mode = "serial", ms1_time_sec = 0.5, ms2_time_sec = 0.05),
+    instrument = list(preset = "test", cycle_mode = "sequential", ms1_time_sec = 0.5, ms2_time_sec = 0.05),
+    scan_time = list(t_scan_ms = 50),
     required_cycle_time_sec = 2.0
   )
   class(optimization_plan) <- c("OptimizationPlan", "list")
@@ -98,7 +100,8 @@ test_that("mz_range_min/mz_range_max used for empty bins", {
   class(validated_data) <- c("ValidatedData", "list")
   optimization_plan <- list(
     window_count_per_bin = 5,
-    instrument = list(preset = "test", cycle_mode = "serial", ms1_time_sec = 0.5, ms2_time_sec = 0.05),
+    instrument = list(preset = "test", cycle_mode = "sequential", ms1_time_sec = 0.5, ms2_time_sec = 0.05),
+    scan_time = list(t_scan_ms = 50),
     required_cycle_time_sec = 2.0
   )
   class(optimization_plan) <- c("OptimizationPlan", "list")

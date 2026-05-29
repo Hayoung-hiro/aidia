@@ -59,6 +59,9 @@ step2_setup_ui <- function() {
                 class = "panel-accent", style = "font-size: 14px; line-height: 1.8;",
                 tags$strong("DPPP"), " = 1.7 \u00d7 FWHM / cycle_time",
                 tags$br(),
+                tags$span(class = "text-muted",
+                          "Points across the whole peak (\u2248 1.7 \u00d7 points-at-FWHM)"),
+                tags$br(),
                 tags$span(class = "text-muted", "ID: 1.5 | Balanced: 4.0 | Quant: 7.0")
               ),
               # Window count preview (reactive, shown when data + instrument configured)

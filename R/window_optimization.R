@@ -397,11 +397,15 @@ optimize_windows <- function(
   }
   instrument <- optimization_plan$instrument
 
-  actual_cycle_time <- if (instrument$cycle_mode == "parallel") {
-    max(instrument$ms1_time_sec, actual_windows_per_bin * instrument$ms2_time_sec)
-  } else {
-    instrument$ms1_time_sec + actual_windows_per_bin * instrument$ms2_time_sec
-  }
+  # Use the actual MS2 scan time (t_scan = max(transient, IT) + overhead) computed
+  # in Stage 2, NOT the bare injection time, and route through the canonical
+  # simple_cycle_time() helper rather than re-inlining the parallel/sequential formula.
+  t_scan_sec <- optimization_plan$scan_time$t_scan_ms / 1000
+  actual_cycle_time <- simple_cycle_time(
+    ms1_time = instrument$ms1_time_sec,
+    total_ms2_time = actual_windows_per_bin * t_scan_sec,
+    cycle_mode = instrument$cycle_mode
+  )
 
   planned_cycle_time <- optimization_plan$required_cycle_time_sec
   fwhm_values <- get_fwhm_values(validated_data)

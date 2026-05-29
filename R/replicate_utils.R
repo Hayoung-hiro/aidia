@@ -81,8 +81,9 @@ base_cv <- function(x) {
 #' @return Geometric CV percentage, or NA if n < 2
 #' @keywords internal
 geometric_cv <- function(x) {
-  # Remove NA values
-  x <- x[!is.na(x)]
+  # Remove NA and non-positive values: log() requires x > 0, and zero/negative
+  # intensities are invalid for a log-normal (geometric) CV.
+  x <- x[!is.na(x) & x > 0]
 
   if (length(x) < 2) return(NA_real_)
 

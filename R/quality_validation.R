@@ -18,6 +18,16 @@
 #' @keywords internal
 validate_data_quality <- function(data) {
 
+  # Guard: with no rows (e.g. all precursors removed by RT/quality filters) every
+  # rate calculation becomes 0/0 = NaN and quality_score is NaN, so the
+  # quality_score >= threshold check is neither a clean pass nor a clean fail.
+  # Fail deterministically instead.
+  if (nrow(data) == 0) {
+    stop("No precursors remain after filtering; cannot assess data quality. ",
+         "Relax the RT range / quality filters or check the input file.",
+         call. = FALSE)
+  }
+
   # Pipeline: Detection -> Validation -> Scoring
   results <- list(
     fwhm_outliers = detect_fwhm_outliers(data$FWHM),
@@ -55,6 +65,13 @@ validate_data_quality <- function(data) {
 #' @param iqr_multiplier IQR multiplier (default: 1.5)
 #' @return List with outlier information
 detect_fwhm_outliers <- function(fwhm_vector, iqr_multiplier = 1.5) {
+
+  # Guard: empty input makes pct_outliers = 0/0 = NaN, which would corrupt
+  # the downstream quality_score comparison.
+  if (length(fwhm_vector) == 0) {
+    return(list(indices = integer(0), n_outliers = 0L, pct_outliers = 0,
+                lower_bound = NA_real_, upper_bound = NA_real_))
+  }
 
   Q1 <- quantile(fwhm_vector, 0.25, na.rm = TRUE)
   Q3 <- quantile(fwhm_vector, 0.75, na.rm = TRUE)

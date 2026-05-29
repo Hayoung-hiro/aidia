@@ -137,6 +137,10 @@ plan_optimization <- function(
 
   validate_numeric_range(current_cycle_time, min = 0, param_name = "current_cycle_time")
   validate_numeric_range(target_dppp, min = 0, param_name = "target_dppp")
+  if (target_dppp <= 0) {
+    stop("target_dppp must be greater than 0 (it is the divisor in the required cycle time calculation).",
+         call. = FALSE)
+  }
   validate_numeric_range(target_satisfaction, min = 0, max = 1, param_name = "target_satisfaction")
   validate_numeric_range(load_factor, min = 0, max = 1, param_name = "load_factor")
 
@@ -457,7 +461,9 @@ plan_optimization <- function(
     required_cycle_time_sec = required_cycle_time,
     ms1_time_sec = ms1_time,
     base_ms2_time_sec = ms2_time,
-    max_windows = max_windows
+    max_windows = max_windows,
+    resolution = resolution,
+    analyzer_type = analyzer_type
   )
 
   print_info(sprintf("Base IT: %.1f ms (from instrument config)",
@@ -804,6 +810,8 @@ calculate_cycle_time_internal <- function(n_windows, cycle_mode, ms1_time,
 #' @param ms1_time_sec MS1 scan time in seconds
 #' @param base_ms2_time_sec Base MS2/IT time in seconds (from instrument config)
 #' @param max_windows Instrument spec maximum windows
+#' @param resolution MS2 resolution for accurate scan-time (default 30000)
+#' @param analyzer_type Analyzer type for scan-time (default "orbitrap")
 #'
 #' @return List with IT optimization results
 #' @keywords internal
@@ -812,7 +820,9 @@ optimize_injection_time_internal <- function(n_windows,
                                               required_cycle_time_sec,
                                               ms1_time_sec,
                                               base_ms2_time_sec,
-                                              max_windows) {
+                                              max_windows,
+                                              resolution = 30000,
+                                              analyzer_type = "orbitrap") {
 
   # Initialize results
   requested_windows <- n_windows
@@ -830,7 +840,9 @@ optimize_injection_time_internal <- function(n_windows,
     n_windows = actual_windows,
     cycle_mode = cycle_mode,
     ms1_time = ms1_time_sec,
-    ms2_time = base_ms2_time_sec
+    ms2_time = base_ms2_time_sec,
+    resolution = resolution,
+    analyzer_type = analyzer_type
   )
 
   # Step 3: Calculate slack time (available for IT boost)

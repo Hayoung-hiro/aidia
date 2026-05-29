@@ -10,7 +10,9 @@ optimize_injection_time_internal(
   required_cycle_time_sec,
   ms1_time_sec,
   base_ms2_time_sec,
-  max_windows
+  max_windows,
+  resolution = 30000,
+  analyzer_type = "orbitrap"
 )
 }
 \arguments{
@@ -25,6 +27,10 @@ optimize_injection_time_internal(
 \item{base_ms2_time_sec}{Base MS2/IT time in seconds (from instrument config)}
 
 \item{max_windows}{Instrument spec maximum windows}
+
+\item{resolution}{MS2 resolution for accurate scan-time (default 30000)}
+
+\item{analyzer_type}{Analyzer type for scan-time (default "orbitrap")}
 }
 \value{
 List with IT optimization results

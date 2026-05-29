@@ -49,8 +49,8 @@ calculate_loop_n <- function(windows) {
 
 #' Export Windows to CSV for Instrument Upload
 #'
-#' Creates instrument-ready CSV file with 16-column format (17 for staggered)
-#' compatible with Thermo Orbitrap instruments.
+#' Creates an instrument-ready CSV file in the 8-column Thermo Xcalibur Targeted
+#' Mass List format, compatible with Thermo Orbitrap instruments.
 #'
 #' @param optimized_windows OptimizedWindows object
 #' @param output_file Character, output CSV file path

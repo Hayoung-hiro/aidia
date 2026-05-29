@@ -12,7 +12,8 @@ new_OptimizationPlan(
   recommendation = list(),
   feasibility = list(),
   instrument = list(),
-  parameters = list()
+  parameters = list(),
+  scan_time = list()
 )
 }
 \arguments{
@@ -31,6 +32,8 @@ new_OptimizationPlan(
 \item{instrument}{List with instrument configuration}
 
 \item{parameters}{List with planning parameters}
+
+\item{scan_time}{List with MS2 scan-time breakdown (e.g. t_scan_ms)}
 }
 \value{
 OptimizationPlan S3 object

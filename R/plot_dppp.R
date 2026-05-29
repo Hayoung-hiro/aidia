@@ -170,7 +170,7 @@ plot_dppp_comparison <- function(optimization_plan, validated_data) {
     labs(
       title = "DPPP Distribution: Current vs Recommended Cycle Time",
       subtitle = "Optimization reduces cycle time to improve DPPP achievement",
-      x = "DPPP (Data Points Per Peak)",
+      x = "DPPP (data points per whole peak = 1.7x FWHM)",
       y = "Density",
       caption = "Shaded area shows probability density; dashed line = target DPPP"
     ) +
