@@ -69,9 +69,10 @@ load_diann_data <- function(file_path, rt_min = 0, rt_max = NULL,
   
   if (length(missing_cols) > 0) {
     if ("FWHM" %in% missing_cols) {
-      stop(sprintf("FWHM column not found in DIA-NN output.\n" +
-                  "Please use DIA-NN version 2.2 or later which includes FWHM values in the main report.\n" +
-                  "Missing columns: %s", paste(missing_cols, collapse = ", ")))
+      stop(sprintf(paste0(
+                  "FWHM column not found in DIA-NN output.\n",
+                  "Please use DIA-NN version 2.2 or later which includes FWHM values in the main report.\n",
+                  "Missing columns: %s"), paste(missing_cols, collapse = ", ")))
     } else {
       stop(sprintf("Required columns missing: %s", paste(missing_cols, collapse = ", ")))
     }

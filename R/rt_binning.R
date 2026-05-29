@@ -127,6 +127,12 @@ perform_fixed_rt_binning_internal <- function(precursor_data, rt_bin_width_min) 
   # Get RT range using RT.Apex as single RT reference
   rt_range <- range(precursor_data$RT.Apex, na.rm = TRUE)
 
+  # Guard: a single distinct RT value yields one break point, and cut() needs
+  # at least two boundaries to form a valid interval. Expand by one bin width.
+  if (rt_range[1] == rt_range[2]) {
+    rt_range[2] <- rt_range[1] + rt_bin_width_min
+  }
+
   # Create RT breaks
   rt_breaks <- seq(from = rt_range[1],
                    to = rt_range[2],

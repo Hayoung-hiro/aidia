@@ -56,6 +56,13 @@ validate_data_quality <- function(data) {
 #' @return List with outlier information
 detect_fwhm_outliers <- function(fwhm_vector, iqr_multiplier = 1.5) {
 
+  # Guard: empty input makes pct_outliers = 0/0 = NaN, which would corrupt
+  # the downstream quality_score comparison.
+  if (length(fwhm_vector) == 0) {
+    return(list(indices = integer(0), n_outliers = 0L, pct_outliers = 0,
+                lower_bound = NA_real_, upper_bound = NA_real_))
+  }
+
   Q1 <- quantile(fwhm_vector, 0.25, na.rm = TRUE)
   Q3 <- quantile(fwhm_vector, 0.75, na.rm = TRUE)
   IQR_val <- Q3 - Q1
