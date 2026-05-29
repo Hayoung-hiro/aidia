@@ -79,25 +79,12 @@ ASTRAL_DETECTION_TIME_MS <- 2.5
 #' @keywords internal
 ASTRAL_MIN_CYCLE_TIME_MS <- 5.0  # 1000 / 200 Hz
 
-#' Astral Injection Time to Scan Rate Mapping
-#'
-#' Empirical relationship between max IT and achievable scan rate.
-#' Due to parallel architecture, IT up to 3ms doesn't slow down 200 Hz operation.
-#' Beyond 3ms, IT starts to dominate the cycle time.
-#'
-#' Source: https://proteomicsresource.washington.edu/instruments/astral.php
-#'
-#' @format Named numeric vector (injection_time_ms -> scan_rate_hz)
-#' @keywords internal
-ASTRAL_IT_TO_SCANRATE <- c(
-  "2.5" = 200,   # Maximum speed
-  "3.0" = 200,   # Still at max (parallelized)
-  "3.5" = 187,   # IT starts to dominate
-  "5.0" = 133,   # Moderate IT
-  "10.0" = 67,   # Longer IT for sensitivity
-  "20.0" = 25,   # High sensitivity mode
-  "40.0" = 12.5  # Maximum sensitivity
-)
+# NOTE (v0.4.1+): A static ASTRAL_IT_TO_SCANRATE lookup table was removed here.
+# It was unused dead code AND diverged from the canonical formula at high IT
+# (e.g. it claimed IT=20ms -> 25 Hz, while the formula gives ~45 Hz). Astral
+# IT -> scan-rate is computed in ONE place only: calculate_ms2_scan_time()
+# (analyzer = "astral"), where t_scan = 5 ms for IT <= 3 ms (200 Hz parallel),
+# else IT + buffer. Do NOT reintroduce a parallel lookup table (two sources of truth).
 
 #' Default Orbitrap 240K Transient Time (ms)
 #'

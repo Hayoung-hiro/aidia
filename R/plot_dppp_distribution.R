@@ -103,7 +103,7 @@ plot_dppp_distribution <- function(optimization_plan, validated_data) {
         "Before: %.1f%% satisfied | After: %.1f%% satisfied (target \u2265 %.1f)",
         sat_before, sat_after, target_dppp
       ),
-      x = "Data Points Per Peak (DPPP)",
+      x = "DPPP (data points per whole peak = 1.7x FWHM)",
       y = "Density",
       fill = "Condition",
       color = "Condition"

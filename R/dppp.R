@@ -5,6 +5,19 @@
 # AIDIA optimization pipeline.
 #
 # Key formula: DPPP = (1.7 * FWHM_seconds) / cycle_time_seconds
+#
+# ---------------------------------------------------------------------------
+# TERMINOLOGY (single source of truth - two easily-confused quantities):
+#   * DPPP     = data points across the WHOLE peak (peak width = 1.7 x FWHM = 4 sigma).
+#                This is what AIDIA computes, stores, targets, and plots everywhere.
+#                Read "DPPP" as shorthand for "dppp_wholepeak".
+#   * ppp_fwhm = data points within the FWHM only (common in the literature / DIA-NN).
+#   Conversion: DPPP = 1.7 * ppp_fwhm        (equivalently ppp_fwhm = DPPP / 1.7)
+#   RULE: when a value is FWHM-based, name it explicitly `ppp_fwhm` - never a bare
+#   "PPP" or "DPPP". This one-letter ambiguity has caused real target mix-ups
+#   (e.g. "is it 7 or 10?" is usually just whole-peak vs FWHM). See PEAK_WIDTH_FACTOR
+#   docs and docs/DPPP_INSTRUMENT_OPERATING_POINTS.md for instrument-dependent guidance.
+# ---------------------------------------------------------------------------
 
 
 # =============================================================================
@@ -13,8 +26,39 @@
 
 #' Peak Width Factor for DPPP Calculation
 #'
-#' Chromatographic peak width is approximately 1.7 times the FWHM.
-#' This is a standard constant used in DPPP (Data Points Per Peak) calculations.
+#' ## UNITS - READ THIS BEFORE CHANGING target_dppp
+#' AIDIA's DPPP counts data points across the FULL chromatographic peak, defined as
+#' 1.7 x FWHM (= 4 sigma for a Gaussian, ~95% of peak area). Much of the literature
+#' instead reports PPP-FWHM (points within the FWHM only). They are related by:
+#'
+#'     DPPP (AIDIA, whole-peak) = 1.7 x PPP-FWHM
+#'
+#' Examples: DPPP 7.0 == ~4.1 PPP-FWHM ; PPP-FWHM 5.9 == DPPP ~10 ; PPP-FWHM 3.5 == DPPP ~6.
+#' ALWAYS state which unit you mean - most "is it 7 or 10?" disagreements are just a
+#' whole-peak vs FWHM unit mismatch, NOT a real conflict.
+#'
+#' ## Operating points are INSTRUMENT- and GOAL-dependent (no single universal number)
+#'   - "Sufficient" floor (good precision, ID-friendly): ~3-3.5 PPP-FWHM (= DPPP ~5-6).
+#'       DIA-NN guidance (this tool's input engine; DIA-NN models peaks, so few points
+#'       suffice) and Zeng & Bateman, JASMS 2023;34(6):1136-1144,
+#'       doi:10.1021/jasms.3c00077 (7 whole-peak points -> <1% peak-area error).
+#'   - Orbitrap, MAX quant accuracy: ~6 PPP-FWHM (= DPPP ~10), trading ~20% fewer IDs
+#'       (bioRxiv CQE recommendations, doi:10.1101/2025.09.22.677725).
+#'   - Fast scanners (timsTOF; and Astral, see below): high PPP is NOT needed; force-
+#'       filtering to >=6 PPP-FWHM degrades BOTH ID count and quant efficiency (same CQE).
+#'   - Skyline trapezoidal workflows want more (Pino et al., MCP 2020,
+#'       doi:10.1074/mcp.P119.001913) - a DIFFERENT quant engine, NOT required for DIA-NN.
+#'
+#' Default target_dppp = 7.0 (~4.1 PPP-FWHM) is an ID-friendly balance for sequential
+#' Orbitrap DIA. ID mode (1.5) intentionally trades quant precision for more IDs.
+#'
+#' ## Astral (and other parallel instruments): DPPP does NOT drive the result
+#' Astral scans so fast that DPPP is essentially always satisfied (cycle time <<
+#' required), so AIDIA optimizes these instruments for duty-cycle SYNC instead: window
+#' count is set by calculate_sync_optimal_windows() and DPPP is only verified as an
+#' (easily-met) constraint. See plan_optimization() "Step 5b: Duty Cycle Sync"
+#' (runs when cycle_calculation == "parallel"). For Astral, target_dppp is non-binding
+#' by design - do not tune Astral methods via DPPP; tune via duty cycle.
 #'
 #' @export
 PEAK_WIDTH_FACTOR <- 1.7

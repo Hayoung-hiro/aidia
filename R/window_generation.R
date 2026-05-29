@@ -470,9 +470,22 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
 # Staggered Window Mode (2-Cycle Interleaved + Forbidden Zone)
 # =============================================================================
 
-# Average mass defect of amino acid residues (Da).
-# Peptide precursors cannot exist at multiples of this increment,
-# making these m/z positions ideal for isolation window boundaries.
+# Peptide mass-defect spacing (Da): the average m/z increment between adjacent
+# "peptide-only" mass clusters. Because amino-acid residues share a near-constant
+# mass defect, tryptic peptide monoisotopic masses cluster at predictable m/z and
+# leave empty "forbidden zones" in between - ideal positions for isolation-window
+# boundaries (minimizes precursors split across windows).
+#
+# SOURCE of the value 1.00045475 (established averagine / peptide mass-defect spacing):
+#   - Pino LK, Just SC, MacCoss MJ, Searle BC. "Acquiring and Analyzing Data
+#     Independent Acquisition Proteomics Experiments without Spectrum Libraries."
+#     Mol Cell Proteomics. 2020;19(7):1088-1103. doi:10.1074/mcp.P119.001913
+#     (gas-phase fractionation DIA; defines mass-defect window placement AND the
+#      ">= ~10 points across a chromatographic peak" guideline used for DPPP - see dppp.R)
+#   - Theoretical basis: averagine model (Senko et al., 1995) and averagine-scaling
+#     (Yao et al., Anal Chem 2008, doi:10.1021/ac801096e)
+# DO NOT "simplify" this to 1.0 - the fractional mass defect is precisely what
+# places boundaries inside the peptide-free gaps. Value verified, safe to keep.
 OPTIMAL_INCREMENT <- 1.00045475
 
 #' Calculate Forbidden Zone Edge (Mass Defect)
@@ -482,7 +495,9 @@ OPTIMAL_INCREMENT <- 1.00045475
 #' of amino acids, making them ideal for quadrupole isolation window boundaries.
 #'
 #' @param nominal_mz Nominal m/z value to shift to forbidden zone
-#' @param fz_offset Constant for forbidden zone offset (0.25 standard, 0.18 phospho)
+#' @param fz_offset Forbidden-zone offset in Da (0.25 standard, 0.18 phospho).
+#'   Offset values and the mass-defect window-placement method follow Pino et al.,
+#'   Mol Cell Proteomics 2020, doi:10.1074/mcp.P119.001913 (see OPTIMAL_INCREMENT).
 #'
 #' @return Numeric, forbidden zone edge m/z value
 #' @keywords internal
@@ -580,7 +595,7 @@ generate_staggered_windows_internal <- function(mz_min, mz_max, n_windows,
   mz_range <- mz_max - mz_min
 
   # Use n_windows directly (do NOT recalculate) to guarantee consistent
-  # window count across all RT bins — required for Loop Control N.
+  # window count across all RT bins - required for Loop Control N.
   nominal_width <- mz_range / n_windows
 
   # --- Helper: build one cycle using boundary-array-first architecture ---
