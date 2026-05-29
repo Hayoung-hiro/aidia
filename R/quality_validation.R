@@ -18,6 +18,16 @@
 #' @keywords internal
 validate_data_quality <- function(data) {
 
+  # Guard: with no rows (e.g. all precursors removed by RT/quality filters) every
+  # rate calculation becomes 0/0 = NaN and quality_score is NaN, so the
+  # quality_score >= threshold check is neither a clean pass nor a clean fail.
+  # Fail deterministically instead.
+  if (nrow(data) == 0) {
+    stop("No precursors remain after filtering; cannot assess data quality. ",
+         "Relax the RT range / quality filters or check the input file.",
+         call. = FALSE)
+  }
+
   # Pipeline: Detection -> Validation -> Scoring
   results <- list(
     fwhm_outliers = detect_fwhm_outliers(data$FWHM),
