@@ -8,7 +8,7 @@
 library(dplyr)
 library(tibble)
 
-devtools::load_all("D:/Projects/aidia")
+devtools::load_all(".")
 
 cat("\n")
 cat("==================================================================\n")
@@ -448,6 +448,73 @@ if ("cycle" %in% colnames(windows_staggered)) {
   }
 } else {
   fail("Loop Control: Staggered windows missing 'cycle' column")
+}
+
+# ============================================================================
+# Test 11: Charge-resolved FZ zoom plot
+# ============================================================================
+
+cat("\n--- Test 11: Charge-resolved FZ Zoom ---\n")
+
+library(ggplot2)
+
+# Dense mock so a 5 Da zoom window holds >= 5 precursors per charge state
+set.seed(7)
+n_dense <- 4000
+charge_vec <- sample(c(2L, 3L, 4L), size = n_dense, replace = TRUE,
+                     prob = c(0.6, 0.3, 0.1))
+mock_charge <- tibble(
+  Precursor.Id    = paste0("Precursor_", seq_len(n_dense)),
+  Precursor.Mz    = runif(n_dense, min = 400, max = 1000),
+  RT.Apex         = runif(n_dense, min = 5, max = 60),
+  FWHM            = runif(n_dense, min = 0.08, max = 0.25),
+  Precursor.Charge = charge_vec
+)
+validated_charge <- as_ValidatedData(mock_charge)
+
+plan_charge <- plan_optimization(
+  validated_data = validated_charge,
+  instrument_preset = "astral",
+  target_dppp = 7.0,
+  target_satisfaction = 0.70
+)
+
+result_charge <- optimize_windows(
+  validated_data = validated_charge,
+  optimization_plan = plan_charge,
+  mz_strategy = "greedy",
+  window_mode = "fixed",
+  fz_offset = 0.25
+)
+
+# Helper: count facet panels in a ggplot
+panel_count <- function(p) nrow(ggplot2::ggplot_build(p)$layout$layout)
+
+# 11a: charge present -> faceted (>= 2 panels)
+p_faceted <- plot_fz_zoom(result_charge, validated_charge, fz_offset = 0.25)
+if (inherits(p_faceted, "ggplot") && panel_count(p_faceted) >= 2) {
+  pass(sprintf("Charge present: faceted plot with %d panels", panel_count(p_faceted)))
+} else {
+  fail(sprintf("Charge present: expected >= 2 facet panels, got %d",
+               panel_count(p_faceted)))
+}
+
+# 11b: charge absent -> single panel (fallback, backward compatible)
+mock_nocharge <- mock_charge
+mock_nocharge$Precursor.Charge <- NULL
+validated_nocharge <- as_ValidatedData(mock_nocharge)
+result_nocharge <- optimize_windows(
+  validated_data = validated_nocharge,
+  optimization_plan = plan_charge,
+  mz_strategy = "greedy",
+  window_mode = "fixed",
+  fz_offset = 0.25
+)
+p_single <- plot_fz_zoom(result_nocharge, validated_nocharge, fz_offset = 0.25)
+if (inherits(p_single, "ggplot") && panel_count(p_single) == 1) {
+  pass("Charge absent: single-panel fallback")
+} else {
+  fail(sprintf("Charge absent: expected 1 panel, got %d", panel_count(p_single)))
 }
 
 # ============================================================================

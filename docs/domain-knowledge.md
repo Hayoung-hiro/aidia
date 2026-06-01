@@ -174,9 +174,14 @@ By placing isolation window boundaries at these forbidden zone positions, we:
 
 ### Visualization: `plot_fz_zoom.R` (Plot 14)
 Zoomed KDE density plot (~5 Da range) around a representative window boundary using
-**actual precursor m/z from the input data**. Shows FZ boundary (green solid) sitting
-in a low-density valley vs integer boundary (red dashed) on a high-density peak.
-Caption reports quantitative density comparison at both positions.
+**actual precursor m/z from the input data**. Shows FZ boundary (green solid) vs
+integer boundary (red dashed). When `Precursor.Charge` is present and >= 2 charge
+states each have >= 5 precursors in the zoom range, the plot **facets by charge
+state** (one panel per z), drawing each charge's own periodicity band
+(`OPTIMAL_INCREMENT / z`). This makes explicit that precursors appearing inside the
+z=1 forbidden band are higher-charge signal (z=2 period ~0.5 Da, z=3 ~0.33 Da) on an
+incommensurate grid — not an offset-estimation error. z=2 is the interpretation
+anchor. Falls back to a single combined panel when charge data is absent.
 Only generated when `fz_offset > 0`.
 
 ### Decision: FZ Validation Module — REJECTED (2026-03-09)
