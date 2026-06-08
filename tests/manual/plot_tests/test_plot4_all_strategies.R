@@ -92,7 +92,7 @@ for (i in seq_along(strategies)) {
     optimization_plan = optimization_plan,
     rt_bin_width_min = 5,
     mz_strategy = strategy,
-    window_mode = "variable",
+    window_mode = "density",
     quantile_lower = 0.05,
     quantile_upper = 0.95,
     outlier_threshold = 3.0,

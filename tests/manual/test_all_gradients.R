@@ -44,7 +44,7 @@ for (name in datasets) {
         validated, plan,
         rt_bin_width_min = 5,
         mz_strategy = strategy,
-        window_mode = "variable"
+        window_mode = "density"
       )
       sink()
       cat(sprintf("%s(%d) ", strategy, nrow(windows_list[[strategy]]$windows)))

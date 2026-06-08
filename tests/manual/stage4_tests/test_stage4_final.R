@@ -42,8 +42,8 @@ optimized_windows <- optimize_windows(
   validated_data = validated_data,
   optimization_plan = optimization_plan,
   rt_bin_width_min = 5,
-  mz_strategy = "smoothing",
-  window_mode = "variable"
+  mz_strategy = "quantile",
+  window_mode = "density"
 )
 cat(sprintf("✓ %d windows generated\n", nrow(optimized_windows$windows)))
 

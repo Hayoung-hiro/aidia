@@ -33,7 +33,7 @@ config <- list(
   instrument = "astral",
   rt_bin_width = 5,
   mz_strategy = "quantile",
-  window_mode = "variable"
+  window_mode = "density"
 )
 
 output_dir <- "tests/output/full_pipeline"

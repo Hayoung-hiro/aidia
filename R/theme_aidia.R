@@ -77,6 +77,45 @@ aidia_charge_colors <- c(
   "#4878A8", "#2D9B83", "#D4923A", "#C75B5B", "#7B68AE"
 )
 
+#' Capacity KPI grade colors (gauge fill + center text)
+#'
+#' Dark, high-contrast hexes for the four-way capacity KPI grade scale plus
+#' the NA fallback. Consumed by `plot_capacity_kpis()` (inner ring fill,
+#' center text color) and by the Shiny bottleneck `border-left` style.
+#'
+#' Hybrid color system (see `docs/domain-knowledge.md` "Color system"):
+#' `filled_window_ratio` uses traffic-light Bad / Warn / OK; the three
+#' headroom KPIs use information grades Bad / OK / Info where blue Info
+#' signals available capacity (not a defect).
+#'
+#' Exported because the Shiny app references it from `server_optimization.R`
+#' (bottleneck accent color); under `library(aidia)` non-exported symbols
+#' are unreachable from Shiny module code.
+#'
+#' @export
+aidia_capacity_grade_colors <- c(
+  Bad  = "#C75B5B",
+  Warn = "#D4923A",
+  OK   = "#2D9B83",
+  Info = "#4878A8",
+  "NA" = "#B0BEC5"
+)
+
+#' Capacity KPI zone-band tints (outer-rim reference scale)
+#'
+#' Light tints of [aidia_capacity_grade_colors] used by `plot_capacity_kpis()`
+#' to paint the outer-rim Bad / Warn / OK / Info zone bands. The lighter
+#' tint keeps the reference scale visually subordinate to the current-value
+#' inner ring.
+#'
+#' @keywords internal
+aidia_capacity_zone_tints <- c(
+  Bad  = "#F4D6D6",
+  Warn = "#F4E4C9",
+  OK   = "#C7E8DE",
+  Info = "#C5D6E8"
+)
+
 # Theme Function ------------------------------------------------------------
 
 #' AIDIA ggplot2 theme

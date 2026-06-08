@@ -40,6 +40,16 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
 
   n_bins <- nrow(rt_stats)
 
+  # Staggered already interleaves via a 50% half-width shift between cycles.
+  # Adding overlap margins on top double-applies edge coverage and corrupts the
+  # demultiplexing model (see generate_staggered_windows_internal). Force it off.
+  if (window_mode == "staggered" && overlap_percentage > 0) {
+    warning("Overlap is ignored in staggered mode: the 50% cycle interleave ",
+            "already provides edge coverage, and extra margins break ",
+            "demultiplexing. Setting overlap_percentage = 0.")
+    overlap_percentage <- 0
+  }
+
   # Warn once if overlap and forbidden zone are both active (invariant across bins)
   if (overlap_percentage > 0 && fz_offset > 0 && window_mode != "staggered") {
     warning("Overlap margins conflict with forbidden zone placement. ",
@@ -599,21 +609,25 @@ generate_staggered_windows_internal <- function(mz_min, mz_max, n_windows,
   nominal_width <- mz_range / n_windows
 
   # --- Helper: build one cycle using boundary-array-first architecture ---
-  # Generates N+1 integer boundaries, FZ-transforms, assembles as adjacent pairs.
-  # Continuity is guaranteed by construction (no chaining loop needed).
+  # Generates N+1 integer boundaries, optionally FZ-transforms, assembles as
+  # adjacent pairs. Continuity is guaranteed by construction (no chaining loop).
   build_cycle <- function(start_offset) {
     # Generate N+1 boundary positions with offset
     boundaries <- seq(mz_min + start_offset,
                       mz_min + start_offset + n_windows * nominal_width,
                       length.out = n_windows + 1)
 
-    # Integerize for deterministic FZ transform
+    # Integerize for clean edges (and deterministic FZ transform when active)
     boundaries <- integerize_boundaries(boundaries,
                                         mz_min + start_offset,
                                         mz_min + start_offset + n_windows * nominal_width)
 
-    # Apply forbidden zone transform
-    boundaries <- transform_boundaries_to_fz(boundaries, fz_offset)
+    # Conditionally apply forbidden zone transform — matches fixed/density
+    # generators: fz_offset = 0 leaves clean integer boundaries. The 50% stagger
+    # offset is shared by both cycles, so demultiplexing is preserved either way.
+    if (fz_offset > 0) {
+      boundaries <- transform_boundaries_to_fz(boundaries, fz_offset)
+    }
 
     # Assemble windows from adjacent boundary pairs
     assemble_windows_from_boundaries(boundaries)

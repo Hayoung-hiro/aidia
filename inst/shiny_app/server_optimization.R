@@ -688,6 +688,54 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     plot_temporal_density(eval_result)
   })
 
+  # --- Acquisition Capacity KPIs (v0.4.x) ---------------------------------
+  # Lazy reactive: derives the four "did I use the instrument well?" KPIs
+  # from plan + windows + cached evaluation. Evaluation may be NULL (eval
+  # failed); get_capacity_kpis() handles that by emitting filled_ratio =
+  # NA and the gauge renders a gray "N/A" segment.
+  cached_capacity_kpis <- reactive({
+    req(rv$optimized_windows, rv$optimization_plan)
+    get_capacity_kpis(
+      plan       = rv$optimization_plan,
+      windows    = rv$optimized_windows,
+      evaluation = cached_evaluation()
+    )
+  })
+
+  output$capacity_header <- renderUI({
+    # Mirror cached_capacity_kpis() gating: header should only render
+    # alongside the gauge, never on a stale plan with no current windows.
+    req(rv$optimized_windows, rv$optimization_plan)
+    tags$div(
+      class = "panel-accent",
+      style = "padding: 6px 10px; margin-bottom: 6px; font-weight: 500;",
+      capacity_header_text(rv$optimization_plan)
+    )
+  })
+
+  output$capacity_dashboard <- renderPlot({
+    kpis <- cached_capacity_kpis()
+    plot_capacity_kpis(kpis)
+  }, res = 96, bg = "transparent")
+
+  output$capacity_bottleneck <- renderUI({
+    kpis <- cached_capacity_kpis()
+    msg  <- summarize_bottleneck(kpis)
+    accent_color <- unname(aidia_capacity_grade_colors[["Info"]])
+    tags$div(
+      class = "panel-raised",
+      style = sprintf(paste(
+        "padding: 8px 12px;",
+        "margin-top: 6px;",
+        "font-size: 13px;",
+        "border-left: 3px solid %s;"
+      ), accent_color),
+      icon("lightbulb"),
+      tags$strong(" Bottleneck: "),
+      msg
+    )
+  })
+
   # --- Cached reactives for results summary (avoid redundant extraction) ---
   cached_metrics <- reactive({
     req(rv$optimization_complete, rv$optimization_plan, rv$optimized_windows)

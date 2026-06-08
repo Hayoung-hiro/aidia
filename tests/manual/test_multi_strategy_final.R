@@ -47,7 +47,7 @@ for (strategy in strategies) {
     optimization_plan = plan,
     rt_bin_width_min = 5,
     mz_strategy = strategy,
-    window_mode = "variable"
+    window_mode = "density"
   )
 
   cat(sprintf("✓ %s: %d windows, %.1f%% coverage\n\n",

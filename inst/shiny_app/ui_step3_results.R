@@ -25,6 +25,32 @@ step3_results_ui <- function() {
         valueBoxOutput("summary_box_windows", width = 4)
       ),
 
+      # --- Row 2b: Acquisition Capacity Diagnostics (new in v0.4.x) ---
+      # Information-grade gauges (Bad / Warn / OK / Info) sit below the
+      # absolute-value valueBoxes above. The two color systems are
+      # deliberate: traffic light for absolutes, information grades for
+      # utilization. See docs/domain-knowledge.md "Shiny Step 3 Placement".
+      fluidRow(
+        box(
+          title = "Acquisition Capacity Diagnostics",
+          status = "info",
+          solidHeader = TRUE,
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          uiOutput("capacity_header"),
+          plotOutput("capacity_dashboard", height = "220px"),
+          uiOutput("capacity_bottleneck"),
+          tags$div(
+            class = "text-muted", style = "font-size: 11px; padding: 8px 0;",
+            icon("info-circle"),
+            " Info indicators mean available capacity, not a defect. ",
+            "Parallel instruments (Astral) commonly show large DPPP and ",
+            "cycle headroom because they are sync-bound, not DPPP-bound."
+          )
+        )
+      ),
+
       # --- Row 3: Before/After + m/z Summary (3-column layout) ---
       fluidRow(
         class = "equal-height-row",
