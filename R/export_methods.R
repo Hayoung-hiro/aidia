@@ -59,6 +59,11 @@ calculate_loop_n <- function(windows) {
 #' @param instrument_type Character, instrument type (default: "orbitrap")
 #' @param project_name Character, project name for filename (default: "report")
 #' @param normalized_agc_target Numeric, AGC target percentage (default: 800)
+#' @param charge_state Integer, value for the `z` column (default: 1). DIA wide
+#'   windows isolate by m/z range, so charge is metadata only and does not affect
+#'   acquisition. Default is 1 (the Xcalibur default) because Xcalibur's mass-list
+#'   importer flags `z = 0` as invalid and drops it, forcing manual re-entry.
+#'   Set to 0 to request "ignore charge state" if your importer accepts it.
 #'
 #' @return NULL (invisible), writes CSV file
 #' @export
@@ -67,7 +72,8 @@ export_windows_to_csv <- function(optimized_windows, output_file,
                                   optimization_plan = NULL,
                                   instrument_type = "orbitrap",
                                   project_name = "report",
-                                  normalized_agc_target = 800) {
+                                  normalized_agc_target = 800,
+                                  charge_state = 1L) {
 
   validate_input_type(optimized_windows, "OptimizedWindows", "optimized_windows")
   validate_input_type(validated_data, "ValidatedData", "validated_data")
@@ -90,19 +96,22 @@ export_windows_to_csv <- function(optimized_windows, output_file,
 
     loop_n <- calculate_loop_n(windows_with_counts)
   } else {
-    windows_with_counts$.compound <- ""
+    windows_with_counts$.compound <- as.character(seq_len(nrow(windows_with_counts)))
     loop_n <- NULL
   }
 
   # Create Thermo Xcalibur Targeted Mass List format
   # 8 core columns: Compound, Formula, Adduct, m/z, z, RT Time (min), Window (min), Isolation Window (m/z)
+  # NOTE: Compound is read from the pre-built .compound column (never a bare
+  # `if (is_staggered)` inside mutate() — `is_staggered` is also a data column
+  # on staggered windows, which would shadow the scalar and break the if()).
   method_file <- windows_with_counts %>%
     mutate(
-      Compound = if (is_staggered) .compound else as.character(row_number()),
+      Compound = .compound,
       Formula = "",
       Adduct = "",
       `m/z` = round(mz_center, 4),
-      z = 0,
+      z = charge_state,
       `RT Time (min)` = round((rt_start + rt_end) / 2, 1),
       `Window (min)` = round(rt_end - rt_start, 1),
       `Isolation Window (m/z)` = round(mz_end - mz_start, 4)
