@@ -9,7 +9,9 @@ calc_forbidden_edge(nominal_mz, fz_offset = 0.25)
 \arguments{
 \item{nominal_mz}{Nominal m/z value to shift to forbidden zone}
 
-\item{fz_offset}{Constant for forbidden zone offset (0.25 standard, 0.18 phospho)}
+\item{fz_offset}{Forbidden-zone offset in Da (0.25 standard, 0.18 phospho).
+Offset values and the mass-defect window-placement method follow Pino et al.,
+Mol Cell Proteomics 2020, doi:10.1074/mcp.P119.001913 (see OPTIMAL_INCREMENT).}
 }
 \value{
 Numeric, forbidden zone edge m/z value

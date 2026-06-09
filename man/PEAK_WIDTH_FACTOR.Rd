@@ -11,7 +11,46 @@ An object of class \code{numeric} of length 1.
 PEAK_WIDTH_FACTOR
 }
 \description{
-Chromatographic peak width is approximately 1.7 times the FWHM.
-This is a standard constant used in DPPP (Data Points Per Peak) calculations.
+\subsection{UNITS - READ THIS BEFORE CHANGING target_dppp}{
+
+AIDIA's DPPP counts data points across the FULL chromatographic peak, defined as
+1.7 x FWHM (= 4 sigma for a Gaussian, ~95\% of peak area). Much of the literature
+instead reports PPP-FWHM (points within the FWHM only). They are related by:
+}
+}
+\details{
+\if{html}{\out{<div class="sourceCode">}}\preformatted{DPPP (AIDIA, whole-peak) = 1.7 x PPP-FWHM
+}\if{html}{\out{</div>}}
+
+Examples: DPPP 7.0 == ~4.1 PPP-FWHM ; PPP-FWHM 5.9 == DPPP ~10 ; PPP-FWHM 3.5 == DPPP ~6.
+ALWAYS state which unit you mean - most "is it 7 or 10?" disagreements are just a
+whole-peak vs FWHM unit mismatch, NOT a real conflict.
+\subsection{Operating points are INSTRUMENT- and GOAL-dependent (no single universal number)}{
+\itemize{
+\item "Sufficient" floor (good precision, ID-friendly): ~3-3.5 PPP-FWHM (= DPPP ~5-6).
+DIA-NN guidance (this tool's input engine; DIA-NN models peaks, so few points
+suffice) and Zeng & Bateman, JASMS 2023;34(6):1136-1144,
+doi:10.1021/jasms.3c00077 (7 whole-peak points -> <1\% peak-area error).
+\item Orbitrap, MAX quant accuracy: ~6 PPP-FWHM (= DPPP ~10), trading ~20\% fewer IDs
+(bioRxiv CQE recommendations, doi:10.1101/2025.09.22.677725).
+\item Fast scanners (timsTOF; and Astral, see below): high PPP is NOT needed; force-
+filtering to >=6 PPP-FWHM degrades BOTH ID count and quant efficiency (same CQE).
+\item Skyline trapezoidal workflows want more (Pino et al., MCP 2020,
+doi:10.1074/mcp.P119.001913) - a DIFFERENT quant engine, NOT required for DIA-NN.
+}
+
+Default target_dppp = 7.0 (~4.1 PPP-FWHM) is an ID-friendly balance for sequential
+Orbitrap DIA. ID mode (1.5) intentionally trades quant precision for more IDs.
+}
+
+\subsection{Astral (and other parallel instruments): DPPP does NOT drive the result}{
+
+Astral scans so fast that DPPP is essentially always satisfied (cycle time <<
+required), so AIDIA optimizes these instruments for duty-cycle SYNC instead: window
+count is set by calculate_sync_optimal_windows() and DPPP is only verified as an
+(easily-met) constraint. See plan_optimization() "Step 5b: Duty Cycle Sync"
+(runs when cycle_calculation == "parallel"). For Astral, target_dppp is non-binding
+by design - do not tune Astral methods via DPPP; tune via duty cycle.
+}
 }
 \keyword{datasets}
