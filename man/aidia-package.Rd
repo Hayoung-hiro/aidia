@@ -106,7 +106,7 @@ plan <- plan_optimization(data, config, target_dppp = 7.0)
 windows <- optimize_windows(data, plan, strategy_config = greedy_config())
 
 # Export method file
-export_windows_to_csv(windows, "method.csv", data, plan)
+export_windows_to_csv(windows, "method.csv", data)
 }
 }
 

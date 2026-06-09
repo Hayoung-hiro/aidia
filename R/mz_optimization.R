@@ -65,6 +65,44 @@ optimize_mz_ranges <- function(config, precursor_data, rt_stats,
 
 
 # =============================================================================
+# Shared result-row constructor
+# =============================================================================
+
+#' Build a Single m/z Range Result Row
+#'
+#' Constructs the canonical per-RT-bin result row shared by every strategy
+#' (LOCAL parent, greedy, KDE). Centralizing the schema here means a new result
+#' column is added in ONE place. The optional \code{kde_peak_mz} is appended as
+#' the last column only when supplied (KDE strategy).
+#'
+#' @param i Integer RT bin index.
+#' @param rt_stats Data frame of RT bin statistics (uses \code{rt_start},
+#'   \code{rt_end} at row \code{i}).
+#' @param mz_min,mz_max Numeric m/z bounds for the bin.
+#' @param n_covered Integer precursors covered by \code{[mz_min, mz_max]}.
+#' @param coverage_ratio Numeric coverage fraction (or \code{NA} for empty bins).
+#' @param kde_peak_mz Optional numeric KDE peak m/z (KDE strategy only).
+#'
+#' @return One-row data frame with the standard m/z range columns.
+#' @keywords internal
+make_mz_range_row <- function(i, rt_stats, mz_min, mz_max, n_covered,
+                              coverage_ratio, kde_peak_mz = NULL) {
+  row <- data.frame(
+    rt_segment_id = i,
+    rt_start = rt_stats$rt_start[i],
+    rt_end = rt_stats$rt_end[i],
+    mz_min = mz_min,
+    mz_max = mz_max,
+    mz_width = mz_max - mz_min,
+    n_precursors_covered = n_covered,
+    coverage_ratio = coverage_ratio
+  )
+  if (!is.null(kde_peak_mz)) row$kde_peak_mz <- kde_peak_mz
+  row
+}
+
+
+# =============================================================================
 # LOCAL Strategy: parent method (per-RT-bin iteration)
 # =============================================================================
 
@@ -104,16 +142,8 @@ optimize_mz_ranges.local_strategy_config <- function(config, precursor_data,
 
     if (nrow(bin_data) == 0) {
       # Empty bin - use configured fallback range
-      return(data.frame(
-        rt_segment_id = i,
-        rt_start = rt_stats$rt_start[i],
-        rt_end = rt_stats$rt_end[i],
-        mz_min = mz_range_min,
-        mz_max = mz_range_max,
-        mz_width = mz_range_max - mz_range_min,
-        n_precursors_covered = 0,
-        coverage_ratio = NA
-      ))
+      return(make_mz_range_row(i, rt_stats, mz_range_min, mz_range_max,
+                               n_covered = 0, coverage_ratio = NA))
     }
 
     # Strategy-specific m/z bounds (dispatched on config class)
@@ -123,16 +153,8 @@ optimize_mz_ranges.local_strategy_config <- function(config, precursor_data,
     covered <- sum(mz_values >= bounds$mz_min & mz_values <= bounds$mz_max)
     coverage_ratio <- covered / length(mz_values)
 
-    data.frame(
-      rt_segment_id = i,
-      rt_start = rt_stats$rt_start[i],
-      rt_end = rt_stats$rt_end[i],
-      mz_min = bounds$mz_min,
-      mz_max = bounds$mz_max,
-      mz_width = bounds$mz_max - bounds$mz_min,
-      n_precursors_covered = covered,
-      coverage_ratio = coverage_ratio
-    )
+    make_mz_range_row(i, rt_stats, bounds$mz_min, bounds$mz_max,
+                      n_covered = covered, coverage_ratio = coverage_ratio)
   }
 
   bin_results <- lapply(1:n_bins, process_func)
@@ -331,16 +353,9 @@ optimize_mz_ranges.greedy_config <- function(config, precursor_data, rt_stats,
   # Build result data frame (no smoothing here - that's apply_smoothing's job)
   result_rows <- vector("list", n_bins)
   for (i in 1:n_bins) {
-    result_rows[[i]] <- data.frame(
-      rt_segment_id = i,
-      rt_start = rt_stats$rt_start[i],
-      rt_end = rt_stats$rt_end[i],
-      mz_min = mz_min_raw[i],
-      mz_max = mz_max_raw[i],
-      mz_width = mz_max_raw[i] - mz_min_raw[i],
-      n_precursors_covered = n_precursors_covered[i],
-      coverage_ratio = coverage_ratios[i]
-    )
+    result_rows[[i]] <- make_mz_range_row(
+      i, rt_stats, mz_min_raw[i], mz_max_raw[i],
+      n_covered = n_precursors_covered[i], coverage_ratio = coverage_ratios[i])
   }
 
   mean_coverage <- mean(coverage_ratios, na.rm = TRUE)
@@ -397,17 +412,9 @@ optimize_mz_ranges.kde_config <- function(config, precursor_data, rt_stats,
     bin_data <- precursor_data %>% dplyr::filter(rt_group == i)
 
     if (nrow(bin_data) == 0) {
-      mz_ranges[[i]] <- data.frame(
-        rt_segment_id = i,
-        rt_start = rt_stats$rt_start[i],
-        rt_end = rt_stats$rt_end[i],
-        mz_min = mz_range_min,
-        mz_max = mz_range_max,
-        mz_width = mz_range_max - mz_range_min,
-        n_precursors_covered = 0,
-        coverage_ratio = NA,
-        kde_peak_mz = NA
-      )
+      mz_ranges[[i]] <- make_mz_range_row(
+        i, rt_stats, mz_range_min, mz_range_max,
+        n_covered = 0, coverage_ratio = NA, kde_peak_mz = NA)
       next
     }
 
@@ -491,17 +498,9 @@ optimize_mz_ranges.kde_config <- function(config, precursor_data, rt_stats,
     covered <- sum(mz_values >= mz_min & mz_values <= mz_max)
     coverage_ratio <- covered / n_precursors
 
-    mz_ranges[[i]] <- data.frame(
-      rt_segment_id = i,
-      rt_start = rt_stats$rt_start[i],
-      rt_end = rt_stats$rt_end[i],
-      mz_min = mz_min,
-      mz_max = mz_max,
-      mz_width = mz_max - mz_min,
-      n_precursors_covered = covered,
-      coverage_ratio = coverage_ratio,
-      kde_peak_mz = kde_peak
-    )
+    mz_ranges[[i]] <- make_mz_range_row(
+      i, rt_stats, mz_min, mz_max,
+      n_covered = covered, coverage_ratio = coverage_ratio, kde_peak_mz = kde_peak)
   }
 
   mean_coverage <- mean(sapply(mz_ranges, function(x) x$coverage_ratio), na.rm = TRUE)

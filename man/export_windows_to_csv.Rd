@@ -8,10 +8,6 @@ export_windows_to_csv(
   optimized_windows,
   output_file,
   validated_data,
-  optimization_plan = NULL,
-  instrument_type = "orbitrap",
-  project_name = "report",
-  normalized_agc_target = 800,
   charge_state = 1L
 )
 }
@@ -21,14 +17,6 @@ export_windows_to_csv(
 \item{output_file}{Character, output CSV file path}
 
 \item{validated_data}{ValidatedData object (for N_Precursors calculation)}
-
-\item{optimization_plan}{OptimizationPlan object (optional, for cycle time)}
-
-\item{instrument_type}{Character, instrument type (default: "orbitrap")}
-
-\item{project_name}{Character, project name for filename (default: "report")}
-
-\item{normalized_agc_target}{Numeric, AGC target percentage (default: 800)}
 
 \item{charge_state}{Integer, value for the \code{z} column (default: 1). DIA wide
 windows isolate by m/z range, so charge is metadata only and does not affect

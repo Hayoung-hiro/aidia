@@ -80,7 +80,10 @@ Stage 1: Data Validation
   Input:  DIA-NN parquet/TSV
   Output: ValidatedData (5-6 essential columns)
   Main:   create_validated_dataset()
-  File:   R/data_validation.R
+  File:   R/data_validation.R (orchestrator)
+          R/data_loader.R (parquet/TSV loading + preprocessing)
+          R/column_selection.R (essential column resolution)
+          R/quality_validation.R (QC checks)
 
 Stage 2: Optimization Planning
   Input:  ValidatedData + experiment config
@@ -90,13 +93,15 @@ Stage 2: Optimization Planning
 
 Stage 3: Window Optimization + Export
   Input:  ValidatedData + OptimizationPlan
-  Output: OptimizedWindows + 22-column CSV files
+  Output: OptimizedWindows + 8-column CSV files
   Main:   optimize_windows()  (accepts optional strategy_config)
   File:   R/window_optimization.R (orchestrator)
           R/strategy_config.R (5 strategy constructors)
-          R/mz_optimization.R (5 strategies)
+          R/mz_optimization.R (5 strategies; make_mz_range_row() row constructor)
           R/window_generation.R (3 modes)
-          R/export_methods.R (Thermo CSV)
+          R/window_evaluation.R (in-silico window evaluation)
+          R/capacity_kpis.R (acquisition-capacity KPI derivation)
+          R/export_methods.R (8-column Thermo CSV)
           R/rt_binning.R
           R/window_statistics.R
 
@@ -105,15 +110,18 @@ Stage 4: Visualization (Plots Only)
   Output: Plots + PDF report
   Main:   generate_visualizations()
   File:   R/visualization.R (orchestrator)
-          R/plot_*.R (25 modular plot files, dispatched via PLOT_REGISTRY)
+          R/plot_*.R (27 modular plot files, dispatched via PLOT_REGISTRY)
           R/plot_registry.R (registry + full/minimal report templates)
+          R/theme_aidia.R (shared design system: theme_aidia(), palettes)
+          R/export_plots.R (Stage-4 plot/PDF export)
+          R/export_publication.R (publication-quality figure export)
 ```
 
 **Design Principle**: Stage 3 handles all data export. Stage 4 is visualization-only.
 
 ### Shared Utility Modules
 
-Extracted from the original monolithic `utils_common.R`:
+Cohesive utility modules (most extracted from the original monolithic `utils_common.R`):
 
 | Module | Contents |
 |--------|----------|
@@ -122,7 +130,9 @@ Extracted from the original monolithic `utils_common.R`:
 | `R/validation_helpers.R` | `validate_input_type()`, `validate_numeric_range()`, `validate_positive_integer()` |
 | `R/strategy_config.R` | `greedy_config()`, `quantile_config()`, `coverage_config()`, `outlier_config()`, `kde_config()` |
 | `R/smoothing_utils.R` | `smooth_whittaker()`, `smooth_savgol()`, `smooth_boundaries()` (dispatcher) |
-| `R/bootstrap_boundary.R` | `bootstrap_boundary_ci()`, `compute_mz_boundaries_quiet()` |
+| `R/bootstrap_boundary.R` | `bootstrap_boundary_ci()`, `validate_boundary_ci()`, `compute_mz_boundaries_quiet()` |
+| `R/cycle_time.R` / `R/cycle_time_constants.R` | Scan/cycle-time math + parallel duty-cycle sync; analyzer timing constants & fallback defaults |
+| `R/theme_aidia.R` | `theme_aidia()` + `aidia_colors`/`aidia_strategy_colors`/`aidia_charge_colors` palettes (visualization design system) |
 | `R/utils_common.R` | Progress/UI helpers, stats, data access, timing, output filenames, gradient heuristics |
 
 ### Shared API Layer
@@ -137,7 +147,7 @@ Canonical functions that ALL entry points (main.R, Shiny app) must use:
 | `estimate_cycle_time()` | `R/utils_common.R` | Estimate cycle time from gradient length |
 | `is_orbitrap_instrument()` | `R/instrument_config.R` | Data-driven from JSON `analyzer_type` |
 | `is_astral_instrument()` | `R/instrument_config.R` | Data-driven from JSON `analyzer_type` |
-| `export_windows_to_csv()` | `R/export_methods.R` | Unified 22-column Thermo CSV (z=0) |
+| `export_windows_to_csv()` | `R/export_methods.R` | Unified 8-column Thermo CSV (z=1 default) |
 | `calculate_duty_cycle_sync()` | `R/cycle_time.R` | Duty cycle % and idle times for parallel instruments |
 | `calculate_sync_optimal_windows()` | `R/cycle_time.R` | Sync-optimal window count for parallel instruments |
 | `simple_cycle_time()` | `R/cycle_time.R` | Lightweight cycle time helper (max/+ dispatch by mode) |
@@ -154,7 +164,7 @@ Defined in `R/s3_classes.R`. Each stage produces a typed S3 object:
 ### S3 Object Field Policy
 
 1. **Reuse over create**: Before adding a new field to any S3 object, check if an existing field already serves the same purpose. Avoid duplication across `diagnosis`, `instrument`, `parameters`, etc.
-2. **Validator required**: New fields must be added to the corresponding validator in `R/s3_classes.R` (`validate_OptimizationPlan`, etc.). `create_s3_object()` calls the validator automatically — missing fields cause immediate `stop()`.
+2. **Validator required**: New fields must be added to the corresponding validator in `R/s3_classes.R` (`validate_OptimizationPlan`, etc.). `create_s3_object()` calls the validator automatically — missing fields cause immediate `stop()`. Auxiliary classes built via `structure()` (e.g. `boundary_ci`) co-locate their validator with the constructor and call it before returning.
 3. **No silent fallback for validated fields**: Consumers must not use `%||%` fallback for fields guaranteed by the validator. If the validator checks it, access it directly.
 4. **Contract tests**: `tests/testthat/test_s3_contracts.R` verifies field existence and producer-consumer agreement. Add a test case when adding a new field.
 
@@ -197,7 +207,7 @@ cycle_time <- max(MS1_time, n_windows * MS2_time)
 cycle_time <- MS1_time + (n_windows * MS2_time)
 ```
 
-Resolution-to-transient time conversion is handled by `R/cycle_time.R` with per-instrument lookup tables. Instrument metadata (JSON I/O, classification predicates, width recommendations) lives in `R/instrument_config.R`.
+Resolution-to-transient time conversion is handled by `R/cycle_time.R` with per-instrument lookup tables; analyzer timing constants and fallback defaults live in `R/cycle_time_constants.R`. Instrument metadata (JSON I/O, classification predicates, width recommendations) lives in `R/instrument_config.R`.
 
 ### Strategy Config Objects
 
@@ -257,9 +267,9 @@ Three methods in `R/replicate_utils.R`:
 
 **Geometric CV** for log-normal proteomics data: `sqrt(exp(sigma_log^2) - 1)`
 
-### 22-Column Thermo Method File Export
+### 8-Column Thermo Method File Export
 
-`export_windows_to_csv()` in `R/export_methods.R` produces Xcalibur-compatible CSV with compound template fields, m/z boundaries, RT windows, and acquisition parameters.
+`export_windows_to_csv()` in `R/export_methods.R` produces an Xcalibur-compatible Targeted Mass List CSV with 8 columns: Compound, Formula, Adduct, m/z, z, RT Time (min), Window (min), Isolation Window (m/z). Simplified from the earlier wide format to the columns that import cleanly into Xcalibur.
 
 ---
 

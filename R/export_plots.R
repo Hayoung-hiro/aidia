@@ -173,6 +173,42 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
   }
 }
 
+#' Shared summary-table grob builder
+#'
+#' The three PDF summary pages (.draw_parameter_summary,
+#' .draw_data_quality_summary, .draw_executive_summary) build a tableGrob with
+#' the same ttheme_minimal structure, differing only in palette and font size.
+#' Centralizing keeps table styling in one place.
+#' @keywords internal
+.aidia_summary_table_grob <- function(df,
+                                      core_col = "black",
+                                      core_fontsize = 12,
+                                      colhead_fontsize = 13,
+                                      core_fill = c("white", "gray95"),
+                                      core_border = "gray85",
+                                      colhead_fill = "gray20") {
+  n_r <- nrow(df)
+  gridExtra::tableGrob(
+    df,
+    rows = NULL,
+    theme = gridExtra::ttheme_minimal(
+      core = list(
+        fg_params = list(fontsize = core_fontsize, col = core_col,
+                         hjust = 0, x = 0.05),
+        bg_params = list(
+          fill = rep(core_fill, length.out = n_r),
+          col = core_border, lwd = 0.5
+        )
+      ),
+      colhead = list(
+        fg_params = list(fontsize = colhead_fontsize, col = "white",
+                         fontface = "bold", hjust = 0, x = 0.05),
+        bg_params = list(fill = colhead_fill, col = "white", lwd = 1)
+      )
+    )
+  )
+}
+
 #' Draw Parameter Summary Page
 #' @keywords internal
 .draw_parameter_summary <- function(optimization_plan, optimized_windows, validated_data) {
@@ -236,25 +272,11 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
     stringsAsFactors = FALSE
   )
 
-  table_grob <- gridExtra::tableGrob(
+  table_grob <- .aidia_summary_table_grob(
     param_data,
-    rows = NULL,
-    theme = gridExtra::ttheme_minimal(
-      core = list(
-        fg_params = list(fontsize = 10, col = aidia_colors$primary,
-                          hjust = 0, x = 0.05),
-        bg_params = list(
-          fill = c(rep(c("white", aidia_colors$grid),
-                       length.out = nrow(param_data))),
-          col = aidia_colors$grid, lwd = 0.5
-        )
-      ),
-      colhead = list(
-        fg_params = list(fontsize = 11, col = "white", fontface = "bold",
-                          hjust = 0, x = 0.05),
-        bg_params = list(fill = aidia_colors$primary, col = "white", lwd = 1)
-      )
-    )
+    core_col = aidia_colors$primary, core_fontsize = 10, colhead_fontsize = 11,
+    core_fill = c("white", aidia_colors$grid), core_border = aidia_colors$grid,
+    colhead_fill = aidia_colors$primary
   )
 
   # Position table centered with some padding
@@ -353,27 +375,7 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
     stringsAsFactors = FALSE
   )
 
-  n_r <- nrow(table_data)
-
-  table_grob <- gridExtra::tableGrob(
-    table_data,
-    rows = NULL,
-    theme = gridExtra::ttheme_minimal(
-      core = list(
-        fg_params = list(fontsize = 12, col = "black",
-                          hjust = 0, x = 0.05),
-        bg_params = list(
-          fill = rep(c("white", "gray95"), length.out = n_r),
-          col = "gray85", lwd = 0.5
-        )
-      ),
-      colhead = list(
-        fg_params = list(fontsize = 13, col = "white", fontface = "bold",
-                          hjust = 0, x = 0.05),
-        bg_params = list(fill = "gray20", col = "white", lwd = 1)
-      )
-    )
-  )
+  table_grob <- .aidia_summary_table_grob(table_data)
 
   title_grob <- grid::textGrob(
     "Data Summary",
@@ -733,25 +735,7 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
   fg_colors <- rep("black", n_r)
   fg_colors[n_r] <- if (sat_met) aidia_colors$success else aidia_colors$accent
 
-  table_grob <- gridExtra::tableGrob(
-    table_data,
-    rows = NULL,
-    theme = gridExtra::ttheme_minimal(
-      core = list(
-        fg_params = list(fontsize = 12, col = fg_colors,
-                          hjust = 0, x = 0.05),
-        bg_params = list(
-          fill = rep(c("white", "gray95"), length.out = n_r),
-          col = "gray85", lwd = 0.5
-        )
-      ),
-      colhead = list(
-        fg_params = list(fontsize = 13, col = "white", fontface = "bold",
-                          hjust = 0, x = 0.05),
-        bg_params = list(fill = "gray20", col = "white", lwd = 1)
-      )
-    )
-  )
+  table_grob <- .aidia_summary_table_grob(table_data, core_col = fg_colors)
 
   # Title
   title_grob <- grid::textGrob(

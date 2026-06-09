@@ -8,10 +8,8 @@ export_method_files(
   windows_list,
   output_dir,
   validated_data,
-  optimization_plan = NULL,
   strategies = STRATEGY_PREFERRED_ORDER,
-  instrument_type = "orbitrap",
-  normalized_agc_target = 100
+  instrument_type = "orbitrap"
 )
 }
 \arguments{
@@ -21,13 +19,9 @@ export_method_files(
 
 \item{validated_data}{ValidatedData object from Stage 1}
 
-\item{optimization_plan}{OptimizationPlan object from Stage 2 (optional)}
-
 \item{strategies}{Character vector of strategies to export (default: all 4)}
 
 \item{instrument_type}{Character, instrument type (default: "orbitrap")}
-
-\item{normalized_agc_target}{Numeric, AGC target percentage (default: 100)}
 }
 \value{
 Named list of exported file paths
@@ -39,11 +33,11 @@ Default behavior exports all 5 strategies (greedy, kde, quantile, coverage, outl
 \examples{
 \dontrun{
 # Export all 4 strategies (default)
-method_files <- export_method_files(windows_list, "output/", validated_data, plan)
+method_files <- export_method_files(windows_list, "output/", validated_data)
 
 # Export specific strategies only
 method_files <- export_method_files(
-  windows_list, "output/", validated_data, plan,
+  windows_list, "output/", validated_data,
   strategies = c("greedy", "quantile")
 )
 }

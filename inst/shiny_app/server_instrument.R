@@ -197,6 +197,22 @@ server_instrument <- function(input, output, session, rv) {
     else "No idle time"
   }
 
+  # Shared DPPP-based window-count estimate (sequential fallback).
+  # Consumed by output$auto_windows_info and output$greedy_mz_range_display so
+  # the estimate is computed once and stays consistent. Returns NULL if inputs
+  # are not ready.
+  dppp_window_estimate <- reactive({
+    if (is.null(rv$validated_data)) return(NULL)
+    calc_result <- cycle_time_result()
+    fwhm_median <- rv$median_fwhm_sec
+    if (is.null(calc_result) || is.null(fwhm_median) || is.na(fwhm_median)) {
+      return(NULL)
+    }
+    target_dppp <- input$target_dppp %||% 7.0
+    ms2_time_sec <- calc_result$ms2$scan_time_ms / 1000
+    estimate_window_count_preview(fwhm_median, target_dppp, ms2_time_sec)
+  })
+
   # --- Output: Auto Windows Info (all strategies) ---
   # Shows the recommended window count when Auto mode is selected
   # For parallel instruments: sync-optimal; for sequential: DPPP-based
@@ -224,17 +240,8 @@ server_instrument <- function(input, output, session, rv) {
       ))
     }
 
-    # Sequential: DPPP-based estimate
-    calc_result <- cycle_time_result()
-    dppp_windows <- NULL
-    if (!is.null(rv$validated_data)) {
-      fwhm_median <- rv$median_fwhm_sec
-      if (!is.null(calc_result) && !is.na(fwhm_median)) {
-        target_dppp <- input$target_dppp %||% 7.0
-        ms2_time_sec <- calc_result$ms2$scan_time_ms / 1000
-        dppp_windows <- estimate_window_count_preview(fwhm_median, target_dppp, ms2_time_sec)
-      }
-    }
+    # Sequential: DPPP-based estimate (shared reactive)
+    dppp_windows <- dppp_window_estimate()
 
     if (!is.null(dppp_windows)) {
       tags$div(
@@ -350,15 +357,9 @@ server_instrument <- function(input, output, session, rv) {
       # Priority: optimization plan > estimated > default
       n_windows <- rv$optimization_plan$n_windows_per_bin
 
-      # Estimate if no plan yet
-      if (is.null(n_windows) && !is.null(rv$validated_data)) {
-        calc_result <- cycle_time_result()
-        fwhm_median <- rv$median_fwhm_sec
-        if (!is.null(calc_result) && !is.na(fwhm_median)) {
-          target_dppp <- input$target_dppp %||% 7.0
-          ms2_time_sec <- calc_result$ms2$scan_time_ms / 1000
-          n_windows <- estimate_window_count_preview(fwhm_median, target_dppp, ms2_time_sec)
-        }
+      # Estimate if no plan yet (shared reactive)
+      if (is.null(n_windows)) {
+        n_windows <- dppp_window_estimate()
       }
 
       n_windows <- n_windows %||% 40

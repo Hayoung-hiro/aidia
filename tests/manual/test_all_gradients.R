@@ -58,10 +58,8 @@ for (name in datasets) {
       windows_list = windows_list,
       output_dir = output_dir,
       validated_data = validated,
-      optimization_plan = plan,
       strategies = c("quantile", "coverage", "outlier", "smoothing"),  # All 4 strategies
-      instrument_type = plan$instrument$preset,
-      normalized_agc_target = 100
+      instrument_type = plan$instrument$preset
     )
     sink()
     cat(sprintf("%d exported\n", length(method_files)))

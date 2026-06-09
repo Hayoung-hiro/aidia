@@ -99,7 +99,7 @@ tryCatch({
 
   # 1c: Export CSV → 16 columns
   csv_path <- file.path(tmp_dir, "test_fixed.csv")
-  export_windows_to_csv(res_fixed, csv_path, mock_data, mock_plan)
+  export_windows_to_csv(res_fixed, csv_path, mock_data)
   csv_data <- read.csv(csv_path, check.names = FALSE)
 
   ncols <- ncol(csv_data)
@@ -146,7 +146,7 @@ tryCatch({
 
   # 2c: Export CSV → 16 columns
   csv_path <- file.path(tmp_dir, "test_density.csv")
-  export_windows_to_csv(res_density, csv_path, mock_data, mock_plan)
+  export_windows_to_csv(res_density, csv_path, mock_data)
   csv_data <- read.csv(csv_path, check.names = FALSE)
 
   ncols <- ncol(csv_data)
@@ -211,7 +211,7 @@ tryCatch({
   # 3c: Export CSV → 17 columns (16 base + Cycle)
   csv_path <- file.path(tmp_dir, "test_staggered.csv")
   staggered_csv_output <- capture.output({
-    export_windows_to_csv(res_staggered, csv_path, mock_data, mock_plan)
+    export_windows_to_csv(res_staggered, csv_path, mock_data)
   })
   csv_data <- read.csv(csv_path, check.names = FALSE)
 

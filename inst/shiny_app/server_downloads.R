@@ -124,10 +124,7 @@ server_downloads <- function(input, output, session, rv) {
         export_windows_to_csv(
           optimized_windows = rv$optimized_windows,
           output_file = file,
-          validated_data = rv$validated_data,
-          optimization_plan = rv$optimization_plan,
-          instrument_type = input$instrument,
-          project_name = build_project_name()
+          validated_data = rv$validated_data
         )
       } else if (fmt == "center_mass") {
         export_center_mass_list(
@@ -227,12 +224,22 @@ server_downloads <- function(input, output, session, rv) {
         cat(sprintf("[Shiny] Exporting %s strategy in 3 formats...\n", strategy))
 
         # Export all 3 formats for the selected strategy
-        export_windows_to_csv(rv$optimized_windows, rv$validated_data,
-                              rv$optimization_plan, file.path(batch_dir, "thermo"))
-        export_center_mass_list(rv$optimized_windows, rv$validated_data,
-                                rv$optimization_plan, file.path(batch_dir, "center_mass"))
-        export_mz_range_list(rv$optimized_windows, rv$validated_data,
-                             rv$optimization_plan, file.path(batch_dir, "mz_range"))
+        # (export_windows_to_csv takes (optimized_windows, output_file,
+        #  validated_data); the generic-format writers take only
+        #  (optimized_windows, output_file))
+        export_windows_to_csv(
+          optimized_windows = rv$optimized_windows,
+          output_file = file.path(batch_dir, "thermo.csv"),
+          validated_data = rv$validated_data
+        )
+        export_center_mass_list(
+          optimized_windows = rv$optimized_windows,
+          output_file = file.path(batch_dir, "center_mass.csv")
+        )
+        export_mz_range_list(
+          optimized_windows = rv$optimized_windows,
+          output_file = file.path(batch_dir, "mz_range.csv")
+        )
 
         # ZIP the output directory
         old_wd <- setwd(batch_dir)

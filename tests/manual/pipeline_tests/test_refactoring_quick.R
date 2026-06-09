@@ -108,11 +108,7 @@ output_path <- file.path(output_dir, output_filename)
 export_windows_to_csv(
   optimized_windows = windows_result,
   output_file = output_path,
-  validated_data = validated_data,
-  optimization_plan = optimization_plan,
-  instrument_type = instrument_preset,
-  project_name = "30min",
-  normalized_agc_target = 800
+  validated_data = validated_data
 )
 cat(sprintf("✅ CSV exported: %s\n", output_path))
 

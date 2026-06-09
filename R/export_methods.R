@@ -55,10 +55,6 @@ calculate_loop_n <- function(windows) {
 #' @param optimized_windows OptimizedWindows object
 #' @param output_file Character, output CSV file path
 #' @param validated_data ValidatedData object (for N_Precursors calculation)
-#' @param optimization_plan OptimizationPlan object (optional, for cycle time)
-#' @param instrument_type Character, instrument type (default: "orbitrap")
-#' @param project_name Character, project name for filename (default: "report")
-#' @param normalized_agc_target Numeric, AGC target percentage (default: 800)
 #' @param charge_state Integer, value for the `z` column (default: 1). DIA wide
 #'   windows isolate by m/z range, so charge is metadata only and does not affect
 #'   acquisition. Default is 1 (the Xcalibur default) because Xcalibur's mass-list
@@ -69,10 +65,6 @@ calculate_loop_n <- function(windows) {
 #' @export
 export_windows_to_csv <- function(optimized_windows, output_file,
                                   validated_data,
-                                  optimization_plan = NULL,
-                                  instrument_type = "orbitrap",
-                                  project_name = "report",
-                                  normalized_agc_target = 800,
                                   charge_state = 1L) {
 
   validate_input_type(optimized_windows, "OptimizedWindows", "optimized_windows")
@@ -206,7 +198,6 @@ export_mz_range_list <- function(optimized_windows, output_file) {
 #'
 #' @param windows_list Named list of OptimizedWindows objects
 #' @param validated_data ValidatedData object
-#' @param optimization_plan OptimizationPlan object
 #' @param output_dir Character, output directory path
 #' @param formats Character vector, export formats (default: all 3)
 #' @param include_comparison Logical, include comparison.csv (default: TRUE)
@@ -215,7 +206,6 @@ export_mz_range_list <- function(optimized_windows, output_file) {
 #' @export
 export_batch_comparison <- function(windows_list,
                                     validated_data,
-                                    optimization_plan = NULL,
                                     output_dir,
                                     formats = c("thermo", "center_mass", "mz_range"),
                                     include_comparison = TRUE) {
@@ -258,8 +248,7 @@ export_batch_comparison <- function(windows_list,
       export_windows_to_csv(
         optimized_windows = opt_win,
         output_file = file.path(subdirs$thermo, paste0(file_stem, "_thermo.csv")),
-        validated_data = validated_data,
-        optimization_plan = optimization_plan
+        validated_data = validated_data
       )
     }
     if ("center_mass" %in% formats) {
@@ -330,21 +319,19 @@ export_batch_comparison <- function(windows_list,
 #' @param windows_list Named list of OptimizedWindows objects from different strategies
 #' @param output_dir Character, output directory path
 #' @param validated_data ValidatedData object from Stage 1
-#' @param optimization_plan OptimizationPlan object from Stage 2 (optional)
 #' @param strategies Character vector of strategies to export (default: all 4)
 #' @param instrument_type Character, instrument type (default: "orbitrap")
-#' @param normalized_agc_target Numeric, AGC target percentage (default: 100)
 #'
 #' @return Named list of exported file paths
 #'
 #' @examples
 #' \dontrun{
 #' # Export all 4 strategies (default)
-#' method_files <- export_method_files(windows_list, "output/", validated_data, plan)
+#' method_files <- export_method_files(windows_list, "output/", validated_data)
 #'
 #' # Export specific strategies only
 #' method_files <- export_method_files(
-#'   windows_list, "output/", validated_data, plan,
+#'   windows_list, "output/", validated_data,
 #'   strategies = c("greedy", "quantile")
 #' )
 #' }
@@ -353,10 +340,8 @@ export_batch_comparison <- function(windows_list,
 export_method_files <- function(windows_list,
                                 output_dir,
                                 validated_data,
-                                optimization_plan = NULL,
                                 strategies = STRATEGY_PREFERRED_ORDER,
-                                instrument_type = "orbitrap",
-                                normalized_agc_target = 100) {
+                                instrument_type = "orbitrap") {
 
   # Validate inputs
   if (!is.list(windows_list)) {
@@ -418,10 +403,7 @@ export_method_files <- function(windows_list,
     export_windows_to_csv(
       optimized_windows = windows_list[[strategy]],
       output_file = output_file,
-      validated_data = validated_data,
-      optimization_plan = optimization_plan,
-      instrument_type = instrument_type,
-      normalized_agc_target = normalized_agc_target
+      validated_data = validated_data
     )
 
     method_files[[strategy]] <- output_file

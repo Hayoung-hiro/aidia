@@ -155,10 +155,7 @@ if (is.null(opt_result)) {
     export_windows_to_csv(
       optimized_windows = opt_result,
       output_file       = csv_path,
-      validated_data    = validated_data,
-      optimization_plan = plan,
-      instrument_type   = "orbitrap",
-      project_name      = "staggered_test"
+      validated_data    = validated_data
     )
     TRUE
   }, error = function(e) {

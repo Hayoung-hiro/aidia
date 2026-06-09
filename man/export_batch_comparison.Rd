@@ -7,7 +7,6 @@
 export_batch_comparison(
   windows_list,
   validated_data,
-  optimization_plan = NULL,
   output_dir,
   formats = c("thermo", "center_mass", "mz_range"),
   include_comparison = TRUE
@@ -17,8 +16,6 @@ export_batch_comparison(
 \item{windows_list}{Named list of OptimizedWindows objects}
 
 \item{validated_data}{ValidatedData object}
-
-\item{optimization_plan}{OptimizationPlan object}
 
 \item{output_dir}{Character, output directory path}
 

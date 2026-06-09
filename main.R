@@ -246,9 +246,7 @@ run_complete_pipeline <- function(
       export_windows_to_csv(
         optimized_windows = windows_result,
         output_file = method_path,
-        validated_data = validated_data,
-        optimization_plan = optimization_plan,
-        instrument_type = instrument_preset
+        validated_data = validated_data
       )
 
       if (verbose) {

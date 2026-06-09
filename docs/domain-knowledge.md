@@ -475,13 +475,12 @@ All formats include RT columns because AIDIA generates RT-dependent windows.
 
 **Format A: Thermo Targeted Mass List** (existing — `export_windows_to_csv()`)
 ```
-Compound, Formula, Adduct, m/z, z, t start (min), t stop (min),
-Isolation Window (m/z), Normalized AGC Target (%),
-Start (m/z), End (m/z), Window_ID, RT_Segment_ID, RT_Center, RT_Width,
-N_Precursors, [Cycle]
+Compound, Formula, Adduct, m/z, z, RT Time (min), Window (min),
+Isolation Window (m/z)
 ```
-- 16-17 columns, Xcalibur import compatible
-- AIDIA metadata columns (12-17) are ignored by instrument
+- 8 columns, Xcalibur import compatible
+- Simplified (v0.4.x) to the columns that import cleanly into Xcalibur;
+  earlier AIDIA metadata + acquisition-parameter columns were removed
 
 **Format B: Center Mass List** (new — `export_center_mass_list()`)
 ```

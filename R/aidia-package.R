@@ -95,7 +95,7 @@ utils::globalVariables(c(
 #' windows <- optimize_windows(data, plan, strategy_config = greedy_config())
 #'
 #' # Export method file
-#' export_windows_to_csv(windows, "method.csv", data, plan)
+#' export_windows_to_csv(windows, "method.csv", data)
 #' }
 #'
 #' @import dplyr

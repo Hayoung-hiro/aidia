@@ -211,7 +211,51 @@ bootstrap_boundary_ci <- function(validated_data,
     class = c("boundary_ci", "list")
   )
 
+  validate_boundary_ci(result)
   return(result)
+}
+
+
+# =============================================================================
+# Validator
+# =============================================================================
+
+#' Validate a boundary_ci Object
+#'
+#' Checks structural integrity of a \code{boundary_ci} object (the result of
+#' \code{\link{bootstrap_boundary_ci}}). Mirrors the validator pattern used for
+#' the core pipeline S3 classes in \code{R/s3_classes.R}. \code{boundary_ci} is
+#' an auxiliary (non-pipeline) class built via \code{structure()}, so its
+#' validator is co-located here rather than in \code{s3_classes.R}.
+#'
+#' @param x Object to validate.
+#' @return Invisibly returns \code{x} if valid; otherwise \code{stop()}s.
+#' @keywords internal
+validate_boundary_ci <- function(x) {
+  if (!inherits(x, "boundary_ci")) {
+    stop("Object must be of class 'boundary_ci'", call. = FALSE)
+  }
+
+  required_fields <- c("ci_data", "boot_matrix_min", "boot_matrix_max",
+                       "observed", "params")
+  missing_fields <- setdiff(required_fields, names(x))
+  if (length(missing_fields) > 0) {
+    stop(sprintf("boundary_ci missing required fields: %s",
+                 paste(missing_fields, collapse = ", ")), call. = FALSE)
+  }
+
+  if (!is.data.frame(x$ci_data)) {
+    stop("boundary_ci$ci_data must be a data frame", call. = FALSE)
+  }
+
+  required_params <- c("strategy", "n_boot", "ci_level")
+  missing_params <- setdiff(required_params, names(x$params))
+  if (length(missing_params) > 0) {
+    stop(sprintf("boundary_ci$params missing: %s",
+                 paste(missing_params, collapse = ", ")), call. = FALSE)
+  }
+
+  invisible(x)
 }
 
 

@@ -31,7 +31,7 @@ AIDIA aids researchers in optimizing DIA isolation windows through intelligent, 
 - 🎯 **5 Optimization Strategies**: Greedy, KDE, Quantile, Coverage, Outlier (S3-dispatched; add a new strategy with one constructor + one method)
 - 📊 **3 Window Modes**: Density (variable), Fixed, Staggered
 - 🔧 **Verified Instruments**: Astral, Exploris, Q Exactive, Eclipse, Fusion Lumos (Thermo Orbitrap)
-- 📁 **3 Method Export Formats**: Thermo 22-column CSV, Center Mass list, m/z Range list
+- 📁 **3 Method Export Formats**: Thermo 8-column CSV, Center Mass list, m/z Range list
 - 📐 **Publication-Quality Figure Export**: 6 journal presets (JPR, MCP, Anal Chem, Nature Methods, Proteomics, JASMS) with column-width and font sizing, multi-panel assembly via patchwork
 - 🧬 **Technical Replicate Handling**: Consensus-based with geometric CV filtering
 - ⚡ **Duty Cycle Sync**: Sync-optimal window count for parallel instruments (Astral)
@@ -71,8 +71,8 @@ windows <- optimize_windows(validated, plan,
                             rt_bin_width_min = 5,
                             window_mode = "density")
 
-# Export method file (Thermo Xcalibur 22-column CSV)
-export_windows_to_csv(windows, "output/method.csv", validated, plan)
+# Export method file (Thermo Xcalibur 8-column CSV)
+export_windows_to_csv(windows, "output/method.csv", validated)
 
 # Full report (44 plots + multi-page PDF, default)
 viz <- generate_visualizations(validated, plan, windows, output_dir = "output/")
@@ -190,7 +190,7 @@ Step 3 ("Results") exposes a **"PDF scope"** radio next to the download button:
 
 | Format | Function | Use |
 |--------|----------|-----|
-| **Thermo 22-column CSV** | `export_windows_to_csv()` | Direct import into Xcalibur (Compound, m/z, z, t start/stop, Isolation Window, AGC Target, m/z boundaries, Window_ID, RT_Segment_ID, Recommended_Cycle_Time_Sec) |
+| **Thermo 8-column CSV** | `export_windows_to_csv()` | Direct import into Xcalibur (Compound, Formula, Adduct, m/z, z, RT Time (min), Window (min), Isolation Window (m/z)) |
 | **Center Mass list** | `export_center_mass_list()` | Plain m/z centroid list per RT bin |
 | **m/z Range list** | `export_mz_range_list()` | Boundary-pair list per RT bin |
 | **Batch comparison ZIP** | `export_batch_comparison()` | All 5 strategies × 3 formats + comparison.csv |
