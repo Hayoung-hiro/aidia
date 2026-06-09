@@ -11,7 +11,8 @@ export_windows_to_csv(
   optimization_plan = NULL,
   instrument_type = "orbitrap",
   project_name = "report",
-  normalized_agc_target = 800
+  normalized_agc_target = 800,
+  charge_state = 1L
 )
 }
 \arguments{
@@ -28,11 +29,17 @@ export_windows_to_csv(
 \item{project_name}{Character, project name for filename (default: "report")}
 
 \item{normalized_agc_target}{Numeric, AGC target percentage (default: 800)}
+
+\item{charge_state}{Integer, value for the \code{z} column (default: 1). DIA wide
+windows isolate by m/z range, so charge is metadata only and does not affect
+acquisition. Default is 1 (the Xcalibur default) because Xcalibur's mass-list
+importer flags \code{z = 0} as invalid and drops it, forcing manual re-entry.
+Set to 0 to request "ignore charge state" if your importer accepts it.}
 }
 \value{
 NULL (invisible), writes CSV file
 }
 \description{
-Creates instrument-ready CSV file with 16-column format (17 for staggered)
-compatible with Thermo Orbitrap instruments.
+Creates an instrument-ready CSV file in the 8-column Thermo Xcalibur Targeted
+Mass List format, compatible with Thermo Orbitrap instruments.
 }
