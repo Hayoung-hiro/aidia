@@ -188,6 +188,14 @@ plot_cumulative_window_count <- function(optimized_windows,
   rt_bins_filtered <- rt_bins %>%
     filter(rt_segment_id %in% selected_segments)
 
+  # Common x-axis range across all displayed panels so that equal-Da windows
+  # render at equal visual size from panel to panel. For GLOBAL strategies
+  # (greedy/kde) every segment already shares the same m/z range, so this is a
+  # no-op; for LOCAL strategies (quantile/coverage/outlier) per-bin m/z ranges
+  # differ and a free per-panel scale would otherwise distort cross-panel size.
+  global_mz_min <- min(windows_filtered$mz_start)
+  global_mz_max <- max(windows_filtered$mz_end)
+
   # Create plot list
   plot_list <- list()
 
@@ -244,7 +252,7 @@ plot_cumulative_window_count <- function(optimized_windows,
         alpha = 0.8
       ) +
       scale_x_continuous(
-        limits = c(mz_min, mz_max),
+        limits = c(global_mz_min, global_mz_max),
         expand = expansion(mult = c(0.02, 0.02))
       ) +
       scale_y_continuous(
