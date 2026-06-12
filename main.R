@@ -25,6 +25,8 @@ library(aidia)
 #' @param mz_strategies Vector of m/z strategies (default: all 5)
 #' @param window_mode Window generation mode (default: "density")
 #' @param rt_bin_width_min RT bin width in minutes (default: 5)
+#' @param acquisition_start_min Run start in minutes (default: 0). First segment's t start in the exported method.
+#' @param acquisition_end_min LC method total length in minutes (default: NULL). Last segment's t stop; NULL warns and uses the last measured rt_end.
 #' @param edge_void_buffer_min Void volume buffer in minutes (default: 0.5). Extends first RT bin start.
 #' @param edge_wash_min_precursors Wash region merge threshold (default: 30). Merges last bin if sparse.
 #' @param width_grid_step Grid step for width digitization in Da (default: 0.5). Set to NULL or 0 to disable.
@@ -45,6 +47,8 @@ run_complete_pipeline <- function(
   window_mode = "density",
   rt_bin_width_min = 5,
   rt_binning_mode = "fixed",
+  acquisition_start_min = 0,
+  acquisition_end_min = NULL,
   edge_void_buffer_min = 0.5,
   edge_wash_min_precursors = 30,
   width_grid_step = 0.5,
@@ -246,7 +250,9 @@ run_complete_pipeline <- function(
       export_windows_to_csv(
         optimized_windows = windows_result,
         output_file = method_path,
-        validated_data = validated_data
+        validated_data = validated_data,
+        acquisition_start_min = acquisition_start_min,
+        acquisition_end_min = acquisition_end_min
       )
 
       if (verbose) {
