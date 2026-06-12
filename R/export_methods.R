@@ -44,6 +44,85 @@ calculate_loop_n <- function(windows) {
 
 
 # =============================================================================
+# Contiguous RT Schedule (segment-midpoint boundaries)
+# =============================================================================
+
+#' Build a gap-free RT schedule from segment midpoints
+#'
+#' Derives a contiguous boundary array `B` (length k+1 for k RT segments) so the
+#' exported method tiles `[acquisition_start_min, acquisition_end_min]` with no
+#' gap, overlap, or void. Interior boundaries are the midpoint of adjacent
+#' segments' `rt_end`/`rt_start`; the whole array is rounded once (2 decimals) so
+#' adjacent segments share an identical boundary at any precision. Reads only
+#' `windows$rt_start`/`rt_end` and the segments' sort order — no dependence on
+#' `rt_group` contiguity, so it is robust to empty/sparse interior bins.
+#'
+#' @param windows Data frame with numeric `rt_start`, `rt_end` columns.
+#' @param acquisition_start_min Numeric, run start (first segment `t start`).
+#' @param acquisition_end_min Numeric or NULL. Run end (last segment `t stop`).
+#'   NULL leaves the trailing void open: warns and falls back to the last
+#'   segment's `rt_end`.
+#'
+#' @return List with `breaks` (length k+1), `segments` (distinct sorted
+#'   rt_start/rt_end), and `t_start`/`t_stop` vectors aligned to `windows` rows.
+#' @keywords internal
+#' @noRd
+.compute_contiguous_rt_schedule <- function(windows,
+                                            acquisition_start_min = 0,
+                                            acquisition_end_min = NULL) {
+  segs <- windows %>%
+    distinct(rt_start, rt_end) %>%
+    arrange(rt_start)
+  k <- nrow(segs)
+
+  if (is.null(acquisition_end_min)) {
+    warning(sprintf(
+      "acquisition_end_min not supplied; trailing void left open. Using last segment rt_end (%.2f min) as run end.",
+      segs$rt_end[k]), call. = FALSE)
+    acquisition_end_min <- segs$rt_end[k]
+  }
+  if (acquisition_end_min < segs$rt_end[k]) {
+    stop(sprintf(
+      "acquisition_end_min (%.2f) is before the last segment end (%.2f); cannot end the run before acquired data.",
+      acquisition_end_min, segs$rt_end[k]), call. = FALSE)
+  }
+  if (acquisition_start_min > segs$rt_start[1]) {
+    warning(sprintf(
+      "acquisition_start_min (%.2f) is after the first segment start (%.2f); leading data will be clipped.",
+      acquisition_start_min, segs$rt_start[1]), call. = FALSE)
+  }
+
+  B <- numeric(k + 1)
+  B[1] <- acquisition_start_min
+  B[k + 1] <- acquisition_end_min
+  if (k >= 2) {
+    for (j in seq_len(k - 1)) {
+      B[j + 1] <- (segs$rt_end[j] + segs$rt_start[j + 1]) / 2
+    }
+  }
+  B <- round(B, 2)
+
+  if (!all(diff(B) > 0)) {
+    stop(sprintf(
+      "Contiguous RT boundaries are not strictly increasing after rounding (segments too close): %s",
+      paste(B, collapse = ", ")), call. = FALSE)
+  }
+
+  # Map each window row to its segment index, then to [B[j], B[j+1]].
+  seg_key <- paste(segs$rt_start, segs$rt_end)
+  win_key <- paste(windows$rt_start, windows$rt_end)
+  seg_idx <- match(win_key, seg_key)
+
+  list(
+    breaks   = B,
+    segments = segs,
+    t_start  = B[seg_idx],
+    t_stop   = B[seg_idx + 1L]
+  )
+}
+
+
+# =============================================================================
 # Single Strategy CSV Export
 # =============================================================================
 
