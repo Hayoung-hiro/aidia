@@ -269,7 +269,7 @@ Three methods in `R/replicate_utils.R`:
 
 ### 8-Column Thermo Method File Export
 
-`export_windows_to_csv()` in `R/export_methods.R` produces an Xcalibur-compatible Targeted Mass List CSV with 8 columns: Compound, Formula, Adduct, m/z, z, RT Time (min), Window (min), Isolation Window (m/z). Simplified from the earlier wide format to the columns that import cleanly into Xcalibur.
+`export_windows_to_csv()` in `R/export_methods.R` produces an Xcalibur-compatible Targeted Mass List CSV with 8 columns: Compound, Formula, Adduct, m/z, z, t start (min), t stop (min), Isolation Window (m/z). The RT schedule is a **contiguous tiling** of `[acquisition_start_min, acquisition_end_min]`: segment boundaries are the midpoint of adjacent segments' measured RT spans, rounded once, so there are zero gaps/overlaps/voids (no MS1-only dead zones). `Adduct` is `(no adduct)`. Pass `acquisition_end_min` (LC method length) to close the trailing void.
 
 ---
 
