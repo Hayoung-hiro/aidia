@@ -8,7 +8,9 @@ export_windows_to_csv(
   optimized_windows,
   output_file,
   validated_data,
-  charge_state = 1L
+  charge_state = 1L,
+  acquisition_start_min = 0,
+  acquisition_end_min = NULL
 )
 }
 \arguments{
@@ -23,6 +25,13 @@ windows isolate by m/z range, so charge is metadata only and does not affect
 acquisition. Default is 1 (the Xcalibur default) because Xcalibur's mass-list
 importer flags \code{z = 0} as invalid and drops it, forcing manual re-entry.
 Set to 0 to request "ignore charge state" if your importer accepts it.}
+
+\item{acquisition_start_min}{Numeric, run start in minutes (default: 0). Sets
+the first segment's \verb{t start}, closing the leading MS1-only void.}
+
+\item{acquisition_end_min}{Numeric or NULL (default: NULL). LC method total
+length in minutes; sets the last segment's \verb{t stop}, closing the trailing
+void. NULL warns and falls back to the last segment's measured \code{rt_end}.}
 }
 \value{
 NULL (invisible), writes CSV file

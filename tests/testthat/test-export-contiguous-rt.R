@@ -37,3 +37,63 @@ test_that(".compute_contiguous_rt_schedule tiles segments via midpoints", {
   expect_equal(sched$t_start, rep(c(0, 19, 29), each = 2))
   expect_equal(sched$t_stop,  rep(c(19, 29, 50), each = 2))
 })
+
+# --- ValidatedData stub for export-level tests --------------------------------
+
+make_vd_stub <- function(n = 200) {
+  prec <- data.frame(
+    Precursor.Mz = seq(400, 500, length.out = n),
+    RT.Apex      = seq(10, 40, length.out = n)
+  )
+  structure(list(data = prec), class = "ValidatedData")
+}
+
+make_ow_3seg <- function() {
+  structure(list(windows = make_win_3seg(), parameters = list()),
+            class = "OptimizedWindows")
+}
+
+# --- export-level format + continuity -----------------------------------------
+
+test_that("export writes t start/t stop columns that tile contiguously", {
+  ow <- make_ow_3seg(); vd <- make_vd_stub()
+  out <- tempfile(fileext = ".csv")
+
+  export_windows_to_csv(ow, out, vd, acquisition_end_min = 50)
+  df <- utils::read.csv(out, check.names = FALSE)
+
+  expect_equal(
+    colnames(df),
+    c("Compound", "Formula", "Adduct", "m/z", "z",
+      "t start (min)", "t stop (min)", "Isolation Window (m/z)")
+  )
+
+  ts <- df[["t start (min)"]]; te <- df[["t stop (min)"]]
+  expect_equal(unique(ts), c(0, 19, 29))
+  expect_equal(unique(te), c(19, 29, 50))
+  expect_equal(min(ts), 0)        # first start == acquisition start
+  expect_equal(max(te), 50)       # last stop  == acquisition end
+  expect_true(all(ts == round(ts, 2)))   # 2-decimal fidelity
+  expect_true(all(te == round(te, 2)))
+})
+
+test_that("export sets Adduct to '(no adduct)'", {
+  ow <- make_ow_3seg(); vd <- make_vd_stub()
+  out <- tempfile(fileext = ".csv")
+  export_windows_to_csv(ow, out, vd, acquisition_end_min = 50)
+  df <- utils::read.csv(out, check.names = FALSE)
+  expect_true(all(df$Adduct == "(no adduct)"))
+})
+
+test_that("CSV header matches mass_list_example.csv exactly", {
+  example_path <- testthat::test_path("..", "..", "mass_list_example.csv")
+  skip_if_not(file.exists(example_path), "mass_list_example.csv not present")
+  expected_header <- strsplit(readLines(example_path, n = 1), ",")[[1]]
+
+  ow <- make_ow_3seg(); vd <- make_vd_stub()
+  out <- tempfile(fileext = ".csv")
+  export_windows_to_csv(ow, out, vd, acquisition_end_min = 50)
+  actual_header <- strsplit(readLines(out, n = 1), ",")[[1]]
+
+  expect_equal(actual_header, expected_header)
+})

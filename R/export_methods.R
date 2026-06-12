@@ -139,12 +139,19 @@ calculate_loop_n <- function(windows) {
 #'   acquisition. Default is 1 (the Xcalibur default) because Xcalibur's mass-list
 #'   importer flags `z = 0` as invalid and drops it, forcing manual re-entry.
 #'   Set to 0 to request "ignore charge state" if your importer accepts it.
+#' @param acquisition_start_min Numeric, run start in minutes (default: 0). Sets
+#'   the first segment's `t start`, closing the leading MS1-only void.
+#' @param acquisition_end_min Numeric or NULL (default: NULL). LC method total
+#'   length in minutes; sets the last segment's `t stop`, closing the trailing
+#'   void. NULL warns and falls back to the last segment's measured `rt_end`.
 #'
 #' @return NULL (invisible), writes CSV file
 #' @export
 export_windows_to_csv <- function(optimized_windows, output_file,
                                   validated_data,
-                                  charge_state = 1L) {
+                                  charge_state = 1L,
+                                  acquisition_start_min = 0,
+                                  acquisition_end_min = NULL) {
 
   validate_input_type(optimized_windows, "OptimizedWindows", "optimized_windows")
   validate_input_type(validated_data, "ValidatedData", "validated_data")
@@ -171,8 +178,15 @@ export_windows_to_csv <- function(optimized_windows, output_file,
     loop_n <- NULL
   }
 
+  # Contiguous RT schedule: gap-free tiling of the acquisition window.
+  rt_schedule <- .compute_contiguous_rt_schedule(
+    windows_with_counts,
+    acquisition_start_min = acquisition_start_min,
+    acquisition_end_min   = acquisition_end_min
+  )
+
   # Create Thermo Xcalibur Targeted Mass List format
-  # 8 core columns: Compound, Formula, Adduct, m/z, z, RT Time (min), Window (min), Isolation Window (m/z)
+  # 8 core columns: Compound, Formula, Adduct, m/z, z, t start (min), t stop (min), Isolation Window (m/z)
   # NOTE: Compound is read from the pre-built .compound column (never a bare
   # `if (is_staggered)` inside mutate() — `is_staggered` is also a data column
   # on staggered windows, which would shadow the scalar and break the if()).
@@ -180,16 +194,16 @@ export_windows_to_csv <- function(optimized_windows, output_file,
     mutate(
       Compound = .compound,
       Formula = "",
-      Adduct = "",
+      Adduct = "(no adduct)",
       `m/z` = round(mz_center, 4),
       z = charge_state,
-      `RT Time (min)` = round((rt_start + rt_end) / 2, 1),
-      `Window (min)` = round(rt_end - rt_start, 1),
+      `t start (min)` = rt_schedule$t_start,
+      `t stop (min)`  = rt_schedule$t_stop,
       `Isolation Window (m/z)` = round(mz_end - mz_start, 4)
     )
 
   base_cols <- c("Compound", "Formula", "Adduct", "m/z", "z",
-                 "RT Time (min)", "Window (min)", "Isolation Window (m/z)")
+                 "t start (min)", "t stop (min)", "Isolation Window (m/z)")
 
   method_file <- method_file %>% select(all_of(base_cols))
 
