@@ -97,3 +97,81 @@ test_that("CSV header matches mass_list_example.csv exactly", {
 
   expect_equal(actual_header, expected_header)
 })
+
+# --- edge cases (spec section 5) ----------------------------------------------
+
+test_that("NULL acquisition_end_min warns and falls back to last rt_end", {
+  ow <- make_ow_3seg(); vd <- make_vd_stub()
+  out <- tempfile(fileext = ".csv")
+  expect_warning(
+    export_windows_to_csv(ow, out, vd),   # acquisition_end_min = NULL
+    "acquisition_end_min not supplied"
+  )
+  df <- utils::read.csv(out, check.names = FALSE)
+  expect_equal(max(df[["t stop (min)"]]), 40)   # last segment rt_end
+})
+
+test_that("acquisition_end_min before last segment end is an error", {
+  ow <- make_ow_3seg(); vd <- make_vd_stub()
+  out <- tempfile(fileext = ".csv")
+  expect_error(
+    export_windows_to_csv(ow, out, vd, acquisition_end_min = 35),
+    "before the last segment end"
+  )
+})
+
+test_that("empty interior RT band is absorbed (no coverage hole)", {
+  # Only seg1 (10-18) and seg3 (30-40); the 18-30 band has no precursors/segment.
+  win <- data.frame(
+    rt_segment_id = rep(c(1L, 3L), each = 2),
+    mz_start  = rep(c(400, 450), 2),
+    mz_end    = rep(c(450, 500), 2),
+    mz_center = rep(c(425, 475), 2),
+    window_width = 50,
+    rt_start = rep(c(10, 30), each = 2),
+    rt_end   = rep(c(18, 40), each = 2)
+  )
+  ow <- structure(list(windows = win, parameters = list()),
+                  class = "OptimizedWindows")
+  out <- tempfile(fileext = ".csv")
+  export_windows_to_csv(ow, out, make_vd_stub(), acquisition_end_min = 50)
+  df <- utils::read.csv(out, check.names = FALSE)
+
+  # midpoint of 18 and 30 is 24; schedule must stay contiguous across the gap
+  expect_equal(unique(df[["t start (min)"]]), c(0, 24))
+  expect_equal(unique(df[["t stop (min)"]]),  c(24, 50))
+})
+
+test_that("single segment (k==1) spans the whole run", {
+  win <- data.frame(
+    rt_segment_id = 1L,
+    mz_start = c(400, 450), mz_end = c(450, 500),
+    mz_center = c(425, 475), window_width = 50,
+    rt_start = 10, rt_end = 40
+  )
+  ow <- structure(list(windows = win, parameters = list()),
+                  class = "OptimizedWindows")
+  out <- tempfile(fileext = ".csv")
+  export_windows_to_csv(ow, out, make_vd_stub(), acquisition_end_min = 50)
+  df <- utils::read.csv(out, check.names = FALSE)
+  expect_true(all(df[["t start (min)"]] == 0))
+  expect_true(all(df[["t stop (min)"]]  == 50))
+})
+
+test_that("staggered cycles collapse to one RT segment", {
+  win <- generate_staggered_windows_internal(
+    mz_min = 400, mz_max = 500, n_windows = 5,
+    min_width_da = 4, max_width_da = 80, rt_bin_index = 1, fz_offset = 0.25
+  )
+  win$rt_segment_id <- 1L
+  win$rt_start <- 10
+  win$rt_end   <- 40
+  ow <- structure(list(windows = win, parameters = list(fz_offset = 0.25)),
+                  class = "OptimizedWindows")
+  out <- tempfile(fileext = ".csv")
+  export_windows_to_csv(ow, out, make_vd_stub(), acquisition_end_min = 50)
+  df <- utils::read.csv(out, check.names = FALSE)
+  # both cycles share (rt_start, rt_end) -> distinct() yields one segment
+  expect_equal(length(unique(df[["t start (min)"]])), 1L)
+  expect_equal(length(unique(df[["t stop (min)"]])),  1L)
+})
