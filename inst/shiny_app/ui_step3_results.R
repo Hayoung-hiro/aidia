@@ -158,7 +158,11 @@ step3_results_ui <- function() {
                 selected = "thermo"
               )
             ),
-            column(3,
+            column(2,
+              numericInput("acquisition_end_min", "Run Length (min)",
+                           value = NA, min = 0, step = 1)
+            ),
+            column(2,
               div(style = "padding-top: 25px;",
                 downloadButton("download_method", "Download Method",
                                class = "btn-success btn-block")
