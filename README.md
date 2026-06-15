@@ -190,7 +190,7 @@ Step 3 ("Results") exposes a **"PDF scope"** radio next to the download button:
 
 | Format | Function | Use |
 |--------|----------|-----|
-| **Thermo 8-column CSV** | `export_windows_to_csv()` | Direct import into Xcalibur (Compound, Formula, Adduct, m/z, z, t start (min), t stop (min), Isolation Window (m/z)); RT schedule is a contiguous tiling of `[acquisition_start_min, acquisition_end_min]` (zero gap/overlap/void), Adduct = `(no adduct)` |
+| **Thermo 8-column CSV** | `export_windows_to_csv()` | Direct import into Xcalibur (Compound, Formula, Adduct, m/z, z, t start (min), t stop (min), Isolation Window (m/z)); adjacent segments tile contiguously (zero gap/overlap), Adduct = `(no adduct)`. Optional `fill_void = TRUE` extends the schedule to the full run length to also close the leading/trailing void |
 | **Center Mass list** | `export_center_mass_list()` | Plain m/z centroid list per RT bin |
 | **m/z Range list** | `export_mz_range_list()` | Boundary-pair list per RT bin |
 | **Batch comparison ZIP** | `export_batch_comparison()` | All 5 strategies × 3 formats + comparison.csv |

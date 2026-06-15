@@ -1,8 +1,14 @@
 # test-export-contiguous-rt.R
 #
 # Contiguous RT-schedule export (spec 2026-06-12):
-# export must tile [acquisition_start, acquisition_end] with zero gap/overlap/void
-# and emit the native `t start (min)` / `t stop (min)` format.
+# Adjacent RT segments always tile contiguously (interior boundaries = midpoints,
+# rounded once -> zero inter-segment gap/overlap) and the export emits the native
+# `t start (min)` / `t stop (min)` format.
+#
+# The leading/trailing void fill is a TOGGLE (`fill_void`, default FALSE):
+#   - fill_void = FALSE (default): first/last segment keep their measured
+#     rt_start/rt_end; the void is NOT filled. Interior contiguity still holds.
+#   - fill_void = TRUE: schedule edges extend to [acquisition_start, acquisition_end].
 
 # --- fixtures -----------------------------------------------------------------
 
@@ -23,10 +29,10 @@ make_win_3seg <- function() {
 
 # --- helper: boundary array ---------------------------------------------------
 
-test_that(".compute_contiguous_rt_schedule tiles segments via midpoints", {
+test_that(".compute_contiguous_rt_schedule fills void via midpoints + acquisition edges", {
   win <- make_win_3seg()
   sched <- .compute_contiguous_rt_schedule(
-    win, acquisition_start_min = 0, acquisition_end_min = 50
+    win, acquisition_start_min = 0, acquisition_end_min = 50, fill_void = TRUE
   )
 
   # B = [start, mid12, mid23, end]
@@ -36,6 +42,16 @@ test_that(".compute_contiguous_rt_schedule tiles segments via midpoints", {
   # per-window t_start / t_stop, aligned to input row order
   expect_equal(sched$t_start, rep(c(0, 19, 29), each = 2))
   expect_equal(sched$t_stop,  rep(c(19, 29, 50), each = 2))
+})
+
+test_that(".compute_contiguous_rt_schedule with fill_void = FALSE keeps measured edges", {
+  win <- make_win_3seg()
+  sched <- .compute_contiguous_rt_schedule(win, fill_void = FALSE)
+
+  # edges = first rt_start (10) and last rt_end (40); interiors still midpoints
+  expect_equal(sched$breaks, c(10, 19, 29, 40))
+  expect_equal(sched$t_start, rep(c(10, 19, 29), each = 2))
+  expect_equal(sched$t_stop,  rep(c(19, 29, 40), each = 2))
 })
 
 # --- ValidatedData stub for export-level tests --------------------------------
@@ -53,13 +69,61 @@ make_ow_3seg <- function() {
             class = "OptimizedWindows")
 }
 
-# --- export-level format + continuity -----------------------------------------
+# --- export format (always) ---------------------------------------------------
 
-test_that("export writes t start/t stop columns that tile contiguously", {
+test_that("export sets Adduct to '(no adduct)'", {
+  ow <- make_ow_3seg(); vd <- make_vd_stub()
+  out <- tempfile(fileext = ".csv")
+  export_windows_to_csv(ow, out, vd)
+  df <- utils::read.csv(out, check.names = FALSE)
+  expect_true(all(df$Adduct == "(no adduct)"))
+})
+
+test_that("CSV header matches mass_list_example.csv exactly", {
+  example_path <- testthat::test_path("..", "..", "mass_list_example.csv")
+  skip_if_not(file.exists(example_path), "mass_list_example.csv not present")
+  expected_header <- strsplit(readLines(example_path, n = 1), ",")[[1]]
+
+  ow <- make_ow_3seg(); vd <- make_vd_stub()
+  out <- tempfile(fileext = ".csv")
+  export_windows_to_csv(ow, out, vd)
+  actual_header <- strsplit(readLines(out, n = 1), ",")[[1]]
+
+  expect_equal(actual_header, expected_header)
+})
+
+# --- default behavior: fill_void = FALSE --------------------------------------
+
+test_that("export default (fill_void = FALSE) keeps measured edges, interior still contiguous", {
   ow <- make_ow_3seg(); vd <- make_vd_stub()
   out <- tempfile(fileext = ".csv")
 
-  export_windows_to_csv(ow, out, vd, acquisition_end_min = 50)
+  export_windows_to_csv(ow, out, vd)   # default: fill_void = FALSE
+  df <- utils::read.csv(out, check.names = FALSE)
+
+  ts <- df[["t start (min)"]]; te <- df[["t stop (min)"]]
+  # first start = measured rt_start (10, NOT 0); last stop = measured rt_end (40, NOT 50)
+  expect_equal(unique(ts), c(10, 19, 29))
+  expect_equal(unique(te), c(19, 29, 40))
+  # shared interior boundaries -> no gap/overlap between adjacent segments
+  expect_equal(unique(ts)[-1], head(unique(te), -1))
+})
+
+test_that("export default ignores acquisition bounds (no NULL-end warning, no end<last error)", {
+  ow <- make_ow_3seg(); vd <- make_vd_stub()
+  out <- tempfile(fileext = ".csv")
+
+  expect_no_warning(export_windows_to_csv(ow, out, vd))                         # no NULL-end warning
+  expect_no_error(export_windows_to_csv(ow, out, vd, acquisition_end_min = 35)) # 35 < 40 ignored when off
+})
+
+# --- fill_void = TRUE: tile [acquisition_start, acquisition_end] ---------------
+
+test_that("fill_void = TRUE writes t start/t stop columns that tile to acquisition bounds", {
+  ow <- make_ow_3seg(); vd <- make_vd_stub()
+  out <- tempfile(fileext = ".csv")
+
+  export_windows_to_csv(ow, out, vd, fill_void = TRUE, acquisition_end_min = 50)
   df <- utils::read.csv(out, check.names = FALSE)
 
   expect_equal(
@@ -77,45 +141,24 @@ test_that("export writes t start/t stop columns that tile contiguously", {
   expect_true(all(te == round(te, 2)))
 })
 
-test_that("export sets Adduct to '(no adduct)'", {
-  ow <- make_ow_3seg(); vd <- make_vd_stub()
-  out <- tempfile(fileext = ".csv")
-  export_windows_to_csv(ow, out, vd, acquisition_end_min = 50)
-  df <- utils::read.csv(out, check.names = FALSE)
-  expect_true(all(df$Adduct == "(no adduct)"))
-})
-
-test_that("CSV header matches mass_list_example.csv exactly", {
-  example_path <- testthat::test_path("..", "..", "mass_list_example.csv")
-  skip_if_not(file.exists(example_path), "mass_list_example.csv not present")
-  expected_header <- strsplit(readLines(example_path, n = 1), ",")[[1]]
-
-  ow <- make_ow_3seg(); vd <- make_vd_stub()
-  out <- tempfile(fileext = ".csv")
-  export_windows_to_csv(ow, out, vd, acquisition_end_min = 50)
-  actual_header <- strsplit(readLines(out, n = 1), ",")[[1]]
-
-  expect_equal(actual_header, expected_header)
-})
-
 # --- edge cases (spec section 5) ----------------------------------------------
 
-test_that("NULL acquisition_end_min warns and falls back to last rt_end", {
+test_that("fill_void = TRUE with NULL acquisition_end_min warns and falls back to last rt_end", {
   ow <- make_ow_3seg(); vd <- make_vd_stub()
   out <- tempfile(fileext = ".csv")
   expect_warning(
-    export_windows_to_csv(ow, out, vd),   # acquisition_end_min = NULL
+    export_windows_to_csv(ow, out, vd, fill_void = TRUE),   # acquisition_end_min = NULL
     "acquisition_end_min not supplied"
   )
   df <- utils::read.csv(out, check.names = FALSE)
   expect_equal(max(df[["t stop (min)"]]), 40)   # last segment rt_end
 })
 
-test_that("acquisition_end_min before last segment end is an error", {
+test_that("fill_void = TRUE with acquisition_end_min before last segment end is an error", {
   ow <- make_ow_3seg(); vd <- make_vd_stub()
   out <- tempfile(fileext = ".csv")
   expect_error(
-    export_windows_to_csv(ow, out, vd, acquisition_end_min = 35),
+    export_windows_to_csv(ow, out, vd, fill_void = TRUE, acquisition_end_min = 35),
     "before the last segment end"
   )
 })
@@ -134,7 +177,7 @@ test_that("empty interior RT band is absorbed (no coverage hole)", {
   ow <- structure(list(windows = win, parameters = list()),
                   class = "OptimizedWindows")
   out <- tempfile(fileext = ".csv")
-  export_windows_to_csv(ow, out, make_vd_stub(), acquisition_end_min = 50)
+  export_windows_to_csv(ow, out, make_vd_stub(), fill_void = TRUE, acquisition_end_min = 50)
   df <- utils::read.csv(out, check.names = FALSE)
 
   # midpoint of 18 and 30 is 24; schedule must stay contiguous across the gap
@@ -142,7 +185,7 @@ test_that("empty interior RT band is absorbed (no coverage hole)", {
   expect_equal(unique(df[["t stop (min)"]]),  c(24, 50))
 })
 
-test_that("single segment (k==1) spans the whole run", {
+test_that("single segment (k==1) with fill_void = TRUE spans the whole run", {
   win <- data.frame(
     rt_segment_id = 1L,
     mz_start = c(400, 450), mz_end = c(450, 500),
@@ -152,7 +195,7 @@ test_that("single segment (k==1) spans the whole run", {
   ow <- structure(list(windows = win, parameters = list()),
                   class = "OptimizedWindows")
   out <- tempfile(fileext = ".csv")
-  export_windows_to_csv(ow, out, make_vd_stub(), acquisition_end_min = 50)
+  export_windows_to_csv(ow, out, make_vd_stub(), fill_void = TRUE, acquisition_end_min = 50)
   df <- utils::read.csv(out, check.names = FALSE)
   expect_true(all(df[["t start (min)"]] == 0))
   expect_true(all(df[["t stop (min)"]]  == 50))
@@ -169,7 +212,7 @@ test_that("staggered cycles collapse to one RT segment", {
   ow <- structure(list(windows = win, parameters = list(fz_offset = 0.25)),
                   class = "OptimizedWindows")
   out <- tempfile(fileext = ".csv")
-  export_windows_to_csv(ow, out, make_vd_stub(), acquisition_end_min = 50)
+  export_windows_to_csv(ow, out, make_vd_stub(), fill_void = TRUE, acquisition_end_min = 50)
   df <- utils::read.csv(out, check.names = FALSE)
   # both cycles share (rt_start, rt_end) -> distinct() yields one segment
   expect_equal(length(unique(df[["t start (min)"]])), 1L)

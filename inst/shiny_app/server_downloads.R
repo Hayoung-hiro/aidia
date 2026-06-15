@@ -87,8 +87,8 @@ server_downloads <- function(input, output, session, rv) {
     switch(fmt,
       thermo = format_preview_card(
         "Thermo Targeted Mass List", "Xcalibur-compatible CSV",
-        "Compound,Formula,Adduct,m/z,z,t start (min),t stop (min),Isolation Window (m/z)\n1,,(no adduct),425.2523,1,0,5,50.5046",
-        "8-column targeted mass list, contiguous t start/t stop schedule"
+        "Compound,Formula,Adduct,m/z,z,t start (min),t stop (min),Isolation Window (m/z)\n1,,(no adduct),425.2523,1,11.4,28,50.5046",
+        "8-column list; segments tile contiguously (no gaps). Default keeps measured RT edges; tick 'Fill void volume' to extend to the full run length."
       ),
       center_mass = format_preview_card(
         "Center Mass List", "Generic 2-column format",
@@ -121,6 +121,7 @@ server_downloads <- function(input, output, session, rv) {
       if (fmt == "thermo") {
         req(rv$validated_data)
 
+        fill_void <- isTRUE(input$fill_void)
         acq_end <- input$acquisition_end_min
         if (is.na(acq_end %||% NA)) acq_end <- NULL
 
@@ -128,6 +129,7 @@ server_downloads <- function(input, output, session, rv) {
           optimized_windows = rv$optimized_windows,
           output_file = file,
           validated_data = rv$validated_data,
+          fill_void = fill_void,
           acquisition_end_min = acq_end
         )
       } else if (fmt == "center_mass") {
@@ -231,6 +233,7 @@ server_downloads <- function(input, output, session, rv) {
         # (export_windows_to_csv takes (optimized_windows, output_file,
         #  validated_data); the generic-format writers take only
         #  (optimized_windows, output_file))
+        fill_void <- isTRUE(input$fill_void)
         acq_end <- input$acquisition_end_min
         if (is.na(acq_end %||% NA)) acq_end <- NULL
 
@@ -238,6 +241,7 @@ server_downloads <- function(input, output, session, rv) {
           optimized_windows = rv$optimized_windows,
           output_file = file.path(batch_dir, "thermo.csv"),
           validated_data = rv$validated_data,
+          fill_void = fill_void,
           acquisition_end_min = acq_end
         )
         export_center_mass_list(

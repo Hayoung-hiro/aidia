@@ -47,21 +47,30 @@ calculate_loop_n <- function(windows) {
 # Contiguous RT Schedule (segment-midpoint boundaries)
 # =============================================================================
 
-#' Build a gap-free RT schedule from segment midpoints
+#' Build a contiguous RT schedule from segment midpoints
 #'
-#' Derives a contiguous boundary array `B` (length k+1 for k RT segments) so the
-#' exported method tiles `[acquisition_start_min, acquisition_end_min]` with no
-#' gap, overlap, or void. Interior boundaries are the midpoint of adjacent
-#' segments' `rt_end`/`rt_start`; the whole array is rounded once (2 decimals) so
-#' adjacent segments share an identical boundary at any precision. Reads only
+#' Derives a boundary array `B` (length k+1 for k RT segments). Interior
+#' boundaries are the midpoint of adjacent segments' `rt_end`/`rt_start`; the
+#' whole array is rounded once (2 decimals) so adjacent segments share an
+#' identical boundary at any precision (no inter-segment gap or overlap). The
+#' edges depend on `fill_void`: TRUE extends them to
+#' `[acquisition_start_min, acquisition_end_min]` (fills the leading/trailing
+#' void); FALSE keeps the measured first `rt_start` / last `rt_end`. Reads only
 #' `windows$rt_start`/`rt_end` and the segments' sort order — no dependence on
 #' `rt_group` contiguity, so it is robust to empty/sparse interior bins.
 #'
 #' @param windows Data frame with numeric `rt_start`, `rt_end` columns.
 #' @param acquisition_start_min Numeric, run start (first segment `t start`).
-#' @param acquisition_end_min Numeric or NULL. Run end (last segment `t stop`).
-#'   NULL leaves the trailing void open: warns and falls back to the last
-#'   segment's `rt_end`.
+#'   Used only when `fill_void = TRUE`.
+#' @param acquisition_end_min Numeric or NULL. Run end (last segment `t stop`),
+#'   used only when `fill_void = TRUE`. NULL leaves the trailing void open: warns
+#'   and falls back to the last segment's `rt_end`.
+#' @param fill_void Logical (default TRUE). TRUE extends the schedule edges to
+#'   `[acquisition_start_min, acquisition_end_min]`, filling the leading/trailing
+#'   MS1-only void. FALSE keeps the first/last segment at their measured
+#'   `rt_start`/`rt_end` (void not filled). Interior boundaries are adjacent-
+#'   segment midpoints either way, so the schedule is always contiguous (no
+#'   inter-segment gap, no rounding gap/overlap).
 #'
 #' @return List with `breaks` (length k+1), `segments` (distinct sorted
 #'   rt_start/rt_end), and `t_start`/`t_stop` vectors aligned to `windows` rows.
@@ -69,32 +78,41 @@ calculate_loop_n <- function(windows) {
 #' @noRd
 .compute_contiguous_rt_schedule <- function(windows,
                                             acquisition_start_min = 0,
-                                            acquisition_end_min = NULL) {
+                                            acquisition_end_min = NULL,
+                                            fill_void = TRUE) {
   segs <- windows %>%
     distinct(rt_start, rt_end) %>%
     arrange(rt_start)
   k <- nrow(segs)
 
-  if (is.null(acquisition_end_min)) {
-    warning(sprintf(
-      "acquisition_end_min not supplied; trailing void left open. Using last segment rt_end (%.2f min) as run end.",
-      segs$rt_end[k]), call. = FALSE)
-    acquisition_end_min <- segs$rt_end[k]
-  }
-  if (acquisition_end_min < segs$rt_end[k]) {
-    stop(sprintf(
-      "acquisition_end_min (%.2f) is before the last segment end (%.2f); cannot end the run before acquired data.",
-      acquisition_end_min, segs$rt_end[k]), call. = FALSE)
-  }
-  if (acquisition_start_min > segs$rt_start[1]) {
-    warning(sprintf(
-      "acquisition_start_min (%.2f) is after the first segment start (%.2f); leading data will be clipped.",
-      acquisition_start_min, segs$rt_start[1]), call. = FALSE)
+  if (fill_void) {
+    if (is.null(acquisition_end_min)) {
+      warning(sprintf(
+        "acquisition_end_min not supplied; trailing void left open. Using last segment rt_end (%.2f min) as run end.",
+        segs$rt_end[k]), call. = FALSE)
+      acquisition_end_min <- segs$rt_end[k]
+    }
+    if (acquisition_end_min < segs$rt_end[k]) {
+      stop(sprintf(
+        "acquisition_end_min (%.2f) is before the last segment end (%.2f); cannot end the run before acquired data.",
+        acquisition_end_min, segs$rt_end[k]), call. = FALSE)
+    }
+    if (acquisition_start_min > segs$rt_start[1]) {
+      warning(sprintf(
+        "acquisition_start_min (%.2f) is after the first segment start (%.2f); leading data will be clipped.",
+        acquisition_start_min, segs$rt_start[1]), call. = FALSE)
+    }
+    start_bound <- acquisition_start_min
+    end_bound   <- acquisition_end_min
+  } else {
+    # Void not filled: edges stay at the measured first/last segment bounds.
+    start_bound <- segs$rt_start[1]
+    end_bound   <- segs$rt_end[k]
   }
 
   B <- numeric(k + 1)
-  B[1] <- acquisition_start_min
-  B[k + 1] <- acquisition_end_min
+  B[1] <- start_bound
+  B[k + 1] <- end_bound
   if (k >= 2) {
     for (j in seq_len(k - 1)) {
       B[j + 1] <- (segs$rt_end[j] + segs$rt_start[j + 1]) / 2
@@ -139,17 +157,26 @@ calculate_loop_n <- function(windows) {
 #'   acquisition. Default is 1 (the Xcalibur default) because Xcalibur's mass-list
 #'   importer flags `z = 0` as invalid and drops it, forcing manual re-entry.
 #'   Set to 0 to request "ignore charge state" if your importer accepts it.
+#' @param fill_void Logical (default: FALSE). When TRUE, the RT schedule is
+#'   extended to span `[acquisition_start_min, acquisition_end_min]`, filling the
+#'   leading/trailing MS1-only void. When FALSE (default), the first and last
+#'   segments keep their measured `rt_start`/`rt_end` (void not filled). Interior
+#'   segment boundaries are adjacent-segment midpoints in both cases, so the
+#'   schedule is always contiguous (no inter-segment gap, no rounding
+#'   gap/overlap). The `acquisition_*` arguments are used only when
+#'   `fill_void = TRUE`.
 #' @param acquisition_start_min Numeric, run start in minutes (default: 0). Sets
-#'   the first segment's `t start`, closing the leading MS1-only void.
+#'   the first segment's `t start` when `fill_void = TRUE`.
 #' @param acquisition_end_min Numeric or NULL (default: NULL). LC method total
-#'   length in minutes; sets the last segment's `t stop`, closing the trailing
-#'   void. NULL warns and falls back to the last segment's measured `rt_end`.
+#'   length in minutes; sets the last segment's `t stop` when `fill_void = TRUE`.
+#'   NULL warns and falls back to the last segment's measured `rt_end`.
 #'
 #' @return NULL (invisible), writes CSV file
 #' @export
 export_windows_to_csv <- function(optimized_windows, output_file,
                                   validated_data,
                                   charge_state = 1L,
+                                  fill_void = FALSE,
                                   acquisition_start_min = 0,
                                   acquisition_end_min = NULL) {
 
@@ -178,11 +205,13 @@ export_windows_to_csv <- function(optimized_windows, output_file,
     loop_n <- NULL
   }
 
-  # Contiguous RT schedule: gap-free tiling of the acquisition window.
+  # Contiguous RT schedule. Adjacent segments always tile gap-free via midpoints;
+  # fill_void additionally extends the edges to the full acquisition window.
   rt_schedule <- .compute_contiguous_rt_schedule(
     windows_with_counts,
     acquisition_start_min = acquisition_start_min,
-    acquisition_end_min   = acquisition_end_min
+    acquisition_end_min   = acquisition_end_min,
+    fill_void             = fill_void
   )
 
   # Create Thermo Xcalibur Targeted Mass List format

@@ -479,10 +479,13 @@ Compound, Formula, Adduct, m/z, z, t start (min), t stop (min),
 Isolation Window (m/z)
 ```
 - 8 columns, Xcalibur import compatible (`Adduct = "(no adduct)"`)
-- RT schedule is a **contiguous tiling** of `[acquisition_start_min,
-  acquisition_end_min]`: interior boundaries are adjacent-segment midpoints,
-  rounded once → zero gap/overlap/void (no MS1-only dead zones). Pass
-  `acquisition_end_min` to close the trailing void; leading void closes at 0.
+- Adjacent segments **always tile contiguously**: interior boundaries are
+  adjacent-segment midpoints, rounded once → zero inter-segment gap/overlap.
+- Void fill is a toggle, `fill_void` (default **FALSE**): FALSE keeps the
+  first/last segment at their measured `rt_start`/`rt_end` (void not filled);
+  TRUE extends the edges to `[acquisition_start_min, acquisition_end_min]`,
+  closing the leading/trailing MS1-only void (pass `acquisition_end_min` = LC
+  method length). The `acquisition_*` args apply only when `fill_void = TRUE`.
 
 **Format B: Center Mass List** (new — `export_center_mass_list()`)
 ```

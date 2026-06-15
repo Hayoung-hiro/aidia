@@ -269,7 +269,7 @@ Three methods in `R/replicate_utils.R`:
 
 ### 8-Column Thermo Method File Export
 
-`export_windows_to_csv()` in `R/export_methods.R` produces an Xcalibur-compatible Targeted Mass List CSV with 8 columns: Compound, Formula, Adduct, m/z, z, t start (min), t stop (min), Isolation Window (m/z). The RT schedule is a **contiguous tiling** of `[acquisition_start_min, acquisition_end_min]`: segment boundaries are the midpoint of adjacent segments' measured RT spans, rounded once, so there are zero gaps/overlaps/voids (no MS1-only dead zones). `Adduct` is `(no adduct)`. Pass `acquisition_end_min` (LC method length) to close the trailing void.
+`export_windows_to_csv()` in `R/export_methods.R` produces an Xcalibur-compatible Targeted Mass List CSV with 8 columns: Compound, Formula, Adduct, m/z, z, t start (min), t stop (min), Isolation Window (m/z). Adjacent RT segments **always tile contiguously**: interior boundaries are the midpoint of adjacent segments' measured RT spans, rounded once, so there are zero inter-segment gaps/overlaps. `Adduct` is `(no adduct)`. Filling the leading/trailing void is a toggle: `fill_void` (default **FALSE**). When FALSE the first/last segment keep their measured `rt_start`/`rt_end`; when TRUE the schedule is extended to span `[acquisition_start_min, acquisition_end_min]` (pass `acquisition_end_min` = LC method length to close the trailing void). The `acquisition_*` args are used only when `fill_void = TRUE`.
 
 ---
 
