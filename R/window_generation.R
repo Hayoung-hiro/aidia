@@ -293,8 +293,10 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   for (iter in 1:max_iterations) {
     boundaries_changed <- FALSE
 
-    # Adjust internal boundaries (indices 2 to n)
-    for (i in 2:actual_n_windows) {
+    # Adjust internal boundaries (indices 2 to n). seq_len(n)[-1] yields an
+    # empty set when actual_n_windows == 1 (single-window bin), avoiding the
+    # `2:1` reverse-iteration that would index the out-of-range boundaries[i+1].
+    for (i in seq_len(actual_n_windows)[-1]) {
       # Current boundary position
       current_boundary <- boundaries[i]
 
@@ -352,7 +354,7 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   for (smooth_iter in 1:5) {
     widths_changed <- FALSE
 
-    for (i in 2:length(widths)) {
+    for (i in seq_along(widths)[-1]) {  # empty when only 1 window (no `2:1` reverse)
       prev_width <- widths[i - 1]
       curr_width <- widths[i]
 

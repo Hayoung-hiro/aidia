@@ -234,4 +234,49 @@ test_that("digitization handles edge cases", {
               info = "All widths should respect min constraint")
 })
 
-cat("✅ test_window_digitization.R loaded - 6 tests defined\n")
+# ---------------------------------------------------------------------------
+# Regression: single-window bin must not crash on the `2:actual_n_windows`
+# reverse-iteration. The planner can force window_count_per_bin = 1 at low
+# cycle time (optimization_planning.R), which reaches density mode with
+# actual_n_windows == 1. Before the seq_len()[-1] guard, `2:1` iterated
+# backwards and indexed the out-of-range boundaries[i+1], erroring with
+# "missing value where TRUE/FALSE needed".
+# ---------------------------------------------------------------------------
+
+test_that("single-window bin (narrow range) does not crash", {
+  # max_possible_windows = floor(3 / 2) = 1  ->  actual_n_windows = 1
+  precursor_mz <- c(400.5, 401.0, 401.5, 402.0)  # >= n_windows*2, skips fallback
+
+  expect_no_error(
+    windows <- generate_variable_windows_internal(
+      precursor_mz = precursor_mz,
+      mz_min = 400, mz_max = 403,
+      n_windows = 1,
+      min_width_da = 2, max_width_da = 80,
+      width_grid_step = 0.5
+    )
+  )
+  expect_true(nrow(windows) >= 1)
+  expect_equal(sum(windows$window_width), 3, tolerance = 1e-6)
+})
+
+test_that("single-window target on a wide bin does not crash", {
+  # n_windows = 1 but wide range: actual_n_windows = min(1, floor(800/2)) = 1.
+  # Single window spans the whole range, exceeds max_width, and must fall back
+  # to fixed mode (multiple windows) without erroring.
+  set.seed(2024)
+  precursor_mz <- runif(500, min = 400, max = 1200)
+
+  expect_no_error(
+    windows <- generate_variable_windows_internal(
+      precursor_mz = precursor_mz,
+      mz_min = 400, mz_max = 1200,
+      n_windows = 1,
+      min_width_da = 2, max_width_da = 80,
+      width_grid_step = 0.5
+    )
+  )
+  expect_true(nrow(windows) >= 1)
+})
+
+cat("✅ test_window_digitization.R loaded - 8 tests defined\n")
