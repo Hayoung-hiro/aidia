@@ -43,10 +43,13 @@ load_diann_data <- function(file_path, rt_min = 0, rt_max = NULL,
     stop("Unsupported file format. Use parquet, tsv, txt (tab-delimited), or csv.")
   }
   
-  # Check for required columns
-  required_cols <- c("RT.Start", "RT.Stop", "Precursor.Mz", "FWHM")
-  missing_cols <- setdiff(required_cols, names(data))
-  
+  # Resolve column names. RT.Stop is OPTIONAL: create_validated_dataset() falls
+  # back to RT.Apex = RT.Start when it is absent, so RT.Stop participates in
+  # alternative-name resolution but must NOT trigger a hard load failure.
+  resolvable_cols <- c("RT.Start", "RT.Stop", "Precursor.Mz", "FWHM")
+  hard_required   <- c("RT.Start", "Precursor.Mz", "FWHM")
+  missing_cols <- setdiff(resolvable_cols, names(data))
+
   if (length(missing_cols) > 0) {
     # Try alternative column names
     alt_names <- list(
@@ -55,18 +58,19 @@ load_diann_data <- function(file_path, rt_min = 0, rt_max = NULL,
       "Precursor.Mz" = c("Precursor.MZ", "Precursor", "m/z", "mz"),
       "FWHM" = c("FWHM", "Peak.Width", "PeakWidth")
     )
-    
+
     for (col in missing_cols) {
       for (alt in alt_names[[col]]) {
         if (alt %in% names(data)) {
           names(data)[names(data) == alt] <- col
-          missing_cols <- setdiff(missing_cols, col)
           break
         }
       }
     }
   }
-  
+
+  # Only the hard-required columns cause a failure; RT.Stop absence is fine.
+  missing_cols <- setdiff(hard_required, names(data))
   if (length(missing_cols) > 0) {
     if ("FWHM" %in% missing_cols) {
       stop(sprintf(paste0(

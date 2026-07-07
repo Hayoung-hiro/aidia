@@ -123,9 +123,13 @@ calculate_satisfaction_ratio <- function(values, target, tolerance = 0.0,
     stop("direction must be 'greater' or 'within'")
   }
 
-  satisfaction_ratio <- mean(meets_target, na.rm = TRUE)
+  # Keep all three outputs mutually consistent: the ratio is over the VALID
+  # (non-NA) values, so n_total must be the non-NA count -- otherwise
+  # n_satisfied / n_total disagrees with satisfaction_ratio when values (e.g.
+  # DPPP from a missing FWHM) contain NAs.
   n_satisfied <- sum(meets_target, na.rm = TRUE)
-  n_total <- length(values)
+  n_total <- sum(!is.na(values))
+  satisfaction_ratio <- if (n_total > 0) n_satisfied / n_total else NA_real_
 
   list(
     satisfaction_ratio = satisfaction_ratio,

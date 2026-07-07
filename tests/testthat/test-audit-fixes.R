@@ -153,3 +153,27 @@ test_that("window counters tolerate NA precursor m/z (no crash)", {
   )
   expect_equal(c2, c(1, 0))
 })
+
+# ---------------------------------------------------------------------------
+# M2: calculate_satisfaction_ratio reported a ratio over non-NA values but an
+# n_total over ALL values, so n_satisfied / n_total disagreed with the ratio
+# whenever DPPP contained NAs (e.g. from a missing FWHM).
+# ---------------------------------------------------------------------------
+
+test_that("calculate_satisfaction_ratio keeps ratio, n_satisfied, n_total consistent", {
+  r <- calculate_satisfaction_ratio(c(10, 20, NA), target = 15, direction = "greater")
+  expect_equal(r$n_total, 2)                        # NA excluded from denominator
+  expect_equal(r$n_satisfied, 1)
+  expect_equal(r$satisfaction_ratio, 0.5)
+  expect_equal(r$satisfaction_ratio, r$n_satisfied / r$n_total)
+})
+
+test_that("calculate_satisfaction_ratio unchanged without NAs, safe when all NA", {
+  r <- calculate_satisfaction_ratio(c(10, 20, 30), target = 15, direction = "greater")
+  expect_equal(r$n_total, 3)
+  expect_equal(r$satisfaction_ratio, 2 / 3)
+
+  r_na <- calculate_satisfaction_ratio(c(NA_real_, NA_real_), target = 15)
+  expect_equal(r_na$n_total, 0)
+  expect_true(is.na(r_na$satisfaction_ratio))
+})
