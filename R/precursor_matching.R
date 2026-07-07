@@ -110,10 +110,24 @@ count_precursors_in_2d_windows <- function(precursor_rt, precursor_mz,
     stringsAsFactors = FALSE
   ))
 
+  # RT segments tile the run, so a shared RT boundary (rt_end[k] ==
+  # rt_start[k+1]) must attribute a precursor sitting exactly on it to a single
+  # segment. Treat each RT interval as half-open [rt_start, rt_end); only the
+  # segment ending at the overall maximum rt_end keeps a closed top edge (<=) so
+  # the last precursor is not dropped -- mirroring the m/z max-end handling
+  # below. (Guarded so the empty-window path stays warning-free.)
+  global_max_rt_end <- if (n_windows > 0L) max(window_rt_end) else NA_real_
+
   for (r in seq_len(nrow(unique_rt))) {
-    # Filter precursors in this RT segment once
-    rt_mask <- precursor_rt >= unique_rt$rt_start[r] &
-               precursor_rt <= unique_rt$rt_end[r]
+    # Filter precursors in this RT segment once (half-open, except the top edge
+    # of the final segment which stays inclusive).
+    if (unique_rt$rt_end[r] == global_max_rt_end) {
+      rt_mask <- precursor_rt >= unique_rt$rt_start[r] &
+                 precursor_rt <= unique_rt$rt_end[r]
+    } else {
+      rt_mask <- precursor_rt >= unique_rt$rt_start[r] &
+                 precursor_rt <  unique_rt$rt_end[r]
+    }
     mz_in_rt <- precursor_mz[rt_mask]
 
     if (length(mz_in_rt) == 0) next

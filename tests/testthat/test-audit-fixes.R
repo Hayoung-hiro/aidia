@@ -144,6 +144,42 @@ test_that("count_precursors_in_2d_windows keeps a precursor on the top m/z edge"
   expect_equal(counts, c(0, 1))
 })
 
+# ---------------------------------------------------------------------------
+# H (RT axis): count_precursors_in_2d_windows() used a CLOSED RT interval
+# [rt_start, rt_end], so a precursor on a shared RT boundary
+# (rt_end[k] == rt_start[k+1]) was counted in both adjacent segments. Half-open
+# [rt_start, rt_end) attributes it to exactly one, mirroring the m/z axis.
+# ---------------------------------------------------------------------------
+
+test_that("count_precursors_in_2d_windows counts a shared RT boundary once", {
+  # seg1 rt 10-20, seg2 rt 20-30 share boundary 20; a precursor at RT 20 must
+  # land in the later segment only, not both.
+  counts <- count_precursors_in_2d_windows(
+    precursor_rt    = 20,           # exactly on the shared RT boundary
+    precursor_mz    = 450,
+    window_rt_start = c(10, 20),
+    window_rt_end   = c(20, 30),
+    window_mz_start = c(400, 400),
+    window_mz_end   = c(500, 500)
+  )
+  expect_equal(sum(counts), 1)      # counted once, not twice
+  expect_equal(counts, c(0, 1))     # attributed to the later segment
+})
+
+test_that("count_precursors_in_2d_windows keeps a precursor on the top RT edge", {
+  # Regression: the RT half-open change must not drop a precursor at the very
+  # last segment's (closed) upper RT bound.
+  counts <- count_precursors_in_2d_windows(
+    precursor_rt    = 30,           # exactly on the overall max rt_end
+    precursor_mz    = 450,
+    window_rt_start = c(10, 20),
+    window_rt_end   = c(20, 30),
+    window_mz_start = c(400, 400),
+    window_mz_end   = c(500, 500)
+  )
+  expect_equal(counts, c(0, 1))
+})
+
 test_that("window counters tolerate NA precursor m/z (no crash)", {
   expect_no_error(c1 <- count_precursors_in_windows(c(450, NA, 500), c(400, 500), c(500, 600)))
   expect_equal(c1, c(1, 1))
