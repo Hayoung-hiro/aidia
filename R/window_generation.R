@@ -422,7 +422,14 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
         direction <- sign(n_adjustments)
         rounding_errors <- widths_raw - widths
         candidates <- order(direction * rounding_errors, decreasing = TRUE)
-        for (j in seq_len(abs(n_adjustments))) {
+        # Distribute at most one grid-step correction per window (in preference
+        # order). abs(n_adjustments) can exceed the window count when clamping
+        # removed a large amount (e.g. a single window wider than max_width_da),
+        # so cap the loop at length(candidates) -- indexing candidates[j] beyond
+        # that is NA and errors the `if`. Any leftover falls through to
+        # final_remainder below and is caught by the Phase 4 width re-validation.
+        n_steps <- min(abs(n_adjustments), length(candidates))
+        for (j in seq_len(n_steps)) {
           idx <- candidates[j]
           new_width <- widths[idx] + direction * width_grid_step
           if (new_width >= min_width_da && new_width <= max_width_da) {
