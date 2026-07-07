@@ -129,3 +129,27 @@ test_that("count_precursors_in_2d_windows counts a shared m/z boundary once", {
   expect_equal(counts, c(0, 1))
   expect_equal(sum(counts), 1)
 })
+
+test_that("count_precursors_in_2d_windows keeps a precursor on the top m/z edge", {
+  # Regression: the half-open change must not drop the precursor at the last
+  # window's (closed) upper bound -- matches the 1D counter's max-end behaviour.
+  counts <- count_precursors_in_2d_windows(
+    precursor_rt    = 15,
+    precursor_mz    = 600,          # exactly on the overall max end
+    window_rt_start = c(10, 10),
+    window_rt_end   = c(20, 20),
+    window_mz_start = c(400, 500),
+    window_mz_end   = c(500, 600)
+  )
+  expect_equal(counts, c(0, 1))
+})
+
+test_that("window counters tolerate NA precursor m/z (no crash)", {
+  expect_no_error(c1 <- count_precursors_in_windows(c(450, NA, 500), c(400, 500), c(500, 600)))
+  expect_equal(c1, c(1, 1))
+  expect_no_error(
+    c2 <- count_precursors_in_2d_windows(c(15, 15), c(450, NA), c(10, 10), c(20, 20),
+                                         c(400, 500), c(500, 600))
+  )
+  expect_equal(c2, c(1, 0))
+})

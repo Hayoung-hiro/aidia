@@ -48,7 +48,7 @@ count_precursors_in_windows <- function(precursor_mz, window_starts,
   # overall maximum window end (closed on the tiling's top edge) is attributed
   # to the window(s) ending there, which the half-open count would drop.
   max_end <- max(window_ends)
-  n_at_max <- sum(precursor_mz == max_end)
+  n_at_max <- sum(precursor_mz == max_end, na.rm = TRUE)  # na.rm: stay NA-safe like the old cut() path
   if (n_at_max > 0L) {
     at_max <- window_ends == max_end
     counts[at_max] <- counts[at_max] + n_at_max
@@ -134,6 +134,18 @@ count_precursors_in_2d_windows <- function(precursor_rt, precursor_mz,
       left <- findInterval(window_mz_start[w], mz_sorted, left.open = TRUE)
       right <- findInterval(window_mz_end[w], mz_sorted, left.open = TRUE)
       counts[w] <- right - left
+    }
+
+    # Keep a precursor sitting exactly on this RT segment's top m/z edge (the
+    # closed upper bound of the last window). Interior boundaries stay half-open
+    # so shared tiling boundaries are not double-counted, but the very top edge
+    # is inclusive -- matching count_precursors_in_windows() and the original
+    # closed-interval behaviour, so the top precursor is not silently dropped.
+    seg_max_end <- max(window_mz_end[win_idx])
+    n_at_max <- sum(mz_in_rt == seg_max_end, na.rm = TRUE)
+    if (n_at_max > 0L) {
+      at_max_w <- win_idx[window_mz_end[win_idx] == seg_max_end]
+      counts[at_max_w] <- counts[at_max_w] + n_at_max
     }
   }
 
