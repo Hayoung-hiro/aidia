@@ -28,23 +28,33 @@ count_precursors_in_windows <- function(precursor_mz, window_starts,
   if (length(window_ends) != n_windows) {
     stop("window_starts and window_ends must have same length")
   }
+  if (n_windows == 0L) return(integer(0))
 
-  # Use cut() for efficient binning
-  # Create breaks vector combining all boundaries
-  breaks <- c(window_starts, window_ends[n_windows])
-  breaks <- unique(sort(breaks))  # Remove duplicates and sort
+  # Count each window independently as the half-open interval [start, end).
+  #
+  # This replaces a cut()-based single-bin assignment, which is only valid for
+  # contiguous, non-overlapping windows: cut() places each precursor in exactly
+  # one bin, so it cannot represent overlap. Staggered mode passes two
+  # interleaved cycles (generate_staggered_windows_internal returns both), where
+  # a precursor in an overlap region is legitimately isolated by one window per
+  # cycle and must be counted in both. Per-window findInterval handles tiling
+  # and overlap identically, in O((n + m) log n).
+  mz_sorted <- sort(precursor_mz)
+  left  <- findInterval(window_starts, mz_sorted, left.open = TRUE)  # #{v <  start}
+  right <- findInterval(window_ends,   mz_sorted, left.open = TRUE)  # #{v <  end}
+  counts <- right - left
 
-  # Assign each precursor to a window
-  assignments <- cut(precursor_mz,
-                     breaks = breaks,
-                     include.lowest = TRUE,
-                     right = FALSE,  # [start, end)
-                     labels = FALSE)
+  # Preserve the historical include.lowest behaviour: a precursor exactly at the
+  # overall maximum window end (closed on the tiling's top edge) is attributed
+  # to the window(s) ending there, which the half-open count would drop.
+  max_end <- max(window_ends)
+  n_at_max <- sum(precursor_mz == max_end)
+  if (n_at_max > 0L) {
+    at_max <- window_ends == max_end
+    counts[at_max] <- counts[at_max] + n_at_max
+  }
 
-  # Count precursors per window
-  counts <- as.vector(table(factor(assignments, levels = 1:n_windows)))
-
-  return(counts)
+  counts
 }
 
 #' Count Precursors in 2D Windows (RT x m/z)
@@ -115,9 +125,14 @@ count_precursors_in_2d_windows <- function(precursor_rt, precursor_mz,
     win_idx <- which(rt_key == unique_rt$key[r])
 
     for (w in win_idx) {
-      # findInterval: count of values in [mz_start, mz_end)
+      # Count of values in the half-open m/z interval [mz_start, mz_end).
+      # Both bounds use left.open = TRUE so a precursor sitting exactly on a
+      # shared tiling boundary (mz_end[k] == mz_start[k+1]) is attributed to
+      # exactly one window, matching count_precursors_in_windows() and the
+      # coverage loop (window_statistics.R). left.open = FALSE on the end was a
+      # closed interval that double-counted such boundary precursors.
       left <- findInterval(window_mz_start[w], mz_sorted, left.open = TRUE)
-      right <- findInterval(window_mz_end[w], mz_sorted, left.open = FALSE)
+      right <- findInterval(window_mz_end[w], mz_sorted, left.open = TRUE)
       counts[w] <- right - left
     }
   }

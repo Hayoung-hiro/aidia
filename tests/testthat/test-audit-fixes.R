@@ -86,3 +86,46 @@ test_that("empty interior RT bin yields contiguous, correctly-mapped labels", {
   expect_equal(late$rt_start, 30)
   expect_equal(late$rt_end, 31)
 })
+
+# ---------------------------------------------------------------------------
+# H4: count_precursors_in_windows() used cut() (one bin per precursor), which
+# cannot represent the overlapping windows staggered mode produces. Independent
+# per-window counting must count an overlap-region precursor in both windows,
+# while still counting a shared tiling boundary exactly once.
+# ---------------------------------------------------------------------------
+
+test_that("count_precursors_in_windows counts overlap-region precursor in both windows", {
+  # Two overlapping windows [400,450) and [425,475); 430 is in both.
+  counts <- count_precursors_in_windows(c(430), c(400, 425), c(450, 475))
+  expect_equal(counts, c(1, 1))
+})
+
+test_that("count_precursors_in_windows counts a shared tiling boundary once", {
+  # Contiguous [400,500) and [500,600); 500 belongs to the second window only.
+  counts <- count_precursors_in_windows(c(450, 500, 550), c(400, 500), c(500, 600))
+  expect_equal(counts, c(1, 2))
+})
+
+test_that("count_precursors_in_windows keeps the precursor at the maximum end", {
+  counts <- count_precursors_in_windows(c(600), c(400, 500), c(500, 600))
+  expect_equal(counts, c(0, 1))
+})
+
+# ---------------------------------------------------------------------------
+# M5: count_precursors_in_2d_windows() used a closed m/z interval [start,end],
+# double-counting a precursor on a shared tiling boundary. Half-open [start,end)
+# attributes it to exactly one window.
+# ---------------------------------------------------------------------------
+
+test_that("count_precursors_in_2d_windows counts a shared m/z boundary once", {
+  counts <- count_precursors_in_2d_windows(
+    precursor_rt    = 15,
+    precursor_mz    = 500,          # exactly on the 500 boundary
+    window_rt_start = c(10, 10),
+    window_rt_end   = c(20, 20),
+    window_mz_start = c(400, 500),
+    window_mz_end   = c(500, 600)
+  )
+  expect_equal(counts, c(0, 1))
+  expect_equal(sum(counts), 1)
+})
