@@ -218,3 +218,50 @@ test_that("staggered cycles collapse to one RT segment", {
   expect_equal(length(unique(df[["t start (min)"]])), 1L)
   expect_equal(length(unique(df[["t stop (min)"]])),  1L)
 })
+
+# --- batch exporters forward fill_void / acquisition bounds -------------------
+
+test_that("export_method_files forwards fill_void + acquisition_end_min", {
+  wl  <- list(greedy = make_ow_3seg())
+  out <- tempfile()
+
+  files <- export_method_files(
+    wl, out, make_vd_stub(),
+    strategies = "greedy",
+    fill_void = TRUE, acquisition_end_min = 50
+  )
+  df <- utils::read.csv(files[["greedy"]], check.names = FALSE)
+
+  # void-fill reached the batch path: last t stop == acquisition end (50),
+  # first t start == acquisition start (0) -- not the measured 40 / 10.
+  expect_equal(max(df[["t stop (min)"]]),  50)
+  expect_equal(min(df[["t start (min)"]]), 0)
+})
+
+test_that("export_method_files default keeps measured edges (fill_void off)", {
+  wl  <- list(greedy = make_ow_3seg())
+  out <- tempfile()
+
+  files <- export_method_files(wl, out, make_vd_stub(), strategies = "greedy")
+  df <- utils::read.csv(files[["greedy"]], check.names = FALSE)
+
+  expect_equal(min(df[["t start (min)"]]), 10)   # measured rt_start, not 0
+  expect_equal(max(df[["t stop (min)"]]),  40)   # measured rt_end, not filled
+})
+
+test_that("export_batch_comparison forwards fill_void + acquisition_end_min", {
+  wl  <- list(greedy = make_ow_3seg())
+  out <- tempfile()
+
+  export_batch_comparison(
+    wl, make_vd_stub(), out,
+    formats = "thermo", include_comparison = FALSE,
+    fill_void = TRUE, acquisition_end_min = 50
+  )
+
+  thermo_files <- list.files(file.path(out, "thermo"), full.names = TRUE)
+  expect_length(thermo_files, 1)
+  df <- utils::read.csv(thermo_files[[1]], check.names = FALSE)
+  expect_equal(max(df[["t stop (min)"]]),  50)
+  expect_equal(min(df[["t start (min)"]]), 0)
+})

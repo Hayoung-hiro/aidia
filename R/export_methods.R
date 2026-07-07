@@ -323,6 +323,13 @@ export_mz_range_list <- function(optimized_windows, output_file) {
 #' @param output_dir Character, output directory path
 #' @param formats Character vector, export formats (default: all 3)
 #' @param include_comparison Logical, include comparison.csv (default: TRUE)
+#' @param fill_void Logical (default FALSE). Forwarded to export_windows_to_csv():
+#'   TRUE extends each strategy's RT schedule to span
+#'   [acquisition_start_min, acquisition_end_min] (opt-in leading/trailing void fill).
+#' @param acquisition_start_min Numeric (default 0). Run start; used only when
+#'   fill_void = TRUE.
+#' @param acquisition_end_min Numeric or NULL (default NULL). Run end; used only
+#'   when fill_void = TRUE.
 #'
 #' @return Character, path to output directory (invisible)
 #' @export
@@ -330,7 +337,10 @@ export_batch_comparison <- function(windows_list,
                                     validated_data,
                                     output_dir,
                                     formats = c("thermo", "center_mass", "mz_range"),
-                                    include_comparison = TRUE) {
+                                    include_comparison = TRUE,
+                                    fill_void = FALSE,
+                                    acquisition_start_min = 0,
+                                    acquisition_end_min = NULL) {
 
   # Validate inputs
   if (!is.list(windows_list) || length(windows_list) == 0) {
@@ -370,7 +380,10 @@ export_batch_comparison <- function(windows_list,
       export_windows_to_csv(
         optimized_windows = opt_win,
         output_file = file.path(subdirs$thermo, paste0(file_stem, "_thermo.csv")),
-        validated_data = validated_data
+        validated_data = validated_data,
+        fill_void = fill_void,
+        acquisition_start_min = acquisition_start_min,
+        acquisition_end_min = acquisition_end_min
       )
     }
     if ("center_mass" %in% formats) {
@@ -443,6 +456,13 @@ export_batch_comparison <- function(windows_list,
 #' @param validated_data ValidatedData object from Stage 1
 #' @param strategies Character vector of strategies to export (default: all 4)
 #' @param instrument_type Character, instrument type (default: "orbitrap")
+#' @param fill_void Logical (default FALSE). Forwarded to export_windows_to_csv():
+#'   TRUE extends each strategy's RT schedule to span
+#'   [acquisition_start_min, acquisition_end_min] (opt-in leading/trailing void fill).
+#' @param acquisition_start_min Numeric (default 0). Run start; used only when
+#'   fill_void = TRUE.
+#' @param acquisition_end_min Numeric or NULL (default NULL). Run end; used only
+#'   when fill_void = TRUE.
 #'
 #' @return Named list of exported file paths
 #'
@@ -463,7 +483,10 @@ export_method_files <- function(windows_list,
                                 output_dir,
                                 validated_data,
                                 strategies = STRATEGY_PREFERRED_ORDER,
-                                instrument_type = "orbitrap") {
+                                instrument_type = "orbitrap",
+                                fill_void = FALSE,
+                                acquisition_start_min = 0,
+                                acquisition_end_min = NULL) {
 
   # Validate inputs
   if (!is.list(windows_list)) {
@@ -525,7 +548,10 @@ export_method_files <- function(windows_list,
     export_windows_to_csv(
       optimized_windows = windows_list[[strategy]],
       output_file = output_file,
-      validated_data = validated_data
+      validated_data = validated_data,
+      fill_void = fill_void,
+      acquisition_start_min = acquisition_start_min,
+      acquisition_end_min = acquisition_end_min
     )
 
     method_files[[strategy]] <- output_file

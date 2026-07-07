@@ -39,7 +39,7 @@ AIDIA가 생성한 method CSV의 RT 스케줄에 세 결함이 있고, 모두 �
 ## 2. 목표 / 비목표
 
 ### 목표
-- export된 method가 `[acquisition_start, acquisition_end]`를 **빈틈없이 연속 타일링**한다(gap·overlap·void 모두 0).
+- export된 method의 **인접 segment는 항상 빈틈없이 연속 타일링**된다(interior gap·overlap 0). 선행/후행 **void 채움은 opt-in**(`fill_void`, 기본 `FALSE`): `TRUE`일 때만 edge를 `[acquisition_start, acquisition_end]`까지 확장한다.
 - 출력 형식을 Thermo 네이티브 `t start (min)`/`t stop (min)`로 바꾸고, `mass_list_example.csv`와 **1:1 정렬**한다.
 - **export-only 변경** — optimization/stats/plot/S3 내부는 건드리지 않는다.
 
@@ -58,6 +58,7 @@ AIDIA가 생성한 method CSV의 RT 스케줄에 세 결함이 있고, 모두 �
 |---|---|---|
 | `acquisition_start_min` | `0` | 런 시작(주입). 첫 segment의 `t start`. |
 | `acquisition_end_min` | `NULL` (필수 권장) | LC method 총 길이. 마지막 segment의 `t stop`. |
+| `fill_void` | `FALSE` | 선행/후행 void를 채울지 여부(opt-in). `FALSE`면 첫/마지막 segment는 실측 `rt_start`/`rt_end` 유지(interior는 항상 중점 연속). `acquisition_*`는 `fill_void = TRUE`일 때만 사용. |
 
 - 분석한 사람이 입력(가장 정확). `acquisition_end_min = NULL`이면 후행 void를 닫지 못함 → **경고** 후 마지막 segment의 `rt_end`를 그대로 사용.
 - 전달 경로: `export_windows_to_csv()` **인자로 직접** 받는다(S3 객체 미변경). main.R / Shiny(Step 3 download 영역)에 입력 노출.
