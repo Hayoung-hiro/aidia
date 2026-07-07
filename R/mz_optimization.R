@@ -236,6 +236,15 @@ compute_mz_range_for_bin.outlier_config <- function(config, bin_data) {
   mz_mean <- mean(mz_values, na.rm = TRUE)
   mz_sd <- sd(mz_values, na.rm = TRUE)
 
+  # A single precursor gives sd = NA (all-identical m/z with n >= 2 gives sd = 0,
+  # which the normal path handles). NA sd would propagate to NA bounds ->
+  # mz_values[NA] -> min/max(NA, na.rm = TRUE) = Inf/-Inf. With no spread there
+  # are no outliers: return the raw value range.
+  if (is.na(mz_sd)) {
+    return(list(mz_min = min(mz_values, na.rm = TRUE),
+                mz_max = max(mz_values, na.rm = TRUE)))
+  }
+
   lower_bound <- mz_mean - (config$outlier_threshold * mz_sd)
   upper_bound <- mz_mean + (config$outlier_threshold * mz_sd)
 

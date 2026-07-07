@@ -68,7 +68,7 @@ print_step <- function(step_num, description) {
 #'
 #' @keywords internal
 print_success <- function(message, indent = 2) {
-  cat(sprintf("%s[OK] %s\n", rep(" ", indent), message))
+  cat(sprintf("%s[OK] %s\n", strrep(" ", indent), message))
 }
 
 #' Print Warning Message
@@ -80,7 +80,7 @@ print_success <- function(message, indent = 2) {
 #'
 #' @keywords internal
 print_warning <- function(message, indent = 2) {
-  cat(sprintf("%s[!] %s\n", rep(" ", indent), message))
+  cat(sprintf("%s[!] %s\n", strrep(" ", indent), message))
 }
 
 #' Print Info Message
@@ -92,7 +92,7 @@ print_warning <- function(message, indent = 2) {
 #'
 #' @keywords internal
 print_info <- function(message, indent = 2) {
-  cat(sprintf("%s%s\n", rep(" ", indent), message))
+  cat(sprintf("%s%s\n", strrep(" ", indent), message))
 }
 
 
@@ -636,7 +636,15 @@ extract_gradient_name <- function(file_path) {
 #' @return Numeric, estimated cycle time in seconds
 #' @export
 estimate_cycle_time <- function(gradient_name) {
-  gradient_min <- as.numeric(gsub("min.*", "", gradient_name))
+  gradient_min <- suppressWarnings(as.numeric(gsub("min.*", "", gradient_name)))
+
+  # extract_gradient_name() returns "unknown" for filenames without a
+  # "<n>min" token (common for real DIA-NN reports). Coercing that to a
+  # number gives NA, and `if (NA <= 30)` errors. Fall back to the
+  # long-gradient default (conservative) instead of crashing.
+  if (is.na(gradient_min)) {
+    return(2.0)
+  }
 
   if (gradient_min <= 30) {
     return(1.2)  # Fast gradient

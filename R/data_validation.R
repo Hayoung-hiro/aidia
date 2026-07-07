@@ -76,7 +76,12 @@ create_validated_dataset <- function(
 
   # Compute RT.Apex from midpoint of RT.Start and RT.Stop
   if ("RT.Stop" %in% names(loaded_data$data)) {
-    loaded_data$data$RT.Apex <- (loaded_data$data$RT.Start + loaded_data$data$RT.Stop) / 2
+    apex <- (loaded_data$data$RT.Start + loaded_data$data$RT.Stop) / 2
+    # RT.Stop may be NA on individual rows; fall back to RT.Start there so a
+    # missing RT.Stop never poisons RT.Apex (the single downstream RT reference).
+    na_apex <- is.na(apex)
+    apex[na_apex] <- loaded_data$data$RT.Start[na_apex]
+    loaded_data$data$RT.Apex <- apex
     cat("OK Computed RT.Apex from midpoint of RT.Start and RT.Stop\n")
   } else {
     loaded_data$data$RT.Apex <- loaded_data$data$RT.Start

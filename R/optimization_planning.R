@@ -103,7 +103,7 @@ plan_optimization <- function(
   target_dppp = 7.0,
   target_satisfaction = 0.85,
   dppp_tolerance = 0.0,
-  load_factor = 1.0,
+  load_factor = 0.8,
   ms1_scans_per_cycle = NULL,
   warning_threshold_windows = 5,
   ms2_resolution = NULL,  # Optional MS2 resolution override (e.g., 30000)

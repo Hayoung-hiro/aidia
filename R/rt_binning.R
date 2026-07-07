@@ -17,6 +17,33 @@
 
 
 # =============================================================================
+# RT Bin Label Densification
+# =============================================================================
+
+#' Re-map RT Bin Labels to Dense Consecutive Integers
+#'
+#' \code{cut(labels = FALSE)} numbers bins by interval position, so an empty
+#' interior bin leaves a gap in the labels (e.g. \code{{1, 2, 4, 6}}).
+#' Every downstream per-bin loop uses the bin index \code{i} as BOTH a
+#' positional row index into \code{rt_stats} (\code{rt_stats$rt_start[i]}) and a
+#' \code{filter(rt_group == i)} label filter; these agree only when labels are
+#' contiguous \code{1..n}. A gap desynchronizes them, causing precursors to be
+#' stamped with the wrong RT segment or dropped entirely.
+#'
+#' Re-map occupied labels to \code{1..n} in ascending order (which matches the
+#' ascending order \code{group_by(rt_group)} produces), so the positional and
+#' label interpretations coincide. \code{NA} labels (from \code{NA} RT) are
+#' preserved as \code{NA}.
+#'
+#' @param rt_group Integer vector of raw \code{cut()} bin labels.
+#' @return Integer vector of dense consecutive labels aligned to sorted order.
+#' @keywords internal
+densify_rt_group <- function(rt_group) {
+  match(rt_group, sort(unique(rt_group)))
+}
+
+
+# =============================================================================
 # RT Column Helper
 # =============================================================================
 
@@ -150,6 +177,11 @@ perform_fixed_rt_binning_internal <- function(precursor_data, rt_bin_width_min) 
     labels = FALSE,
     include.lowest = TRUE
   )
+
+  # Densify labels so rt_group values equal rt_stats row order (empty interior
+  # bins would otherwise leave gaps that desync positional-index vs label-filter
+  # consumers). See densify_rt_group().
+  precursor_data$rt_group <- densify_rt_group(precursor_data$rt_group)
 
   # Calculate RT statistics per group
   rt_stats <- precursor_data %>%
@@ -303,6 +335,10 @@ perform_adaptive_rt_binning_internal <- function(precursor_data,
   )
   precursor_data <- merge_result$data
   rt_breaks <- merge_result$rt_breaks
+
+  # Densify labels (merging/empty bins can leave gaps) so rt_group equals
+  # rt_stats row order. See densify_rt_group().
+  precursor_data$rt_group <- densify_rt_group(precursor_data$rt_group)
 
   # --- Step 6: Compute final stats ---
   rt_stats <- precursor_data %>%
@@ -534,6 +570,9 @@ apply_edge_handling <- function(rt_result,
     labels = FALSE,
     include.lowest = TRUE
   )
+
+  # Densify labels so rt_group equals rt_stats row order. See densify_rt_group().
+  precursor_data$rt_group <- densify_rt_group(precursor_data$rt_group)
 
   # Recalculate stats
   rt_stats <- precursor_data %>%
