@@ -56,3 +56,33 @@ test_that("print helpers emit one line (not zero) at indent = 0", {
   expect_equal(length(capture.output(print_info("note", indent = 0))), 1)
   expect_match(capture.output(print_info("note", indent = 0)), "note")
 })
+
+# ---------------------------------------------------------------------------
+# H1: empty interior RT bin left non-contiguous cut() labels (e.g. {1,6}),
+# desynchronizing the positional-index vs `rt_group == i` consumers. After
+# densification, labels must be contiguous 1..n and every occupied bin's
+# precursors must be reachable by its row index.
+# ---------------------------------------------------------------------------
+
+test_that("empty interior RT bin yields contiguous, correctly-mapped labels", {
+  # Breaks at 1,6,11,16,21,26,31; only bins 1 and 6 are occupied.
+  df <- data.frame(
+    RT.Apex      = c(1, 2, 30, 31),
+    Precursor.Mz = c(500, 510, 700, 710)
+  )
+
+  res <- perform_fixed_rt_binning_internal(df, rt_bin_width_min = 5)
+
+  # Two occupied bins, labelled contiguously 1..2 (not {1, 6}).
+  expect_equal(res$n_bins, 2)
+  expect_equal(res$stats$rt_segment_id, 1:2)
+  expect_setequal(unique(res$data$rt_group), 1:2)
+
+  # The late-eluting precursors (RT 30-31) are reachable via row index 2 and
+  # its stats row describes their RT span (not an empty-bin fallback).
+  expect_equal(sum(res$data$rt_group == 2), 2)
+  late <- res$stats[res$stats$rt_segment_id == 2, ]
+  expect_equal(late$n_precursors, 2)
+  expect_equal(late$rt_start, 30)
+  expect_equal(late$rt_end, 31)
+})
