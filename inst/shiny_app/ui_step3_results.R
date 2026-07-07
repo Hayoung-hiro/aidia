@@ -165,6 +165,24 @@ step3_results_ui <- function() {
               )
             )
           ),
+          # Thermo-only: void-fill toggle + run length (shown only for Thermo)
+          conditionalPanel(
+            condition = "input.export_format == 'thermo'",
+            fluidRow(
+              column(4,
+                checkboxInput("fill_void",
+                              "Fill void volume (extend schedule to run length)",
+                              value = FALSE)
+              ),
+              column(3,
+                conditionalPanel(
+                  condition = "input.fill_void == true",
+                  numericInput("acquisition_end_min", "Run Length (min)",
+                               value = NA, min = 0, step = 1)
+                )
+              )
+            )
+          ),
           # Format preview
           uiOutput("export_format_preview")
         ),

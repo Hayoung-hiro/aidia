@@ -44,6 +44,103 @@ calculate_loop_n <- function(windows) {
 
 
 # =============================================================================
+# Contiguous RT Schedule (segment-midpoint boundaries)
+# =============================================================================
+
+#' Build a contiguous RT schedule from segment midpoints
+#'
+#' Derives a boundary array `B` (length k+1 for k RT segments). Interior
+#' boundaries are the midpoint of adjacent segments' `rt_end`/`rt_start`; the
+#' whole array is rounded once (2 decimals) so adjacent segments share an
+#' identical boundary at any precision (no inter-segment gap or overlap). The
+#' edges depend on `fill_void`: TRUE extends them to
+#' `[acquisition_start_min, acquisition_end_min]` (fills the leading/trailing
+#' void); FALSE keeps the measured first `rt_start` / last `rt_end`. Reads only
+#' `windows$rt_start`/`rt_end` and the segments' sort order — no dependence on
+#' `rt_group` contiguity, so it is robust to empty/sparse interior bins.
+#'
+#' @param windows Data frame with numeric `rt_start`, `rt_end` columns.
+#' @param acquisition_start_min Numeric, run start (first segment `t start`).
+#'   Used only when `fill_void = TRUE`.
+#' @param acquisition_end_min Numeric or NULL. Run end (last segment `t stop`),
+#'   used only when `fill_void = TRUE`. NULL leaves the trailing void open: warns
+#'   and falls back to the last segment's `rt_end`.
+#' @param fill_void Logical (default TRUE). TRUE extends the schedule edges to
+#'   `[acquisition_start_min, acquisition_end_min]`, filling the leading/trailing
+#'   MS1-only void. FALSE keeps the first/last segment at their measured
+#'   `rt_start`/`rt_end` (void not filled). Interior boundaries are adjacent-
+#'   segment midpoints either way, so the schedule is always contiguous (no
+#'   inter-segment gap, no rounding gap/overlap).
+#'
+#' @return List with `breaks` (length k+1), `segments` (distinct sorted
+#'   rt_start/rt_end), and `t_start`/`t_stop` vectors aligned to `windows` rows.
+#' @keywords internal
+#' @noRd
+.compute_contiguous_rt_schedule <- function(windows,
+                                            acquisition_start_min = 0,
+                                            acquisition_end_min = NULL,
+                                            fill_void = TRUE) {
+  segs <- windows %>%
+    distinct(rt_start, rt_end) %>%
+    arrange(rt_start)
+  k <- nrow(segs)
+
+  if (fill_void) {
+    if (is.null(acquisition_end_min)) {
+      warning(sprintf(
+        "acquisition_end_min not supplied; trailing void left open. Using last segment rt_end (%.2f min) as run end.",
+        segs$rt_end[k]), call. = FALSE)
+      acquisition_end_min <- segs$rt_end[k]
+    }
+    if (acquisition_end_min < segs$rt_end[k]) {
+      stop(sprintf(
+        "acquisition_end_min (%.2f) is before the last segment end (%.2f); cannot end the run before acquired data.",
+        acquisition_end_min, segs$rt_end[k]), call. = FALSE)
+    }
+    if (acquisition_start_min > segs$rt_start[1]) {
+      warning(sprintf(
+        "acquisition_start_min (%.2f) is after the first segment start (%.2f); leading data will be clipped.",
+        acquisition_start_min, segs$rt_start[1]), call. = FALSE)
+    }
+    start_bound <- acquisition_start_min
+    end_bound   <- acquisition_end_min
+  } else {
+    # Void not filled: edges stay at the measured first/last segment bounds.
+    start_bound <- segs$rt_start[1]
+    end_bound   <- segs$rt_end[k]
+  }
+
+  B <- numeric(k + 1)
+  B[1] <- start_bound
+  B[k + 1] <- end_bound
+  if (k >= 2) {
+    for (j in seq_len(k - 1)) {
+      B[j + 1] <- (segs$rt_end[j] + segs$rt_start[j + 1]) / 2
+    }
+  }
+  B <- round(B, 2)
+
+  if (!all(diff(B) > 0)) {
+    stop(sprintf(
+      "Contiguous RT boundaries are not strictly increasing after rounding (segments too close): %s",
+      paste(B, collapse = ", ")), call. = FALSE)
+  }
+
+  # Map each window row to its segment index, then to [B[j], B[j+1]].
+  seg_key <- paste(segs$rt_start, segs$rt_end)
+  win_key <- paste(windows$rt_start, windows$rt_end)
+  seg_idx <- match(win_key, seg_key)
+
+  list(
+    breaks   = B,
+    segments = segs,
+    t_start  = B[seg_idx],
+    t_stop   = B[seg_idx + 1L]
+  )
+}
+
+
+# =============================================================================
 # Single Strategy CSV Export
 # =============================================================================
 
@@ -60,12 +157,28 @@ calculate_loop_n <- function(windows) {
 #'   acquisition. Default is 1 (the Xcalibur default) because Xcalibur's mass-list
 #'   importer flags `z = 0` as invalid and drops it, forcing manual re-entry.
 #'   Set to 0 to request "ignore charge state" if your importer accepts it.
+#' @param fill_void Logical (default: FALSE). When TRUE, the RT schedule is
+#'   extended to span `[acquisition_start_min, acquisition_end_min]`, filling the
+#'   leading/trailing MS1-only void. When FALSE (default), the first and last
+#'   segments keep their measured `rt_start`/`rt_end` (void not filled). Interior
+#'   segment boundaries are adjacent-segment midpoints in both cases, so the
+#'   schedule is always contiguous (no inter-segment gap, no rounding
+#'   gap/overlap). The `acquisition_*` arguments are used only when
+#'   `fill_void = TRUE`.
+#' @param acquisition_start_min Numeric, run start in minutes (default: 0). Sets
+#'   the first segment's `t start` when `fill_void = TRUE`.
+#' @param acquisition_end_min Numeric or NULL (default: NULL). LC method total
+#'   length in minutes; sets the last segment's `t stop` when `fill_void = TRUE`.
+#'   NULL warns and falls back to the last segment's measured `rt_end`.
 #'
 #' @return NULL (invisible), writes CSV file
 #' @export
 export_windows_to_csv <- function(optimized_windows, output_file,
                                   validated_data,
-                                  charge_state = 1L) {
+                                  charge_state = 1L,
+                                  fill_void = FALSE,
+                                  acquisition_start_min = 0,
+                                  acquisition_end_min = NULL) {
 
   validate_input_type(optimized_windows, "OptimizedWindows", "optimized_windows")
   validate_input_type(validated_data, "ValidatedData", "validated_data")
@@ -92,8 +205,17 @@ export_windows_to_csv <- function(optimized_windows, output_file,
     loop_n <- NULL
   }
 
+  # Contiguous RT schedule. Adjacent segments always tile gap-free via midpoints;
+  # fill_void additionally extends the edges to the full acquisition window.
+  rt_schedule <- .compute_contiguous_rt_schedule(
+    windows_with_counts,
+    acquisition_start_min = acquisition_start_min,
+    acquisition_end_min   = acquisition_end_min,
+    fill_void             = fill_void
+  )
+
   # Create Thermo Xcalibur Targeted Mass List format
-  # 8 core columns: Compound, Formula, Adduct, m/z, z, RT Time (min), Window (min), Isolation Window (m/z)
+  # 8 core columns: Compound, Formula, Adduct, m/z, z, t start (min), t stop (min), Isolation Window (m/z)
   # NOTE: Compound is read from the pre-built .compound column (never a bare
   # `if (is_staggered)` inside mutate() — `is_staggered` is also a data column
   # on staggered windows, which would shadow the scalar and break the if()).
@@ -101,16 +223,16 @@ export_windows_to_csv <- function(optimized_windows, output_file,
     mutate(
       Compound = .compound,
       Formula = "",
-      Adduct = "",
+      Adduct = "(no adduct)",
       `m/z` = round(mz_center, 4),
       z = charge_state,
-      `RT Time (min)` = round((rt_start + rt_end) / 2, 1),
-      `Window (min)` = round(rt_end - rt_start, 1),
+      `t start (min)` = rt_schedule$t_start,
+      `t stop (min)`  = rt_schedule$t_stop,
       `Isolation Window (m/z)` = round(mz_end - mz_start, 4)
     )
 
   base_cols <- c("Compound", "Formula", "Adduct", "m/z", "z",
-                 "RT Time (min)", "Window (min)", "Isolation Window (m/z)")
+                 "t start (min)", "t stop (min)", "Isolation Window (m/z)")
 
   method_file <- method_file %>% select(all_of(base_cols))
 
@@ -201,6 +323,13 @@ export_mz_range_list <- function(optimized_windows, output_file) {
 #' @param output_dir Character, output directory path
 #' @param formats Character vector, export formats (default: all 3)
 #' @param include_comparison Logical, include comparison.csv (default: TRUE)
+#' @param fill_void Logical (default FALSE). Forwarded to export_windows_to_csv():
+#'   TRUE extends each strategy's RT schedule to span
+#'   [acquisition_start_min, acquisition_end_min] (opt-in leading/trailing void fill).
+#' @param acquisition_start_min Numeric (default 0). Run start; used only when
+#'   fill_void = TRUE.
+#' @param acquisition_end_min Numeric or NULL (default NULL). Run end; used only
+#'   when fill_void = TRUE.
 #'
 #' @return Character, path to output directory (invisible)
 #' @export
@@ -208,7 +337,10 @@ export_batch_comparison <- function(windows_list,
                                     validated_data,
                                     output_dir,
                                     formats = c("thermo", "center_mass", "mz_range"),
-                                    include_comparison = TRUE) {
+                                    include_comparison = TRUE,
+                                    fill_void = FALSE,
+                                    acquisition_start_min = 0,
+                                    acquisition_end_min = NULL) {
 
   # Validate inputs
   if (!is.list(windows_list) || length(windows_list) == 0) {
@@ -248,7 +380,10 @@ export_batch_comparison <- function(windows_list,
       export_windows_to_csv(
         optimized_windows = opt_win,
         output_file = file.path(subdirs$thermo, paste0(file_stem, "_thermo.csv")),
-        validated_data = validated_data
+        validated_data = validated_data,
+        fill_void = fill_void,
+        acquisition_start_min = acquisition_start_min,
+        acquisition_end_min = acquisition_end_min
       )
     }
     if ("center_mass" %in% formats) {
@@ -321,6 +456,13 @@ export_batch_comparison <- function(windows_list,
 #' @param validated_data ValidatedData object from Stage 1
 #' @param strategies Character vector of strategies to export (default: all 4)
 #' @param instrument_type Character, instrument type (default: "orbitrap")
+#' @param fill_void Logical (default FALSE). Forwarded to export_windows_to_csv():
+#'   TRUE extends each strategy's RT schedule to span
+#'   [acquisition_start_min, acquisition_end_min] (opt-in leading/trailing void fill).
+#' @param acquisition_start_min Numeric (default 0). Run start; used only when
+#'   fill_void = TRUE.
+#' @param acquisition_end_min Numeric or NULL (default NULL). Run end; used only
+#'   when fill_void = TRUE.
 #'
 #' @return Named list of exported file paths
 #'
@@ -341,7 +483,10 @@ export_method_files <- function(windows_list,
                                 output_dir,
                                 validated_data,
                                 strategies = STRATEGY_PREFERRED_ORDER,
-                                instrument_type = "orbitrap") {
+                                instrument_type = "orbitrap",
+                                fill_void = FALSE,
+                                acquisition_start_min = 0,
+                                acquisition_end_min = NULL) {
 
   # Validate inputs
   if (!is.list(windows_list)) {
@@ -403,7 +548,10 @@ export_method_files <- function(windows_list,
     export_windows_to_csv(
       optimized_windows = windows_list[[strategy]],
       output_file = output_file,
-      validated_data = validated_data
+      validated_data = validated_data,
+      fill_void = fill_void,
+      acquisition_start_min = acquisition_start_min,
+      acquisition_end_min = acquisition_end_min
     )
 
     method_files[[strategy]] <- output_file

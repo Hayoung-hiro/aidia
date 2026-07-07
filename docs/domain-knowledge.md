@@ -475,12 +475,17 @@ All formats include RT columns because AIDIA generates RT-dependent windows.
 
 **Format A: Thermo Targeted Mass List** (existing — `export_windows_to_csv()`)
 ```
-Compound, Formula, Adduct, m/z, z, RT Time (min), Window (min),
+Compound, Formula, Adduct, m/z, z, t start (min), t stop (min),
 Isolation Window (m/z)
 ```
-- 8 columns, Xcalibur import compatible
-- Simplified (v0.4.x) to the columns that import cleanly into Xcalibur;
-  earlier AIDIA metadata + acquisition-parameter columns were removed
+- 8 columns, Xcalibur import compatible (`Adduct = "(no adduct)"`)
+- Adjacent segments **always tile contiguously**: interior boundaries are
+  adjacent-segment midpoints, rounded once → zero inter-segment gap/overlap.
+- Void fill is a toggle, `fill_void` (default **FALSE**): FALSE keeps the
+  first/last segment at their measured `rt_start`/`rt_end` (void not filled);
+  TRUE extends the edges to `[acquisition_start_min, acquisition_end_min]`,
+  closing the leading/trailing MS1-only void (pass `acquisition_end_min` = LC
+  method length). The `acquisition_*` args apply only when `fill_void = TRUE`.
 
 **Format B: Center Mass List** (new — `export_center_mass_list()`)
 ```

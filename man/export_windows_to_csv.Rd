@@ -8,7 +8,10 @@ export_windows_to_csv(
   optimized_windows,
   output_file,
   validated_data,
-  charge_state = 1L
+  charge_state = 1L,
+  fill_void = FALSE,
+  acquisition_start_min = 0,
+  acquisition_end_min = NULL
 )
 }
 \arguments{
@@ -23,6 +26,22 @@ windows isolate by m/z range, so charge is metadata only and does not affect
 acquisition. Default is 1 (the Xcalibur default) because Xcalibur's mass-list
 importer flags \code{z = 0} as invalid and drops it, forcing manual re-entry.
 Set to 0 to request "ignore charge state" if your importer accepts it.}
+
+\item{fill_void}{Logical (default: FALSE). When TRUE, the RT schedule is
+extended to span \verb{[acquisition_start_min, acquisition_end_min]}, filling the
+leading/trailing MS1-only void. When FALSE (default), the first and last
+segments keep their measured \code{rt_start}/\code{rt_end} (void not filled). Interior
+segment boundaries are adjacent-segment midpoints in both cases, so the
+schedule is always contiguous (no inter-segment gap, no rounding
+gap/overlap). The \verb{acquisition_*} arguments are used only when
+\code{fill_void = TRUE}.}
+
+\item{acquisition_start_min}{Numeric, run start in minutes (default: 0). Sets
+the first segment's \verb{t start} when \code{fill_void = TRUE}.}
+
+\item{acquisition_end_min}{Numeric or NULL (default: NULL). LC method total
+length in minutes; sets the last segment's \verb{t stop} when \code{fill_void = TRUE}.
+NULL warns and falls back to the last segment's measured \code{rt_end}.}
 }
 \value{
 NULL (invisible), writes CSV file
