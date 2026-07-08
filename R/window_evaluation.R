@@ -82,7 +82,8 @@ evaluate_windows <- function(optimized_windows,
   # 3. Per-RT-bin metrics
   # ---------------------------------------------------------------------------
   rt_segments <- sort(unique(windows_counted$rt_segment_id))
-  fwhm_sec    <- ensure_fwhm_seconds(precursors$FWHM)
+  fwhm_sec    <- ensure_fwhm_seconds(precursors$FWHM,
+                                     unit = validated_data$metadata$fwhm_unit)
 
   per_rt_bin <- do.call(rbind, lapply(rt_segments, function(seg_id) {
 

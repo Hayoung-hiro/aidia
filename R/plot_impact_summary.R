@@ -97,7 +97,8 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
   target_sat <- m$target_satisfaction
   if (is.na(target_sat)) target_sat <- 0.70
 
-  fwhm_sec <- ensure_fwhm_seconds(validated_data$data$FWHM)
+  fwhm_sec <- ensure_fwhm_seconds(validated_data$data$FWHM,
+                                  unit = validated_data$metadata$fwhm_unit)
 
   # Planned satisfaction
   dppp_planned <- calculate_dppp(fwhm_sec, planned_ct)

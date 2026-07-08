@@ -25,7 +25,8 @@ plot_dppp_distribution <- function(optimization_plan, validated_data) {
   cat("  Generating Plot 15: Per-Precursor DPPP Distribution...\n")
 
   # Extract parameters
-  fwhm_sec <- ensure_fwhm_seconds(validated_data$data$FWHM)
+  fwhm_sec <- ensure_fwhm_seconds(validated_data$data$FWHM,
+                                  unit = validated_data$metadata$fwhm_unit)
   target_dppp <- optimization_plan$parameters$target_dppp
   before_cycle <- optimization_plan$diagnosis$current_cycle_time_sec
   after_cycle <- optimization_plan$required_cycle_time_sec

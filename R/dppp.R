@@ -164,16 +164,37 @@ dppp_satisfaction_pct <- function(dppp_values, target_dppp) {
 
 #' Ensure FWHM Values Are in Seconds
 #'
-#' Detects whether FWHM values are in minutes (median < 1) and converts
-#' to seconds if needed. Uses median-based heuristic: chromatographic FWHM
-#' is typically 5-30 seconds, so a median below 1 second is physically
-#' implausible and indicates minutes.
+#' Converts FWHM values to seconds using an explicit source unit. DIA-NN
+#' reports FWHM in minutes (same unit as RT), fixed per source tool, so the
+#' unit is asserted once at load time and threaded through as \code{unit}
+#' rather than guessed. When \code{unit} is \code{NULL} the legacy
+#' median-based heuristic is used as a backward-compatible fallback; that
+#' heuristic can 60x-misconvert broad (>= 1 min) and sub-second peaks, so
+#' callers should pass an explicit \code{unit} where the source is known.
+#' See GitHub issue #8.
 #'
 #' @param fwhm_vector Numeric vector of FWHM values (may contain NAs)
+#' @param unit Character source unit of \code{fwhm_vector}: \code{"minutes"}
+#'   (multiplied by 60) or \code{"seconds"} (returned unchanged). When
+#'   \code{NULL} (default) the legacy median<1 heuristic is used (silently)
+#'   for backward compatibility.
 #'
 #' @return Numeric vector of FWHM values in seconds
 #' @export
-ensure_fwhm_seconds <- function(fwhm_vector) {
+ensure_fwhm_seconds <- function(fwhm_vector, unit = NULL) {
+  if (!is.null(unit)) {
+    unit <- match.arg(unit, c("minutes", "seconds"))
+    if (unit == "minutes") {
+      return(fwhm_vector * 60)
+    }
+    return(fwhm_vector)
+  }
+
+  # Backward-compatible fallback: no explicit unit supplied. Apply the legacy
+  # median<1 heuristic (behavior unchanged). This is correct for run-global
+  # DIA-NN (minutes) vectors; the per-subset re-inference risk that motivated
+  # issue #8 is removed at the site that mattered (plot_rt_quality) by passing
+  # an explicit unit there. Prefer unit = "minutes"/"seconds" at call sites.
   fwhm_clean <- fwhm_vector[!is.na(fwhm_vector)]
   if (length(fwhm_clean) == 0) return(fwhm_vector)
   if (median(fwhm_clean) < 1) {

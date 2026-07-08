@@ -41,7 +41,8 @@ plot_satisfaction_curve <- function(optimization_plan, validated_data,
   target_satisfaction <- optimization_plan$parameters$target_satisfaction * 100
 
   # Extract FWHM data
-  fwhm_sec <- ensure_fwhm_seconds(validated_data$data$FWHM)
+  fwhm_sec <- ensure_fwhm_seconds(validated_data$data$FWHM,
+                                  unit = validated_data$metadata$fwhm_unit)
 
   # Dynamic cycle time range
   if (is.null(cycle_time_range)) {
