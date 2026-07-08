@@ -360,8 +360,10 @@ apply_smoothing.greedy_config <- function(config, mz_ranges, precursor_data,
     wh_lambda = config$whittaker_lambda
   )
 
-  # Greedy invariant: width must remain ~ n_windows * min_width
-  mz_range_per_cycle <- n_windows_per_bin * min_width_da
+  # Greedy invariant: width must remain ~ the greedy cycle range
+  # (N windows x min_width_da, the SOFT recommended isolation width / S3).
+  greedy_cycle_range_da <- n_windows_per_bin * min_width_da
+  mz_range_per_cycle <- greedy_cycle_range_da
   for (i in seq_len(nrow(smoothed))) {
     width_after <- smoothed$mz_max[i] - smoothed$mz_min[i]
     if (width_after < mz_range_per_cycle * 0.95) {

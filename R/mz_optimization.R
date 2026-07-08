@@ -288,7 +288,11 @@ optimize_mz_ranges.greedy_config <- function(config, precursor_data, rt_stats,
                                               mz_range_max = 1200,
                                               ...) {
   n_bins <- nrow(rt_stats)
-  mz_range_per_cycle <- n_windows_per_bin * min_width_da
+  # width-semantics-split: `min_width_da` is the SOFT recommended isolation
+  # width (instrument recommended_min_width_da, digitization S3). The greedy
+  # cycle range is its capacity: N windows x recommended width.
+  greedy_cycle_range_da <- n_windows_per_bin * min_width_da
+  mz_range_per_cycle <- greedy_cycle_range_da
   mz_step <- config$mz_step
 
   cat("  Strategy: GREEDY (m/z sliding optimization)\n")
