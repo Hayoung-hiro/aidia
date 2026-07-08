@@ -198,7 +198,19 @@ compute_mz_range_for_bin.quantile_config <- function(config, bin_data) {
 compute_mz_range_for_bin.coverage_config <- function(config, bin_data) {
   mz_values <- bin_data$Precursor.Mz
   n_total <- length(mz_values)
+
+  # Empty bins are filtered upstream (optimize_mz_ranges guards nrow == 0);
+  # guard defensively so the clamp below never claims a 1-precursor target
+  # against 0 data, which would make the narrowest search index mz_sorted[0]
+  # and return min/max(numeric(0)) = Inf/-Inf.
+  if (n_total == 0) {
+    return(list(mz_min = NA_real_, mz_max = NA_real_))
+  }
+
   n_target <- ceiling(n_total * config$target_coverage)
+  # target_coverage = 0 yields n_target = 0; clamp to a valid [1, n_total] count
+  # so the narrowest-window search below stays well-defined.
+  n_target <- max(1L, min(n_total, n_target))
 
   if (config$coverage_mode == "centered") {
     # Centered: expand symmetrically from median
@@ -233,16 +245,20 @@ compute_mz_range_for_bin.coverage_config <- function(config, bin_data) {
 #' @export
 compute_mz_range_for_bin.outlier_config <- function(config, bin_data) {
   mz_values <- bin_data$Precursor.Mz
+  mz_finite <- mz_values[is.finite(mz_values)]
   mz_mean <- mean(mz_values, na.rm = TRUE)
   mz_sd <- sd(mz_values, na.rm = TRUE)
 
-  # A single precursor gives sd = NA (all-identical m/z with n >= 2 gives sd = 0,
-  # which the normal path handles). NA sd would propagate to NA bounds ->
-  # mz_values[NA] -> min/max(NA, na.rm = TRUE) = Inf/-Inf. With no spread there
-  # are no outliers: return the raw value range.
-  if (is.na(mz_sd)) {
-    return(list(mz_min = min(mz_values, na.rm = TRUE),
-                mz_max = max(mz_values, na.rm = TRUE)))
+  # sd is NA for a single precursor (< 2 finite values) and non-finite if the
+  # data carries Inf; either way there is no spread to trim outliers from.
+  # Return the observed value range -- or NA bounds for a bin with no finite m/z
+  # at all, which stops min/max(numeric(0)) from returning Inf/-Inf. (n >= 2
+  # identical values give sd = 0 and are handled by the normal path below.)
+  if (!is.finite(mz_sd)) {
+    if (length(mz_finite) == 0) {
+      return(list(mz_min = NA_real_, mz_max = NA_real_))
+    }
+    return(list(mz_min = min(mz_finite), mz_max = max(mz_finite)))
   }
 
   lower_bound <- mz_mean - (config$outlier_threshold * mz_sd)

@@ -271,6 +271,30 @@ optimize_windows <- function(
   } else {
     n_windows_per_bin <- optimization_plan$window_count_per_bin
   }
+
+  # Config sanity (SPEC 2026-07-08 section 6): reject unworkable width /
+  # instrument settings upfront so digitization never hits an impossible tiling.
+  if (min_width_da < ABSOLUTE_MIN_WIDTH_DA) {
+    stop(sprintf(
+      "min_width_da (%.2f) must be >= ABSOLUTE_MIN_WIDTH_DA (%.2f)",
+      min_width_da, ABSOLUTE_MIN_WIDTH_DA))
+  }
+  if (min_width_da >= max_width_da) {
+    stop(sprintf(
+      "min_width_da (%.2f) must be < max_width_da (%.2f)",
+      min_width_da, max_width_da))
+  }
+  instrument_mz_span <- mz_range_max - mz_range_min
+  min_required_span <- n_windows_per_bin * ABSOLUTE_MIN_WIDTH_DA
+  if (instrument_mz_span < min_required_span) {
+    stop(sprintf(
+      paste0("Instrument m/z range (%.1f-%.1f Da, span %.1f) cannot fit %d ",
+             "windows at the absolute minimum width %.2f Da (needs %.1f Da). ",
+             "Widen mz_range_min/mz_range_max or reduce the window count."),
+      mz_range_min, mz_range_max, instrument_mz_span,
+      as.integer(n_windows_per_bin), ABSOLUTE_MIN_WIDTH_DA, min_required_span))
+  }
+
   precursor_data <- get_precursor_data(validated_data)
   n_total_precursors <- nrow(precursor_data)
 
