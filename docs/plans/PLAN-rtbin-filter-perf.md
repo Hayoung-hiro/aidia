@@ -7,8 +7,8 @@
 
 **성공 정의**: 실측 리포트에서 생성 window가 변경 전과 bit-동일, 실행 시간 유의미 감소.
 
-## 정확히 건드릴 파일
-- `R/mz_optimization.R`: L141(LOCAL parent), L299(greedy), L412(KDE) — 세 곳의 per-bin filter 루프
+## 정확히 건드릴 파일 (line refs = main 기준(codex 확인), 구현 전 재확인)
+- `R/mz_optimization.R`: L141(LOCAL parent), L308(greedy), L421(KDE) — 세 곳의 per-bin filter 루프
 - `R/window_generation.R`: L79 — 동일 패턴
 - `tests/testthat/` — before/after 동일성 회귀테스트 + (선택) 벤치마크 스크립트
 

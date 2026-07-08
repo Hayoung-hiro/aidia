@@ -1,6 +1,10 @@
 # PLAN: FWHM 단위 명시화 (#8 — silent 60× 오류 제거)
 
 > GitHub issue #8. 근거: FWHM 단위 추측 휴리스틱이 broad/sub-second 피크에서 60× 오변환.
+>
+> **우선순위: 낮음 (robustness)** — grilling(2026-07-08): DIA-NN FWHM = **분(minutes)** 확정(RT와 동일 단위), median<1 휴리스틱이 DIA-NN 분값(대개 <1)엔 우연히 맞아 **현재 무해**. broad peak(≥1 min)·sub-second·타툴 확장에서만 발동. 그래서 급하지 않은 hardening.
+>
+> **관련 검증 (grilling)**: target DPPP는 **whole-peak 기준**(`1.7×FWHM`, PEAK_WIDTH_FACTOR=1.7, dppp.R:64/96)으로 **올바름** — 변경 없음. 문헌 PPP-FWHM은 1.7배 작으므로 UI/문서 표기만 명확히(코드 버그 아님).
 
 ## Goal
 `ensure_fwhm_seconds()`의 "중앙값 < 1 → 분(×60)" 휴리스틱을 제거하고, **소스 툴(DIA-NN 등)의 고정 FWHM 단위를 로더에서 명시적으로 단언**하도록 바꾼다. DIA-NN 리포트는 단위 라벨을 안 담지만 **해당 툴의 시간 단위는 항상 고정**이므로, 추측 대신 소스별 고정 단위를 주입한다.
@@ -21,7 +25,7 @@
 
 ## 단계별 구현 순서
 1. **Step 0 완료**(단위 확정).
-2. `R/data_loader.R`: DIA-NN 경로에서 로드된 데이터에 **소스 고정 단위**를 부착. 예: `attr(prec, "fwhm_unit") <- "minutes"` 또는 ValidatedData에 `fwhm_unit` 필드. 소스가 여럿이면 소스→단위 매핑 테이블.
+2. `R/data_loader.R`: DIA-NN 경로에서 **소스 고정 단위**를 **`validated_data$metadata$fwhm_unit`(ValidatedData metadata 필드)에 저장** — **df attribute 금지**(gemini: tidyverse 슬라이싱에서 소실 → 조용한 오폴백). DIA-NN → `"minutes"`. 소스가 여럿이면 소스→단위 매핑 테이블. 이후 모든 호출부에 **명시적 `unit=` 인자로 전달**(df에서 재추론 안 함).
 3. `R/dppp.R`: `ensure_fwhm_seconds(fwhm_vector, unit = c("minutes","seconds"))` — `unit`이 주어지면 **그대로 변환**(minutes→×60, seconds→그대로), 추측 안 함. `unit` 미지정 시에만 기존 휴리스틱을 **경고와 함께** 사용(하위호환 fallback) 또는 에러.
 4. 전체 벡터에 **한 번** 결정 적용(현재 per-subset 재추론 위험 제거) — 호출부가 상류에서 확정된 `unit`을 넘김.
 5. 호출부 3곳을 `unit=<부착된 단위>` 전달로 갱신.

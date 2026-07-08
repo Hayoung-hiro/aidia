@@ -1,5 +1,7 @@
 # PLAN: layout cost 함수 씨앗 (P5 — ①③ 구조개선 seed)
 
+> **상태: 보류(deferred)** — grilling(2026-07-08): 현재 결함과 직접 연결되지 않는 구조개선 seed. codex·gemini 모두 후순위 권고. 현행 실행 스코프(digitization SPEC 준수 + 하드닝) 밖. 향후 cost 기반 accept/rollback(B1b/B3)을 실제로 추진할 때 착수. 지금은 실행하지 않음.
+>
 > Stage 3 각 단계가 서로 다른 프록시를 최적화. 공통 품질 척도가 없어 smoothing/binning의 accept/rollback 판단 불가. 이 plan은 **순수 함수만** 추가(미배선).
 
 ## Goal

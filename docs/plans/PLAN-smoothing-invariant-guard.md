@@ -5,9 +5,11 @@
 ## Goal
 smoothing 직후 `mz_min<mz_max`(+ width≥floor) 불변식을 3전략 공유로 강제. 위반 bin은 smoothing 이전 raw로 복원.
 
-## 정확히 건드릴 파일
-- `R/smoothing_utils.R`: `.smooth_mz_ranges_internal`(L440-472) 말미에 복원 훅, 또는 각 `apply_smoothing.*`(greedy L345/quantile L380/outlier L400) 공통 호출
+## 정확히 건드릴 파일 (line refs = main 기준, 구현 전 재확인)
+- `R/smoothing_utils.R`: `.smooth_mz_ranges_internal`(L468-470 mz_min/mz_max 대입·mz_width 계산) 말미에 복원 훅, 또는 각 `apply_smoothing.*`(greedy L345/quantile L380/outlier L400) 공통 호출
 - `tests/testthat/`
+
+> **floor_da 기준(width-split ④ 정합)**: 이 guard의 width 하한은 digitization의 H5와 같은 **`absolute_min_width_da`(절대하한)** 를 쓴다 — smoothing이 절대하한 미만/음수 width를 만든 것만 되돌림. 권장폭(`min_width_da`) 미달은 여기서 복원하지 않음(그건 S3 무름, digitization이 관측·로그).
 
 ## 단계별 구현
 1. 신규 `.repair_mz_ranges(smoothed, raw, floor_da)`:
