@@ -225,6 +225,11 @@ generate_fixed_windows_internal <- function(mz_min, mz_max, n_windows,
 #'   element \code{>= floor_da}, or \code{NULL} when \code{N * floor_da > W}.
 #' @keywords internal
 redistribute_integer_widths <- function(W, N, raw_widths, floor_da) {
+  # Integer widths need an integer floor; round a fractional floor UP so the
+  # result still honors it (e.g. floor_da = 2.5 -> 3). No-op for integer floors
+  # (the default config). Without this, round() could drop a width just below a
+  # fractional floor and fail the stopifnot below (reviewer finding).
+  floor_da <- ceiling(floor_da)
   # Infeasible: even at the floor, N windows cannot fit in W (rule 4 signal).
   if (N * floor_da > W) return(NULL)
 
@@ -483,9 +488,15 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   mz_hi <- ceiling(mz_max)
   W <- mz_hi - mz_lo
 
-  needed <- n_windows * min_width_da
+  # Integer widths need integer floors; round the recommended and absolute
+  # widths UP so a fractional min_width_da (e.g. 2.5) is still honored. No-op
+  # for the usual integer widths (default config).
+  rec_floor <- ceiling(min_width_da)
+  abs_floor <- ceiling(ABSOLUTE_MIN_WIDTH_DA)
+
+  needed <- n_windows * rec_floor
   if (W < needed) {
-    add <- ceiling(needed - W)          # integer Da to add (keeps boundaries integer)
+    add <- needed - W                   # integer Da to add (keeps boundaries integer)
     add_lo <- ceiling(add / 2)          # symmetric split (lower gets the odd Da)
     add_hi <- add - add_lo
     mz_lo <- mz_lo - add_lo
@@ -496,7 +507,7 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   # Working floor: the recommended width normally; relax to the absolute
   # physical floor only if expansion still leaves W below N * recommended
   # (rule 3, rare -- unreachable with unbounded edge-expansion).
-  floor_da <- if (W < n_windows * min_width_da) ABSOLUTE_MIN_WIDTH_DA else min_width_da
+  floor_da <- if (W < needed) abs_floor else rec_floor
 
   # Density shape from the adjusted/smoothed boundaries (S1). When earlier
   # phases produced fewer than N windows (narrow bin), that shape is unusable

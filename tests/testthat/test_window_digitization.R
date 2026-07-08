@@ -358,4 +358,26 @@ test_that("SPEC A7: rule-2 density partition fires (not fixed uniform)", {
   expect_gt(length(unique(windows$window_width)), 1)     # not fixed uniform
 })
 
-cat("✅ test_window_digitization.R loaded - 15 tests defined\n")
+test_that("redistribute_integer_widths tolerates a fractional floor (reviewer fix)", {
+  # floor_da = 2.5 must not crash the integer stopifnot; it rounds up to 3.
+  w <- redistribute_integer_widths(W = 40, N = 10, raw_widths = rep(1, 10), floor_da = 2.5)
+  expect_equal(length(w), 10)
+  expect_equal(sum(w), 40)
+  expect_true(all(w >= 3))                 # ceiling(2.5)
+  # Reviewer repro that previously failed sum(w) == W / all(w >= floor):
+  w2 <- redistribute_integer_widths(W = 6, N = 2, raw_widths = c(1, 1), floor_da = 1.5)
+  expect_equal(sum(w2), 6)
+  expect_true(all(w2 >= 2))
+})
+
+test_that("digitization tolerates a fractional min_width_da without crashing", {
+  set.seed(66)
+  precursor_mz <- runif(300, min = 400, max = 460)
+  windows <- suppressWarnings(suppressMessages(generate_variable_windows_internal(
+    precursor_mz = precursor_mz, mz_min = 400, mz_max = 460,
+    n_windows = 10, min_width_da = 2.5, max_width_da = 50, fz_offset = 0)))
+  expect_equal(nrow(windows), 10)                       # H6: count == N
+  expect_true(all(windows$window_width >= 2.5))         # honors fractional floor
+})
+
+cat("✅ test_window_digitization.R loaded - 17 tests defined\n")

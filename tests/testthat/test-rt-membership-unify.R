@@ -100,3 +100,21 @@ test_that("adaptive+merge smoothing coverage matches generation membership", {
   }, numeric(1))
   expect_false(isTRUE(all.equal(rec$n_precursors_covered, rtrange_counts)))
 })
+
+# ---------------------------------------------------------------------------
+# NA normalization (reviewer fix): missing rt_group / RT.Apex -> FALSE, so
+# direct logical-index consumers (window_evaluation) match dplyr::filter.
+# ---------------------------------------------------------------------------
+
+test_that("bin_membership normalizes NA to FALSE (both branches)", {
+  # rt_group branch: NA rt_group -> FALSE, not NA
+  pd <- data.frame(rt_group = c(1L, NA, 2L, 1L))
+  m <- bin_membership(pd, 0, 10, 1L)
+  expect_equal(m, c(TRUE, FALSE, FALSE, TRUE))
+  expect_false(any(is.na(m)))
+  # RT.Apex range branch: NA RT.Apex -> FALSE
+  pd2 <- data.frame(RT.Apex = c(1, NA, 5, 20))
+  m2 <- bin_membership(pd2, 0, 10, 1L)
+  expect_equal(m2, c(TRUE, FALSE, TRUE, FALSE))
+  expect_false(any(is.na(m2)))
+})

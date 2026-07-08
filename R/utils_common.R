@@ -445,11 +445,15 @@ order_strategies <- function(strategy_names) {
 #' @return Logical vector, one element per row of \code{precursor_data}.
 #' @keywords internal
 bin_membership <- function(precursor_data, rt_start, rt_end, rt_segment_id) {
-  if ("rt_group" %in% names(precursor_data)) {
+  member <- if ("rt_group" %in% names(precursor_data)) {
     precursor_data$rt_group == rt_segment_id
   } else {
     precursor_data$RT.Apex >= rt_start & precursor_data$RT.Apex <= rt_end
   }
+  # Normalize NA (missing rt_group / RT.Apex) to FALSE so direct logical-index
+  # consumers (e.g. window_evaluation's fwhm_sec[mask]) agree with the
+  # dplyr::filter consumers, which already drop NA rows.
+  member & !is.na(member)
 }
 
 
