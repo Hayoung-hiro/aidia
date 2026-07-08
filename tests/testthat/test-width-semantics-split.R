@@ -9,6 +9,12 @@
 # (devtools::test(filter = "width-semantics-split")), THEN apply the rename and
 # re-run. A passing snapshot proves the window output is unchanged. Recording it
 # only after the rename captures the new baseline and cannot detect drift.
+#
+# NOTE (digitization flagship, PLAN-stage3-digitization-compliance): that plan
+# INTENTIONALLY reworks the density-path window generation, so the quantile+
+# density snapshot was re-recorded to the new (constraint-model) output. The
+# snapshots now guard the post-digitization baseline against future drift; the
+# rename byte-identity they originally proved is preserved in git history.
 
 .wss_mock_validated <- function(seed, n = 400) {
   set.seed(seed)

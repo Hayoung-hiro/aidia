@@ -9,6 +9,9 @@ if (!exists("generate_variable_windows_internal")) {
   source("../../R/utils_common.R")
   source("../../R/window_generation.R")
 }
+# ABSOLUTE_MIN_WIDTH_DA is defined in window_optimization.R and is loaded by
+# devtools::test(); provide a fallback so this file also runs standalone.
+if (!exists("ABSOLUTE_MIN_WIDTH_DA")) ABSOLUTE_MIN_WIDTH_DA <- 1.0
 
 test_that("digitization snaps widths to grid", {
   # Create mock precursor data with known distribution
@@ -151,65 +154,28 @@ test_that("NULL grid_step skips digitization", {
   expect_equal(sum(windows_zero$window_width), mz_max - mz_min, tolerance = 1e-6)
 })
 
-test_that("digitization works with different grid sizes", {
+test_that("digitization yields integer widths regardless of grid_step (constraint model)", {
+  # Intended change (SPEC 2026-07-08): width_grid_step is vestigial -- the
+  # constraint model digitizes to INTEGER widths (1 Da grid). All grid_step
+  # values now behave identically. The old 2.0-grid multiple assertion no
+  # longer holds (e.g. a 3 Da window is not a multiple of 2).
   set.seed(321)
   precursor_mz <- runif(80, min = 300, max = 500)
+  mz_min <- 300; mz_max <- 500
+  n_windows <- 8; min_width_da <- 10; max_width_da <- 60
 
-  mz_min <- 300
-  mz_max <- 500
-  n_windows <- 8
-  min_width_da <- 10
-  max_width_da <- 60
+  gen <- function(step) suppressWarnings(generate_variable_windows_internal(
+    precursor_mz = precursor_mz, mz_min = mz_min, mz_max = mz_max,
+    n_windows = n_windows, min_width_da = min_width_da,
+    max_width_da = max_width_da, width_grid_step = step))
 
-  # Test with 0.5 Da grid
-  windows_05 <- generate_variable_windows_internal(
-    precursor_mz = precursor_mz,
-    mz_min = mz_min,
-    mz_max = mz_max,
-    n_windows = n_windows,
-    min_width_da = min_width_da,
-    max_width_da = max_width_da,
-    width_grid_step = 0.5
-  )
-
-  # Test with 1.0 Da grid
-  windows_10 <- generate_variable_windows_internal(
-    precursor_mz = precursor_mz,
-    mz_min = mz_min,
-    mz_max = mz_max,
-    n_windows = n_windows,
-    min_width_da = min_width_da,
-    max_width_da = max_width_da,
-    width_grid_step = 1.0
-  )
-
-  # Test with 2.0 Da grid
-  windows_20 <- generate_variable_windows_internal(
-    precursor_mz = precursor_mz,
-    mz_min = mz_min,
-    mz_max = mz_max,
-    n_windows = n_windows,
-    min_width_da = min_width_da,
-    max_width_da = max_width_da,
-    width_grid_step = 2.0
-  )
-
-  # All should preserve total range
-  expect_equal(sum(windows_05$window_width), mz_max - mz_min, tolerance = 1e-6)
-  expect_equal(sum(windows_10$window_width), mz_max - mz_min, tolerance = 1e-6)
-  expect_equal(sum(windows_20$window_width), mz_max - mz_min, tolerance = 1e-6)
-
-  # Check that widths are multiples of respective grids (except last due to residual)
-  widths_05_except_last <- windows_05$window_width[-nrow(windows_05)]
-  widths_10_except_last <- windows_10$window_width[-nrow(windows_10)]
-  widths_20_except_last <- windows_20$window_width[-nrow(windows_20)]
-
-  expect_true(all((widths_05_except_last %% 0.5) < 1e-6 |
-                  abs((widths_05_except_last %% 0.5) - 0.5) < 1e-6))
-  expect_true(all((widths_10_except_last %% 1.0) < 1e-6 |
-                  abs((widths_10_except_last %% 1.0) - 1.0) < 1e-6))
-  expect_true(all((widths_20_except_last %% 2.0) < 1e-6 |
-                  abs((widths_20_except_last %% 2.0) - 2.0) < 1e-6))
+  for (step in c(0.5, 1.0, 2.0)) {
+    w <- gen(step)
+    expect_equal(sum(w$window_width), mz_max - mz_min, tolerance = 1e-6)
+    expect_equal(nrow(w), n_windows)
+    expect_true(all(abs(w$window_width - round(w$window_width)) < 1e-9),
+                info = "constraint model yields integer widths")
+  }
 })
 
 test_that("digitization handles edge cases", {
@@ -279,4 +245,117 @@ test_that("single-window target on a wide bin does not crash", {
   expect_true(nrow(windows) >= 1)
 })
 
-cat("✅ test_window_digitization.R loaded - 8 tests defined\n")
+# ===========================================================================
+# SPEC 2026-07-08 constraint-model invariants + redistribute unit tests
+# ===========================================================================
+
+test_that("redistribute_integer_widths: exact split, clamp, NULL, sum/length", {
+  # (a) exact division -> uniform integer widths
+  w <- redistribute_integer_widths(W = 200, N = 10, raw_widths = rep(1, 10), floor_da = 5)
+  expect_equal(length(w), 10)
+  expect_equal(sum(w), 200)
+  expect_true(all(w == 20))
+  expect_true(is.integer(w))
+
+  # (b) skewed shape forces clamp + redistribution; floor always held
+  w <- redistribute_integer_widths(W = 100, N = 10,
+                                   raw_widths = c(100, rep(1, 9)), floor_da = 5)
+  expect_equal(sum(w), 100)
+  expect_equal(length(w), 10)
+  expect_true(all(w >= 5))
+  expect_equal(which.max(w), 1L)            # largest shape -> widest window
+
+  # (c) infeasible (N * floor > W) -> NULL (rule 4 signal)
+  expect_null(redistribute_integer_widths(W = 15, N = 10,
+                                          raw_widths = rep(1, 10), floor_da = 2))
+
+  # (d) degenerate shape (zero sum / wrong length) -> uniform fallback, valid
+  w0 <- redistribute_integer_widths(W = 100, N = 10, raw_widths = rep(0, 10), floor_da = 5)
+  expect_equal(sum(w0), 100); expect_equal(length(w0), 10); expect_true(all(w0 >= 5))
+  wl <- redistribute_integer_widths(W = 100, N = 10, raw_widths = rep(1, 7), floor_da = 5)
+  expect_equal(sum(wl), 100); expect_equal(length(wl), 10); expect_true(all(wl >= 5))
+})
+
+test_that("SPEC A8: redistribute preserves strategy shape (correlation)", {
+  raw <- c(10, 30, 20, 40, 15, 25)
+  w <- redistribute_integer_widths(W = 100, N = 6, raw_widths = raw, floor_da = 2)
+  expect_equal(sum(w), 100)
+  expect_true(stats::cor(w, raw) >= 0.7)
+})
+
+test_that("SPEC A5: all widths >= absolute floor, no exception", {
+  # Tight range + large N: widths pushed near the floor but never below absolute.
+  set.seed(11)
+  precursor_mz <- runif(300, min = 400, max = 430)
+  windows <- suppressWarnings(suppressMessages(generate_variable_windows_internal(
+    precursor_mz = precursor_mz, mz_min = 400, mz_max = 430,
+    n_windows = 14, min_width_da = 2, max_width_da = 50, fz_offset = 0)))
+  expect_equal(nrow(windows), 14)
+  expect_true(all(windows$window_width >= ABSOLUTE_MIN_WIDTH_DA - 1e-9))
+})
+
+test_that("SPEC A6: count == N always (narrow bin edge-expands, no reduction)", {
+  # W = 15 < N*min_width = 20: old code reduced count; new code edge-expands.
+  set.seed(22)
+  precursor_mz <- runif(200, min = 400, max = 415)
+  windows <- suppressWarnings(suppressMessages(generate_variable_windows_internal(
+    precursor_mz = precursor_mz, mz_min = 400, mz_max = 415,
+    n_windows = 10, min_width_da = 2, max_width_da = 50, fz_offset = 0)))
+  expect_equal(nrow(windows), 10)                       # A6: exactly N
+  expect_true(min(windows$mz_start) <= floor(400))      # edge-expanded downward
+  expect_true(max(windows$mz_end)  >= ceiling(415))     # covers original range
+  expect_true(all(windows$window_width >= ABSOLUTE_MIN_WIDTH_DA - 1e-9))
+})
+
+test_that("SPEC A2/A3: coverage + contiguity (gap/overlap = 0)", {
+  set.seed(33)
+  precursor_mz <- runif(300, min = 400, max = 600)
+  windows <- suppressWarnings(generate_variable_windows_internal(
+    precursor_mz = precursor_mz, mz_min = 400, mz_max = 600,
+    n_windows = 10, min_width_da = 5, max_width_da = 50, fz_offset = 0))
+  # A2 coverage
+  expect_true(min(windows$mz_start) <= floor(400))
+  expect_true(max(windows$mz_end)  >= ceiling(600))
+  # A3 contiguity: each start equals the previous end
+  expect_equal(windows$mz_start[-1], windows$mz_end[-nrow(windows)])
+  # A1 integer boundaries (fz off)
+  expect_true(all(windows$mz_start == round(windows$mz_start)))
+  expect_true(all(windows$mz_end == round(windows$mz_end)))
+})
+
+test_that("SPEC A4: fz deterministic + integer-width scaling", {
+  set.seed(44)
+  precursor_mz <- runif(300, min = 400, max = 600)
+  args <- list(precursor_mz = precursor_mz, mz_min = 400, mz_max = 600,
+               n_windows = 10, min_width_da = 5, max_width_da = 50)
+
+  w_nofz <- suppressWarnings(do.call(generate_variable_windows_internal,
+                                     c(args, fz_offset = 0)))
+  w_fz1 <- suppressWarnings(do.call(generate_variable_windows_internal,
+                                    c(args, fz_offset = 0.25)))
+  w_fz2 <- suppressWarnings(do.call(generate_variable_windows_internal,
+                                    c(args, fz_offset = 0.25)))
+
+  # Determinism: identical inputs -> identical output
+  expect_equal(w_fz1, w_fz2)
+
+  # fz spacing == integer width * OPTIMAL_INCREMENT (within double-rounding)
+  expect_equal(nrow(w_fz1), nrow(w_nofz))
+  expect_true(all(abs(w_fz1$window_width -
+                      w_nofz$window_width * OPTIMAL_INCREMENT) < 2e-4))
+})
+
+test_that("SPEC A7: rule-2 density partition fires (not fixed uniform)", {
+  # Skewed density over a wide range -> adaptive (non-uniform) integer widths,
+  # proving the fixed fallback (rule 4) did NOT fire.
+  set.seed(55)
+  precursor_mz <- c(runif(400, min = 400, max = 480),   # concentrated low
+                    runif(60,  min = 480, max = 800))    # spread high
+  windows <- suppressWarnings(suppressMessages(generate_variable_windows_internal(
+    precursor_mz = precursor_mz, mz_min = 400, mz_max = 800,
+    n_windows = 10, min_width_da = 5, max_width_da = 200, fz_offset = 0)))
+  expect_equal(nrow(windows), 10)                        # count preserved
+  expect_gt(length(unique(windows$window_width)), 1)     # not fixed uniform
+})
+
+cat("✅ test_window_digitization.R loaded - 15 tests defined\n")
