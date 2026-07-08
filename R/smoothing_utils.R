@@ -527,12 +527,19 @@ apply_smoothing.default <- function(config, mz_ranges, ...) {
 }
 
 #' Recalculate per-bin coverage after boundary modification
+#'
+#' Uses the shared \code{\link{bin_membership}} rule (rt_group when present,
+#' else RT.Apex range) so smoothing coverage counts match the membership that
+#' generation / statistics assign to each bin (adaptive+merge previously
+#' diverged; fixed binning is unaffected — the two rules coincide there).
 #' @keywords internal
 .recalculate_coverage <- function(mz_ranges, precursor_data) {
   for (i in seq_len(nrow(mz_ranges))) {
-    bin_data <- precursor_data %>%
-      dplyr::filter(RT.Apex >= mz_ranges$rt_start[i] &
-                    RT.Apex <= mz_ranges$rt_end[i])
+    member <- bin_membership(precursor_data,
+                             mz_ranges$rt_start[i],
+                             mz_ranges$rt_end[i],
+                             mz_ranges$rt_segment_id[i])
+    bin_data <- precursor_data[which(member), , drop = FALSE]
     if (nrow(bin_data) > 0) {
       mz_values <- bin_data$Precursor.Mz
       covered <- sum(mz_values >= mz_ranges$mz_min[i] &

@@ -134,9 +134,10 @@ plot_rt_bin_quality_heatmap <- function(optimized_windows, validated_data, optim
     rowwise() %>%
     mutate(
       value = {
-        # Filter precursors in this RT range
+        # Filter precursors in this RT bin using the shared membership rule
+        # (rt_group when present, else RT.Apex range). See bin_membership().
         bin_precursors <- precursor_data %>%
-          filter(RT.Apex >= rt_start & RT.Apex < rt_end)
+          filter(bin_membership(precursor_data, rt_start, rt_end, rt_segment_id))
 
         if (nrow(bin_precursors) == 0) {
           NA_real_

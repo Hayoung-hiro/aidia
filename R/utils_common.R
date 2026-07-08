@@ -420,6 +420,40 @@ order_strategies <- function(strategy_names) {
 
 
 # =============================================================================
+# RT Bin Membership
+# =============================================================================
+
+#' Determine Precursor Membership in an RT Bin
+#'
+#' Single shared rule for deciding which precursors belong to a given RT bin.
+#' When \code{precursor_data} carries an \code{rt_group} column (LOCAL / adaptive
+#' strategies, including merged bins), membership is the explicit bin label
+#' (\code{rt_group == rt_segment_id}). Otherwise (GLOBAL smoothing, no bin
+#' labels) it falls back to the RT.Apex range \code{[rt_start, rt_end]}.
+#'
+#' Extracted so generation, smoothing coverage recomputation, evaluation and
+#' plotting all agree on bin membership. For fixed binning the two rules are
+#' identical (contiguous cut, position == label); only adaptive / merge cases
+#' previously diverged.
+#'
+#' @param precursor_data Data frame of precursors (needs \code{RT.Apex}, and
+#'   optionally \code{rt_group}).
+#' @param rt_start Numeric, RT bin start (used only in the range fallback).
+#' @param rt_end Numeric, RT bin end (used only in the range fallback).
+#' @param rt_segment_id Integer/numeric bin label matched against \code{rt_group}
+#'   when that column is present.
+#' @return Logical vector, one element per row of \code{precursor_data}.
+#' @keywords internal
+bin_membership <- function(precursor_data, rt_start, rt_end, rt_segment_id) {
+  if ("rt_group" %in% names(precursor_data)) {
+    precursor_data$rt_group == rt_segment_id
+  } else {
+    precursor_data$RT.Apex >= rt_start & precursor_data$RT.Apex <= rt_end
+  }
+}
+
+
+# =============================================================================
 # Data Manipulation Utilities
 # =============================================================================
 

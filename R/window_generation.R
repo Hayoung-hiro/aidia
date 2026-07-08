@@ -72,15 +72,11 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
     rt_start <- rt_stats$rt_start[i]
     rt_end <- rt_stats$rt_end[i]
 
-    # Get precursors for this RT bin
-    # Use rt_group if available (LOCAL strategies), otherwise use RT range (GLOBAL smoothing)
-    if ("rt_group" %in% colnames(precursor_data)) {
-      bin_data <- precursor_data %>%
-        filter(rt_group == i)
-    } else {
-      bin_data <- precursor_data %>%
-        filter(RT.Apex >= rt_start & RT.Apex <= rt_end)
-    }
+    # Get precursors for this RT bin using the shared membership rule:
+    # rt_group when present (LOCAL strategies), else RT.Apex range (GLOBAL
+    # smoothing). Meaning unchanged — extracted to bin_membership().
+    bin_data <- precursor_data %>%
+      filter(bin_membership(precursor_data, rt_start, rt_end, i))
 
     # Generate windows based on mode
     # All generators handle FZ internally via boundary-array-first architecture

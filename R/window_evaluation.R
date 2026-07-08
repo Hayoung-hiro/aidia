@@ -92,8 +92,9 @@ evaluate_windows <- function(optimized_windows,
     rt_s <- seg_wins$rt_start[1]
     rt_e <- seg_wins$rt_end[1]
 
-    # Precursors that fall in this RT bin
-    bin_mask   <- precursors$RT.Apex >= rt_s & precursors$RT.Apex <= rt_e
+    # Precursors that fall in this RT bin (shared membership rule: rt_group
+    # when present, else RT.Apex range). See bin_membership().
+    bin_mask   <- bin_membership(precursors, rt_s, rt_e, seg_id)
     bin_fwhm   <- fwhm_sec[bin_mask]
 
     # DPPP per precursor in this bin, using the actual post-optimization
