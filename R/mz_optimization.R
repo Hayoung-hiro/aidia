@@ -137,8 +137,10 @@ optimize_mz_ranges.local_strategy_config <- function(config, precursor_data,
   }
   cat("  -> Sequential processing\n\n")
 
+  bins <- split(precursor_data, precursor_data$rt_group)
+
   process_func <- function(i) {
-    bin_data <- precursor_data %>% dplyr::filter(rt_group == i)
+    bin_data <- bins[[as.character(i)]] %||% precursor_data[0, ]
 
     if (nrow(bin_data) == 0) {
       # Empty bin - use configured fallback range
@@ -324,8 +326,10 @@ optimize_mz_ranges.greedy_config <- function(config, precursor_data, rt_stats,
   coverage_ratios <- numeric(n_bins)
   n_precursors_total <- numeric(n_bins)
 
+  bins <- split(precursor_data, precursor_data$rt_group)
+
   for (i in 1:n_bins) {
-    bin_data <- precursor_data %>% dplyr::filter(rt_group == i)
+    bin_data <- bins[[as.character(i)]] %||% precursor_data[0, ]
 
     if (nrow(bin_data) == 0) {
       center <- (mz_range_min + mz_range_max) / 2
@@ -437,8 +441,10 @@ optimize_mz_ranges.kde_config <- function(config, precursor_data, rt_stats,
   cat(sprintf("     Density threshold: %.0f%% of peak\n", density_threshold * 100))
   cat(sprintf("     Minimum coverage target: %.0f%%\n\n", min_coverage * 100))
 
+  bins <- split(precursor_data, precursor_data$rt_group)
+
   for (i in 1:n_bins) {
-    bin_data <- precursor_data %>% dplyr::filter(rt_group == i)
+    bin_data <- bins[[as.character(i)]] %||% precursor_data[0, ]
 
     if (nrow(bin_data) == 0) {
       mz_ranges[[i]] <- make_mz_range_row(
