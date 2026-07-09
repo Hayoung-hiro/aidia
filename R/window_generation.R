@@ -72,15 +72,11 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
     rt_start <- rt_stats$rt_start[i]
     rt_end <- rt_stats$rt_end[i]
 
-    # Get precursors for this RT bin
-    # Use rt_group if available (LOCAL strategies), otherwise use RT range (GLOBAL smoothing)
-    if ("rt_group" %in% colnames(precursor_data)) {
-      bin_data <- precursor_data %>%
-        filter(rt_group == i)
-    } else {
-      bin_data <- precursor_data %>%
-        filter(RT.Apex >= rt_start & RT.Apex <= rt_end)
-    }
+    # Get precursors for this RT bin using the shared membership rule:
+    # rt_group when present (LOCAL strategies), else RT.Apex range (GLOBAL
+    # smoothing). Meaning unchanged — extracted to bin_membership().
+    bin_data <- precursor_data %>%
+      filter(bin_membership(precursor_data, rt_start, rt_end, i))
 
     # Generate windows based on mode
     # All generators handle FZ internally via boundary-array-first architecture
@@ -208,6 +204,76 @@ generate_fixed_windows_internal <- function(mz_min, mz_max, n_windows,
 # =============================================================================
 # Variable Window Mode (v2: Constrained Density Partitioning)
 # =============================================================================
+
+#' Redistribute an Integer Cover Width into N Integer Windows (Internal)
+#'
+#' Splits an integer cover width \code{W} into exactly \code{N} integer widths,
+#' each \code{>= floor_da}, whose proportions follow \code{raw_widths} (the
+#' strategy density shape) as closely as integer rounding allows. Implements
+#' SPEC 2026-07-08 rule 2 (shape-preserving integer partition); returns
+#' \code{NULL} to signal rule 4 (fixed last resort).
+#'
+#' @param W Integer total cover width (Da) to tile.
+#' @param N Target number of windows (fixed; never reduced or increased, H6).
+#' @param raw_widths Numeric shape hint of length \code{N}; only its relative
+#'   proportions matter. Degenerate input (wrong length, non-finite, or
+#'   non-positive sum) falls back to a uniform shape.
+#' @param floor_da Whole-number hard lower bound per window (recommended or
+#'   absolute floor). Assumed integer-valued (default config: 2 Da / 1 Da).
+#'
+#' @return Integer vector of length \code{N} summing to \code{W} with every
+#'   element \code{>= floor_da}, or \code{NULL} when \code{N * floor_da > W}.
+#' @keywords internal
+redistribute_integer_widths <- function(W, N, raw_widths, floor_da) {
+  # Integer widths need an integer floor; round a fractional floor UP so the
+  # result still honors it (e.g. floor_da = 2.5 -> 3). No-op for integer floors
+  # (the default config). Without this, round() could drop a width just below a
+  # fractional floor and fail the stopifnot below (reviewer finding).
+  floor_da <- ceiling(floor_da)
+  # Infeasible: even at the floor, N windows cannot fit in W (rule 4 signal).
+  if (N * floor_da > W) return(NULL)
+
+  # Degenerate shape -> uniform target (still an integer redistribution, not
+  # the fixed-width fallback).
+  if (length(raw_widths) != N || any(!is.finite(raw_widths)) ||
+      sum(raw_widths) <= 0) {
+    raw_widths <- rep(1, N)
+  }
+
+  target <- raw_widths / sum(raw_widths) * W   # real-valued shape target
+  w <- pmax(floor_da, floor(target))           # truncate + hard lower bound
+  deficit <- W - sum(w)                        # integer closing correction
+
+  if (deficit > 0) {
+    # Hand out +1 Da to the largest fractional remainders first (deficit < N).
+    ord <- order(target - floor(target), decreasing = TRUE)
+    for (k in seq_len(deficit)) {
+      idx <- ord[((k - 1L) %% N) + 1L]
+      w[idx] <- w[idx] + 1
+    }
+  } else if (deficit < 0) {
+    # Reclaim -1 Da, but only from windows above the floor (H5). Feasible
+    # because W >= N * floor_da guarantees enough slack above the floor.
+    surplus <- -deficit
+    ord <- order(w - target, decreasing = TRUE)  # shave the biggest overshoots
+    repeat {
+      progressed <- FALSE
+      for (idx in ord) {
+        if (surplus == 0) break
+        if (w[idx] > floor_da) {
+          w[idx] <- w[idx] - 1
+          surplus <- surplus - 1
+          progressed <- TRUE
+        }
+      }
+      if (surplus == 0 || !progressed) break
+    }
+  }
+
+  w <- as.integer(round(w))
+  stopifnot(sum(w) == W, all(w >= floor_da), length(w) == N)
+  w
+}
 
 #' Generate Variable Windows (Internal)
 #'
@@ -402,81 +468,96 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   boundaries[length(boundaries)] <- mz_max
 
   # =========================================================================
-  # Phase 3.5: Width digitization for robustness
+  # Phase 3.5: Digitize to a fixed N of integer-width windows
+  #   Constraint-resolution order (SPEC 2026-07-08, section 4):
+  #     (1) edge-expansion so N windows fit at the recommended width
+  #     (2) shape-preserving integer redistribution (width >= absolute floor)
+  #     (3) relax the working floor to the absolute minimum if still too narrow
+  #     (4) fixed equal-width windows as the last resort (redistribute NULL)
+  #   count is always N (H6); max_width is soft (S2, may be exceeded).
+  #   Note: width_grid_step is now vestigial here -- integer widths ARE the
+  #   digitization (1 Da grid). Kept in the signature for caller compatibility.
   # =========================================================================
-  if (!is.null(width_grid_step) && width_grid_step > 0) {
-    widths_raw <- widths
-    widths <- round(widths / width_grid_step) * width_grid_step
 
-    # Clamp to min/max constraints
-    widths <- pmax(widths, min_width_da)
-    widths <- pmin(widths, max_width_da)
+  # Integer cover range. Edge-expansion (rule 1) widens it -- data-relative,
+  # no instrument clamp -- so N windows fit at the recommended width. The
+  # expansion is only a few Da and the data sits mid-range, so instrument
+  # bounds are never hit (config validation, SPEC section 6, rejects the truly
+  # unworkable cases upfront).
+  mz_lo <- floor(mz_min)
+  mz_hi <- ceiling(mz_max)
+  W <- mz_hi - mz_lo
 
-    # Redistribute remainder to preserve total range
-    mz_range <- mz_max - mz_min
-    remainder <- mz_range - sum(widths)
+  # Integer widths need integer floors; round the recommended and absolute
+  # widths UP so a fractional min_width_da (e.g. 2.5) is still honored. No-op
+  # for the usual integer widths (default config).
+  rec_floor <- ceiling(min_width_da)
+  abs_floor <- ceiling(ABSOLUTE_MIN_WIDTH_DA)
 
-    if (abs(remainder) > 1e-10) {
-      n_adjustments <- round(remainder / width_grid_step)
-      if (n_adjustments != 0) {
-        direction <- sign(n_adjustments)
-        rounding_errors <- widths_raw - widths
-        candidates <- order(direction * rounding_errors, decreasing = TRUE)
-        # Distribute at most one grid-step correction per window (in preference
-        # order). abs(n_adjustments) can exceed the window count when clamping
-        # removed a large amount (e.g. a single window wider than max_width_da),
-        # so cap the loop at length(candidates) -- indexing candidates[j] beyond
-        # that is NA and errors the `if`. Any leftover falls through to
-        # final_remainder below and is caught by the Phase 4 width re-validation.
-        n_steps <- min(abs(n_adjustments), length(candidates))
-        for (j in seq_len(n_steps)) {
-          idx <- candidates[j]
-          new_width <- widths[idx] + direction * width_grid_step
-          if (new_width >= min_width_da && new_width <= max_width_da) {
-            widths[idx] <- new_width
-          }
-        }
-      }
-      # Final residual goes to last window
-      final_remainder <- mz_range - sum(widths)
-      if (abs(final_remainder) > 1e-10) {
-        widths[length(widths)] <- widths[length(widths)] + final_remainder
-      }
-    }
-
-    # Reconstruct boundaries from digitized widths
-    boundaries <- c(mz_min, mz_min + cumsum(widths))
-    boundaries[length(boundaries)] <- mz_max  # ensure exact endpoint
+  needed <- n_windows * rec_floor
+  if (W < needed) {
+    add <- needed - W                   # integer Da to add (keeps boundaries integer)
+    add_lo <- ceiling(add / 2)          # symmetric split (lower gets the odd Da)
+    add_hi <- add - add_lo
+    mz_lo <- mz_lo - add_lo
+    mz_hi <- mz_hi + add_hi
+    W <- mz_hi - mz_lo
   }
 
-  # =========================================================================
-  # Phase 4: Forbidden zone transform (if active) or direct assembly
-  # =========================================================================
+  # Working floor: the recommended width normally; relax to the absolute
+  # physical floor only if expansion still leaves W below N * recommended
+  # (rule 3, rare -- unreachable with unbounded edge-expansion).
+  floor_da <- if (W < needed) abs_floor else rec_floor
 
-  # Always integerize for clean boundaries
-  boundaries <- integerize_boundaries(boundaries, mz_min, mz_max)
+  # Density shape from the adjusted/smoothed boundaries (S1). When earlier
+  # phases produced fewer than N windows (narrow bin), that shape is unusable
+  # for N, so fall back to a uniform shape -- edge-expansion has already widened
+  # W to fit N.
+  raw_widths <- diff(boundaries)
+  if (length(raw_widths) != n_windows) {
+    raw_widths <- rep(1, n_windows)
+  }
 
-  # Validate width constraints after integer rounding
-  int_widths <- diff(boundaries)
-  if (any(int_widths < min_width_da * 0.9) || any(int_widths > max_width_da * 1.1)) {
-    warning("Variable mode: integer rounding violated width constraints. Falling back to fixed mode.")
-    return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
-                                           min_width_da, max_width_da,
+  # Rule 2 (and rule 3 via floor_da): N integer widths, shape-preserving.
+  w <- redistribute_integer_widths(W, n_windows, raw_widths, floor_da)
+
+  # Rule 4: fixed equal-width fallback only when N windows cannot fit even at
+  # the absolute floor (W < N * absolute; normally pre-empted by config
+  # validation). Uses the expanded cover range and the absolute floor.
+  if (is.null(w)) {
+    warning(sprintf(
+      "digitization: cannot fit %d integer windows in %d Da even at the absolute floor; using fixed-width fallback.",
+      n_windows, W))
+    return(generate_fixed_windows_internal(mz_lo, mz_hi, n_windows,
+                                           ABSOLUTE_MIN_WIDTH_DA, max_width_da,
                                            fz_offset = fz_offset))
   }
 
-  # Conditionally apply forbidden zone transform
+  # S3 observation (not a failure): count windows below the recommended width.
+  n_below <- sum(w < min_width_da)
+  if (n_below > 0) {
+    message(sprintf(
+      "digitization: %d/%d window(s) below recommended min_width %.1f Da (absolute floor %.1f Da held).",
+      n_below, n_windows, min_width_da, ABSOLUTE_MIN_WIDTH_DA))
+  }
+
+  # Reconstruct integer boundaries from the integer widths.
+  boundaries <- mz_lo + c(0, cumsum(w))
+
+  # H5 (hard): every width >= absolute physical floor, no exception.
+  stopifnot(all(diff(boundaries) >= ABSOLUTE_MIN_WIDTH_DA))
+
+  # =========================================================================
+  # Phase 4: Integerize (defensive) then optional forbidden-zone transform
+  # =========================================================================
+
+  # Boundaries are already integers; re-assert against the EXPANDED cover range
+  # (mz_lo/mz_hi, not the original mz_min/mz_max) so edge-expansion is preserved.
+  boundaries <- integerize_boundaries(boundaries, mz_lo, mz_hi)
+
+  # Conditionally apply forbidden zone transform (integerize -> fz order, H4).
   if (fz_offset > 0) {
     boundaries <- transform_boundaries_to_fz(boundaries, fz_offset)
-
-    # Re-validate width constraints after FZ transform
-    fz_widths <- diff(boundaries)
-    if (any(fz_widths < min_width_da * 0.9) || any(fz_widths > max_width_da * 1.1)) {
-      warning("Variable+FZ: FZ transform violated width constraints. Falling back to fixed+FZ.")
-      return(generate_fixed_windows_internal(mz_min, mz_max, n_windows,
-                                             min_width_da, max_width_da,
-                                             fz_offset = fz_offset))
-    }
   }
 
   # Assemble windows from boundary array (continuity guaranteed by construction)

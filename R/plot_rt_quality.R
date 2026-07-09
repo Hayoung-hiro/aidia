@@ -43,6 +43,10 @@ plot_rt_bin_quality_heatmap <- function(optimized_windows, validated_data, optim
   windows_data <- optimized_windows$windows
   mz_ranges_data <- optimized_windows$mz_optimization$mz_ranges
   precursor_data <- validated_data$data
+  # Run-global FWHM unit fixed at load time (metadata). Resolved once and
+  # passed into the per-bin conversion below so subsets never re-guess and
+  # cannot flip units between bins. See issue #8.
+  fwhm_unit <- validated_data$metadata$fwhm_unit
 
   # Check for required columns
   if (!all(c("rt_segment_id", "rt_start", "rt_end") %in% names(windows_data))) {
@@ -134,15 +138,16 @@ plot_rt_bin_quality_heatmap <- function(optimized_windows, validated_data, optim
     rowwise() %>%
     mutate(
       value = {
-        # Filter precursors in this RT range
+        # Filter precursors in this RT bin using the shared membership rule
+        # (rt_group when present, else RT.Apex range). See bin_membership().
         bin_precursors <- precursor_data %>%
-          filter(RT.Apex >= rt_start & RT.Apex < rt_end)
+          filter(bin_membership(precursor_data, rt_start, rt_end, rt_segment_id))
 
         if (nrow(bin_precursors) == 0) {
           NA_real_
         } else {
           # Calculate DPPP satisfaction for precursors in this bin (ratio 0-1)
-          fwhm_sec <- ensure_fwhm_seconds(bin_precursors$FWHM)
+          fwhm_sec <- ensure_fwhm_seconds(bin_precursors$FWHM, unit = fwhm_unit)
           dppp_values <- calculate_dppp(fwhm_sec, cycle_time_sec)
           dppp_satisfaction_pct(dppp_values, target_dppp) / 100
         }

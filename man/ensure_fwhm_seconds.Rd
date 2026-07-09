@@ -4,10 +4,15 @@
 \alias{ensure_fwhm_seconds}
 \title{Ensure FWHM Values Are in Seconds}
 \usage{
-ensure_fwhm_seconds(fwhm_vector)
+ensure_fwhm_seconds(fwhm_vector, unit = NULL)
 }
 \arguments{
 \item{fwhm_vector}{Numeric vector of FWHM values (may contain NAs)}
+
+\item{unit}{Character source unit of \code{fwhm_vector}: \code{"minutes"}
+(multiplied by 60) or \code{"seconds"} (returned unchanged). When
+\code{NULL} (default) the legacy median<1 heuristic is used (silently)
+for backward compatibility.}
 }
 \value{
 Numeric vector of FWHM values in seconds

@@ -20,6 +20,25 @@
 
 
 # =============================================================================
+# Constants
+# =============================================================================
+
+#' Absolute Minimum Isolation Window Width (Da)
+#'
+#' The HARD physical lower bound on isolation window width, in Da. Honored
+#' without exception (digitization H5). This is a DIFFERENT object from
+#' `min_width_da`, the SOFT recommended isolation width (instrument
+#' `recommended_min_width_da`, default 2 Da; digitization S3), which may be
+#' relaxed down to this absolute floor when instrument boundaries force it.
+#' Do NOT merge the two.
+#'
+#' Currently hard-coded at 1.0 Da; may become configurable later.
+#'
+#' @export
+ABSOLUTE_MIN_WIDTH_DA <- 1.0
+
+
+# =============================================================================
 # Main Window Optimization Function
 # =============================================================================
 
@@ -252,6 +271,30 @@ optimize_windows <- function(
   } else {
     n_windows_per_bin <- optimization_plan$window_count_per_bin
   }
+
+  # Config sanity (SPEC 2026-07-08 section 6): reject unworkable width /
+  # instrument settings upfront so digitization never hits an impossible tiling.
+  if (min_width_da < ABSOLUTE_MIN_WIDTH_DA) {
+    stop(sprintf(
+      "min_width_da (%.2f) must be >= ABSOLUTE_MIN_WIDTH_DA (%.2f)",
+      min_width_da, ABSOLUTE_MIN_WIDTH_DA))
+  }
+  if (min_width_da >= max_width_da) {
+    stop(sprintf(
+      "min_width_da (%.2f) must be < max_width_da (%.2f)",
+      min_width_da, max_width_da))
+  }
+  instrument_mz_span <- mz_range_max - mz_range_min
+  min_required_span <- n_windows_per_bin * ABSOLUTE_MIN_WIDTH_DA
+  if (instrument_mz_span < min_required_span) {
+    stop(sprintf(
+      paste0("Instrument m/z range (%.1f-%.1f Da, span %.1f) cannot fit %d ",
+             "windows at the absolute minimum width %.2f Da (needs %.1f Da). ",
+             "Widen mz_range_min/mz_range_max or reduce the window count."),
+      mz_range_min, mz_range_max, instrument_mz_span,
+      as.integer(n_windows_per_bin), ABSOLUTE_MIN_WIDTH_DA, min_required_span))
+  }
+
   precursor_data <- get_precursor_data(validated_data)
   n_total_precursors <- nrow(precursor_data)
 
@@ -325,19 +368,26 @@ optimize_windows <- function(
   # ===================================================================
   print_step(4, "Window Generation")
 
-  # Decouple generation min_width from greedy's range calculation.
-  # Greedy sets mz_range = n_windows × min_width_da, so using the same
+  # width-semantics-split: name the recommended isolation width (SOFT target,
+  # digitization S3) so it is not confused with the absolute physical floor
+  # (HARD, digitization H5 = ABSOLUTE_MIN_WIDTH_DA).
+  isolation_width_floor_da <- min_width_da
 
-  # value as the generation floor forces all windows to identical width
-  # (no room for density variation). Use half min_width (floor 1 Da)
-  # for density mode to allow adaptive widths within the greedy range.
-  gen_min_width_da <- if (mz_strategy == "greedy" && window_mode == "density") {
-    effective <- max(1.0, min_width_da * 0.5)
+  # Decouple generation min_width from greedy's range calculation.
+  # Greedy sets mz_range = n_windows × isolation_width_floor_da, so using the
+  # same value as the generation floor forces all windows to identical width
+  # (no room for density variation). For greedy+density, halve the recommended
+  # width, clamped at the absolute physical floor ABSOLUTE_MIN_WIDTH_DA, to
+  # allow adaptive widths within the greedy range. The halving is intentional
+  # (density variation) and still honors the absolute floor, so it does NOT
+  # violate H5.
+  generation_min_width_da <- if (mz_strategy == "greedy" && window_mode == "density") {
+    effective <- max(ABSOLUTE_MIN_WIDTH_DA, isolation_width_floor_da * 0.5)
     print_info(sprintf("Greedy+Density: generation min_width relaxed %.1f -> %.1f Da",
-                       min_width_da, effective))
+                       isolation_width_floor_da, effective))
     effective
   } else {
-    min_width_da
+    isolation_width_floor_da
   }
 
   windows <- generate_windows_internal(
@@ -346,7 +396,7 @@ optimize_windows <- function(
     mz_ranges = mz_ranges,
     n_windows_per_bin = n_windows_per_bin,
     window_mode = window_mode,
-    min_width_da = gen_min_width_da,
+    min_width_da = generation_min_width_da,
     max_width_da = max_width_da,
     overlap_percentage = overlap_percentage,
     fz_offset = fz_offset,

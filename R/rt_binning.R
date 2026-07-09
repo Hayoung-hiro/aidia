@@ -118,10 +118,11 @@ perform_rt_binning_internal <- function(precursor_data,
       cpd_min_precursors_per_bin = cpd_min_precursors_per_bin
     )
   } else {
-    # Fixed mode: use RT.Apex as the single RT reference
+    # Fixed mode: use the resolved rt_column as the single RT reference
     rt_result <- perform_fixed_rt_binning_internal(
       precursor_data = precursor_data,
-      rt_bin_width_min = rt_bin_width_min
+      rt_bin_width_min = rt_bin_width_min,
+      rt_column = rt_column
     )
   }
 
@@ -141,18 +142,21 @@ perform_rt_binning_internal <- function(precursor_data,
 
 #' Perform Fixed-Width RT Binning (Internal)
 #'
-#' Segments precursor data into equal-width RT bins using RT.Apex as the
-#' single RT reference (computed in Stage 1 from midpoint of RT.Start/RT.Stop).
+#' Segments precursor data into equal-width RT bins using the RT column named by
+#' \code{rt_column} (default RT.Apex, computed in Stage 1 from the midpoint of
+#' RT.Start/RT.Stop) as the single RT reference.
 #'
-#' @param precursor_data Data frame with RT.Apex column
+#' @param precursor_data Data frame with the \code{rt_column} RT column
 #' @param rt_bin_width_min Numeric, RT bin width in minutes
+#' @param rt_column Character, name of the RT column to use (default "RT.Apex")
 #'
 #' @return List containing data, stats, n_bins, rt_breaks, adaptive_info (NULL)
 #' @keywords internal
-perform_fixed_rt_binning_internal <- function(precursor_data, rt_bin_width_min) {
+perform_fixed_rt_binning_internal <- function(precursor_data, rt_bin_width_min,
+                                              rt_column = "RT.Apex") {
 
-  # Get RT range using RT.Apex as single RT reference
-  rt_range <- range(precursor_data$RT.Apex, na.rm = TRUE)
+  # Get RT range using rt_column as the single RT reference
+  rt_range <- range(precursor_data[[rt_column]], na.rm = TRUE)
 
   # Guard: a single distinct RT value yields one break point, and cut() needs
   # at least two boundaries to form a valid interval. Expand by one bin width.
@@ -172,7 +176,7 @@ perform_fixed_rt_binning_internal <- function(precursor_data, rt_bin_width_min) 
 
   # Assign RT groups
   precursor_data$rt_group <- cut(
-    precursor_data$RT.Apex,
+    precursor_data[[rt_column]],
     breaks = rt_breaks,
     labels = FALSE,
     include.lowest = TRUE
@@ -187,8 +191,8 @@ perform_fixed_rt_binning_internal <- function(precursor_data, rt_bin_width_min) 
   rt_stats <- precursor_data %>%
     group_by(rt_group) %>%
     summarise(
-      rt_start = min(RT.Apex, na.rm = TRUE),
-      rt_end = max(RT.Apex, na.rm = TRUE),
+      rt_start = min(.data[[rt_column]], na.rm = TRUE),
+      rt_end = max(.data[[rt_column]], na.rm = TRUE),
       n_precursors = n(),
       .groups = 'drop'
     ) %>%
@@ -290,7 +294,8 @@ perform_adaptive_rt_binning_internal <- function(precursor_data,
     fallback_width <- gradient_length / 10
     fallback_width <- max(cpd_min_bin_width, min(fallback_width, cpd_max_bin_width))
 
-    result <- perform_fixed_rt_binning_internal(precursor_data, fallback_width)
+    result <- perform_fixed_rt_binning_internal(precursor_data, fallback_width,
+                                                rt_column = rt_column)
     result$adaptive_info <- list(
       ks_statistics = ks_statistics,
       p_values = p_values,

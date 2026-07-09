@@ -470,6 +470,10 @@ package_validated_data <- function(
     rt_range = rt_range_actual,
     mz_range = mz_range_actual,
     fwhm_stats = fwhm_stats,
+    # Source-fixed FWHM unit. The only loader is DIA-NN (load_diann_data),
+    # which reports FWHM in minutes (same unit as RT). Asserted here once so
+    # downstream conversion never re-guesses per subset. See issue #8.
+    fwhm_unit = "minutes",
     has_raw_metadata = !is.null(raw_metadata),
     raw_metadata = raw_metadata,
     file_info = file_info,

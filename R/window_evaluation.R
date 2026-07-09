@@ -82,7 +82,8 @@ evaluate_windows <- function(optimized_windows,
   # 3. Per-RT-bin metrics
   # ---------------------------------------------------------------------------
   rt_segments <- sort(unique(windows_counted$rt_segment_id))
-  fwhm_sec    <- ensure_fwhm_seconds(precursors$FWHM)
+  fwhm_sec    <- ensure_fwhm_seconds(precursors$FWHM,
+                                     unit = validated_data$metadata$fwhm_unit)
 
   per_rt_bin <- do.call(rbind, lapply(rt_segments, function(seg_id) {
 
@@ -92,8 +93,9 @@ evaluate_windows <- function(optimized_windows,
     rt_s <- seg_wins$rt_start[1]
     rt_e <- seg_wins$rt_end[1]
 
-    # Precursors that fall in this RT bin
-    bin_mask   <- precursors$RT.Apex >= rt_s & precursors$RT.Apex <= rt_e
+    # Precursors that fall in this RT bin (shared membership rule: rt_group
+    # when present, else RT.Apex range). See bin_membership().
+    bin_mask   <- bin_membership(precursors, rt_s, rt_e, seg_id)
     bin_fwhm   <- fwhm_sec[bin_mask]
 
     # DPPP per precursor in this bin, using the actual post-optimization

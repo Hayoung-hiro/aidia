@@ -360,8 +360,10 @@ apply_smoothing.greedy_config <- function(config, mz_ranges, precursor_data,
     wh_lambda = config$whittaker_lambda
   )
 
-  # Greedy invariant: width must remain ~ n_windows * min_width
-  mz_range_per_cycle <- n_windows_per_bin * min_width_da
+  # Greedy invariant: width must remain ~ the greedy cycle range
+  # (N windows x min_width_da, the SOFT recommended isolation width / S3).
+  greedy_cycle_range_da <- n_windows_per_bin * min_width_da
+  mz_range_per_cycle <- greedy_cycle_range_da
   for (i in seq_len(nrow(smoothed))) {
     width_after <- smoothed$mz_max[i] - smoothed$mz_min[i]
     if (width_after < mz_range_per_cycle * 0.95) {
@@ -372,6 +374,10 @@ apply_smoothing.greedy_config <- function(config, mz_ranges, precursor_data,
     }
   }
 
+  # Shared invariant guard: restore bins smoothing pushed below the absolute
+  # floor. No-op for greedy (fixed-width re-centering keeps width >> floor).
+  smoothed <- .repair_mz_ranges(smoothed, mz_ranges, ABSOLUTE_MIN_WIDTH_DA)
+  .report_repaired(smoothed)
   .recalculate_coverage(smoothed, precursor_data)
 }
 
@@ -391,6 +397,10 @@ apply_smoothing.quantile_config <- function(config, mz_ranges, precursor_data,
     sg_poly = config$polynomial_order,
     wh_lambda = config$whittaker_lambda
   )
+  # Shared invariant guard: revert bins where independent min/max smoothing
+  # crossed the boundary or fell below the absolute floor.
+  smoothed <- .repair_mz_ranges(smoothed, mz_ranges, ABSOLUTE_MIN_WIDTH_DA)
+  .report_repaired(smoothed)
   cat("  -> Smoothing applied successfully\n\n")
   .recalculate_coverage(smoothed, precursor_data)
 }
@@ -411,6 +421,10 @@ apply_smoothing.outlier_config <- function(config, mz_ranges, precursor_data,
     sg_poly = config$polynomial_order,
     wh_lambda = config$whittaker_lambda
   )
+  # Shared invariant guard: revert bins where independent min/max smoothing
+  # crossed the boundary or fell below the absolute floor.
+  smoothed <- .repair_mz_ranges(smoothed, mz_ranges, ABSOLUTE_MIN_WIDTH_DA)
+  .report_repaired(smoothed)
   cat("  -> Smoothing applied successfully\n\n")
   .recalculate_coverage(smoothed, precursor_data)
 }
@@ -471,13 +485,61 @@ apply_smoothing.default <- function(config, mz_ranges, ...) {
   mz_ranges
 }
 
+#' Repair smoothed mz_ranges rows that violate the width invariant
+#'
+#' Smoothing mz_min and mz_max independently can push a bin to mz_min >= mz_max
+#' (crossed / negative width) or below the absolute physical floor. Such bins
+#' are restored to their pre-smoothing (raw) boundaries. Only violations of the
+#' ABSOLUTE floor are repaired; bins merely below the SOFT recommended width
+#' (min_width_da) are left untouched — digitization (S3) observes those.
+#'
+#' A raw bin that is itself already degenerate is out of scope (P3, strategy
+#' stage): this guard only reverts what smoothing made worse.
+#'
+#' @param smoothed Data frame after boundary smoothing.
+#' @param raw Data frame of pre-smoothing mz_ranges (same rows/order as smoothed).
+#' @param floor_da Numeric absolute minimum width (default ABSOLUTE_MIN_WIDTH_DA).
+#' @return \code{smoothed} with violating rows restored from \code{raw};
+#'   \code{attr(., "n_repaired")} carries the number of repaired bins.
+#' @keywords internal
+.repair_mz_ranges <- function(smoothed, raw, floor_da = ABSOLUTE_MIN_WIDTH_DA) {
+  bad <- smoothed$mz_min >= smoothed$mz_max |
+    (smoothed$mz_max - smoothed$mz_min) < floor_da
+  bad[is.na(bad)] <- TRUE  # NA boundary is invalid; restore from raw
+  if (any(bad)) {
+    smoothed[bad, c("mz_min", "mz_max", "mz_width")] <-
+      raw[bad, c("mz_min", "mz_max", "mz_width")]
+  }
+  attr(smoothed, "n_repaired") <- sum(bad)
+  smoothed
+}
+
+#' Log the invariant-guard repair count (no output when zero)
+#' @keywords internal
+.report_repaired <- function(mz_ranges) {
+  n_rep <- attr(mz_ranges, "n_repaired")
+  if (!is.null(n_rep) && n_rep > 0) {
+    cat(sprintf(
+      "     Invariant guard: restored %d bin(s) to raw (smoothing broke mz_min<mz_max or width<%.1f Da)\n",
+      n_rep, ABSOLUTE_MIN_WIDTH_DA))
+  }
+  invisible(mz_ranges)
+}
+
 #' Recalculate per-bin coverage after boundary modification
+#'
+#' Uses the shared \code{\link{bin_membership}} rule (rt_group when present,
+#' else RT.Apex range) so smoothing coverage counts match the membership that
+#' generation / statistics assign to each bin (adaptive+merge previously
+#' diverged; fixed binning is unaffected — the two rules coincide there).
 #' @keywords internal
 .recalculate_coverage <- function(mz_ranges, precursor_data) {
   for (i in seq_len(nrow(mz_ranges))) {
-    bin_data <- precursor_data %>%
-      dplyr::filter(RT.Apex >= mz_ranges$rt_start[i] &
-                    RT.Apex <= mz_ranges$rt_end[i])
+    member <- bin_membership(precursor_data,
+                             mz_ranges$rt_start[i],
+                             mz_ranges$rt_end[i],
+                             mz_ranges$rt_segment_id[i])
+    bin_data <- precursor_data[which(member), , drop = FALSE]
     if (nrow(bin_data) > 0) {
       mz_values <- bin_data$Precursor.Mz
       covered <- sum(mz_values >= mz_ranges$mz_min[i] &
