@@ -9,7 +9,10 @@ export_batch_comparison(
   validated_data,
   output_dir,
   formats = c("thermo", "center_mass", "mz_range"),
-  include_comparison = TRUE
+  include_comparison = TRUE,
+  fill_void = FALSE,
+  acquisition_start_min = 0,
+  acquisition_end_min = NULL
 )
 }
 \arguments{
@@ -22,6 +25,16 @@ export_batch_comparison(
 \item{formats}{Character vector, export formats (default: all 3)}
 
 \item{include_comparison}{Logical, include comparison.csv (default: TRUE)}
+
+\item{fill_void}{Logical (default FALSE). Forwarded to export_windows_to_csv():
+TRUE extends each strategy's RT schedule to span
+\code{[acquisition_start_min, acquisition_end_min]} (opt-in leading/trailing void fill).}
+
+\item{acquisition_start_min}{Numeric (default 0). Run start; used only when
+\code{fill_void = TRUE}.}
+
+\item{acquisition_end_min}{Numeric or NULL (default NULL). Run end; used only
+when \code{fill_void = TRUE}.}
 }
 \value{
 Character, path to output directory (invisible)

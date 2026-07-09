@@ -4,18 +4,25 @@
 \alias{perform_fixed_rt_binning_internal}
 \title{Perform Fixed-Width RT Binning (Internal)}
 \usage{
-perform_fixed_rt_binning_internal(precursor_data, rt_bin_width_min)
+perform_fixed_rt_binning_internal(
+  precursor_data,
+  rt_bin_width_min,
+  rt_column = "RT.Apex"
+)
 }
 \arguments{
-\item{precursor_data}{Data frame with RT.Apex column}
+\item{precursor_data}{Data frame with the \code{rt_column} RT column}
 
 \item{rt_bin_width_min}{Numeric, RT bin width in minutes}
+
+\item{rt_column}{Character, name of the RT column to use (default "RT.Apex")}
 }
 \value{
 List containing data, stats, n_bins, rt_breaks, adaptive_info (NULL)
 }
 \description{
-Segments precursor data into equal-width RT bins using RT.Apex as the
-single RT reference (computed in Stage 1 from midpoint of RT.Start/RT.Stop).
+Segments precursor data into equal-width RT bins using the RT column named by
+\code{rt_column} (default RT.Apex, computed in Stage 1 from the midpoint of
+RT.Start/RT.Stop) as the single RT reference.
 }
 \keyword{internal}
