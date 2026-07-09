@@ -16,7 +16,7 @@
 ^TODO.*
 ^\.gitignore$
 ^\.github$
-^.*\.md$
+^[^/]*\.md$
 ^.*\.txt$
 ^.*\.code-workspace$
 ^[^/]*\.json$
