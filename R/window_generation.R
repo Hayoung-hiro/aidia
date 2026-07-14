@@ -534,6 +534,25 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
     # Commit all staged moves simultaneously (Jacobi update)
     boundaries <- new_boundaries
 
+    # Monotonicity guard (symmetric, direction-preserving).
+    #
+    # Each boundary's min-width check above reads only the FROZEN neighbor
+    # positions (b_old), so two adjacent boundaries can both move inward toward
+    # a dense, narrow window in the same sweep and close -- or cross -- the gap
+    # between them below min_width_da even though each move passed its own check
+    # (both saw only the wider frozen gap). The former in-place Gauss-Seidel
+    # sweep could not do this: it re-checked each boundary against its neighbor's
+    # already-updated position. Without this guard the invalid intermediate is
+    # only masked downstream by the Phase 3 width floor, which can leave a
+    # neighbor spuriously widened past max_width_da. If the committed sweep
+    # produced any sub-min or crossed gap, discard it and keep the last valid
+    # layout, then stop. Reverting to the frozen pre-sweep state is symmetric,
+    # so it preserves the direction/traversal independence this refactor adds.
+    if (any(diff(boundaries) < min_width_da - 1e-9)) {
+      boundaries <- b_old
+      break
+    }
+
     # Early exit if no changes in this iteration
     if (!boundaries_changed) break
   }

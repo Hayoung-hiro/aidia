@@ -83,3 +83,44 @@ test_that("density generator is symmetric under input mirroring", {
   expect_equal(length(multiset_fails), 0,
                info = paste(utils::head(multiset_fails, 5), collapse = " ; "))
 })
+
+test_that("Jacobi sweep does not over-squeeze a dense narrow window (monotonicity guard)", {
+  # Reproduction of the crossing artifact the Phase 2 monotonicity guard fixes.
+  #
+  # Each boundary's min-width check in Phase 2 reads only the FROZEN neighbor
+  # positions, so two adjacent boundaries can both move inward toward a dense,
+  # narrow cluster in the same Jacobi sweep and collapse the gap between them to
+  # (or below) zero -- a crossing the former in-place Gauss-Seidel sweep could
+  # not produce. The zero-width intermediate is floored by the Phase 3 smoother,
+  # which pushes a neighbor's width PAST the (soft) max_width_da ceiling even
+  # though the bin has no width pressure (span 134 << N * max_width = 200). The
+  # guard reverts any sweep that crosses, keeping the last valid layout.
+  #
+  # This exact scenario yields a window of width 26 > max_width_da = 25 WITHOUT
+  # the guard, and <= 25 WITH it. Because the bin is not width-constrained, no
+  # window needs to exceed the ceiling, so a spurious >max_width window is a real
+  # artifact rather than the documented "max_width is soft for genuinely wide
+  # bins" case.
+  set.seed(3)
+  mz_min <- 0; mz_max <- 134; N <- 8; min_w <- 1; max_w <- 25
+  precursor_mz <- c(
+    rnorm(sample(200:400, 1), runif(1, 55, 80), runif(1, 0.4, 1.5)),  # dense spike
+    seq(2, mz_max - 2, length.out = 18)                               # sparse background
+  )
+  precursor_mz <- precursor_mz[precursor_mz > mz_min & precursor_mz < mz_max]
+
+  w <- suppressWarnings(suppressMessages(generate_variable_windows_internal(
+    precursor_mz, mz_min, mz_max, N, min_w, max_w, fz_offset = 0)))
+
+  # Guard-specific: an unconstrained bin must not exceed the soft width ceiling.
+  expect_true(all(w$window_width <= max_w + 1e-9),
+              info = sprintf("widths: %s", paste(round(w$window_width, 2), collapse = ",")))
+  # Invariants still hold.
+  expect_equal(nrow(w), N)
+  expect_true(all(w$window_width >= min_w - 1e-9))
+  expect_equal(w$mz_start[-1], head(w$mz_end, -1))                    # contiguous
+  # Direction-independence is preserved through the guard (symmetric revert).
+  wm <- suppressWarnings(suppressMessages(generate_variable_windows_internal(
+    mz_max - precursor_mz, mz_min, mz_max, N, min_w, max_w, fz_offset = 0)))
+  expect_equal(sort(w$window_width), sort(wm$window_width))
+})
