@@ -474,18 +474,28 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   for (iter in 1:max_iterations) {
     boundaries_changed <- FALSE
 
+    # Jacobi (not Gauss-Seidel) sweep: freeze the read state at the start of the
+    # pass and commit every move simultaneously afterward. Reading only b_old
+    # makes each boundary a pure function of its frozen neighbors, so the sweep
+    # is independent of iteration order (traversal) and symmetric under mirroring
+    # of the input -- a boundary that reads b_old[i-1] and b_old[i+1] the same
+    # way regardless of which end we start from. The density formula, the 20%
+    # balance skip, and the min/max width constraints are unchanged.
+    b_old <- boundaries
+    new_boundaries <- boundaries
+
     # Adjust internal boundaries (indices 2 to n). seq_len(n)[-1] yields an
     # empty set when actual_n_windows == 1 (single-window bin), avoiding the
     # `2:1` reverse-iteration that would index the out-of-range boundaries[i+1].
     for (i in seq_len(actual_n_windows)[-1]) {
-      # Current boundary position
-      current_boundary <- boundaries[i]
+      # Current boundary position (frozen sweep state)
+      current_boundary <- b_old[i]
 
       # Count precursors in left and right windows
-      left_count <- sum(precursor_mz >= boundaries[i - 1] &
-                          precursor_mz < boundaries[i])
-      right_count <- sum(precursor_mz >= boundaries[i] &
-                           precursor_mz < boundaries[i + 1])
+      left_count <- sum(precursor_mz >= b_old[i - 1] &
+                          precursor_mz < b_old[i])
+      right_count <- sum(precursor_mz >= b_old[i] &
+                           precursor_mz < b_old[i + 1])
 
       # Skip if balanced (within 20% difference)
       total <- left_count + right_count
@@ -502,9 +512,9 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
         new_boundary <- current_boundary + adjustment_step
       }
 
-      # Check constraints before applying
-      left_width_new <- new_boundary - boundaries[i - 1]
-      right_width_new <- boundaries[i + 1] - new_boundary
+      # Check constraints before applying (against frozen neighbors)
+      left_width_new <- new_boundary - b_old[i - 1]
+      right_width_new <- b_old[i + 1] - new_boundary
 
       # Constraint 1: min_width
       if (left_width_new < min_width_da || right_width_new < min_width_da) {
@@ -516,10 +526,13 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
         next  # Reject this move
       }
 
-      # All constraints satisfied - apply the move
-      boundaries[i] <- new_boundary
+      # All constraints satisfied - stage the move (committed after the sweep)
+      new_boundaries[i] <- new_boundary
       boundaries_changed <- TRUE
     }
+
+    # Commit all staged moves simultaneously (Jacobi update)
+    boundaries <- new_boundaries
 
     # Early exit if no changes in this iteration
     if (!boundaries_changed) break
@@ -531,49 +544,51 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   # Ensure width changes gradually (no abrupt jumps)
 
   widths <- diff(boundaries)
+  n_widths <- length(widths)
 
+  # Symmetric Laplacian smoother (Jacobi). The former smoother compared each
+  # width only to its LEFT neighbor and dumped the correction only RIGHTward
+  # (widths[i+1]) -- a structural left/right bias that made the output depend on
+  # traversal direction. Here each width is pulled toward the mean of BOTH
+  # neighbors, bounded by main's +/- max_change_ratio, reading a frozen snapshot
+  # (w_old) and committing simultaneously. A symmetric stencil over frozen state
+  # is invariant to iteration order and to mirroring; a flat region is a fixed
+  # point, so near-uniform shapes (e.g. the quantile path) are preserved. Total
+  # width is not conserved by the stencil, so widths are renormalized to the bin
+  # span before boundary reconstruction (the digitization tail re-derives the
+  # exact integer widths from these proportions anyway).
   for (smooth_iter in 1:5) {
+    if (n_widths < 2) break  # nothing to smooth for a single-window bin
+    w_old <- widths
+    w_new <- widths
     widths_changed <- FALSE
 
-    for (i in seq_along(widths)[-1]) {  # empty when only 1 window (no `2:1` reverse)
-      prev_width <- widths[i - 1]
-      curr_width <- widths[i]
+    for (i in seq_len(n_widths)) {
+      # Endpoints reuse their single existing neighbor (symmetric by construction)
+      left_width  <- if (i > 1)        w_old[i - 1] else w_old[i + 1]
+      right_width <- if (i < n_widths) w_old[i + 1] else w_old[i - 1]
+      target_width <- (left_width + right_width) / 2
 
-      # Calculate change ratio
-      change_ratio <- abs(curr_width - prev_width) / prev_width
+      # Bound the change to +/- max_change_ratio of the current width, then hold
+      # the min/max width envelope (both soft here; the tail enforces the floor).
+      lo <- w_old[i] * (1 - max_change_ratio)
+      hi <- w_old[i] * (1 + max_change_ratio)
+      new_width <- min(max(target_width, lo), hi)
+      new_width <- min(max(new_width, min_width_da), max_width_da)
 
-      if (change_ratio > max_change_ratio) {
-        # Need to smooth this transition
-        # Target: bring curr_width closer to prev_width
-        if (curr_width > prev_width) {
-          # Current is wider - try to shrink it
-          target_width <- prev_width * (1 + max_change_ratio)
-          new_width <- max(target_width, min_width_da)
-        } else {
-          # Current is narrower - try to expand it
-          target_width <- prev_width * (1 - max_change_ratio)
-          new_width <- min(target_width, max_width_da)
-          new_width <- max(new_width, min_width_da)
-        }
-
-        # Adjust boundary between window i-1 and i
-        # boundary[i] = boundary[i-1] + width[i-1]
-        # We need to adjust boundary[i+1] to change width[i]
-        if (i < length(widths)) {
-          # Check if adjustment is feasible
-          width_diff <- new_width - curr_width
-          new_next_width <- widths[i + 1] - width_diff
-
-          if (new_next_width >= min_width_da && new_next_width <= max_width_da) {
-            widths[i] <- new_width
-            widths[i + 1] <- new_next_width
-            widths_changed <- TRUE
-          }
-        }
-      }
+      if (new_width != w_old[i]) widths_changed <- TRUE
+      w_new[i] <- new_width
     }
 
+    widths <- w_new
     if (!widths_changed) break
+  }
+
+  # Renormalize to the bin span so proportions are preserved and the
+  # reconstructed boundaries land exactly on mz_max (the stencil does not
+  # conserve total width).
+  if (sum(widths) > 0) {
+    widths <- widths / sum(widths) * mz_range
   }
 
   # Reconstruct boundaries from widths
