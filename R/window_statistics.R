@@ -27,42 +27,24 @@
 #' @keywords internal
 calculate_window_statistics_internal <- function(windows, precursor_data) {
 
-  # Single-pass coverage using grouped findInterval approach
-  # Group windows by RT segment for efficient matching
-  precursor_data$covered <- FALSE
-  has_rt_group <- "rt_group" %in% colnames(precursor_data)
+  .account_window_precursors(windows, precursor_data)$statistics
+}
 
-  # Build RT segment lookup: for each unique RT segment, which windows belong to it
-  rt_segments <- unique(windows$rt_segment_id)
-
-  for (seg_id in rt_segments) {
-    seg_windows <- windows[windows$rt_segment_id == seg_id, , drop = FALSE]
-
-    # Filter precursors for this RT segment
-    if (has_rt_group) {
-      seg_mask <- precursor_data$rt_group == seg_id
-    } else {
-      rt_s <- seg_windows$rt_start[1]
-      rt_e <- seg_windows$rt_end[1]
-      seg_mask <- precursor_data$RT.Apex >= rt_s & precursor_data$RT.Apex <= rt_e
-    }
-
-    seg_mz <- precursor_data$Precursor.Mz[seg_mask]
-    if (length(seg_mz) == 0) next
-
-    # Mark precursors covered by any window in this segment
-    seg_indices <- which(seg_mask)  # Invariant across inner loop - hoist out
-    for (j in seq_len(nrow(seg_windows))) {
-      in_win <- seg_mz >= seg_windows$mz_start[j] & seg_mz < seg_windows$mz_end[j]
-      precursor_data$covered[seg_indices[in_win]] <- TRUE
-    }
-  }
-
-  covered_precursors <- sum(precursor_data$covered)
+# Counts and unique coverage are derived together from final geometry. This is
+# also the evaluation test surface; callers never need to order separate counts
+# and coverage passes or decide whether an attached count is stale.
+.account_window_precursors <- function(windows, precursor_data) {
+  matched <- .match_precursors_in_2d_windows(
+    precursor_data$RT.Apex, precursor_data$Precursor.Mz,
+    windows$rt_start, windows$rt_end, windows$mz_start, windows$mz_end,
+    precursor_group = precursor_data$rt_group, window_group = windows$rt_segment_id
+  )
+  windows$n_precursors <- matched$counts
+  covered_precursors <- sum(matched$covered)
   total_precursors <- nrow(precursor_data)
-  coverage_ratio <- covered_precursors / total_precursors
+  coverage_ratio <- if (total_precursors > 0L) covered_precursors / total_precursors else 0
 
-  list(
+  statistics <- list(
     total_windows = nrow(windows),
     total_precursors = total_precursors,
     covered_precursors = covered_precursors,
@@ -79,6 +61,7 @@ calculate_window_statistics_internal <- function(windows, precursor_data) {
     min_precursors_per_window = min(windows$n_precursors, na.rm = TRUE),
     max_precursors_per_window = max(windows$n_precursors, na.rm = TRUE)
   )
+  list(windows = windows, statistics = statistics, covered = matched$covered)
 }
 
 # =============================================================================
@@ -98,14 +81,16 @@ calculate_window_statistics_internal <- function(windows, precursor_data) {
 calculate_precursors_per_window <- function(windows, precursor_data) {
   # Count precursors in each window using vectorized 2D matching
   # 50-100x faster than loop-based approach for large datasets
-  windows$n_precursors <- count_precursors_in_2d_windows(
+  windows$n_precursors <- .match_precursors_in_2d_windows(
     precursor_rt = precursor_data$RT.Apex,
     precursor_mz = precursor_data$Precursor.Mz,
     window_rt_start = windows$rt_start,
     window_rt_end = windows$rt_end,
     window_mz_start = windows$mz_start,
-    window_mz_end = windows$mz_end
-  )
+    window_mz_end = windows$mz_end,
+    precursor_group = precursor_data$rt_group,
+    window_group = windows$rt_segment_id
+  )$counts
 
   windows
 }

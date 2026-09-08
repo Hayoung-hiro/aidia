@@ -106,6 +106,11 @@ ABSOLUTE_MIN_WIDTH_DA <- 1.0
 #'   "sg" for Savitzky-Golay polynomial filter.
 #' @param whittaker_lambda Numeric, lambda penalty for Whittaker-Henderson smoother
 #'   (default: 10). Higher values produce smoother boundaries.
+#' @param comparison_strategy_configs Optional named list of typed configs for
+#'   all strategies to compare later with [build_strategy_comparison()]. Capture
+#'   these when running optimization, including settings for unselected
+#'   strategies. The selected entry must match \code{strategy_config}.
+#'   Unspecified strategies are saved with constructor defaults at run time.
 #'
 #' @return OptimizedWindows S3 object
 #' @export
@@ -161,7 +166,8 @@ optimize_windows <- function(
   edge_wash_min_precursors = 30,
   width_grid_step = 0.5,
   smoothing_method = "whittaker",
-  whittaker_lambda = 10
+  whittaker_lambda = 10,
+  comparison_strategy_configs = NULL
 ) {
 
   # Start timing
@@ -210,6 +216,9 @@ optimize_windows <- function(
 
   # Derived values needed downstream (window_mode dispatch, output naming).
   mz_strategy <- strategy_config$strategy
+  comparison_strategy_configs <- .resolve_comparison_strategy_configs(
+    strategy_config, comparison_strategy_configs
+  )
   # n_windows override: only present on greedy_config
   if ("n_windows_override" %in% names(strategy_config)) {
     n_windows_override <- strategy_config$n_windows_override
@@ -514,10 +523,19 @@ optimize_windows <- function(
 
       # Parameters
       parameters = list(
+        strategy_configs = comparison_strategy_configs,
         window_mode = window_mode,
         n_windows_per_bin = n_windows_per_bin,
         rt_bin_width_min = rt_bin_width_min,
         rt_binning_mode = rt_binning_mode,
+        mz_range_min = mz_range_min,
+        mz_range_max = mz_range_max,
+        cpd_min_bin_width = cpd_min_bin_width,
+        cpd_max_bin_width = cpd_max_bin_width,
+        cpd_min_precursors_per_bin = cpd_min_precursors_per_bin,
+        cpd_significance_level = cpd_significance_level,
+        edge_void_buffer_min = edge_void_buffer_min,
+        edge_wash_min_precursors = edge_wash_min_precursors,
         mz_strategy = mz_strategy,
         target_coverage = target_coverage,
         min_width_da = min_width_da,

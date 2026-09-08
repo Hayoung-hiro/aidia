@@ -99,13 +99,6 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
       )
     }
 
-    # Count precursors in each window (OPTIMIZED with vectorization)
-    bin_windows$n_precursors <- count_precursors_in_windows(
-      bin_data$Precursor.Mz,
-      bin_windows$mz_start,
-      bin_windows$mz_end
-    )
-
     # Add RT information
     bin_windows$rt_segment_id <- i
     bin_windows$rt_start <- rt_start
@@ -133,6 +126,9 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
     windows <- windows %>%
       arrange(rt_segment_id, cycle, mz_start)
   }
+
+  # Account only after every geometry change, including overlap and cycle order.
+  windows <- calculate_precursors_per_window(windows, precursor_data)
 
   # Reorder columns
   windows <- windows %>%

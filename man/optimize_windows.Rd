@@ -40,7 +40,8 @@ optimize_windows(
   edge_wash_min_precursors = 30,
   width_grid_step = 0.5,
   smoothing_method = "whittaker",
-  whittaker_lambda = 10
+  whittaker_lambda = 10,
+  comparison_strategy_configs = NULL
 )
 }
 \arguments{
@@ -143,6 +144,12 @@ Ignored when strategy_config is provided.
 
 \item{whittaker_lambda}{Numeric, lambda penalty for Whittaker-Henderson smoother
 (default: 10). Higher values produce smoother boundaries.}
+
+\item{comparison_strategy_configs}{Optional named list of typed configs for
+all strategies to compare later with \code{\link[=build_strategy_comparison]{build_strategy_comparison()}}. Capture
+these when running optimization, including settings for unselected
+strategies. The selected entry must match \code{strategy_config}.
+Unspecified strategies are saved with constructor defaults at run time.}
 }
 \value{
 OptimizedWindows S3 object

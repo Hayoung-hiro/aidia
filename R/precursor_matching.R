@@ -84,87 +84,69 @@ count_precursors_in_windows <- function(precursor_mz, window_starts,
 count_precursors_in_2d_windows <- function(precursor_rt, precursor_mz,
                                             window_rt_start, window_rt_end,
                                             window_mz_start, window_mz_end) {
+  .match_precursors_in_2d_windows(
+    precursor_rt, precursor_mz, window_rt_start, window_rt_end,
+    window_mz_start, window_mz_end
+  )$counts
+}
+
+# Final m/z geometry is authoritative. Use the same sorted interval positions for
+# per-window counts and the union of covered precursor rows. Shared edges are
+# half-open; the maximum RT edge and each segment's maximum m/z edge are closed.
+.match_precursors_in_2d_windows <- function(precursor_rt, precursor_mz,
+                                           window_rt_start, window_rt_end,
+                                           window_mz_start, window_mz_end,
+                                           precursor_group = NULL, window_group = NULL) {
   n_windows <- length(window_rt_start)
   n_precursors <- length(precursor_rt)
-
-  # Validate inputs
   if (length(window_rt_end) != n_windows ||
-      length(window_mz_start) != n_windows ||
-      length(window_mz_end) != n_windows) {
+      length(window_mz_start) != n_windows || length(window_mz_end) != n_windows) {
     stop("All window vectors must have same length")
   }
-
   if (length(precursor_mz) != n_precursors) {
     stop("precursor_rt and precursor_mz must have same length")
   }
-
   counts <- integer(n_windows)
-
-  # Group windows by unique RT segment to avoid redundant RT filtering
-  # Each RT segment shares the same rt_start/rt_end
-  rt_key <- paste(window_rt_start, window_rt_end, sep = "_")
-  unique_rt <- unique(data.frame(
-    rt_start = window_rt_start,
-    rt_end = window_rt_end,
-    key = rt_key,
-    stringsAsFactors = FALSE
-  ))
-
-  # RT segments tile the run, so a shared RT boundary (rt_end[k] ==
-  # rt_start[k+1]) must attribute a precursor sitting exactly on it to a single
-  # segment. Treat each RT interval as half-open [rt_start, rt_end); only the
-  # segment ending at the overall maximum rt_end keeps a closed top edge (<=) so
-  # the last precursor is not dropped -- mirroring the m/z max-end handling
-  # below. (Guarded so the empty-window path stays warning-free.)
-  global_max_rt_end <- if (n_windows > 0L) max(window_rt_end) else NA_real_
-
-  for (r in seq_len(nrow(unique_rt))) {
-    # Filter precursors in this RT segment once (half-open, except the top edge
-    # of the final segment which stays inclusive).
-    if (unique_rt$rt_end[r] == global_max_rt_end) {
-      rt_mask <- precursor_rt >= unique_rt$rt_start[r] &
-                 precursor_rt <= unique_rt$rt_end[r]
-    } else {
-      rt_mask <- precursor_rt >= unique_rt$rt_start[r] &
-                 precursor_rt <  unique_rt$rt_end[r]
-    }
-    mz_in_rt <- precursor_mz[rt_mask]
-
-    if (length(mz_in_rt) == 0) next
-
-    # Sort m/z for binary search
-    mz_sorted <- sort(mz_in_rt)
-
-    # Find which windows belong to this RT group
-    win_idx <- which(rt_key == unique_rt$key[r])
-
-    for (w in win_idx) {
-      # Count of values in the half-open m/z interval [mz_start, mz_end).
-      # Both bounds use left.open = TRUE so a precursor sitting exactly on a
-      # shared tiling boundary (mz_end[k] == mz_start[k+1]) is attributed to
-      # exactly one window, matching count_precursors_in_windows() and the
-      # coverage loop (window_statistics.R). left.open = FALSE on the end was a
-      # closed interval that double-counted such boundary precursors.
-      left <- findInterval(window_mz_start[w], mz_sorted, left.open = TRUE)
-      right <- findInterval(window_mz_end[w], mz_sorted, left.open = TRUE)
-      counts[w] <- right - left
-    }
-
-    # Keep a precursor sitting exactly on this RT segment's top m/z edge (the
-    # closed upper bound of the last window). Interior boundaries stay half-open
-    # so shared tiling boundaries are not double-counted, but the very top edge
-    # is inclusive -- matching count_precursors_in_windows() and the original
-    # closed-interval behaviour, so the top precursor is not silently dropped.
-    seg_max_end <- max(window_mz_end[win_idx])
-    n_at_max <- sum(mz_in_rt == seg_max_end, na.rm = TRUE)
-    if (n_at_max > 0L) {
-      at_max_w <- win_idx[window_mz_end[win_idx] == seg_max_end]
-      counts[at_max_w] <- counts[at_max_w] + n_at_max
-    }
+  covered <- rep(FALSE, n_precursors)
+  if (n_windows == 0L) return(list(counts = counts, covered = covered))
+  if (any(!is.finite(c(window_rt_start, window_rt_end, window_mz_start, window_mz_end))) ||
+      any(window_rt_end < window_rt_start) || any(window_mz_end <= window_mz_start)) {
+    stop("Final windows must have finite, ordered RT and m/z bounds.")
   }
-
-  return(counts)
+  rt_key <- paste(window_rt_start, window_rt_end, sep = "_")
+  # Preserve the established adaptive/merged-bin rule: explicit membership
+  # takes precedence over RT ranges when both sides carry bin labels.
+  use_groups <- !is.null(precursor_group) && !is.null(window_group)
+  if (use_groups) rt_key <- as.character(window_group)
+  global_max_rt <- max(window_rt_end)
+  for (win_idx in split(seq_len(n_windows), rt_key)) {
+    first <- win_idx[1L]
+    rt_mask <- if (use_groups) {
+      bin_membership(list(rt_group = precursor_group), window_rt_start[first],
+                     window_rt_end[first], window_group[first])
+    } else {
+      is.finite(precursor_rt) & precursor_rt >= window_rt_start[first] &
+        (precursor_rt < window_rt_end[first] |
+           (window_rt_end[first] == global_max_rt & precursor_rt == global_max_rt))
+    }
+    idx <- which(rt_mask & is.finite(precursor_mz))
+    if (!length(idx)) next
+    idx <- idx[order(precursor_mz[idx])]
+    mz <- precursor_mz[idx]
+    left <- findInterval(window_mz_start[win_idx], mz, left.open = TRUE)
+    right <- findInterval(window_mz_end[win_idx], mz, left.open = TRUE)
+    at_top <- window_mz_end[win_idx] == max(window_mz_end[win_idx])
+    right[at_top] <- findInterval(window_mz_end[win_idx][at_top], mz)
+    counts[win_idx] <- right - left
+    # Difference array marks the union without materializing a precursor x
+    # window matrix, and without counting overlapping/staggered windows twice.
+    changes <- tabulate(left + 1L, nbins = length(idx) + 1L) -
+      tabulate(right + 1L, nbins = length(idx) + 1L)
+    covered[idx[cumsum(changes)[seq_along(idx)] > 0L]] <- TRUE
+  }
+  list(counts = counts, covered = covered)
 }
+
 
 #' Find Windows Containing Precursor
 #'
@@ -252,6 +234,7 @@ calculate_precursor_temporal_density <- function(precursor_mz,
 
     # Pre-filter precursors for this RT segment ONCE
     rt_mask <- precursor_rt >= seg_rt_start & precursor_rt <= seg_rt_end
+    rt_mask[is.na(rt_mask)] <- FALSE
     seg_mz    <- precursor_mz[rt_mask]
     seg_start <- elut_start[rt_mask]
     seg_end   <- elut_end[rt_mask]
@@ -263,6 +246,7 @@ calculate_precursor_temporal_density <- function(precursor_mz,
     for (w in win_idx) {
       # Filter by m/z within pre-filtered segment (not full vector)
       mz_sel <- seg_mz >= window_mz_start[w] & seg_mz <= window_mz_end[w]
+      mz_sel[is.na(mz_sel)] <- FALSE
       n_in_win <- sum(mz_sel)
       out_n_prec[w] <- n_in_win
 

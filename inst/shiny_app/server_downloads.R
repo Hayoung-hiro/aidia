@@ -1,45 +1,14 @@
 # server_downloads.R - Download Handlers (Method File, PDF Report, Batch ZIP)
 
+# Export choices are deliberate download-time controls, unlike optimization
+# settings. Both single-file and ZIP delivery use this same conversion.
+.shiny_export_options <- function(input) {
+  end <- input$acquisition_end_min
+  if (is.null(end) || is.na(end)) end <- NULL
+  list(fill_void = isTRUE(input$fill_void), acquisition_end_min = end)
+}
+
 server_downloads <- function(input, output, session, rv) {
-
-  # --- Helper: Build windows_list for all 5 strategies ---
-  .build_all_strategy_windows <- function(rv, notify_fn = NULL) {
-    current_strategy <- rv$optimized_windows$parameters$mz_strategy
-    window_mode     <- rv$optimized_windows$parameters$window_mode %||% "density"
-    rt_bin_width    <- rv$optimized_windows$parameters$rt_bin_width_min %||% 5
-    rt_binning_mode <- rv$optimized_windows$parameters$rt_binning_mode %||% "fixed"
-    min_width_da    <- rv$optimized_windows$parameters$min_isolation_width %||% 2
-    max_width_da    <- rv$optimized_windows$parameters$max_isolation_width %||% 80
-    fz_offset       <- rv$optimized_windows$parameters$fz_offset %||% 0.25
-
-    config_constructors <- list(
-      greedy = greedy_config, kde = kde_config, quantile = quantile_config,
-      coverage = coverage_config, outlier = outlier_config
-    )
-
-    windows_list <- list()
-    for (strategy in STRATEGY_PREFERRED_ORDER) {
-      if (!is.null(current_strategy) && strategy == current_strategy) {
-        windows_list[[strategy]] <- rv$optimized_windows
-        next
-      }
-      if (is.function(notify_fn)) {
-        notify_fn(strategy, which(STRATEGY_PREFERRED_ORDER == strategy))
-      }
-      windows_list[[strategy]] <- optimize_windows(
-        validated_data   = rv$validated_data,
-        optimization_plan = rv$optimization_plan,
-        strategy_config  = config_constructors[[strategy]](),
-        window_mode      = window_mode,
-        rt_bin_width_min = rt_bin_width,
-        rt_binning_mode  = rt_binning_mode,
-        min_width_da     = min_width_da,
-        max_width_da     = max_width_da,
-        fz_offset        = fz_offset
-      )
-    }
-    windows_list
-  }
 
   # --- Helper: Build project name from sample/condition inputs ---
   build_project_name <- function(default = "shiny_export") {
@@ -51,20 +20,8 @@ server_downloads <- function(input, output, session, rv) {
 
   # --- Helper: Generate descriptive filename using pipeline convention ---
   shiny_output_filename <- function(type, ext) {
-    params <- rv$optimized_windows$parameters
-    base_name <- format_output_filename(
-      type = type,
-      instrument_preset = input$instrument,
-      strategy = input$mz_strategy,
-      window_mode = input$window_mode %||% "density",
-      rt_binning_mode = input$rt_binning_mode %||% "fixed",
-      rt_bin_width_min = params$rt_bin_width_min %||% 5,
-      ext = ext
-    )
-
-    # Prepend sample/condition name if provided
-    prefix <- build_project_name(default = "")
-    if (nchar(prefix) > 0) paste0(prefix, "_", base_name) else base_name
+    format_result_filename(rv$optimized_windows, type = type, ext = ext,
+                           prefix = build_project_name(default = ""))
   }
 
   # --- Helper: Format preview card ---
@@ -118,31 +75,10 @@ server_downloads <- function(input, output, session, rv) {
       req(rv$optimized_windows)
       fmt <- input$export_format %||% "thermo"
 
-      if (fmt == "thermo") {
-        req(rv$validated_data)
-
-        fill_void <- isTRUE(input$fill_void)
-        acq_end <- input$acquisition_end_min
-        if (is.na(acq_end %||% NA)) acq_end <- NULL
-
-        export_windows_to_csv(
-          optimized_windows = rv$optimized_windows,
-          output_file = file,
-          validated_data = rv$validated_data,
-          fill_void = fill_void,
-          acquisition_end_min = acq_end
-        )
-      } else if (fmt == "center_mass") {
-        export_center_mass_list(
-          optimized_windows = rv$optimized_windows,
-          output_file = file
-        )
-      } else if (fmt == "mz_range") {
-        export_mz_range_list(
-          optimized_windows = rv$optimized_windows,
-          output_file = file
-        )
-      }
+      do.call(export_method_formats, c(list(
+        optimized_windows = rv$optimized_windows,
+        output_files = setNames(file, fmt), validated_data = rv$validated_data
+      ), .shiny_export_options(input)))
     }
   )
 
@@ -152,7 +88,8 @@ server_downloads <- function(input, output, session, rv) {
       shiny_output_filename("report", "pdf")
     },
     content = function(file) {
-      req(rv$optimized_windows, rv$validated_data, rv$optimization_plan)
+      req(rv$optimization_complete, rv$optimized_windows,
+          rv$validated_data, rv$optimization_plan)
 
       showNotification("Generating PDF report...", id = "pdf_progress",
                        duration = NULL, type = "message")
@@ -165,12 +102,17 @@ server_downloads <- function(input, output, session, rv) {
         if (!dir.exists(viz_output_dir)) dir.create(viz_output_dir, recursive = TRUE)
 
         # Build windows_list for all 5 strategies (reuse current result)
-        windows_list <- .build_all_strategy_windows(rv, notify_fn = function(strategy, idx) {
-          showNotification(
-            sprintf("PDF: optimizing %s (%d/5)...", strategy, idx),
-            id = "pdf_progress", duration = NULL, type = "message"
-          )
-        })
+        windows_list <- build_strategy_comparison(
+          optimized_windows = rv$optimized_windows,
+          validated_data = rv$validated_data,
+          optimization_plan = rv$optimization_plan,
+          notify_fn = function(strategy, idx) {
+            showNotification(
+              sprintf("PDF: optimizing %s (%d/5)...", strategy, idx),
+              id = "pdf_progress", duration = NULL, type = "message"
+            )
+          }
+        )
 
         showNotification("PDF: generating plots...",
                          id = "pdf_progress", duration = NULL, type = "message")
@@ -223,41 +165,11 @@ server_downloads <- function(input, output, session, rv) {
 
       tryCatch({
         strategy <- rv$optimized_windows$parameters$mz_strategy %||% "custom"
-        batch_dir <- file.path(tempdir(), paste0("aidia_export_", format(Sys.time(), "%Y%m%d_%H%M%S")))
-        dir.create(batch_dir, recursive = TRUE, showWarnings = FALSE)
-        on.exit(unlink(batch_dir, recursive = TRUE), add = TRUE)
-
-        cat(sprintf("[Shiny] Exporting %s strategy in 3 formats...\n", strategy))
-
-        # Export all 3 formats for the selected strategy
-        # (export_windows_to_csv takes (optimized_windows, output_file,
-        #  validated_data); the generic-format writers take only
-        #  (optimized_windows, output_file))
-        fill_void <- isTRUE(input$fill_void)
-        acq_end <- input$acquisition_end_min
-        if (is.na(acq_end %||% NA)) acq_end <- NULL
-
-        export_windows_to_csv(
+        do.call(export_method_bundle, c(list(
           optimized_windows = rv$optimized_windows,
-          output_file = file.path(batch_dir, "thermo.csv"),
-          validated_data = rv$validated_data,
-          fill_void = fill_void,
-          acquisition_end_min = acq_end
-        )
-        export_center_mass_list(
-          optimized_windows = rv$optimized_windows,
-          output_file = file.path(batch_dir, "center_mass.csv")
-        )
-        export_mz_range_list(
-          optimized_windows = rv$optimized_windows,
-          output_file = file.path(batch_dir, "mz_range.csv")
-        )
-
-        # ZIP the output directory
-        old_wd <- setwd(batch_dir)
-        on.exit(setwd(old_wd), add = TRUE)
-        all_files <- list.files(".", recursive = TRUE)
-        utils::zip(file, files = all_files)
+          output_path = file, validated_data = rv$validated_data,
+          delivery = "zip"
+        ), .shiny_export_options(input)))
 
         removeNotification("batch_progress")
         showNotification(

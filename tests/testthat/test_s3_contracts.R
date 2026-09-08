@@ -9,6 +9,17 @@
 # OptimizationPlan: field existence contract
 # =============================================================================
 
+test_that("new OptimizedWindows settings validate the complete comparison contract", {
+  # The producer is exercised through real Stage 3 in test-strategy-comparison.
+  # Here the existing validator must reject partially serialized new settings.
+  obj <- structure(list(
+    windows = data.frame(mz_start = 400, mz_end = 410, rt_start = 0, rt_end = 5),
+    statistics = list(total_windows = 1, coverage_percentage = 100),
+    parameters = list(strategy_configs = list(quantile = quantile_config()))
+  ), class = c("OptimizedWindows", "list"))
+  expect_error(validate_OptimizedWindows(obj), "Completed optimization settings.*missing")
+})
+
 test_that("OptimizationPlan validator catches missing diagnosis fields", {
   # Minimal valid skeleton — should pass
   plan <- structure(list(

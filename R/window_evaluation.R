@@ -61,7 +61,8 @@ evaluate_windows <- function(optimized_windows,
   # ---------------------------------------------------------------------------
   # 2. Per-window metrics
   # ---------------------------------------------------------------------------
-  windows_counted <- calculate_precursors_per_window(windows, precursors)
+  accounting <- .account_window_precursors(windows, precursors)
+  windows_counted <- accounting$windows
 
   widths <- get_window_widths(windows_counted)
   mean_n <- mean(windows_counted$n_precursors, na.rm = TRUE)
@@ -131,10 +132,7 @@ evaluate_windows <- function(optimized_windows,
   # ---------------------------------------------------------------------------
   # 4. Overall metrics
   # ---------------------------------------------------------------------------
-  win_stats <- calculate_window_statistics_internal(
-    windows = windows_counted,
-    precursor_data = precursors
-  )
+  win_stats <- accounting$statistics
 
   overall <- list(
     coverage_pct     = win_stats$coverage_percentage,

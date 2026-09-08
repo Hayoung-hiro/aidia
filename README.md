@@ -106,6 +106,30 @@ Step 3 ("Results") exposes a **"PDF scope"** radio next to the download button:
 - **Full report (all plots)** — default, ~42 sec for 5 strategies
 - **Quick summary (essential, faster)** — 7 plots, ~12 sec for rapid iteration
 
+Strategy comparisons use the common acquisition settings and **all five
+strategies' individual settings captured when Run Optimization was clicked**,
+including controls for unselected strategies. Editing setup controls afterward
+does not change the comparison until optimization is run again. The selected
+result is reused; other strategies use the same resolved window count, RT
+binning, isolation-width settings, and forbidden-zone offset.
+
+Script callers can pass a named list of typed configs through
+`optimize_windows(..., comparison_strategy_configs = configs)`, then call
+`build_strategy_comparison(windows, validated, plan)`. Configs not supplied by a
+script are saved with constructor defaults when optimization runs. Old saved
+results lacking complete settings must be optimized again before comparison.
+
+Window statistics and evaluation count precursors after overlap is applied.
+Per-window counts allow repeated isolation in overlapping or staggered windows;
+overall coverage counts each input precursor observation only once. Explicit
+adaptive/merged RT-bin assignments retain precedence over RT-range matching.
+
+Single-file, directory and ZIP method delivery share the same format writers
+and RT schedule options. Download filenames use the completed optimization's
+instrument, strategy and binning settings. `fill_void` and acquisition bounds
+remain download-time choices. Script callers can use `export_method_formats()`
+for explicit file destinations or `export_method_bundle()` for a directory/ZIP.
+
 ---
 
 ## 🎯 Optimization Strategies

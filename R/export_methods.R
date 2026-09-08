@@ -351,6 +351,8 @@ export_batch_comparison <- function(windows_list,
   }
   validate_input_type(validated_data, "ValidatedData", "validated_data")
 
+  .validate_method_formats(formats)
+
   # Create output subdirectories
   subdirs <- list(
     thermo      = file.path(output_dir, "thermo"),
@@ -376,28 +378,11 @@ export_batch_comparison <- function(windows_list,
 
     cat(sprintf("  - %s: ", strategy))
 
-    if ("thermo" %in% formats) {
-      export_windows_to_csv(
-        optimized_windows = opt_win,
-        output_file = file.path(subdirs$thermo, paste0(file_stem, "_thermo.csv")),
-        validated_data = validated_data,
-        fill_void = fill_void,
-        acquisition_start_min = acquisition_start_min,
-        acquisition_end_min = acquisition_end_min
-      )
-    }
-    if ("center_mass" %in% formats) {
-      export_center_mass_list(
-        optimized_windows = opt_win,
-        output_file = file.path(subdirs$center_mass, paste0(file_stem, "_center_mass.csv"))
-      )
-    }
-    if ("mz_range" %in% formats) {
-      export_mz_range_list(
-        optimized_windows = opt_win,
-        output_file = file.path(subdirs$mz_range, paste0(file_stem, "_mz_range.csv"))
-      )
-    }
+    output_files <- setNames(vapply(formats, function(format) {
+      file.path(subdirs[[format]], paste0(file_stem, "_", format, ".csv"))
+    }, character(1)), formats)
+    export_method_formats(opt_win, output_files, validated_data,
+                          fill_void, acquisition_start_min, acquisition_end_min)
   }
 
   # Generate comparison summary
@@ -410,7 +395,7 @@ export_batch_comparison <- function(windows_list,
 
       # Calculate window statistics for coverage
       win_stats <- calculate_window_statistics_internal(
-        windows = calculate_precursors_per_window(windows, precursor_data),
+        windows = windows,
         precursor_data = precursor_data
       )
 
@@ -529,15 +514,9 @@ export_method_files <- function(windows_list,
     # Build filename using standardized naming if available
     output_filename <- if (exists("format_output_filename") &&
                            !is.null(windows_list[[strategy]]$parameters$window_mode)) {
-      params <- windows_list[[strategy]]$parameters
-      format_output_filename(
-        type = "method",
-        instrument_preset = instrument_type,
-        strategy = strategy,
-        window_mode = params$window_mode %||% "density",
-        rt_binning_mode = params$rt_binning_mode %||% "fixed",
-        rt_bin_width_min = params$rt_bin_width_min %||% 5
-      )
+      format_result_filename(windows_list[[strategy]],
+                             instrument_preset = instrument_type,
+                             strategy = strategy)
     } else {
       sprintf("method_%s.csv", strategy)
     }
@@ -545,13 +524,9 @@ export_method_files <- function(windows_list,
 
     cat(sprintf("  - %s: ", strategy))
 
-    export_windows_to_csv(
-      optimized_windows = windows_list[[strategy]],
-      output_file = output_file,
-      validated_data = validated_data,
-      fill_void = fill_void,
-      acquisition_start_min = acquisition_start_min,
-      acquisition_end_min = acquisition_end_min
+    export_method_formats(
+      windows_list[[strategy]], c(thermo = output_file), validated_data,
+      fill_void, acquisition_start_min, acquisition_end_min
     )
 
     method_files[[strategy]] <- output_file

@@ -6,6 +6,10 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
   observeEvent(input$parquet_file, {
     req(input$parquet_file)
 
+    # Invalidate the completed run before replacing any of its input data.
+    rv$optimization_complete <- FALSE
+    rv$optimized_windows <- NULL
+
     # Show processing notification
     showNotification("Processing file...", id = "upload_progress", duration = NULL, type = "message")
 
@@ -27,8 +31,6 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
 
       rv$data_loaded <- TRUE
       shinyjs::enable(selector = "a[data-value=\047setup\047]")
-      rv$optimization_complete <- FALSE
-      rv$optimized_windows <- NULL
 
       # Cache FWHM conversion (immutable until next upload)
       rv$fwhm_sec <- ensure_fwhm_seconds(rv$validated_data$data$FWHM)

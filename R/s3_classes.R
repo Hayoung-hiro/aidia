@@ -351,6 +351,12 @@ validate_OptimizedWindows <- function(x) {
                  paste(missing_stats, collapse = ", ")), call. = FALSE)
   }
 
+  # Legacy objects remain usable for existing plots/exports. New results that
+  # carry strategy configs must carry the complete comparison settings too.
+  if ("strategy_configs" %in% names(x$parameters)) {
+    .validate_comparison_parameters(x$parameters)
+  }
+
   invisible(x)
 }
 

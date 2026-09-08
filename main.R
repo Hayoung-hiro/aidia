@@ -59,6 +59,12 @@ run_complete_pipeline <- function(
   verbose = TRUE
 ) {
 
+  if (!is.character(mz_strategies) || length(mz_strategies) == 0L ||
+      anyNA(mz_strategies) || anyDuplicated(mz_strategies) ||
+      !all(mz_strategies %in% STRATEGY_PREFERRED_ORDER)) {
+    stop("mz_strategies must contain unique supported strategy names.")
+  }
+
   # ===================================================================
   # Pipeline Header
   # ===================================================================
@@ -207,7 +213,18 @@ run_complete_pipeline <- function(
       cat("─────────────────────────────────────────────────────────────\n")
     }
 
+    # Capture batch strategy settings once, preserving the pipeline defaults.
+    strategy_configs <- list(
+      greedy = greedy_config(smoothing_window = 3, polynomial_order = 2),
+      kde = kde_config(),
+      quantile = quantile_config(apply_smoothing = FALSE,
+                                  smoothing_window = 3, polynomial_order = 2),
+      coverage = coverage_config(target = 0.95),
+      outlier = outlier_config(apply_smoothing = FALSE,
+                                smoothing_window = 3, polynomial_order = 2)
+    )
     windows_list <- list()
+    comparison_reference <- NULL
 
     for (strategy in mz_strategies) {
 
@@ -215,43 +232,41 @@ run_complete_pipeline <- function(
         cat(sprintf("  Generating windows for %s strategy...\n", toupper(strategy)))
       }
 
-      windows_result <- optimize_windows(
-        validated_data = validated_data,
-        optimization_plan = optimization_plan,
-        rt_bin_width_min = rt_bin_width_min,
-        mz_strategy = strategy,
-        window_mode = window_mode,
-        rt_binning_mode = rt_binning_mode,
-        edge_void_buffer_min = edge_void_buffer_min,
-        edge_wash_min_precursors = edge_wash_min_precursors,
-        quantile_lower = 0.05,
-        quantile_upper = 0.95,
-        target_coverage = 0.95,
-        outlier_threshold = 3.0,
-        smoothing_window = 3,
-        polynomial_order = 2,
-        min_width_da = 2,
-        max_width_da = 100,
-        overlap_percentage = 0,
-        width_grid_step = width_grid_step
-      )
+      if (is.null(comparison_reference)) {
+        windows_result <- optimize_windows(
+          validated_data = validated_data,
+          optimization_plan = optimization_plan,
+          strategy_config = strategy_configs[[strategy]],
+          comparison_strategy_configs = strategy_configs,
+          rt_bin_width_min = rt_bin_width_min,
+          window_mode = window_mode,
+          rt_binning_mode = rt_binning_mode,
+          edge_void_buffer_min = edge_void_buffer_min,
+          edge_wash_min_precursors = edge_wash_min_precursors,
+          min_width_da = 2,
+          max_width_da = 100,
+          overlap_percentage = 0,
+          width_grid_step = width_grid_step
+        )
+        comparison_reference <- windows_result
+      } else {
+        windows_result <- build_strategy_comparison(
+          optimized_windows = comparison_reference,
+          validated_data = validated_data,
+          optimization_plan = optimization_plan,
+          strategies = strategy
+        )[[strategy]]
+      }
 
       windows_list[[strategy]] <- windows_result
 
       # Export method file for each strategy
-      method_filename <- format_output_filename(
-        type = "method",
-        instrument_preset = instrument_preset,
-        strategy = strategy,
-        window_mode = window_mode,
-        rt_binning_mode = rt_binning_mode,
-        rt_bin_width_min = rt_bin_width_min
-      )
+      method_filename <- format_result_filename(windows_result)
       method_path <- file.path(output_dir, method_filename)
 
-      export_windows_to_csv(
+      export_method_formats(
         optimized_windows = windows_result,
-        output_file = method_path,
+        output_files = c(thermo = method_path),
         validated_data = validated_data,
         fill_void = fill_void,
         acquisition_start_min = acquisition_start_min,

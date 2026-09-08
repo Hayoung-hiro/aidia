@@ -1,5 +1,32 @@
 # server_optimization.R - Run Optimization, Results Display, Summary Tables
 
+# Capture every strategy's controls together at execution time, including
+# controls hidden by the currently selected strategy's conditional panel.
+.shiny_strategy_configs <- function(input) {
+  list(
+    greedy = greedy_config(
+      auto_windows = isTRUE(input$auto_windows %||% TRUE),
+      n_windows = input$manual_n_windows %||% 40,
+      mz_step = input$greedy_mz_step %||% 0.5,
+      apply_smoothing = isTRUE(input$greedy_apply_smoothing %||% TRUE)
+    ),
+    quantile = quantile_config(
+      lower = input$quantile_lower %||% 0.05,
+      upper = input$quantile_upper %||% 0.95,
+      apply_smoothing = isTRUE(input$quantile_apply_smoothing %||% TRUE)
+    ),
+    coverage = coverage_config(target = (input$target_coverage %||% 90) / 100),
+    outlier = outlier_config(
+      threshold = input$outlier_threshold %||% 3.0,
+      apply_smoothing = isTRUE(input$outlier_apply_smoothing %||% TRUE)
+    ),
+    kde = kde_config(
+      density_threshold = (input$kde_density_threshold %||% 10) / 100,
+      min_coverage = (input$kde_min_coverage %||% 80) / 100
+    )
+  )
+}
+
 server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
   # --- Helper: Loop N badge for staggered mode (used in After summary + m/z summary) ---
@@ -119,6 +146,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     rv$optimization_complete <- FALSE
 
     tryCatch({
+      strategy_configs <- .shiny_strategy_configs(input)
       cat("\n[Shiny] Starting optimization...\n")
       cat("[Shiny] Instrument:", input$instrument, "\n")
       cat("[Shiny] Target DPPP:", input$target_dppp, "\n")
@@ -167,7 +195,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         NULL
       }
 
-      rv$optimization_plan <- plan_optimization(
+      optimization_plan <- plan_optimization(
         validated_data = rv$validated_data,
         instrument_preset = input$instrument,
         target_dppp = input$target_dppp,
@@ -181,10 +209,10 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       # Debug: Show key optimization parameters
       cat("[Shiny] === OPTIMIZATION PLAN DEBUG ===\n")
       cat("[Shiny] Target DPPP:", input$target_dppp, "\n")
-      cat("[Shiny] Required Cycle Time:", rv$optimization_plan$required_cycle_time_sec, "sec\n")
-      cat("[Shiny] Current Cycle Time:", rv$optimization_plan$current_cycle_time_sec, "sec\n")
-      cat("[Shiny] Windows per bin:", rv$optimization_plan$window_count_per_bin, "\n")
-      cat("[Shiny] t_scan:", rv$optimization_plan$timing$t_scan_ms, "ms\n")
+      cat("[Shiny] Required Cycle Time:", optimization_plan$required_cycle_time_sec, "sec\n")
+      cat("[Shiny] Current Cycle Time:", optimization_plan$current_cycle_time_sec, "sec\n")
+      cat("[Shiny] Windows per bin:", optimization_plan$window_count_per_bin, "\n")
+      cat("[Shiny] t_scan:", optimization_plan$timing$t_scan_ms, "ms\n")
       cat("[Shiny] ================================\n")
 
       # Determine RT bin width and binning mode
@@ -234,30 +262,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       use_auto_windows <- isTRUE(input$auto_windows %||% TRUE)
       manual_n_win <- input$manual_n_windows %||% 40
 
-      strategy_cfg <- switch(input$mz_strategy,
-        greedy = greedy_config(
-          auto_windows = use_auto_windows,
-          n_windows = manual_n_win,
-          mz_step = input$greedy_mz_step %||% 0.5,
-          apply_smoothing = isTRUE(input$greedy_apply_smoothing %||% TRUE)
-        ),
-        quantile = quantile_config(
-          lower = input$quantile_lower %||% 0.05,
-          upper = input$quantile_upper %||% 0.95,
-          apply_smoothing = isTRUE(input$quantile_apply_smoothing %||% TRUE)
-        ),
-        coverage = coverage_config(
-          target = (input$target_coverage %||% 90) / 100
-        ),
-        outlier = outlier_config(
-          threshold = input$outlier_threshold %||% 3.0,
-          apply_smoothing = isTRUE(input$outlier_apply_smoothing %||% TRUE)
-        ),
-        kde = kde_config(
-          density_threshold = (input$kde_density_threshold %||% 10) / 100,
-          min_coverage = (input$kde_min_coverage %||% 80) / 100
-        )
-      )
+      strategy_cfg <- strategy_configs[[input$mz_strategy]]
       cat("[Shiny] Strategy config:", input$mz_strategy, "\n")
       cat("[Shiny]  ", paste(names(as.list(strategy_cfg)), collapse = ", "), "\n")
 
@@ -268,10 +273,11 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         NULL  # greedy handles it internally via greedy_config
       }
 
-      rv$optimized_windows <- optimize_windows(
+      optimized_windows <- optimize_windows(
         validated_data = rv$validated_data,
-        optimization_plan = rv$optimization_plan,
+        optimization_plan = optimization_plan,
         strategy_config = strategy_cfg,
+        comparison_strategy_configs = strategy_configs,
         n_windows_override = n_win_override,
         window_mode = input$window_mode %||% "density",
         rt_bin_width_min = rt_bin_width_final,
@@ -289,6 +295,10 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         }
       )
       cat("[Shiny] optimize_windows() completed!\n")
+
+      # Publish the plan and its windows together only after both succeed.
+      rv$optimization_plan <- optimization_plan
+      rv$optimized_windows <- optimized_windows
 
       rv$optimization_complete <- TRUE
       shinyjs::enable(selector = "a[data-value=\047results\047]")
