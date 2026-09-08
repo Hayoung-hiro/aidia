@@ -33,3 +33,4 @@
 ^setup\.R$
 ^docs$
 ^docs/
+^.*\.Rproj$
