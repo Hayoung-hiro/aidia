@@ -19,6 +19,19 @@
       issues[[id]] <- sprintf("Enter a positive value for %s.", fields[[id]])
     }
   }
+  if (!"current_window_count" %in% names(issues) && input$current_window_count != floor(input$current_window_count))
+    issues[["current_window_count"]] <- "Enter a whole number of input windows."
+  original_defaults <- list(original_mz_min = 400, original_mz_max = 1000)
+  original <- lapply(names(original_defaults), function(id)
+    if (id %in% names(input)) input[[id]] else original_defaults[[id]])
+  names(original) <- names(original_defaults)
+  for (id in names(original)) {
+    value <- original[[id]]
+    if (length(value) != 1L || !is.finite(value) || value <= 0)
+      issues[[id]] <- "Enter a positive original m/z boundary."
+  }
+  if (!any(names(original) %in% names(issues)) && original$original_mz_min >= original$original_mz_max)
+    issues[["original_mz_max"]] <- "Original m/z end must be above the start."
   if (is.null(cycle) && length(issues) == 0L)
     issues[["instrument"]] <- "Check the instrument and MS1/MS2 settings so acquisition timing can be calculated."
   issues

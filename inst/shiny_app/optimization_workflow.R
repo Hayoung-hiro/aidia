@@ -103,6 +103,17 @@
     NULL
   }
 
+  original_method <- fixed_method_config(
+    input$current_window_count %||% calc_result$window_count %||% 40,
+    input$original_mz_min %||% 400, input$original_mz_max %||% 1000
+  )
+  original_method$timing <- calc_result
+  acquisition_fields <- c("instrument", "ms1_resolution", "ms2_resolution",
+    "astral_ms1_resolution", "astral_ms2_it", "ms1_scans_per_cycle",
+    "ms1_it_auto", "ms1_it_custom", "ms2_it_auto", "ms2_it_custom")
+  original_method$acquisition_inputs <- setNames(
+    lapply(acquisition_fields, function(name) input[[name]]), acquisition_fields)
+
   optimization_plan <- plan_optimization(
     validated_data = validated_data,
     instrument_preset = input$instrument,
@@ -113,6 +124,8 @@
     ms2_resolution = if (!is.null(input$ms2_resolution)) as.numeric(input$ms2_resolution) else NULL
   )
   cat("[Shiny] plan_optimization() completed!\n")
+  original_method$cycle_time_sec <- optimization_plan$diagnosis$current_cycle_time_sec
+  optimization_plan$original_method <- original_method
 
   # Debug: Show key optimization parameters
   cat("[Shiny] === OPTIMIZATION PLAN DEBUG ===\n")
@@ -206,5 +219,6 @@
       as.numeric(input$fz_offset_preset %||% "0.25")
     }
   )
+  optimized_windows$parameters$original_method <- original_method
   list(plan = optimization_plan, windows = optimized_windows)
 }

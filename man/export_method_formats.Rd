@@ -10,7 +10,8 @@ export_method_formats(
   validated_data = NULL,
   fill_void = FALSE,
   acquisition_start_min = 0,
-  acquisition_end_min = NULL
+  acquisition_end_min = NULL,
+  charge_state = 1L
 )
 }
 \arguments{
@@ -27,6 +28,9 @@ Thermo export.}
 \item{acquisition_start_min}{Acquisition start in minutes.}
 
 \item{acquisition_end_min}{Acquisition end in minutes, or NULL.}
+
+\item{charge_state}{Expected precursor charge for Thermo exports (integer
+0-100, default 1). See \code{\link[=export_windows_to_csv]{export_windows_to_csv()}}.}
 }
 \value{
 Named character vector of written paths, invisibly.

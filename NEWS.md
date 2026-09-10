@@ -1,3 +1,30 @@
+# aidia 0.5.0
+
+## Shiny workflow and UX improvements
+
+* Unified Prepare, Configure, and Results pages with compact sections,
+  contextual help, balanced sampling controls, and visible export-format examples.
+* Added background live previews of the complete RT-m/z distribution and individual
+  RT groups. KDE + Density is the initial strategy; previews remain separate from
+  the confirmed method used for downloads.
+* Added independent section resets and a sidebar summary of the confirmed method.
+* Greedy accepts the desired total m/z search span and derives its internal width
+  from the resolved window count. Quantile uses low/high tail exclusion percentages.
+* Missing prerequisites and invalid settings are explained beside their controls.
+  Navigation focuses the affected input, including settings inside disclosures.
+* Removed the UI-only 10 m/z upper limit on the minimum isolation-width target.
+  The optimizer's absolute floor and minimum/maximum ordering constraints remain.
+* Acquisition settings show timing and estimated DPPP; the Thermo run-edge extension
+  option now describes the MS2 gaps that it fills.
+
+## Integrated method comparison and export updates
+
+* Preserve the original fixed method's input m/z bounds, window count, and acquisition
+  timing in the confirmed snapshot. Comparison plots reuse this saved reference.
+* Retain configurable Thermo export charge, including All Formats ZIP, and
+  charge-resolved FZ visualization from the latest development branch.
+* Live preview requires Shiny >= 1.8.1, promises >= 1.3.0, and future >= 1.33.0.
+
 # aidia 0.4.0
 
 ## Reporting redesign and publication export

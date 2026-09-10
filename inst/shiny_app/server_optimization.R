@@ -161,12 +161,14 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     precursor_data <- rv$validated_data$data
     median_fwhm_sec <- rv$median_fwhm_sec
 
-    calc_result <- rv$confirmed_run$cycle
-    ct_text <- if (!is.null(calc_result)) sprintf("%.3f sec", calc_result$cycle_time_sec) else "N/A"
+    plan <- rv$optimization_plan
+    original <- rv$optimized_windows$parameters$original_method %||% plan$original_method
+    original_ct <- original$cycle_time_sec %||% plan$diagnosis$current_cycle_time_sec
+    ct_text <- if (!is.null(original_ct)) sprintf("%.3f sec", original_ct) else "N/A"
 
     # Estimate DPPP
-    dppp_text <- if (!is.null(calc_result) && !is.na(median_fwhm_sec)) {
-      est_dppp <- calculate_dppp(median_fwhm_sec, calc_result$cycle_time_sec)
+    dppp_text <- if (!is.null(original_ct) && !is.na(median_fwhm_sec)) {
+      est_dppp <- calculate_dppp(median_fwhm_sec, original_ct)
       sprintf("~%.1f", est_dppp)
     } else {
       "N/A"
@@ -174,6 +176,10 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
     tags$div(
       class = "summary-list",
+      if (!is.null(original)) tags$div(
+        tags$strong("Original fixed method: "),
+        sprintf("m/z %.1f-%.1f | %d windows | %.2f m/z width",
+          original$mz_min, original$mz_max, original$n_windows, original$window_width)),
       tags$div(tags$strong("Precursors: "), format(nrow(precursor_data), big.mark = ",")),
       tags$div(tags$strong("RT: "),
                sprintf("%.1f - %.1f min", min(precursor_data$RT.Apex, na.rm = TRUE), max(precursor_data$RT.Apex, na.rm = TRUE))),
@@ -520,7 +526,10 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         message = "Evaluation data not available"
       ))
     }
-    plot_temporal_density(eval_result)
+    baseline <- tryCatch(evaluate_fixed_method_baseline(
+      rv$validated_data, rv$optimization_plan, rv$optimized_windows
+    ), error = function(e) NULL)
+    plot_temporal_density(eval_result, baseline_density = baseline)
   })
 
   # --- Acquisition Capacity KPIs (v0.4.x) ---------------------------------

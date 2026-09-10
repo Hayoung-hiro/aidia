@@ -152,11 +152,10 @@ calculate_loop_n <- function(windows) {
 #' @param optimized_windows OptimizedWindows object
 #' @param output_file Character, output CSV file path
 #' @param validated_data ValidatedData object (for N_Precursors calculation)
-#' @param charge_state Integer, value for the `z` column (default: 1). DIA wide
-#'   windows isolate by m/z range, so charge is metadata only and does not affect
-#'   acquisition. Default is 1 (the Xcalibur default) because Xcalibur's mass-list
-#'   importer flags `z = 0` as invalid and drops it, forcing manual re-entry.
-#'   Set to 0 to request "ignore charge state" if your importer accepts it.
+#' @param charge_state Single integer from 0 to 100 for the Thermo `z` column.
+#'   Default is 1 to preserve existing methods and import compatibility.
+#'   This is the expected precursor charge; 0 requests "ignore charge state"
+#'   where supported by the importer. It does not change optimized windows.
 #' @param fill_void Logical (default: FALSE). When TRUE, the RT schedule is
 #'   extended to span `[acquisition_start_min, acquisition_end_min]`, filling the
 #'   leading/trailing MS1-only void. When FALSE (default), the first and last
@@ -182,6 +181,8 @@ export_windows_to_csv <- function(optimized_windows, output_file,
 
   validate_input_type(optimized_windows, "OptimizedWindows", "optimized_windows")
   validate_input_type(validated_data, "ValidatedData", "validated_data")
+
+  .validate_export_charge_state(charge_state)
 
   windows <- optimized_windows$windows
   precursor_data <- get_precursor_data(validated_data)
@@ -331,6 +332,8 @@ export_mz_range_list <- function(optimized_windows, output_file) {
 #' @param acquisition_end_min Numeric or NULL (default NULL). Run end; used only
 #'   when fill_void = TRUE.
 #'
+#' @param charge_state Expected precursor charge for Thermo exports (integer
+#'   0-100, default 1). See [export_windows_to_csv()].
 #' @return Character, path to output directory (invisible)
 #' @export
 export_batch_comparison <- function(windows_list,
@@ -340,7 +343,8 @@ export_batch_comparison <- function(windows_list,
                                     include_comparison = TRUE,
                                     fill_void = FALSE,
                                     acquisition_start_min = 0,
-                                    acquisition_end_min = NULL) {
+                                    acquisition_end_min = NULL,
+                                    charge_state = 1L) {
 
   # Validate inputs
   if (!is.list(windows_list) || length(windows_list) == 0) {
@@ -352,6 +356,7 @@ export_batch_comparison <- function(windows_list,
   validate_input_type(validated_data, "ValidatedData", "validated_data")
 
   .validate_method_formats(formats)
+  if ("thermo" %in% formats) .validate_export_charge_state(charge_state)
 
   # Create output subdirectories
   subdirs <- list(
@@ -382,7 +387,8 @@ export_batch_comparison <- function(windows_list,
       file.path(subdirs[[format]], paste0(file_stem, "_", format, ".csv"))
     }, character(1)), formats)
     export_method_formats(opt_win, output_files, validated_data,
-                          fill_void, acquisition_start_min, acquisition_end_min)
+                          fill_void, acquisition_start_min, acquisition_end_min,
+                          charge_state = charge_state)
   }
 
   # Generate comparison summary
@@ -449,6 +455,8 @@ export_batch_comparison <- function(windows_list,
 #' @param acquisition_end_min Numeric or NULL (default NULL). Run end; used only
 #'   when fill_void = TRUE.
 #'
+#' @param charge_state Expected precursor charge for Thermo exports (integer
+#'   0-100, default 1). See [export_windows_to_csv()].
 #' @return Named list of exported file paths
 #'
 #' @examples
@@ -471,7 +479,8 @@ export_method_files <- function(windows_list,
                                 instrument_type = "orbitrap",
                                 fill_void = FALSE,
                                 acquisition_start_min = 0,
-                                acquisition_end_min = NULL) {
+                                acquisition_end_min = NULL,
+                                charge_state = 1L) {
 
   # Validate inputs
   if (!is.list(windows_list)) {
@@ -485,6 +494,7 @@ export_method_files <- function(windows_list,
   validate_input_type(validated_data, "ValidatedData", "validated_data")
 
   # Create output directory if needed
+  .validate_export_charge_state(charge_state)
   if (!dir.exists(output_dir)) {
     dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   }
@@ -526,7 +536,8 @@ export_method_files <- function(windows_list,
 
     export_method_formats(
       windows_list[[strategy]], c(thermo = output_file), validated_data,
-      fill_void, acquisition_start_min, acquisition_end_min
+      fill_void, acquisition_start_min, acquisition_end_min,
+      charge_state = charge_state
     )
 
     method_files[[strategy]] <- output_file

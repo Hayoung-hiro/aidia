@@ -123,6 +123,7 @@ build_strategy_comparison <- function(optimized_windows, validated_data,
       validated_data = validated_data, optimization_plan = optimization_plan,
       strategy_config = config, comparison_strategy_configs = configs
     ), common))
+    results[[i]]$parameters$original_method <- params$original_method
   }
   results
 }

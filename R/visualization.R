@@ -335,63 +335,14 @@ build_visualization_context <- function(validated_data, optimization_plan,
 }
 
 
-#' Compute Baseline Temporal Density (Naive Windows)
-#'
-#' Builds naive fixed-width windows from current acquisition parameters and
-#' computes the sweepline co-elution density. Used by
-#' \code{plot_temporal_density()} for before/after comparison.
+#' Compute Temporal Density for the Saved Original Fixed Method
 #'
 #' @keywords internal
 .compute_baseline_density <- function(validated_data, optimization_plan,
-                                        optimized_windows) {
-  tryCatch({
-    precursors <- validated_data$data
-    windows <- optimized_windows$windows
-    n_bins <- length(unique(windows$rt_segment_id))
-    current_ct <- optimization_plan$diagnosis$current_cycle_time_sec
-    ms2_time <- optimization_plan$instrument$ms2_scan_time_ms / 1000
-    baseline_n <- if (!is.na(current_ct) && !is.na(ms2_time) && ms2_time > 0) {
-      as.integer(floor(current_ct / ms2_time))
-    } else {
-      as.integer(nrow(windows) / n_bins)
-    }
-
-    rt_bins_df <- unique(windows[, c("rt_start", "rt_end", "rt_segment_id")])
-    naive_list <- lapply(seq_len(nrow(rt_bins_df)), function(i) {
-      bin_prec <- precursors[precursors$RT.Apex >= rt_bins_df$rt_start[i] &
-                              precursors$RT.Apex <= rt_bins_df$rt_end[i], ]
-      if (nrow(bin_prec) < 2) return(NULL)
-      mz_rng <- range(bin_prec$Precursor.Mz, na.rm = TRUE)
-      n_win <- min(baseline_n, 500L)
-      if (n_win < 1) return(NULL)
-      bw <- generate_fixed_windows_internal(
-        mz_min = mz_rng[1], mz_max = mz_rng[2],
-        n_windows = n_win, min_width_da = 1,
-        max_width_da = 500, fz_offset = 0
-      )
-      bw$rt_start <- rt_bins_df$rt_start[i]
-      bw$rt_end   <- rt_bins_df$rt_end[i]
-      bw
-    })
-    naive_windows <- do.call(rbind, naive_list)
-    if (is.null(naive_windows) || nrow(naive_windows) < 1) stop("no baseline windows")
-
-    td <- calculate_precursor_temporal_density(
-      precursor_mz    = precursors$Precursor.Mz,
-      precursor_rt    = precursors$RT.Apex,
-      precursor_fwhm  = precursors$FWHM,
-      window_mz_start = naive_windows$mz_start,
-      window_mz_end   = naive_windows$mz_end,
-      window_rt_start = naive_windows$rt_start,
-      window_rt_end   = naive_windows$rt_end
-    )
-    list(
-      median = median(td$density_max, na.rm = TRUE),
-      mean   = mean(td$density_max, na.rm = TRUE),
-      max    = max(td$density_max, na.rm = TRUE),
-      n_per_bin = baseline_n
-    )
-  }, error = function(e) NULL)
+                                      optimized_windows) {
+  tryCatch(evaluate_fixed_method_baseline(
+    validated_data, optimization_plan, optimized_windows
+  ), error = function(e) NULL)
 }
 
 

@@ -48,7 +48,8 @@ test_that("live preview coalesces edits, rejects stale results, and promotes exa
   }
   shiny::testServer(server, {
     session$setInputs(instrument = "exploris", kde_density_threshold = 10,
-      current_window_count = 40, ms1_it_auto = TRUE, ms2_it_auto = TRUE)
+      current_window_count = 40, ms1_it_auto = TRUE, ms2_it_auto = TRUE,
+      original_mz_min = 450, original_mz_max = 1050)
     session$elapse(500)
     expect_length(calls(), 1)
     session$setInputs(kde_density_threshold = 15)
@@ -68,12 +69,17 @@ test_that("live preview coalesces edits, rejects stale results, and promotes exa
     expect_true(rv$optimization_complete)
     expect_identical(rv$optimized_windows$marker, "latest")
     confirmed <- rv$confirmed_run
+    expect_equal(confirmed$settings$original_mz_min, 450)
+    expect_equal(confirmed$settings$original_mz_max, 1050)
     expect_equal(rv$draft_state, "confirmed")
 
-    session$setInputs(kde_density_threshold = 30, target_dppp = 4, rt_bin_width = 8)
+    session$setInputs(kde_density_threshold = 30, target_dppp = 4, rt_bin_width = 8,
+      original_mz_min = 400, original_mz_max = 1000, current_window_count = 30)
     session$elapse(500)
     expect_identical(rv$confirmed_run, confirmed)
     expect_identical(rv$optimized_windows, confirmed$windows)
+    expect_equal(calls()[[length(calls())]]$settings$original_mz_min, 400)
+    expect_equal(rv$confirmed_run$settings$current_window_count, 40)
     task_result(list(error = "Cannot generate windows", field = "min_isolation_width"))
     task_state("success")
     session$flushReact()

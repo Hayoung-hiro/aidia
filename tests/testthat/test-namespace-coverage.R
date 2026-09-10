@@ -17,13 +17,40 @@
 # This test fails any future commit that introduces a similar gap.
 
 
-# Helper: extract every bare identifier from a file as a vector of strings
+# Helper: inspect code, excluding explicit namespace access, strings, and comments.
 .extract_identifiers <- function(file_path) {
   if (!file.exists(file_path)) return(character(0))
-  txt <- paste(readLines(file_path, warn = FALSE), collapse = "\n")
-  ids <- regmatches(txt, gregexpr("[a-zA-Z_][a-zA-Z0-9_.]+", txt))[[1]]
-  unique(ids)
+  bare_symbols <- function(expr) {
+    if (missing(expr)) return(character())
+    if (is.symbol(expr)) return(as.character(expr))
+    if (is.call(expr) && is.symbol(expr[[1L]])) {
+      operator <- as.character(expr[[1L]])
+      if (operator %in% c("::", ":::")) return(character())
+      if (operator %in% c("$", "@")) return(bare_symbols(expr[[2L]]))
+    }
+    if (is.call(expr) || is.expression(expr) || is.pairlist(expr))
+      return(unlist(lapply(as.list(expr), bare_symbols), use.names = FALSE))
+    character()
+  }
+  unique(bare_symbols(parse(file_path, keep.source = FALSE)))
 }
+
+test_that("namespace audit distinguishes explicit access from a bare reference", {
+  path <- withr::local_tempfile(fileext = ".R")
+  writeLines(c(
+    "# internal_helper() is only a comment",
+    'label <- "internal_helper"',
+    "aidia:::internal_helper(x)",
+    "aidia :: exported_helper(x)",
+    "object$internal_helper",
+    "internal_helper(x)"
+  ), path)
+  expect_true("internal_helper" %in% .extract_identifiers(path))
+  writeLines(head(readLines(path), -1L), path)
+  expect_false("internal_helper" %in% .extract_identifiers(path))
+  expect_false("exported_helper" %in% .extract_identifiers(path))
+  expect_true("object" %in% .extract_identifiers(path))
+})
 
 # Helper: list aidia internal symbols (defined in namespace, not exported,
 # and not "private" via leading dot — which call sites would never use

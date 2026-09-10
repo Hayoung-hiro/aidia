@@ -35,6 +35,11 @@ in a low-density valley between isotope clusters at integer m/z positions,
 while a naive integer boundary (red dashed) falls on a high-density peak.
 }
 \details{
+When \code{Precursor.Charge} is available and at least two charge states each
+have >= 5 precursors in the zoom range, the plot is faceted by charge state so
+the single placed boundary (computed on the z=1 grid) can be read against each
+charge's own cluster periodicity. Otherwise a single combined panel is shown.
+
 Only generated when \code{fz_offset > 0} (forbidden zone optimization active).
 }
 \keyword{internal}

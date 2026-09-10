@@ -12,7 +12,8 @@ export_method_files(
   instrument_type = "orbitrap",
   fill_void = FALSE,
   acquisition_start_min = 0,
-  acquisition_end_min = NULL
+  acquisition_end_min = NULL,
+  charge_state = 1L
 )
 }
 \arguments{
@@ -41,6 +42,9 @@ the first segment's \code{t start} when \code{fill_void = TRUE}.}
 \item{acquisition_end_min}{Numeric or NULL (default: NULL). LC method total
 length in minutes; sets the last segment's \code{t stop} when \code{fill_void = TRUE}.
 NULL warns and falls back to the last segment's measured \code{rt_end}.}
+
+\item{charge_state}{Expected precursor charge for Thermo exports (integer
+0-100, default 1). See \code{\link[=export_windows_to_csv]{export_windows_to_csv()}}.}
 }
 \value{
 Named list of exported file paths

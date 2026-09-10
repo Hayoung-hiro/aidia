@@ -50,6 +50,7 @@ test_that("comparison reuses execution-time settings for all five strategies", {
     ), common)))
   }
   selected <- run(configs$quantile)
+  selected$parameters$original_method <- fixed_method_config(30, 450, 1050)
   # Simulate subsequent edits to the screen. They must not affect the report.
   input$manual_n_windows <- 40L
   input$quantile_lower <- 0.25
@@ -78,6 +79,7 @@ test_that("comparison reuses execution-time settings for all five strategies", {
     expect_equal(actual$parameters$min_width_da, 6)
     expect_equal(actual$parameters$max_width_da, 30)
     expect_equal(actual$parameters$n_windows_per_bin, 17L)
+    expect_identical(actual$parameters$original_method, selected$parameters$original_method)
     expect_true(all(table(actual$windows$rt_segment_id) == 17L))
     # NULL disables the width grid and must survive list subsetting/replay.
     expect_true("width_grid_step" %in% names(actual$parameters))
@@ -122,6 +124,7 @@ test_that("comparison rejects incomplete old settings instead of guessing defaul
 
 test_that("Shiny shared computation captures hidden strategy controls", {
   fixture <- .comparison_fixture()
+  fixture$plan$diagnosis <- list(current_cycle_time_sec = 2)
   env <- new.env(parent = environment())
   sys.source(test_path("..", "..", "inst", "shiny_app", "server_optimization.R"), env)
   sys.source(test_path("..", "..", "inst", "shiny_app", "optimization_workflow.R"), env)
@@ -132,14 +135,22 @@ test_that("Shiny shared computation captures hidden strategy controls", {
     list(windows = data.frame(mz_start = 400), marker = "completed")
   }
   input <- list(instrument = "exploris", target_dppp = 7, target_satisfaction = 70,
+    current_window_count = 30, original_mz_min = 450, original_mz_max = 1050,
     ms1_it_auto = TRUE, ms2_it_auto = TRUE,
     mz_strategy = "quantile", rt_binning_mode = "custom", rt_bin_width = 4,
     auto_windows = FALSE, manual_n_windows = 17, greedy_mz_step = 1.5,
     target_coverage = 73, outlier_threshold = 1.6, kde_density_threshold = 23,
     kde_min_coverage = 67, quantile_lower = 0.12, quantile_upper = 0.88,
     min_isolation_width = 6, max_isolation_width = 30)
-  result <- .comparison_quiet(env$.shiny_compute_windows(input, fixture$data))
-  expect_identical(result$plan, fixture$plan)
+  timing <- list(cycle_time_sec = 2, window_count = 30)
+  result <- .comparison_quiet(env$.shiny_compute_windows(input, fixture$data, timing))
+  expect_equal(result$plan$window_count_per_bin, fixture$plan$window_count_per_bin)
+  expect_identical(result$plan$original_method, result$windows$parameters$original_method)
+  expect_equal(result$plan$original_method$n_windows, 30L)
+  expect_equal(result$plan$original_method$window_width, 20)
+  expect_equal(result$plan$original_method$cycle_time_sec, 2)
+  expect_identical(result$plan$original_method$timing, timing)
+  expect_equal(result$plan$original_method$acquisition_inputs$instrument, "exploris")
   expect_equal(result$windows$marker, "completed")
   expect_equal(captured$comparison_strategy_configs$coverage$target_coverage, 0.73)
   expect_equal(captured$comparison_strategy_configs$greedy$mz_step, 1.5)

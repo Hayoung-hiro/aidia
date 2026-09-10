@@ -12,7 +12,8 @@ export_batch_comparison(
   include_comparison = TRUE,
   fill_void = FALSE,
   acquisition_start_min = 0,
-  acquisition_end_min = NULL
+  acquisition_end_min = NULL,
+  charge_state = 1L
 )
 }
 \arguments{
@@ -35,6 +36,9 @@ TRUE extends each strategy's RT schedule to span
 
 \item{acquisition_end_min}{Numeric or NULL (default NULL). Run end; used only
 when \code{fill_void = TRUE}.}
+
+\item{charge_state}{Expected precursor charge for Thermo exports (integer
+0-100, default 1). See \code{\link[=export_windows_to_csv]{export_windows_to_csv()}}.}
 }
 \value{
 Character, path to output directory (invisible)

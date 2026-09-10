@@ -56,7 +56,11 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
     instrument_ids <- c("instrument", "ms1_resolution", "ms2_resolution",
       "ms1_it_auto", "ms1_it_custom", "ms2_it_auto", "ms2_it_custom",
       "astral_ms1_resolution", "astral_ms2_it", "current_window_count")
-    c(values, setNames(lapply(instrument_ids, function(id) input[[id]]), instrument_ids))
+    original_defaults <- list(original_mz_min = 400, original_mz_max = 1000)
+    original_values <- lapply(names(original_defaults), function(id)
+      if (id %in% names(input)) input[[id]] else original_defaults[[id]])
+    names(original_values) <- names(original_defaults)
+    c(values, setNames(lapply(instrument_ids, function(id) input[[id]]), instrument_ids), original_values)
   })
   setup_issues <- reactive(c(
     .shiny_prepare_issues(settings(), TRUE, cycle_time_result()),
@@ -148,7 +152,7 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
   observeEvent(input$run_optimization, {
     if (!isTRUE(rv$data_loaded) || length(setup_issues())) {
       id <- if (!isTRUE(rv$data_loaded)) "parquet_file" else names(setup_issues())[[1]]
-      if (id %in% c("parquet_file", "instrument", "current_window_count", "astral_ms2_it", "ms1_it_custom", "ms2_it_custom"))
+      if (id %in% c("parquet_file", "instrument", "current_window_count", "astral_ms2_it", "ms1_it_custom", "ms2_it_custom", "original_mz_min", "original_mz_max"))
         updateTabItems(session, "tabs", "data")
       session$sendCustomMessage("workflow-focus", id)
       return()

@@ -5,7 +5,8 @@
 .shiny_export_options <- function(input) {
   end <- input$acquisition_end_min
   if (is.null(end) || is.na(end)) end <- NULL
-  list(fill_void = isTRUE(input$fill_void), acquisition_end_min = end)
+  list(fill_void = isTRUE(input$fill_void), acquisition_end_min = end,
+       charge_state = input$export_charge_state %||% 1L)
 }
 
 server_downloads <- function(input, output, session, rv) {
@@ -47,7 +48,8 @@ server_downloads <- function(input, output, session, rv) {
     switch(fmt,
       thermo = format_preview_card(
         "Thermo Targeted Mass List", "Xcalibur-compatible CSV",
-        "Compound,Formula,Adduct,m/z,z,t start (min),t stop (min),Isolation Window (m/z)\n1,,(no adduct),425.2523,1,11.4,28,50.5046",
+        paste0("Compound,Formula,Adduct,m/z,z,t start (min),t stop (min),Isolation Window (m/z)\n1,,(no adduct),425.2523,",
+          input$export_charge_state %||% 1L, ",11.4,28,50.5046"),
         "8 columns including m/z, charge, RT start/stop, and isolation width. Adjacent RT groups join without gaps."
       ),
       center_mass = format_preview_card(

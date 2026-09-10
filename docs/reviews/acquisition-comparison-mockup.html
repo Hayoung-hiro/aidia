@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AIDIA — Method comparison concept</title>
+<style>
+body{margin:0;background:#f3f5f8;color:#213047;font:15px system-ui,sans-serif}main{max-width:1100px;margin:36px auto;padding:0 22px}h1{font-size:27px;margin:8px 0}h2{font-size:17px;margin:0 0 12px}.muted{color:#657286}.tag{font-size:12px;background:#e6ebf3;padding:6px 9px;border-radius:5px}.panel,.card{background:white;border:1px solid #dbe2ec;border-radius:10px;padding:20px;margin-top:18px}.bar{display:flex;gap:20px;align-items:center;flex-wrap:wrap}select{padding:9px;border:1px solid #bdc9da;border-radius:6px;color:inherit;background:white}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.value{font-size:28px;margin:18px 0}.value span{font-size:15px;color:#8793a3}.cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}.placeholder{height:150px;background:repeating-linear-gradient(0deg,#fafbfd,#fafbfd 29px,#eef1f6 30px);border:1px dashed #c5cfdd;display:grid;place-items:center;color:#64748b;text-align:center;padding:14px}.card p{font-size:13px;line-height:1.5}.row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #edf0f5;padding:12px 0}summary{cursor:pointer;font-weight:600}details p{line-height:1.7}label{display:block;font-size:13px;margin-bottom:5px}.foot{font-size:13px;margin:24px 0;color:#64748b}button{border:1px solid #c5cfdd;border-radius:6px;background:white;padding:8px 12px;color:inherit;cursor:pointer}button.active{background:#213e67;color:white}@media(max-width:750px){.cards,.cols{grid-template-columns:1fr 1fr}}@media(max-width:460px){.cards,.cols{grid-template-columns:1fr}}
+</style>
+<main>
+<span class="tag">FUTURE LAYOUT REFERENCE · NO EXPERIMENTAL RESULTS</span>
+<h1>Method comparison</h1>
+<p class="muted">Initial implementation will reuse the existing AIDIA cards and co-elution panel. This is a future layout reference.</p>
+<section class="panel">
+<div class="bar"><div><label for="reference">Reference</label><select id="reference"><option value="original">Original fixed method (input settings)</option><option value="kde">Existing KDE method (research comparison)</option><option value="imported">Imported acquisition method</option></select></div><div><label for="candidate">Candidate</label><select id="candidate"><option>Optimized method · selected strategy</option><option>Global 2D-KDE · precursor count</option><option>Global 2D-KDE · intensity weighted</option></select></div></div>
+<p id="reference-note" class="muted">Uses the original constant m/z range, equal widths, window count and acquisition settings saved at execution.</p>
+<div class="tag">Same evaluation data · original and optimized CT/N shown explicitly</div>
+</section>
+<div class="cards">
+<section class="card"><h2>Precursor coverage</h2><div class="value">— <span>→</span> —</div><p>Reference → Candidate<br>Eligible identified precursors included by the schedule.</p></section>
+<section class="card"><h2>Estimated co-isolation burden</h2><div class="value">— <span>→</span> —</div><p>Median and P95 on common targets.<br>Difference appears after evaluation.</p></section>
+<section class="card"><h2>Isolation width</h2><div class="value">— <span>→</span> —</div><p>Time-weighted physical windows.<br>Includes each staggered cycle.</p></section>
+<section class="card"><h2>Cycle time</h2><div class="value">— <span>→</span> —</div><p>Recorded or modeled timing.<br>Different budgets are identified explicitly.</p></section>
+</div>
+<section class="panel"><div class="bar"><h2>RT–m/z schedules</h2><button class="active" data-layer="Count">Precursor count</button><button data-layer="Intensity">Intensity</button></div><p class="muted" id="layer-note">Count background · shared axes and color scale</p><div class="cols"><div><h2>Reference</h2><div class="placeholder">Reference windows over the evaluation data<br>No data loaded in this mockup</div></div><div><h2>Candidate</h2><div class="placeholder">Candidate windows over the same data<br>No data loaded in this mockup</div></div></div></section>
+<div class="cols"><section class="panel"><h2>Estimated burden across RT</h2><div class="placeholder">Reference and candidate curves on one time axis<br>Common targets; all eligible competitors</div></section><section class="panel"><h2>Coverage trade-off</h2><div class="row"><span>Covered by both methods</span><strong>—</strong></div><div class="row"><span>Newly included by candidate</span><strong>—</strong></div><div class="row"><span>Excluded by candidate</span><strong>—</strong></div><div class="row"><span>Input signal coverage</span><strong>— → —</strong></div><div class="row"><span>Low-intensity target coverage</span><strong>— → —</strong></div></section></div>
+<details class="panel"><summary>Evaluation data and assumptions</summary><p>The method schedule defines geometric inclusion and isolation width. Co-isolation burden is a model using identified precursors and a stated elution interval; it is not measured fragment interference. The actual application will display the evaluation run, input filters, interval model, timing source, and whether the run was excluded from method design. No ID gain, CV improvement or sensitivity gain is inferred from these metrics.</p></details>
+<p class="foot">Concept only. Controls illustrate comparison choices; this file performs no evaluation and is not connected to Shiny.</p>
+</main>
+<script>
+const notes={original:'Uses the original constant m/z range, equal widths, window count and acquisition settings saved at execution.',kde:'Secondary research comparison using a saved KDE result and its recorded settings.',imported:'Uses imported physical windows. Timing must be supplied if it is absent from the file.'};
+document.querySelector('#reference').addEventListener('change',e=>{document.querySelector('#reference-note').textContent=notes[e.target.value]});
+document.querySelectorAll('[data-layer]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-layer]').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelector('#layer-note').textContent=b.dataset.layer+' background · shared axes and color scale'}));
+</script>
+</html>

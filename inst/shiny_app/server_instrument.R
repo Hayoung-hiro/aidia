@@ -102,6 +102,14 @@ server_instrument <- function(input, output, session, rv) {
     })
   })
 
+  output$original_fixed_width <- renderUI({
+    config <- tryCatch(fixed_method_config(input$current_window_count,
+      input$original_mz_min, input$original_mz_max), error = function(e) NULL)
+    if (is.null(config)) return(NULL)
+    div(class = "config-derived-value", sprintf("Original fixed width: %.2f m/z (%d windows)",
+      config$window_width, config$n_windows))
+  })
+
   # Input-method feedback uses the existing acquisition timing calculation.
   output$acquisition_preview <- renderUI({
     result <- cycle_time_result()

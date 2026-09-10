@@ -111,3 +111,14 @@ test_that("cleared and incompatible setup controls explain how to recover", {
   input$min_isolation_width <- input$max_isolation_width
   expect_match(env$.shiny_setup_issues(input)[["min_isolation_width"]], "below Max width")
 })
+
+test_that("original method prerequisites identify the input that needs correction", {
+  env <- .intent_env()
+  input <- list(instrument = "astral", current_window_count = 40, astral_ms2_it = 3,
+    original_mz_min = 450, original_mz_max = 1050)
+  expect_length(env$.shiny_prepare_issues(input, TRUE, list()), 0)
+  input$original_mz_max <- 400
+  expect_named(env$.shiny_prepare_issues(input, TRUE, list()), "original_mz_max")
+  input["original_mz_max"] <- list(NULL)
+  expect_named(env$.shiny_prepare_issues(input, TRUE, list()), "original_mz_max")
+})
