@@ -102,6 +102,34 @@ server_instrument <- function(input, output, session, rv) {
     })
   })
 
+  # Input-method feedback uses the existing acquisition timing calculation.
+  output$acquisition_preview <- renderUI({
+    result <- cycle_time_result()
+    if (is.null(result)) return(tags$p("Check the acquisition settings.", class = "text-muted"))
+    parallel <- identical(result$instrument$cycle_calculation, "parallel")
+    time_row <- function(label, value, milliseconds, kind) {
+      div(class = "acquisition-time-row",
+        div(class = "acquisition-time-label", tags$span(label), tags$strong(value)),
+        div(class = "acquisition-time-track", `aria-hidden` = "true",
+          div(class = paste("acquisition-time-fill", kind),
+            style = sprintf("width: %.2f%%;", min(100, 100 * milliseconds / result$cycle_time_ms)))))
+    }
+    div(class = "acquisition-metrics",
+      div(class = "acquisition-cycle",
+        tags$span("Estimated cycle time"),
+        div(tags$strong(sprintf("%.3f", result$cycle_time_sec)), tags$span(" sec"))),
+      div(class = "workflow-context", if (parallel) "Parallel acquisition" else "Sequential acquisition"),
+      time_row("MS1", sprintf("%.1f ms", result$ms1$total_time_ms), result$ms1$total_time_ms, "acquisition-ms1"),
+      time_row("MS2 windows", sprintf("%d x %.1f = %.1f ms", result$window_count,
+        result$ms2$scan_time_ms, result$ms2_total_time_ms), result$ms2_total_time_ms, "acquisition-ms2"),
+      if (isTRUE(rv$data_loaded) && isTRUE(is.finite(rv$median_fwhm_sec))) {
+        div(class = "acquisition-sampling", tags$span("Estimated DPPP"),
+          tags$strong(sprintf("%.1f", calculate_dppp(rv$median_fwhm_sec, result$cycle_time_sec))))
+      } else {
+        div(class = "workflow-context acquisition-sampling", "Upload data to estimate points per peak.")
+      })
+  })
+
   # --- Output: Auto IT value displays ---
   output$ms1_it_auto_value <- renderText({
     ms1_res <- as.numeric(input$ms1_resolution %||% 60000)
@@ -350,82 +378,20 @@ server_instrument <- function(input, output, session, rv) {
     )
   })
 
-  # --- Output: Greedy m/z Range Display ---
+  # Show the same count-to-width translation used by the worker.
   output$greedy_mz_range_display <- renderUI({
-    # Get window count (from auto or manual)
-    if (isTRUE(input$auto_windows %||% TRUE)) {
-      # Use the draft plan only when it matches the current controls.
-      n_windows <- rv$draft_plan$window_count_per_bin
-
-      # Estimate if no plan yet (shared reactive)
-      if (is.null(n_windows)) {
-        n_windows <- dppp_window_estimate()
-      }
-
-      n_windows <- n_windows %||% 40
-    } else {
-      n_windows <- input$manual_n_windows %||% 40
-    }
-
-    min_width <- input$min_isolation_width %||% 2
-    mz_range <- n_windows * min_width
-
-    # Determine if this is a reasonable range (typical precursor spread is 400-1200 m/z)
-    range_status <- if (mz_range < 100) {
-      list(icon = "exclamation-triangle", msg = "Very narrow - may miss many precursors",
-           box_class = "range-danger", text_class = "text-semantic-danger")
-    } else if (mz_range < 200) {
-      list(icon = "exclamation-circle", msg = "Narrow range - check coverage",
-           box_class = "range-warning", text_class = "text-semantic-warning")
-    } else if (mz_range > 600) {
-      list(icon = "check-circle", msg = "Wide range - good coverage expected",
-           box_class = "", text_class = "text-semantic-info")
-    } else {
-      list(icon = "check-circle", msg = "Typical range for DIA",
-           box_class = "", text_class = "text-semantic-success")
-    }
-
-    tags$div(
-      class = paste("mz-range-display", range_status$box_class),
-
-      # Main value
-      tags$div(
-        style = "display: flex; justify-content: space-between; align-items: baseline;",
-        tags$span(
-          class = "text-accent",
-          style = "font-size: 18px; font-weight: 700;",
-          sprintf("%.0f Da", mz_range)
-        ),
-        tags$span(
-          class = "text-muted",
-          style = "font-size: 12px;",
-          "Fixed m/z Range"
-        )
-      ),
-
-      # Formula breakdown
-      tags$div(
-        style = "margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-subtle);",
-        tags$span(
-          class = "text-accent",
-          style = "font-size: 12px;",
-          sprintf("%d windows", n_windows)
-        ),
-        tags$span(class = "text-muted", style = "margin: 0 4px;", "x"),
-        tags$span(
-          class = "text-accent",
-          style = "font-size: 12px;",
-          sprintf("%.1f Da (min width)", min_width)
-        )
-      ),
-
-      # Status indicator
-      tags$div(
-        class = range_status$text_class,
-        style = "margin-top: 6px; font-size: 11px;",
-        icon(range_status$icon), " ", range_status$msg
-      )
-    )
+    span <- input$greedy_range_width
+    req(length(span) == 1L, is.finite(span), span > 0)
+    count <- if (isTRUE(input$auto_windows)) rv$draft_plan$window_count_per_bin else input$manual_n_windows
+    if (is.null(count)) return(tags$span("The calculated window count will determine the width setting."))
+    req(is.finite(count), count > 0)
+    tags$span(`data-greedy-span` = span, `data-greedy-count` = count,
+      `data-greedy-width` = span / count,
+      sprintf("%g m/z / %d windows = %g m/z per window", span, count, signif(span / count, 4)))
+  })
+  output$quantile_retained <- renderText({
+    req(input$quantile_exclude_low, input$quantile_exclude_high)
+    sprintf("Keep %g%% before smoothing", 100 - input$quantile_exclude_low - input$quantile_exclude_high)
   })
 
   # Threshold for considering a component "slowed down" (5% tolerance)

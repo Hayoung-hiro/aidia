@@ -26,15 +26,18 @@ server_downloads <- function(input, output, session, rv) {
 
   # --- Helper: Format preview card ---
   format_preview_card <- function(title, subtitle, sample_data, description) {
-    tags$div(
-      class = "panel-raised", style = "margin-top: 8px; padding: 8px 12px;",
-      tags$strong(title),
-      tags$span(class = "text-muted", paste0(" - ", subtitle)),
-      tags$pre(style = "font-size: 11px; margin: 6px 0 0 0; max-height: 80px; overflow: auto;",
-        sample_data
-      ),
-      tags$small(class = "text-muted", description)
-    )
+    lines <- strsplit(sample_data, "\n", fixed = TRUE)[[1]]
+    cells <- lapply(lines, function(line) strsplit(line, ",", fixed = TRUE)[[1]])
+    tags$div(class = "export-format-card",
+      div(class = "export-format-heading", tags$strong(title),
+        tags$span(class = "text-muted", subtitle),
+        tags$span(class = "export-example-label", "Example rows")),
+      div(class = "workflow-table-scroll",
+        tags$table(class = "table table-sm export-format-table",
+          tags$caption(class = "sr-only", paste(title, "columns and illustrative example rows")),
+          tags$thead(tags$tr(lapply(cells[[1]], function(value) tags$th(scope = "col", value)))),
+          tags$tbody(lapply(cells[-1], function(values) tags$tr(lapply(values, tags$td)))))),
+      tags$small(class = "text-muted", description))
   }
 
   # --- Export Format Preview ---
@@ -45,7 +48,7 @@ server_downloads <- function(input, output, session, rv) {
       thermo = format_preview_card(
         "Thermo Targeted Mass List", "Xcalibur-compatible CSV",
         "Compound,Formula,Adduct,m/z,z,t start (min),t stop (min),Isolation Window (m/z)\n1,,(no adduct),425.2523,1,11.4,28,50.5046",
-        "8-column list; segments tile contiguously (no gaps). Default keeps measured RT edges; tick 'Fill void volume' to extend to the full run length."
+        "8 columns including m/z, charge, RT start/stop, and isolation width. Adjacent RT groups join without gaps."
       ),
       center_mass = format_preview_card(
         "Center Mass List", "Generic 2-column format",

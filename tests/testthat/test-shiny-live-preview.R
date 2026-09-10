@@ -2,6 +2,8 @@
   env <- new.env(parent = environment())
   for (name in getNamespaceExports("shiny")) env[[name]] <- getExportedValue("shiny", name)
   env$updateTabItems <- function(...) NULL
+  sys.source(test_path("..", "..", "inst", "shiny_app", "server_navigation.R"), env)
+  sys.source(test_path("..", "..", "inst", "shiny_app", "optimization_workflow.R"), env)
   sys.source(test_path("..", "..", "inst", "shiny_app", "server_live_preview.R"), env)
   sys.source(test_path("..", "..", "inst", "shiny_app", "preview_display.R"), env)
   env
@@ -42,10 +44,11 @@ test_that("live preview coalesces edits, rejects stale results, and promotes exa
       task_state("success")
       session$flushReact()
     }
-    env$server_live_preview(input, output, session, rv, function() NULL, task = task)
+    env$server_live_preview(input, output, session, rv, function() list(cycle_time_sec = 1), task = task)
   }
   shiny::testServer(server, {
-    session$setInputs(instrument = "exploris", kde_density_threshold = 10)
+    session$setInputs(instrument = "exploris", kde_density_threshold = 10,
+      current_window_count = 40, ms1_it_auto = TRUE, ms2_it_auto = TRUE)
     session$elapse(500)
     expect_length(calls(), 1)
     session$setInputs(kde_density_threshold = 15)
@@ -71,7 +74,7 @@ test_that("live preview coalesces edits, rejects stale results, and promotes exa
     session$elapse(500)
     expect_identical(rv$confirmed_run, confirmed)
     expect_identical(rv$optimized_windows, confirmed$windows)
-    task_result(list(error = "Cannot generate windows"))
+    task_result(list(error = "Cannot generate windows", field = "min_isolation_width"))
     task_state("success")
     session$flushReact()
     expect_equal(rv$draft_state, "error")
@@ -79,6 +82,9 @@ test_that("live preview coalesces edits, rejects stale results, and promotes exa
     expect_identical(rv$confirmed_run, confirmed)
 
     sent <<- list()
+    call_count <- length(calls())
+    session$setInputs(run_optimization = 99)
+    expect_length(calls(), call_count) # A known field error focuses the control, without retrying it.
     session$setInputs(reset_windows = 1)
     expect_equal(sent$kde_density_threshold, 25)
     expect_false("target_dppp" %in% names(sent))
@@ -98,6 +104,19 @@ test_that("live preview coalesces edits, rejects stale results, and promotes exa
     session$setInputs(kde_density_threshold = 20, run_optimization = 3)
     complete(length(calls()), "confirmed after waiting")
     expect_identical(rv$optimized_windows$marker, "confirmed after waiting")
+    expect_equal(rv$draft_state, "confirmed")
+
+    # Invalid edits must not silently fall back to defaults or revoke downloads.
+    saved <- rv$confirmed_run
+    count <- length(calls())
+    session$setInputs(target_dppp = NULL, run_optimization = 4)
+    session$elapse(500)
+    expect_equal(rv$draft_state, "invalid")
+    expect_match(output$setup_navigation_feedback$html, "highlighted settings")
+    expect_length(calls(), count)
+    expect_identical(rv$confirmed_run, saved)
+    session$setInputs(target_dppp = 4)
+    session$elapse(500)
     expect_equal(rv$draft_state, "confirmed")
 
     # New input data invalidates both the preview and confirmation association.

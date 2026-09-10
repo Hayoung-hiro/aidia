@@ -13,6 +13,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
     rv$confirmed_run <- NULL
     rv$validated_data <- NULL
     rv$data_loaded <- FALSE
+    rv$data_error <- NULL
 
     # Show processing notification
     showNotification("Processing file...", id = "upload_progress", duration = NULL, type = "message")
@@ -34,7 +35,6 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
       cat("[Shiny] create_validated_dataset() completed!\n")
 
       rv$data_loaded <- TRUE
-      shinyjs::enable(selector = "a[data-value=\047setup\047]")
 
       # Cache FWHM conversion (immutable until next upload)
       rv$fwhm_sec <- ensure_fwhm_seconds(rv$validated_data$data$FWHM)
@@ -60,6 +60,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
       removeNotification("upload_progress")
       showNotification(paste("Error:", e$message), type = "error", duration = 10)
       rv$data_loaded <- FALSE
+      rv$data_error <- e$message
     })
   })
 
@@ -279,58 +280,13 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
     # Check if current cycle time meets requirements
     meets_target <- !is.null(current_ct) && current_ct <= rec_ct
 
-    tags$div(
-      class = "panel-raised", style = "padding: 10px;",
-
-      # Main recommendation
-      tags$div(
-        style = "display: flex; align-items: center; gap: 8px; margin-bottom: 8px;",
-        icon("lightbulb", class = "text-semantic-warning", style = "font-size: 18px;"),
-        tags$strong("Target Requirements")
-      ),
-      tags$p(
-        style = "margin: 0 0 8px 0; font-size: 13px;",
-        sprintf("For DPPP >= %.1f with %d%% satisfaction:", target, satisfaction)
-      ),
-      tags$p(
-        style = "margin: 0 0 12px 0; font-size: 14px;",
-        "Required cycle time <= ",
-        tags$strong(sprintf("%.2f sec", rec_ct), class = "text-accent", style = "font-size: 16px;")
-      ),
-
-      # Current status
+    tags$div(class = "workflow-sampling-recommendation",
+      tags$span("Suggested cycle time", tags$strong(sprintf("<= %.2f sec", rec_ct))),
+      tags$span(sprintf("DPPP >= %.1f for %d%% of peaks", target, satisfaction)),
       if (!is.null(current_ct)) {
-        if (meets_target) {
-          tags$div(
-            class = "status-pass",
-            tags$span(
-              class = "status-text",
-              sprintf("Your current cycle time (%.2f sec) MEETS the requirement!", current_ct)
-            )
-          )
-        } else {
-          # Calculate how much reduction is needed
-          reduction_needed <- current_ct - rec_ct
-          reduction_pct <- (reduction_needed / current_ct) * 100
-
-          tags$div(
-            class = "status-fail",
-            tags$span(
-              class = "status-text",
-              sprintf("Current: %.2f sec -> Need: <=%.2f sec", current_ct, rec_ct)
-            ),
-            tags$br(),
-            tags$span(
-              class = "status-text", style = "font-size: 12px;",
-              sprintf("Reduce cycle time by %.1f sec (%.0f%% reduction needed)", reduction_needed, reduction_pct)
-            ),
-            tags$br(),
-            tags$span(
-              class = "text-muted", style = "font-size: 11px; font-style: italic;",
-              "Tip: Use fewer windows, faster scan rate, or lower target DPPP"
-            )
-          )
-        }
+        tags$span(class = if (meets_target) "text-semantic-success" else "text-semantic-danger",
+          sprintf("Input cycle %.2f sec - %s", current_ct,
+            if (meets_target) "meets target" else "above suggested cycle"))
       }
     )
   })
@@ -365,6 +321,8 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
 
     tags$div(
       class = "text-muted", style = "font-size: 11px; line-height: 1.9;",
+      tags$div(class = "sidebar-file-name", title = input$parquet_file$name,
+        input$parquet_file$name),
       tags$div(sprintf("Precursors: %s", format(nrow(data), big.mark = ","))),
       tags$div(sprintf("RT: %.1f - %.1f min", min(data$RT.Apex), max(data$RT.Apex))),
       tags$div(sprintf("m/z: %.0f - %.0f Da", min(data$Precursor.Mz), max(data$Precursor.Mz))),

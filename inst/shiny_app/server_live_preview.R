@@ -4,8 +4,8 @@
   list(
     sampling = list(target_dppp = 7, target_satisfaction = 70, ms1_scans_per_cycle = 1),
     windows = list(mz_strategy = "kde", window_mode = "density", auto_windows = TRUE,
-      manual_n_windows = 40, greedy_mz_step = 2, greedy_apply_smoothing = TRUE,
-      quantile_lower = 0.05, quantile_upper = 0.95, quantile_apply_smoothing = TRUE,
+      manual_n_windows = 40, greedy_range_width = 200, greedy_mz_step = 2, greedy_apply_smoothing = TRUE,
+      quantile_exclude_low = 5, quantile_exclude_high = 5, quantile_apply_smoothing = TRUE,
       target_coverage = 90, outlier_threshold = 3, outlier_apply_smoothing = TRUE,
       kde_density_threshold = 10, kde_min_coverage = 80,
       min_isolation_width = widths$min_width_da, max_isolation_width = widths$max_width_da,
@@ -31,7 +31,7 @@
       sys.source(file.path(app_path, "preview_worker.R"), worker)
       # Return ordinary errors as data so the controller can match failed requests.
       tryCatch(worker$.shiny_preview_worker(request, package_path, app_path),
-               error = function(e) list(error = conditionMessage(e)))
+               error = function(e) list(error = conditionMessage(e), field = e$field))
     }, globals = list(request = request, app_path = app_path, package_path = package_path),
        packages = character(), seed = TRUE)
   })
@@ -49,13 +49,18 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
   settings <- reactive({
     instrument <- input$instrument %||% "astral"
     defaults <- do.call(c, unname(.shiny_setup_defaults(instrument)))
-    values <- lapply(names(defaults), function(id) input[[id]] %||% defaults[[id]])
+    values <- lapply(names(defaults), function(id) {
+      if (id %in% names(input)) input[[id]] else defaults[[id]]
+    })
     names(values) <- names(defaults)
     instrument_ids <- c("instrument", "ms1_resolution", "ms2_resolution",
       "ms1_it_auto", "ms1_it_custom", "ms2_it_auto", "ms2_it_custom",
       "astral_ms1_resolution", "astral_ms2_it", "current_window_count")
     c(values, setNames(lapply(instrument_ids, function(id) input[[id]]), instrument_ids))
   })
+  setup_issues <- reactive(c(
+    .shiny_prepare_issues(settings(), TRUE, cycle_time_result()),
+    .shiny_setup_issues(settings())))
   request <- reactive({
     req(rv$data_loaded, rv$validated_data)
     list(settings = settings(), cycle = cycle_time_result(),
@@ -80,11 +85,11 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
     rv$optimized_windows <- run$windows
     rv$optimization_complete <- TRUE
     confirm_requested(NULL)
-    shinyjs::enable(selector = "a[data-value=\047results\047]")
     updateTabItems(session, "tabs", "results")
   }
 
   launch_pending <- function() {
+    if (length(isolate(setup_issues()))) { pending(NULL); return() }
     next_request <- isolate(pending())
     if (is.null(next_request) || identical(isolate(task$status()), "running")) return()
     if (!.shiny_same_request(next_request, isolate(request()))) {
@@ -99,6 +104,7 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
 
   observeEvent(settled_request(), {
     req(rv$data_loaded)
+    if (length(setup_issues())) { pending(NULL); return() }
     next_request <- settled_request()
     if (!.shiny_same_request(next_request, request())) return()
     if (.shiny_same_request(preview(), next_request)) return()
@@ -124,10 +130,10 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
     isolate({
       completed <- active()
       active(NULL)
-      if (!is.null(completed) && isTRUE(rv$data_loaded) &&
+      if (!is.null(completed) && isTRUE(rv$data_loaded) && !length(setup_issues()) &&
           .shiny_same_request(completed, request())) {
         if (!is.null(result$error)) {
-          failure(list(request = completed, message = result$error))
+          failure(list(request = completed, message = result$error, field = result$field))
           confirm_requested(NULL)
         } else {
           preview(result)
@@ -140,8 +146,19 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
   })
 
   observeEvent(input$run_optimization, {
-    req(rv$data_loaded)
+    if (!isTRUE(rv$data_loaded) || length(setup_issues())) {
+      id <- if (!isTRUE(rv$data_loaded)) "parquet_file" else names(setup_issues())[[1]]
+      if (id %in% c("parquet_file", "instrument", "current_window_count", "astral_ms2_it", "ms1_it_custom", "ms2_it_custom"))
+        updateTabItems(session, "tabs", "data")
+      session$sendCustomMessage("workflow-focus", id)
+      return()
+    }
     current <- request()
+    if (!is.null(failure()) && .shiny_same_request(failure()$request, current) &&
+        !is.null(failure()$field)) {
+      session$sendCustomMessage("workflow-focus", failure()$field)
+      return()
+    }
     if (.shiny_same_request(preview(), current)) {
       publish(preview())
     } else {
@@ -160,7 +177,7 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
 
   # Reset only the requested section. Instrument controls remain in Prepare data.
   slider_ids <- c("target_satisfaction", "manual_n_windows", "greedy_mz_step",
-    "quantile_lower", "quantile_upper", "target_coverage", "outlier_threshold",
+    "quantile_exclude_low", "quantile_exclude_high", "target_coverage", "outlier_threshold",
     "kde_density_threshold", "kde_min_coverage", "rt_bin_width", "cpd_significance",
     "cpd_min_bin_width")
   select_ids <- c("mz_strategy", "window_mode", "fz_offset_preset", "rt_binning_mode")
@@ -185,6 +202,7 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
 
   state <- reactive({
     if (!isTRUE(rv$data_loaded)) return("empty")
+    if (length(setup_issues())) return("invalid")
     current <- request()
     if (!is.null(failure()) && .shiny_same_request(failure()$request, current)) return("error")
     if (.shiny_same_request(rv$confirmed_run, current)) return("confirmed")
@@ -193,15 +211,33 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
   })
   rv$draft_state <- NULL
   observe({ rv$draft_state <- state() })
+  observe({
+    # Prepare-data errors are owned by server_navigation; keep each scope independent.
+    issues <- .shiny_setup_issues(settings())
+    if (state() == "error" && !is.null(failure()$field))
+      issues[[failure()$field]] <- failure()$message
+    session$sendCustomMessage("workflow-validation", list(scope = "setup", issues = as.list(issues)))
+  })
   output$draft_status <- renderUI({
     label <- switch(state(), empty = "Upload data to preview",
+      invalid = "Complete the settings below",
       error = "Preview needs attention", confirmed = "Confirmed settings",
       ready = "Preview ready - not confirmed", updating = "Updating preview...")
     div(class = paste("draft-status", paste0("draft-status-", state())),
       tags$span(class = "draft-status-label", label),
       if (!is.null(rv$confirmed_run) && state() != "confirmed")
-        tags$span(class = "draft-status-note", "Downloads use the last confirmed result."),
-      if (state() == "error") tags$span(class = "draft-error", failure()$message))
+        tags$span(class = "draft-status-note", "Downloads use the last confirmed result."))
+  })
+  output$setup_navigation_feedback <- renderUI({
+    messages <- if (!isTRUE(rv$data_loaded)) "Upload a report.parquet file in step 1 before continuing." else setup_issues()
+    if (length(messages)) return(div(class = "workflow-navigation-feedback needs-attention",
+      role = "status", "Check the highlighted settings before confirming."))
+    if (!is.null(confirm_requested())) div(class = "workflow-navigation-feedback", role = "status",
+      "Calculating your preview. Results will open when it is ready.")
+  })
+  output$preview_error <- renderUI({
+    if (state() == "error" && is.null(failure()$field))
+      div(class = "workflow-field-error", role = "alert", failure()$message)
   })
   output$confirmed_status <- renderUI({
     req(rv$confirmed_run)
@@ -211,6 +247,33 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
       div(class = "draft-status draft-status-ready",
           "Confirmed result - your edited settings have not been applied to these downloads.")
     }
+  })
+
+  output$sidebar_confirmed_method <- renderUI({
+    run <- rv$confirmed_run
+    if (is.null(run)) {
+      return(div(class = "sidebar-method-content",
+        tags$strong("No confirmed method"),
+        tags$p(if (isTRUE(rv$data_loaded))
+          "Confirm your settings in step 2 to prepare a download."
+          else "Upload a report, then configure your windows.")))
+    }
+    mode <- switch(run$settings$window_mode,
+      density = "Density", fixed = "Fixed", staggered = "Staggered")
+    div(class = "sidebar-method-content",
+      div(class = "sidebar-method-strategy",
+        format_strategy_label(run$settings$mz_strategy), tags$span(mode)),
+      tags$p(get_instrument_config(run$settings$instrument)$name),
+      tags$p(sprintf("%s windows / %d RT groups",
+        format(nrow(run$windows$windows), big.mark = ","),
+        nrow(run$windows$rt_binning$rt_stats))),
+      if (state() == "confirmed") {
+        div(class = "sidebar-method-match", icon("check-circle"), " Matches current settings")
+      } else {
+        div(class = "sidebar-method-pending", icon("pencil-alt"),
+          " Unconfirmed changes",
+          tags$p("Downloads still use this confirmed method."))
+      })
   })
 
   current_preview <- reactive({
@@ -225,7 +288,9 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
   outputOptions(output, "preview_ready", suspendWhenHidden = FALSE)
   output$preview_waiting <- renderText({
     switch(state(), empty = "Upload data to see your m/z distribution.",
-      error = "Adjust the settings or retry with Confirm & view results.",
+      invalid = "Complete the highlighted settings to update the preview.",
+      error = if (!is.null(failure()$field)) "Correct the highlighted setting to update the preview."
+        else "Adjust the settings or retry with Confirm & view results.",
       "Calculating the distribution and windows for your current settings...")
   })
   observeEvent(current_preview(), {

@@ -1,296 +1,109 @@
-# ui_step1_data.R - Step 1: DATA & INSTRUMENT
-# Upload, instrument configuration, cycle time, DPPP preview
-
+# Step 1: the input report, its acquisition settings, and a sampling check.
 step1_data_ui <- function() {
-  tabItem(
-    tabName = "data",
+  help <- .workflow_help
+  row <- .workflow_row
+  section <- function(number, title, ...) .workflow_section("data", number, title, ...)
+  parallel <- "input.instrument == 'astral' || input.instrument == 'astral_zoom'"
+  sequential <- "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'"
+  auto_it <- function(ms) {
+    div(class = "workflow-inline",
+      checkboxInput(paste0(ms, "_it_auto"), "Auto max IT", value = TRUE),
+      conditionalPanel(condition = paste0("!input.", ms, "_it_auto"),
+        numericInput(paste0(ms, "_it_custom"), "Max IT (ms)", value = 50,
+          min = 5, max = 500, step = 5)),
+      conditionalPanel(condition = paste0("input.", ms, "_it_auto"),
+        span(textOutput(paste0(ms, "_it_auto_value"), inline = TRUE), class = "workflow-inline-value")))
+  }
 
-    div(class = "workflow-heading",
-      tags$p(class = "workflow-eyebrow", "STEP 1 OF 3"),
-      h2("Prepare your data"),
-      p("Upload a DIA-NN report, then check the settings of your input acquisition method.")
-    ),
+  tabItem(tabName = "data",
+    div(class = "configure-compact workflow-data",
+      div(class = "workflow-heading",
+        tags$p(class = "workflow-eyebrow", "STEP 1 OF 3"),
+        h2("Prepare your data")),
 
-    # --- Row 1: Upload + Instrument side-by-side (2x1 layout, equal height) ---
-    fluidRow(
-      class = "equal-height-row",
-      box(
-        title = "DIA-NN report",
-        status = "primary",
-        solidHeader = TRUE,
-        width = 4,
+      section("1", "Data file",
+        row("DIA-NN report",
+          fileInput("parquet_file", NULL, accept = c(".parquet"),
+            placeholder = "Choose report.parquet", width = "100%"),
+          info = help("DIA-NN report", p("Upload a DIA-NN report.parquet file, up to 500 MB. After validation, your data summary appears in the sidebar and peak sampling appears below.")))),
 
-        div(
-          style = "text-align: center; margin-bottom: 12px;",
-          icon("cloud-upload-alt", class = "upload-icon"),
-          tags$p("DIA-NN Parquet Report", class = "text-muted", style = "margin: 4px 0 0 0;")
-        ),
-        div(
-          class = "upload-zone",
-          fileInput(
-            inputId = "parquet_file",
-            label = NULL,
-            accept = c(".parquet"),
-            placeholder = "No file selected..."
-          )
-        ),
-        helpText("Choose a report.parquet file (up to 500 MB).",
-                 style = "font-size: 11px; text-align: center;")
-      ),
+      section("2", "Input acquisition settings",
+        div(class = "workflow-acquisition-grid",
+          div(class = "workflow-acquisition-controls",
+        row("Instrument",
+          selectInput("instrument", "Instrument", choices = c(
+            "Thermo Astral Zoom (270 Hz)" = "astral_zoom",
+            "Thermo Astral (200 Hz)" = "astral",
+            "Thermo Q Exactive (12 Hz)" = "qexactive",
+            "Thermo Q Exactive HF-X (40 Hz)" = "qexactive_hfx",
+            "Thermo Exploris 480 (40 Hz)" = "exploris",
+            "Thermo Eclipse Tribrid (40 Hz)" = "eclipse",
+            "Thermo Fusion Lumos (20 Hz)" = "fusion_lumos"), selected = "astral_zoom"),
+          info = help("Input acquisition settings", p("Match these settings to the method used to acquire your uploaded report. They define the input cycle time used for comparison with the new method."))),
+        row("MS1",
+          conditionalPanel(condition = sequential, class = "workflow-inline",
+            selectInput("ms1_resolution", "Resolution", choices = c(
+              "15,000" = 15000, "30,000" = 30000, "60,000" = 60000,
+              "120,000" = 120000, "240,000" = 240000, "480,000" = 480000), selected = 60000),
+            auto_it("ms1")),
+          conditionalPanel(condition = parallel,
+            selectInput("astral_ms1_resolution", "Resolution (Orbitrap)", choices = c(
+              "60,000" = 60000, "120,000" = 120000, "240,000" = 240000,
+              "480,000" = 480000), selected = 240000)),
+          info = help("MS1 resolution and injection time",
+            p("Resolution is the Orbitrap MS1 setting, including for Astral instruments. Higher resolution increases transient duration."),
+            p("For sequential instruments, Auto max IT matches maximum injection time to the transient. Turn Auto off to enter your input method's maximum injection time."))),
+        row("MS2",
+          conditionalPanel(condition = sequential, class = "workflow-inline",
+            selectInput("ms2_resolution", "Resolution", choices = c(
+              "7,500" = 7500, "15,000" = 15000, "30,000" = 30000, "45,000" = 45000,
+              "60,000" = 60000, "120,000" = 120000, "240,000" = 240000), selected = 15000),
+            auto_it("ms2")),
+          conditionalPanel(condition = parallel,
+            sliderInput("astral_ms2_it", "Injection time (ms)", min = 2, max = 40,
+              value = 3, step = 0.5, post = " ms", ticks = FALSE)),
+          info = help("MS2 resolution and injection time",
+            p("Sequential instruments use the selected MS2 resolution and maximum injection time. Auto max IT matches the transient duration."),
+            p("For Astral, use the slider to match MS2 injection time to your input method. Longer injection times change the calculated acquisition speed."))),
+        row("Input windows",
+          numericInput("current_window_count", "Per cycle", value = 40, min = 10, max = 500, step = 5),
+          info = help("Input windows per cycle", p("Enter the number of windows in the method that produced your report. Configure the new window count in step 2.")))),
+          div(class = "config-preview workflow-acquisition-preview",
+            div(class = "config-preview-heading", tags$strong("Acquisition preview"),
+              help("Acquisition preview",
+                p("Updates from the input acquisition settings. For parallel instruments, the longer of MS1 and the MS2 window sequence determines cycle time. Sequential instruments add their durations."),
+                p("After upload, estimated DPPP uses your median peak width and this input cycle time. This is the input method preview; configure the new method in step 2."))),
+            uiOutput("acquisition_preview"))
+        )),
 
-      # --- Instrument & Timing (always visible, independent of data upload) ---
-      box(
-        title = "Input acquisition settings",
-        status = "warning",
-        solidHeader = TRUE,
-        width = 8,
-
-      fluidRow(
-        class = "instrument-row",
-        # Column 1: Instrument Selection
-        column(4,
-          selectInput(
-            inputId = "instrument",
-            label = "Instrument Preset",
-            choices = c(
-              # Thermo Orbitrap (verified)
-              "Thermo Astral Zoom (270 Hz)" = "astral_zoom",
-              "Thermo Astral (200 Hz)" = "astral",
-              "Thermo Q Exactive (12 Hz)" = "qexactive",
-              "Thermo Q Exactive HF-X (40 Hz)" = "qexactive_hfx",
-              "Thermo Exploris 480 (40 Hz)" = "exploris",
-              "Thermo Eclipse Tribrid (40 Hz)" = "eclipse",
-              "Thermo Fusion Lumos (20 Hz)" = "fusion_lumos"
-              # TODO: Add Bruker TimsTOF, SCIEX, Waters when verified
-            ),
-            selected = "astral_zoom"
-          )
-        ),
-
-        # Column 2: MS1 Resolution (Orbitrap sequential + Astral parallel)
-        column(3, class = "instrument-col-conditional",
-          # Orbitrap sequential instruments: full MS1 resolution range
-          conditionalPanel(
-            condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
-            selectInput(
-              inputId = "ms1_resolution",
-              label = "MS1 Resolution",
-              choices = c(
-                "15,000" = 15000,
-                "30,000" = 30000,
-                "60,000" = 60000,
-                "120,000" = 120000,
-                "240,000" = 240000,
-                "480,000" = 480000
-              ),
-              selected = 60000
-            )
-          ),
-          # Astral instruments: MS1 on Orbitrap (typical 120K-240K)
-          conditionalPanel(
-            condition = "input.instrument == 'astral' || input.instrument == 'astral_zoom'",
-            selectInput(
-              inputId = "astral_ms1_resolution",
-              label = "MS1 Resolution (Orbitrap)",
-              choices = c(
-                "60,000" = 60000,
-                "120,000" = 120000,
-                "240,000" = 240000,
-                "480,000" = 480000
-              ),
-              selected = 240000
-            ),
-            helpText("Astral MS1 acquired on Orbitrap analyzer",
-                     style = "font-size: 10px;")
-          )
-        ),
-
-        # Column 3: MS2 Resolution (Orbitrap) / Astral MS2 IT
-        column(3,
-          conditionalPanel(
-            condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
-            selectInput(
-              inputId = "ms2_resolution",
-              label = "MS2 Resolution",
-              choices = c(
-                "7,500" = 7500,
-                "15,000" = 15000,
-                "30,000" = 30000,
-                "45,000" = 45000,
-                "60,000" = 60000,
-                "120,000" = 120000,
-                "240,000" = 240000
-              ),
-              selected = 15000
-            )
-          ),
-
-          # Astral MS2 IT slider (for Astral instruments)
-          conditionalPanel(
-            condition = "input.instrument == 'astral' || input.instrument == 'astral_zoom'",
-            sliderInput(
-              inputId = "astral_ms2_it",
-              label = "Astral MS2 IT (ms)",
-              min = 2,
-              max = 40,
-              value = 3,
-              step = 0.5,
-              post = " ms"
-            ),
-            helpText("3ms: 200 Hz max speed | >3ms: Sensitivity mode",
-                     style = "font-size: 10px;")
-          )
-        ),
-
-        # Column 4: Window Count
-        column(2,
-          numericInput(
-            inputId = "current_window_count",
-            label = "Input windows per cycle",
-            value = 40,
-            min = 10,
-            max = 500,
-            step = 5
-          ),
-          helpText("Window count in the input method. New windows are configured in step 2.",
-                   style = "font-size: 11px;")
-        )
-      ),
-
-      # --- Injection Time (Orbitrap only) ---
-      conditionalPanel(
-        condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",
-        hr(style = "margin: 8px 0;"),
-        fluidRow(
-          column(4,
-            tags$label("MS1 Max IT", class = "control-label"),
-            div(
-              style = "display: flex; gap: 8px; align-items: center;",
-              checkboxInput("ms1_it_auto", "Auto", value = TRUE, width = "55px"),
-              conditionalPanel(
-                condition = "!input.ms1_it_auto",
-                div(
-                  style = "display: flex; align-items: center; gap: 4px;",
-                  numericInput("ms1_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
-                  span("ms", class = "unit-label")
-                )
-              ),
-              conditionalPanel(
-                condition = "input.ms1_it_auto",
-                span(textOutput("ms1_it_auto_value", inline = TRUE),
-                     class = "text-accent", style = "font-weight: 600; font-size: 12px;")
-              )
-            )
-          ),
-          column(4,
-            tags$label("MS2 Max IT", class = "control-label"),
-            div(
-              style = "display: flex; gap: 8px; align-items: center;",
-              checkboxInput("ms2_it_auto", "Auto", value = TRUE, width = "55px"),
-              conditionalPanel(
-                condition = "!input.ms2_it_auto",
-                div(
-                  style = "display: flex; align-items: center; gap: 4px;",
-                  numericInput("ms2_it_custom", NULL, value = 50, min = 5, max = 500, step = 5, width = "90px"),
-                  span("ms", class = "unit-label")
-                )
-              ),
-              conditionalPanel(
-                condition = "input.ms2_it_auto",
-                span(textOutput("ms2_it_auto_value", inline = TRUE),
-                     class = "text-accent", style = "font-weight: 600; font-size: 12px;")
-              )
-            )
-          ),
-          column(4,
-            div(style = "padding-top: 20px;",
-              helpText("Auto = T_transient (Sweet Spot, 100% efficiency)",
-                       style = "font-size: 10px;")
-            )
-          )
-        )
-      )
-    )   # end Instrument box
-    ),  # end fluidRow (Upload + Instrument)
-
-    # --- Shown after data upload ---
-    conditionalPanel(
-      condition = "output.data_loaded",
-
-      # DPPP Quick Preview (FIRST — overview before details)
-      fluidRow(
-        box(
-          title = "Peak sampling overview (DPPP)",
-          status = "info",
-          solidHeader = TRUE,
-          width = 12,
-          collapsible = TRUE,
-
-          fluidRow(
-            class = "equal-height-row dppp-preview-section",
-            column(4,
-              tags$h4("Peak Width (FWHM) Distribution", class = "section-title"),
-              plotOutput("fwhm_ridgeline", height = "240px")
-            ),
-            column(4,
-              tags$h4("DPPP at Different Cycle Times", class = "section-title"),
-              tags$p(
-                class = "section-subtitle",
-                "Target: DPPP >= ",
-                textOutput("current_target_dppp", inline = TRUE)
-              ),
-              uiOutput("dppp_preview_table")
-            ),
-            column(4,
-              tags$h4("Recommendation", class = "section-title"),
-              uiOutput("dppp_recommendation")
-            )
-          )
-        )
-      ),
-
-      # Cycle Time Calculation (SECOND — details after overview)
-      fluidRow(
-        box(
-          title = "Timing details",
-          status = "success",
-          solidHeader = TRUE,
-          width = 12,
-
-          collapsible = TRUE,
-          collapsed = TRUE,
-
-          tags$h4("Based on Your Experiment Settings", class = "section-title"),
-          fluidRow(
-            column(6, tableOutput("cycle_time_detail_table")),
-            column(6,
-              tags$h4("Cycle Time Breakdown", class = "section-title"),
-              uiOutput("cycle_time_visual"),
-              hr(style = "margin: 10px 0;"),
-              uiOutput("efficiency_detail")
-            )
-          )
-        )
-      )
-    ),
-
-    # --- Placeholder when no data ---
-    conditionalPanel(
-      condition = "!output.data_loaded",
-      div(
-        class = "placeholder-section",
-        icon("cloud-upload-alt", class = "placeholder-icon"),
-        h4("Your data overview will appear here"),
-        p("After upload, review peak sampling and continue to configure your windows.")
-      )
-    ),
-
-    # Navigation
-    div(
-      class = "wizard-nav wizard-nav-right",
-      actionButton("btn_to_setup", "Continue to window settings",
-                   class = "btn-primary btn-lg",
-                   icon = icon("arrow-right"))
+      section("3", "Peak sampling check",
+        conditionalPanel(condition = "!output.data_loaded",
+          div(class = "workflow-empty", icon("chart-area"),
+            span("Upload a report to see peak sampling."))),
+        conditionalPanel(condition = "output.data_loaded",
+          div(class = "workflow-check-grid",
+            div(class = "workflow-pane",
+              .workflow_subheading("Peak width distribution",
+                help("Peak width (FWHM)", p("The distribution of full widths at half maximum in your report. Peak widths and cycle time determine how many data points sample each peak."))),
+              div(class = "workflow-plot-scroll", plotOutput("fwhm_ridgeline", height = "240px"))),
+            div(class = "workflow-pane",
+              .workflow_subheading("Sampling by cycle time",
+                help("Peak sampling (DPPP)", p("DPPP is the number of data points across a peak. Satisfaction is the percentage of peaks meeting your target. The target and required percentage are configured in step 2."))),
+              div(class = "workflow-context", "Target DPPP: ", textOutput("current_target_dppp", inline = TRUE)),
+              div(class = "workflow-table-scroll", uiOutput("dppp_preview_table")))),
+          div(class = "workflow-recommendation", uiOutput("dppp_recommendation")),
+          tags$details(class = "config-more workflow-details",
+            tags$summary("Timing details"),
+            div(class = "workflow-check-grid",
+              div(class = "workflow-pane workflow-table-scroll", tableOutput("cycle_time_detail_table")),
+              div(class = "workflow-pane",
+                .workflow_subheading("Cycle time breakdown"),
+                uiOutput("cycle_time_visual"), uiOutput("efficiency_detail"))))
+        )),
+      uiOutput("prepare_navigation_feedback"),
+      div(class = "wizard-nav wizard-nav-right",
+        actionButton("btn_to_setup", "Continue to window settings",
+          class = "btn-primary", icon = icon("arrow-right")))
     )
   )
 }

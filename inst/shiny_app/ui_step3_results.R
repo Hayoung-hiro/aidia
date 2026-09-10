@@ -1,249 +1,94 @@
-# ui_step3_results.R - Step 3: RESULTS (Optimization Output)
-
+# Step 3: inspect the confirmed method, export, and explore details.
 step3_results_ui <- function() {
-  tabItem(
-    tabName = "results",
+  help <- .workflow_help
+  row <- .workflow_row
+  section <- function(number, title, ...) .workflow_section("results", number, title, ...)
+  tabItem(tabName = "results",
+    div(class = "configure-compact workflow-results",
+      div(class = "workflow-heading",
+        tags$p(class = "workflow-eyebrow", "STEP 3 OF 3"),
+        h2("Review and export"), uiOutput("confirmed_status")),
+      conditionalPanel(condition = "output.optimization_complete",
+        section("1", "Confirmed method",
+          div(class = "workflow-result-status",
+            icon("check-circle", class = "text-semantic-success"),
+            tags$strong("Optimization Complete"), uiOutput("results_status_text", inline = TRUE)),
+          fluidRow(class = "workflow-metrics",
+            valueBoxOutput("summary_box_cycle_time", width = 4),
+            valueBoxOutput("summary_box_dppp", width = 4),
+            valueBoxOutput("summary_box_windows", width = 4)),
+          div(class = "workflow-summary-grid",
+            div(class = "workflow-pane",
+              .workflow_subheading("Input data", help("Input data", p("Data distribution and acquisition settings used for this confirmed result."))),
+              uiOutput("before_summary")),
+            div(class = "workflow-pane",
+              .workflow_subheading("Generated windows", help("Generated windows", p("Window counts, widths, coverage, and sampling verification from the confirmed optimization."))),
+              uiOutput("after_summary")),
+            div(class = "workflow-pane",
+              .workflow_subheading("m/z range", help("m/z range", p("The strategy, overall m/z span, and width statistics of the generated windows across retention-time groups."))),
+              uiOutput("mz_range_summary")))),
 
-    div(class = "workflow-heading",
-      tags$p(class = "workflow-eyebrow", "STEP 3 OF 3"),
-      h2("Review and export"),
-      p("Download your completed method, or explore the details below before adjusting settings.")
-    ),
+        section("2", "Download",
+          row("Method file",
+            selectInput("export_format", "Export format", choices = c(
+              "Thermo Targeted Mass List" = "thermo", "Center Mass List" = "center_mass",
+              "m/z Range List" = "mz_range"), selected = "thermo"),
+            downloadButton("download_method", "Download method", class = "btn-success"),
+            info = help("Method file format", p("Choose the format accepted by your method software. The table below shows its exact column names and illustrative example rows."))),
+          div(class = "workflow-export-preview", uiOutput("export_format_preview")),
+          conditionalPanel(condition = "input.export_format == 'thermo'",
+            row("Run start / end",
+              checkboxInput("fill_void", "Fill MS2 gaps at run start and end", value = FALSE),
+              conditionalPanel(condition = "input.fill_void == true",
+                numericInput("acquisition_end_min", "Run end (min)", value = NA, min = 0, step = 1)),
+              info = help("Fill MS2 gaps at run start and end",
+                p("Fills the periods before the first RT group and after the last RT group with MS2 isolation windows. The first group extends back to 0 min; the last group extends to the run end you enter."),
+                p("With this option off, the export keeps the calculated first and last RT boundaries."),
+                p("This changes the Thermo CSV acquisition times, while keeping the m/z windows. If run end is left blank, the last RT group end is used.")))),
+          tags$details(class = "config-more workflow-details",
+            tags$summary("File naming (optional)"),
+            row("File labels",
+              textInput("sample_name", "Sample / project", value = "", placeholder = "e.g., HeLa_digest"),
+              textInput("condition", "Note", value = "", placeholder = "e.g., 60min_gradient"))),
+          row("PDF report",
+            selectInput("pdf_report_template", "PDF scope", choices = c(
+              "Full report" = "full", "Quick summary" = "minimal"), selected = "full"),
+            downloadButton("download_pdf", "Download PDF", class = "btn-default"),
+            info = help("PDF report scope", p("Full report includes all plots. Quick summary includes the essential plots and takes less time to generate."))),
+          row("All formats",
+            downloadButton("download_batch_zip", "Download ZIP", class = "btn-default"),
+            info = help("All formats", p("Download the method in all supported formats as a ZIP archive.")))),
 
-    # --- Shown after optimization ---
-    conditionalPanel(
-      condition = "output.optimization_complete",
-
-      # --- Row 1: Status bar (compact, replaces full callout) ---
-      uiOutput("confirmed_status"),
-      div(
-        class = "results-status-bar",
-        icon("check-circle", class = "text-semantic-success"),
-        tags$strong(" Optimization Complete"),
-        tags$span(class = "text-muted", style = "margin-left: 12px;",
-                  uiOutput("results_status_text", inline = TRUE))
-      ),
-
-      # --- Row 2: Summary KPIs ---
-      fluidRow(
-        class = "equal-height-row",
-        valueBoxOutput("summary_box_cycle_time", width = 4),
-        valueBoxOutput("summary_box_dppp", width = 4),
-        valueBoxOutput("summary_box_windows", width = 4)
-      ),
-
-      # --- Downloads: primary action immediately after result summary ---
-      fluidRow(
-        # Method File Download (left)
-        box(
-          title = "Download your method",
-          status = "success",
-          solidHeader = TRUE,
-          width = 8,
-
-          fluidRow(
-            column(6,
-              textInput("sample_name", "Sample / project (optional)",
-                        value = "", placeholder = "e.g., HeLa_digest")
-            ),
-            column(6,
-              textInput("condition", "Note (optional)",
-                        value = "", placeholder = "e.g., 60min_gradient")
-            ),
-            column(6,
-              selectInput("export_format", "Export Format",
-                choices = c(
-                  "Thermo Targeted Mass List" = "thermo",
-                  "Center Mass List" = "center_mass",
-                  "m/z Range List" = "mz_range"
-                ),
-                selected = "thermo"
-              )
-            ),
-            column(6,
-              div(style = "padding-top: 25px;",
-                downloadButton("download_method", "Download Method",
-                               class = "btn-success btn-block")
-              )
-            )
-          ),
-          # Thermo-only: void-fill toggle + run length (shown only for Thermo)
-          conditionalPanel(
-            condition = "input.export_format == 'thermo'",
-            fluidRow(
-              column(6,
-                checkboxInput("fill_void",
-                              "Fill void volume (extend schedule to run length)",
-                              value = FALSE)
-              ),
-              column(6,
-                conditionalPanel(
-                  condition = "input.fill_void == true",
-                  numericInput("acquisition_end_min", "Run Length (min)",
-                               value = NA, min = 0, step = 1)
-                )
-              )
-            )
-          ),
-          # Format preview
-          tags$details(class = "workflow-help",
-            tags$summary("File format and example"),
-            uiOutput("export_format_preview")
-          )
-        ),
-        # Other Downloads (right)
-        box(
-          title = "Reports & all formats",
-          status = "secondary",
-          solidHeader = TRUE,
-          width = 4,
-          div(style = "display: flex; flex-direction: column; gap: 8px;",
-            radioButtons(
-              inputId  = "pdf_report_template",
-              label    = "PDF scope:",
-              choices  = c(
-                "Full report (all plots)"        = "full",
-                "Quick summary (essential, faster)" = "minimal"
-              ),
-              selected = "full",
-              inline   = FALSE
-            ),
-            downloadButton("download_pdf", "PDF Report",
-                           class = "btn-outline-secondary btn-block"),
-            downloadButton("download_batch_zip", "All Formats (ZIP)",
-                           class = "btn-outline-secondary btn-block")
-          )
+        section("3", "Explore results",
+          .workflow_subheading("Precursors per window",
+            help("Precursors per window", p("Compare precursor counts across the generated windows to inspect how evenly the method distributes its load."))),
+          div(class = "workflow-plot-scroll", plotOutput("plot_precursors_per_window", height = "300px")),
+          tags$details(class = "config-more workflow-details",
+            tags$summary("Acquisition capacity"),
+            .workflow_subheading("Capacity diagnostics",
+              help("Acquisition capacity", p("Info indicators show available capacity. Parallel instruments such as Astral commonly have large DPPP and cycle headroom because their window count follows MS1/MS2 synchronization."))),
+            uiOutput("capacity_header"),
+            div(class = "capacity-plot-scroll", plotOutput("capacity_dashboard", height = "260px", width = "1200px")),
+            uiOutput("capacity_bottleneck")),
+          tags$details(class = "config-more workflow-details",
+            tags$summary("Co-eluting precursors"),
+            .workflow_subheading("Temporal density",
+              help("Precursor temporal density", p("Based on identified precursors only, so this is a lower bound. Higher values indicate more co-eluting precursors. Use relative values to compare strategies; they are not absolute co-isolation counts."))),
+            div(class = "workflow-plot-scroll", plotOutput("plot_temporal_density", height = "350px"))),
+          tags$details(class = "config-more workflow-details",
+            tags$summary("Optimization details"),
+            div(class = "workflow-table-scroll", tableOutput("optimization_summary"))),
+          tags$details(class = "config-more workflow-details",
+            tags$summary("Window table"),
+            div(class = "workflow-table-scroll", DT::dataTableOutput("window_preview")))
         )
       ),
-
-      # --- Row 3: Before/After + m/z Summary (3-column layout) ---
-      fluidRow(
-        class = "equal-height-row",
-        box(
-          title = "Input data",
-          status = "primary",
-          solidHeader = TRUE,
-          width = 4,
-          uiOutput("before_summary")
-        ),
-        box(
-          title = "Generated windows",
-          status = "success",
-          solidHeader = TRUE,
-          width = 4,
-          uiOutput("after_summary")
-        ),
-        box(
-          title = "m/z Range Summary",
-          status = "info",
-          solidHeader = TRUE,
-          width = 4,
-          uiOutput("mz_range_summary")
-        )
-      ),
-
-      # --- Row 2b: Acquisition Capacity Diagnostics (new in v0.4.x) ---
-      # Information-grade gauges (Bad / Warn / OK / Info) sit below the
-      # absolute-value valueBoxes above. The two color systems are
-      # deliberate: traffic light for absolutes, information grades for
-      # utilization. See docs/domain-knowledge.md "Shiny Step 3 Placement".
-      fluidRow(
-        box(
-          title = "Acquisition capacity details",
-          status = "info",
-          solidHeader = TRUE,
-          width = 12,
-          collapsible = TRUE,
-          collapsed = TRUE,
-          uiOutput("capacity_header"),
-          div(class = "capacity-plot-scroll",
-            plotOutput("capacity_dashboard", height = "260px", width = "1200px")
-          ),
-          uiOutput("capacity_bottleneck"),
-          tags$div(
-            class = "text-muted", style = "font-size: 11px; padding: 8px 0;",
-            icon("info-circle"),
-            " Info indicators mean available capacity, not a defect. ",
-            "Parallel instruments (Astral) commonly show large DPPP and ",
-            "cycle headroom because they are sync-bound, not DPPP-bound."
-          )
-        )
-      ),
-
-      # --- Row 4: Precursor Distribution + Temporal Density ---
-      fluidRow(
-        box(
-          title = "Precursor Distribution Across Windows",
-          status = "primary",
-          solidHeader = TRUE,
-          width = 12,
-          plotOutput("plot_precursors_per_window", height = "400px")
-        )
-      ),
-      fluidRow(
-        box(
-          title = "Precursor Temporal Density (Co-Elution Proxy)",
-          status = "info",
-          solidHeader = TRUE,
-          width = 12,
-          collapsible = TRUE,
-          collapsed = TRUE,
-          plotOutput("plot_temporal_density", height = "400px"),
-          tags$div(
-            class = "text-muted", style = "font-size: 11px; padding: 8px 0;",
-            icon("info-circle"),
-            " Based on identified precursors only (lower bound). ",
-            "Higher density = more co-eluting precursors = harder deconvolution. ",
-            "Values are relative — useful for comparing strategies, not as absolute co-isolation counts."
-          )
-        )
-      ),
-
-      # --- Row 5: Detailed Table + Window Preview (collapsed) ---
-      fluidRow(
-        box(
-          title = "Detailed Results",
-          status = "secondary",
-          solidHeader = FALSE,
-          width = 12,
-          collapsible = TRUE,
-          collapsed = TRUE,
-          tableOutput("optimization_summary")
-        )
-      ),
-      fluidRow(
-        box(
-          title = "Window Preview",
-          status = "secondary",
-          solidHeader = FALSE,
-          width = 12,
-          collapsible = TRUE,
-          collapsed = TRUE,
-          DT::dataTableOutput("window_preview")
-        )
-      )
-    ),
-
-    # --- Placeholder when no results ---
-    conditionalPanel(
-      condition = "!output.optimization_complete",
-      div(
-        class = "placeholder-section",
-        icon("cogs", class = "placeholder-icon"),
-        h4("Run optimization to see results"),
-        p("Choose your settings in Configure windows, then run optimization.")
-      )
-    ),
-
-    # Navigation
-    div(
-      class = "wizard-nav wizard-nav-between",
-      actionButton("btn_to_setup_back", "Adjust window settings",
-                   class = "btn-default btn-lg",
-                   icon = icon("arrow-left")),
-      actionButton("btn_new_analysis", "Start a new analysis",
-                   class = "btn-outline-secondary btn-lg",
-                   icon = icon("redo"))
+      conditionalPanel(condition = "!output.optimization_complete",
+        div(class = "workflow-empty", icon("layer-group"),
+          span("Confirm your window settings in step 2 to see results."))),
+      div(class = "wizard-nav wizard-nav-between",
+        actionButton("btn_to_setup_back", "Adjust window settings", class = "btn-default", icon = icon("arrow-left")),
+        actionButton("btn_new_analysis", "Start a new analysis", class = "btn-default", icon = icon("redo")))
     )
   )
 }

@@ -1,4 +1,59 @@
 # Shared, snapshot-only calculation for preview and confirmed results.
+.shiny_field_error <- function(message, field) {
+  error <- simpleError(message)
+  error$field <- field
+  stop(error)
+}
+
+.shiny_greedy_width <- function(span, n_windows, max_width) {
+  if (length(span) != 1L || !is.finite(span) || span <= 0)
+    .shiny_field_error("Enter a positive Total m/z span for Greedy.", "greedy_range_width")
+  width <- span / n_windows
+  minimum <- aidia:::ABSOLUTE_MIN_WIDTH_DA
+  if (width < minimum)
+    .shiny_field_error(sprintf("Greedy span %.1f m/z is too narrow for %d windows. Use at least %.1f m/z, or reduce the window count.",
+      span, n_windows, n_windows * minimum), "greedy_range_width")
+  if (width >= max_width)
+    .shiny_field_error(sprintf("Greedy span / window count gives %.2f m/z per window. Increase Max width above %.2f, or reduce Total m/z span.",
+      width, width), "max_isolation_width")
+  width
+}
+
+.shiny_setup_issues <- function(input) {
+  issues <- character()
+  check <- function(id, label, low, high = Inf, integer = FALSE) {
+    value <- input[[id]]
+    valid <- length(value) == 1L && is.finite(value) && value >= low && value <= high &&
+      (!integer || value == floor(value))
+    if (!valid) issues[[id]] <<- sprintf("Set %s to %s%s.", label,
+      if (integer) "a whole number " else "", if (is.finite(high))
+        sprintf("between %s and %s", low, high) else sprintf("at least %s", low))
+    valid
+  }
+  check("target_dppp", "Points / peak", 1, 15)
+  check("target_satisfaction", "Peaks meeting target (%)", 50, 95)
+  check("ms1_scans_per_cycle", "MS1 scans per cycle", 0, 10, TRUE)
+  count_valid <- isTRUE(input$auto_windows) || check("manual_n_windows", "Window count", 10, 200, TRUE)
+  max_valid <- check("max_isolation_width", "Max width", 10, 500)
+  if (isTRUE(input$mz_strategy == "greedy")) {
+    span_valid <- check("greedy_range_width", "Greedy Total m/z span", 1)
+    if (!isTRUE(input$auto_windows) && count_valid && max_valid && span_valid) {
+      error <- tryCatch({ .shiny_greedy_width(input$greedy_range_width,
+        input$manual_n_windows, input$max_isolation_width); NULL }, error = identity)
+      if (!is.null(error)) issues[[error$field]] <- conditionMessage(error)
+    }
+  } else {
+    min_valid <- check("min_isolation_width", "Min. target width", aidia:::ABSOLUTE_MIN_WIDTH_DA)
+    if (min_valid && max_valid && input$min_isolation_width >= input$max_isolation_width)
+      issues[["min_isolation_width"]] <- "Min. target width must be below Max width. Lower this value or increase Max width."
+  }
+  if (isTRUE(input$rt_binning_mode == "custom")) check("rt_bin_width", "Group duration (min)", 1, 15)
+  if (isTRUE(input$fz_offset_preset == "custom")) check("custom_fz_offset", "Isotope boundary offset", 0.0001, 0.9999)
+  check("edge_void_buffer", "Start buffer (min)", 0, 2)
+  check("edge_wash_threshold", "End merge (precursors)", 0, 200, TRUE)
+  issues
+}
+
 .shiny_compute_windows <- function(input, validated_data, calc_result = NULL) {
   strategy_configs <- .shiny_strategy_configs(input)
   cat("\n[Shiny] Starting optimization...\n")
@@ -113,6 +168,13 @@
   manual_n_win <- input$manual_n_windows %||% 40
 
   strategy_cfg <- strategy_configs[[input$mz_strategy]]
+  # Translate the user's search span using the actual planned count, not a UI estimate.
+  effective_min_width <- input$min_isolation_width %||% 2
+  if (input$mz_strategy == "greedy" && !is.null(input$greedy_range_width)) {
+    resolved_count <- if (use_auto_windows) optimization_plan$window_count_per_bin else manual_n_win
+    effective_min_width <- .shiny_greedy_width(input$greedy_range_width,
+      resolved_count, input$max_isolation_width %||% 80)
+  }
   cat("[Shiny] Strategy config:", input$mz_strategy, "\n")
   cat("[Shiny]  ", paste(names(as.list(strategy_cfg)), collapse = ", "), "\n")
 
@@ -136,7 +198,7 @@
     cpd_min_bin_width = input$cpd_min_bin_width %||% 1.0,
     edge_void_buffer_min = input$edge_void_buffer %||% 0.5,
     edge_wash_min_precursors = input$edge_wash_threshold %||% 30,
-    min_width_da = input$min_isolation_width %||% 2,
+    min_width_da = effective_min_width,
     max_width_da = input$max_isolation_width %||% 80,
     fz_offset = if (isTRUE(input$fz_offset_preset == "custom")) {
       as.numeric(input$custom_fz_offset %||% 0.25)

@@ -51,6 +51,8 @@ if (requireNamespace("aidia", quietly = TRUE)) {
 }
 
 # --- Source Module Files ---
+source("ui_workflow.R", local = TRUE)
+source("server_navigation.R", local = TRUE)
 source("ui_step1_data.R", local = TRUE)
 source("ui_step2_setup.R", local = TRUE)
 source("ui_step3_results.R", local = TRUE)
@@ -118,25 +120,10 @@ ui <- dashboardPage(
       hr()
     ),
 
-    # Calculated Cycle Time Display (reactive feedback - always visible)
-    div(
-      id = "cycle_time_display",
-      class = "sidebar-metric-card",
-      h5("Input method cycle time", class = "sidebar-heading"),
-      div(
-        style = "display: flex; justify-content: space-between; align-items: baseline;",
-        span(textOutput("calculated_cycle_time", inline = TRUE),
-             class = "metric-value"),
-        span("sec", class = "metric-unit")
-      ),
-      div(
-        class = "metric-detail",
-        textOutput("cycle_time_breakdown", inline = TRUE)
-      ),
-      div(
-        style = "margin-top: 4px;",
-        uiOutput("efficiency_badge")
-      )
+    # Persistent reference to the confirmed method used by downloads.
+    div(class = "sidebar-metric-card sidebar-method-card",
+      h5("Method for download", class = "sidebar-heading"),
+      uiOutput("sidebar_confirmed_method")
     ),
 
     hr(),
@@ -157,6 +144,7 @@ ui <- dashboardPage(
 
     # Custom CSS - External stylesheet for professional styling
     tags$head(
+      tags$script(src = "workflow-navigation.js"),
       tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
       # Google Fonts for better typography
       tags$link(
@@ -219,6 +207,7 @@ ui <- dashboardPage(
   ),
 
   dark = NULL,
+  help = NULL,
   title = "AIDIA - Adaptive Isolation for DIA"
 )
 
@@ -227,10 +216,6 @@ ui <- dashboardPage(
 # =============================================================================
 
 server <- function(input, output, session) {
-
-  # Disable tabs initially
-  shinyjs::disable(selector = "a[data-value=\047setup\047]")
-  shinyjs::disable(selector = "a[data-value=\047results\047]")
 
 
   # --- Reactive Values (shared across all modules) ---
@@ -252,11 +237,6 @@ server <- function(input, output, session) {
   # Client-side scroll-to-top on sidebar tab change only (scoped to sidebar menu, not all tabs)
   shinyjs::runjs("$('.sidebar-menu').on('shown.bs.tab', function() { window.scrollTo(0, 0); });")
 
-  # Step 1 -> Step 2
-  observeEvent(input$btn_to_setup, {
-    updateTabItems(session, "tabs", "setup")
-  })
-
   # Step 2 -> Step 1
   observeEvent(input$btn_to_data, {
     updateTabItems(session, "tabs", "data")
@@ -275,6 +255,7 @@ server <- function(input, output, session) {
     rv$optimized_windows <- NULL
     rv$optimization_plan <- NULL
     rv$confirmed_run <- NULL
+    rv$data_error <- NULL
     rv$dppp_preview <- NULL
     updateTabItems(session, "tabs", "data")
   })
@@ -292,6 +273,7 @@ server <- function(input, output, session) {
 
   # Instrument module returns cycle_time_result reactive
   cycle_time_result <- server_instrument(input, output, session, rv)
+  server_navigation(input, output, session, rv, cycle_time_result)
 
   # Data module (depends on cycle_time_result for DPPP preview)
   server_data(input, output, session, rv, cycle_time_result)

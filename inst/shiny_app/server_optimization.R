@@ -11,8 +11,8 @@
       apply_smoothing = isTRUE(input$greedy_apply_smoothing %||% TRUE)
     ),
     quantile = quantile_config(
-      lower = input$quantile_lower %||% 0.05,
-      upper = input$quantile_upper %||% 0.95,
+      lower = if (!is.null(input$quantile_exclude_low)) input$quantile_exclude_low / 100 else input$quantile_lower %||% 0.05,
+      upper = if (!is.null(input$quantile_exclude_high)) 1 - input$quantile_exclude_high / 100 else input$quantile_upper %||% 0.95,
       apply_smoothing = isTRUE(input$quantile_apply_smoothing %||% TRUE)
     ),
     coverage = coverage_config(target = (input$target_coverage %||% 90) / 100),
@@ -266,9 +266,9 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         tags$div(
           tags$strong("Actual DPPP: "),
           sprintf("%.1f ", dppp_v$actual_dppp_median),
-          tags$span(badge_text, class = badge_class)
-        ),
-        explanation
+          tags$span(badge_text, class = badge_class),
+          if (!is.null(explanation)) .workflow_help("DPPP verification", explanation)
+        )
       )
     } else {
       NULL
