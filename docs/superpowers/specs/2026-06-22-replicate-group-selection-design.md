@@ -1,7 +1,14 @@
 # Replicate group scan & selection at data load — DRAFT (in progress)
 
-Status: **IN PROGRESS / 고도화 예정** — design started 2026-06-22, paused before
-section (B) and before final approval. Resume from "Open items" below.
+Status: **SUPERSEDED / 현재 개발 범위에서 제외 (2026-09-08)**.
+The user decided that experiment-group selection is unnecessary. The application
+targets similar samples within the same batch and should robustly determine a
+representative range from them. See the updated
+[integration notes](../../reviews/2026-09-08-projects-branch-integration.md).
+
+The original draft below is preserved as historical context. It started on
+2026-06-22 and paused before section (B) and final approval; its "locked" decisions
+and open items no longer direct implementation.
 
 ## Problem
 
