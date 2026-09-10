@@ -1,0 +1,58 @@
+AIDIA
+
+
+1. Data & Instrument
+
+
+
+2. Strategy
+
+
+
+3. Results
+
+Calculated Cycle Time
+0.522
+sec
+MS1: 522ms (parallel) | MS2: 40 x 5.0ms
+19% Eff.
+Pipeline Status
+● Data: Waiting
+● Optimized: Pending
+● Export: Waiting
+Upload Data
+
+DIA-NN Parquet Report
+
+Browse...
+Browse or drag to upload DIA-NN report
+Instrument & Timing
+Instrument Preset
+Thermo Astral Zoom (270 Hz)
+MS1 Resolution (Orbitrap)
+240,000
+Astral MS1 acquired on Orbitrap analyzer
+Astral MS2 IT (ms)
+40 ms
+3 ms
+2
+6
+10
+14
+18
+22
+26
+30
+34
+38
+40
+3ms: 200 Hz max speed | >3ms: Sensitivity mode
+MS2 Window Count
+Isolation windows per cycle
+Upload a DIA-NN parquet file to begin
+
+Supported format: .parquet (DIA-NN report output)
+
+ Continue to Strategy
+Adaptive Isolation for DIA
+AIDIA v0.4.1

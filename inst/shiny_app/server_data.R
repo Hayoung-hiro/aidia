@@ -9,6 +9,10 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
     # Invalidate the completed run before replacing any of its input data.
     rv$optimization_complete <- FALSE
     rv$optimized_windows <- NULL
+    rv$optimization_plan <- NULL
+    rv$confirmed_run <- NULL
+    rv$validated_data <- NULL
+    rv$data_loaded <- FALSE
 
     # Show processing notification
     showNotification("Processing file...", id = "upload_progress", duration = NULL, type = "message")

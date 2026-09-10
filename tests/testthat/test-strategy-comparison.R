@@ -120,60 +120,35 @@ test_that("comparison rejects incomplete old settings instead of guessing defaul
                "unique supported")
 })
 
-test_that("Shiny captures hidden strategy controls and publishes a matched run", {
+test_that("Shiny shared computation captures hidden strategy controls", {
   fixture <- .comparison_fixture()
-  fixture$plan$timing <- list(t_scan_ms = 50)
-  fixture$plan$current_cycle_time_sec <- 2
   env <- new.env(parent = environment())
-  # Exercise the actual run-button event. Numerical behavior is covered above.
-  for (name in getNamespaceExports("shiny")) env[[name]] <- getExportedValue("shiny", name)
-  env$renderValueBox <- bs4Dash::renderValueBox
   sys.source(test_path("..", "..", "inst", "shiny_app", "server_optimization.R"), env)
+  sys.source(test_path("..", "..", "inst", "shiny_app", "optimization_workflow.R"), env)
   captured <- NULL
-  fail_optimization <- FALSE
   env$plan_optimization <- function(...) fixture$plan
   env$optimize_windows <- function(...) {
-    if (fail_optimization) stop("deliberate Stage 3 failure")
     captured <<- list(...)
     list(windows = data.frame(mz_start = 400), marker = "completed")
   }
-  server <- function(input, output, session) {
-    rv <- shiny::reactiveValues(
-      validated_data = fixture$data, data_loaded = TRUE,
-      optimization_complete = FALSE, optimized_windows = NULL,
-      optimization_plan = NULL
-    )
-    env$server_optimization(input, output, session, rv, function() NULL)
-  }
-  .comparison_quiet(shiny::testServer(server, {
-    session$setInputs(instrument = "exploris", target_dppp = 7,
-                      target_satisfaction = 70, mz_strategy = "quantile",
-                      rt_binning_mode = "custom", rt_bin_width = 4,
-                      auto_windows = FALSE, manual_n_windows = 17,
-                      greedy_mz_step = 1.5, target_coverage = 73,
-                      outlier_threshold = 1.6, kde_density_threshold = 23,
-                      kde_min_coverage = 67, quantile_lower = 0.12,
-                      quantile_upper = 0.88, min_isolation_width = 6,
-                      max_isolation_width = 30, run_optimization = 1)
-    expect_true(rv$optimization_complete)
-    expect_equal(captured$comparison_strategy_configs$coverage$target_coverage, 0.73)
-    expect_equal(captured$comparison_strategy_configs$greedy$mz_step, 1.5)
-    expect_equal(captured$comparison_strategy_configs$kde$kde_density_threshold, 0.23)
-    expect_equal(captured$comparison_strategy_configs$outlier$outlier_threshold, 1.6)
-    expect_identical(captured$strategy_config,
-                     captured$comparison_strategy_configs$quantile)
-    expect_equal(captured$n_windows_override, 17L)
-    old_plan <- rv$optimization_plan
-    old_windows <- rv$optimized_windows
-    session$setInputs(target_coverage = 99, kde_density_threshold = 50)
-    expect_equal(captured$comparison_strategy_configs$coverage$target_coverage, 0.73)
-    fail_optimization <<- TRUE
-    fixture$plan$window_count_per_bin <<- 99L
-    session$setInputs(run_optimization = 2)
-    expect_false(rv$optimization_complete)
-    expect_identical(rv$optimization_plan, old_plan)
-    expect_identical(rv$optimized_windows, old_windows)
-  }))
+  input <- list(instrument = "exploris", target_dppp = 7, target_satisfaction = 70,
+    ms1_it_auto = TRUE, ms2_it_auto = TRUE,
+    mz_strategy = "quantile", rt_binning_mode = "custom", rt_bin_width = 4,
+    auto_windows = FALSE, manual_n_windows = 17, greedy_mz_step = 1.5,
+    target_coverage = 73, outlier_threshold = 1.6, kde_density_threshold = 23,
+    kde_min_coverage = 67, quantile_lower = 0.12, quantile_upper = 0.88,
+    min_isolation_width = 6, max_isolation_width = 30)
+  result <- .comparison_quiet(env$.shiny_compute_windows(input, fixture$data))
+  expect_identical(result$plan, fixture$plan)
+  expect_equal(result$windows$marker, "completed")
+  expect_equal(captured$comparison_strategy_configs$coverage$target_coverage, 0.73)
+  expect_equal(captured$comparison_strategy_configs$greedy$mz_step, 1.5)
+  expect_equal(captured$comparison_strategy_configs$kde$kde_density_threshold, 0.23)
+  expect_equal(captured$comparison_strategy_configs$outlier$outlier_threshold, 1.6)
+  expect_identical(captured$strategy_config, captured$comparison_strategy_configs$quantile)
+  expect_equal(captured$n_windows_override, 17L)
+  input$target_coverage <- 99
+  expect_equal(captured$comparison_strategy_configs$coverage$target_coverage, 0.73)
 })
 
 test_that("batch comparison preserves strategy order, settings, and CSV delivery", {

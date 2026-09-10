@@ -4,11 +4,18 @@ step3_results_ui <- function() {
   tabItem(
     tabName = "results",
 
+    div(class = "workflow-heading",
+      tags$p(class = "workflow-eyebrow", "STEP 3 OF 3"),
+      h2("Review and export"),
+      p("Download your completed method, or explore the details below before adjusting settings.")
+    ),
+
     # --- Shown after optimization ---
     conditionalPanel(
       condition = "output.optimization_complete",
 
       # --- Row 1: Status bar (compact, replaces full callout) ---
+      uiOutput("confirmed_status"),
       div(
         class = "results-status-bar",
         icon("check-circle", class = "text-semantic-success"),
@@ -25,28 +32,86 @@ step3_results_ui <- function() {
         valueBoxOutput("summary_box_windows", width = 4)
       ),
 
-      # --- Row 2b: Acquisition Capacity Diagnostics (new in v0.4.x) ---
-      # Information-grade gauges (Bad / Warn / OK / Info) sit below the
-      # absolute-value valueBoxes above. The two color systems are
-      # deliberate: traffic light for absolutes, information grades for
-      # utilization. See docs/domain-knowledge.md "Shiny Step 3 Placement".
+      # --- Downloads: primary action immediately after result summary ---
       fluidRow(
+        # Method File Download (left)
         box(
-          title = "Acquisition Capacity Diagnostics",
-          status = "info",
+          title = "Download your method",
+          status = "success",
           solidHeader = TRUE,
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          uiOutput("capacity_header"),
-          plotOutput("capacity_dashboard", height = "220px"),
-          uiOutput("capacity_bottleneck"),
-          tags$div(
-            class = "text-muted", style = "font-size: 11px; padding: 8px 0;",
-            icon("info-circle"),
-            " Info indicators mean available capacity, not a defect. ",
-            "Parallel instruments (Astral) commonly show large DPPP and ",
-            "cycle headroom because they are sync-bound, not DPPP-bound."
+          width = 8,
+
+          fluidRow(
+            column(6,
+              textInput("sample_name", "Sample / project (optional)",
+                        value = "", placeholder = "e.g., HeLa_digest")
+            ),
+            column(6,
+              textInput("condition", "Note (optional)",
+                        value = "", placeholder = "e.g., 60min_gradient")
+            ),
+            column(6,
+              selectInput("export_format", "Export Format",
+                choices = c(
+                  "Thermo Targeted Mass List" = "thermo",
+                  "Center Mass List" = "center_mass",
+                  "m/z Range List" = "mz_range"
+                ),
+                selected = "thermo"
+              )
+            ),
+            column(6,
+              div(style = "padding-top: 25px;",
+                downloadButton("download_method", "Download Method",
+                               class = "btn-success btn-block")
+              )
+            )
+          ),
+          # Thermo-only: void-fill toggle + run length (shown only for Thermo)
+          conditionalPanel(
+            condition = "input.export_format == 'thermo'",
+            fluidRow(
+              column(6,
+                checkboxInput("fill_void",
+                              "Fill void volume (extend schedule to run length)",
+                              value = FALSE)
+              ),
+              column(6,
+                conditionalPanel(
+                  condition = "input.fill_void == true",
+                  numericInput("acquisition_end_min", "Run Length (min)",
+                               value = NA, min = 0, step = 1)
+                )
+              )
+            )
+          ),
+          # Format preview
+          tags$details(class = "workflow-help",
+            tags$summary("File format and example"),
+            uiOutput("export_format_preview")
+          )
+        ),
+        # Other Downloads (right)
+        box(
+          title = "Reports & all formats",
+          status = "secondary",
+          solidHeader = TRUE,
+          width = 4,
+          div(style = "display: flex; flex-direction: column; gap: 8px;",
+            radioButtons(
+              inputId  = "pdf_report_template",
+              label    = "PDF scope:",
+              choices  = c(
+                "Full report (all plots)"        = "full",
+                "Quick summary (essential, faster)" = "minimal"
+              ),
+              selected = "full",
+              inline   = FALSE
+            ),
+            downloadButton("download_pdf", "PDF Report",
+                           class = "btn-outline-secondary btn-block"),
+            downloadButton("download_batch_zip", "All Formats (ZIP)",
+                           class = "btn-outline-secondary btn-block")
           )
         )
       ),
@@ -55,14 +120,14 @@ step3_results_ui <- function() {
       fluidRow(
         class = "equal-height-row",
         box(
-          title = "BEFORE (Input Data)",
+          title = "Input data",
           status = "primary",
           solidHeader = TRUE,
           width = 4,
           uiOutput("before_summary")
         ),
         box(
-          title = "AFTER (Optimized)",
+          title = "Generated windows",
           status = "success",
           solidHeader = TRUE,
           width = 4,
@@ -74,6 +139,34 @@ step3_results_ui <- function() {
           solidHeader = TRUE,
           width = 4,
           uiOutput("mz_range_summary")
+        )
+      ),
+
+      # --- Row 2b: Acquisition Capacity Diagnostics (new in v0.4.x) ---
+      # Information-grade gauges (Bad / Warn / OK / Info) sit below the
+      # absolute-value valueBoxes above. The two color systems are
+      # deliberate: traffic light for absolutes, information grades for
+      # utilization. See docs/domain-knowledge.md "Shiny Step 3 Placement".
+      fluidRow(
+        box(
+          title = "Acquisition capacity details",
+          status = "info",
+          solidHeader = TRUE,
+          width = 12,
+          collapsible = TRUE,
+          collapsed = TRUE,
+          uiOutput("capacity_header"),
+          div(class = "capacity-plot-scroll",
+            plotOutput("capacity_dashboard", height = "260px", width = "1200px")
+          ),
+          uiOutput("capacity_bottleneck"),
+          tags$div(
+            class = "text-muted", style = "font-size: 11px; padding: 8px 0;",
+            icon("info-circle"),
+            " Info indicators mean available capacity, not a defect. ",
+            "Parallel instruments (Astral) commonly show large DPPP and ",
+            "cycle headroom because they are sync-bound, not DPPP-bound."
+          )
         )
       ),
 
@@ -94,7 +187,7 @@ step3_results_ui <- function() {
           solidHeader = TRUE,
           width = 12,
           collapsible = TRUE,
-          collapsed = FALSE,
+          collapsed = TRUE,
           plotOutput("plot_temporal_density", height = "400px"),
           tags$div(
             class = "text-muted", style = "font-size: 11px; padding: 8px 0;",
@@ -128,87 +221,6 @@ step3_results_ui <- function() {
           collapsed = TRUE,
           DT::dataTableOutput("window_preview")
         )
-      ),
-
-      # --- Row 6: Downloads ---
-      fluidRow(
-        # Method File Download (left)
-        box(
-          title = "Download Method File",
-          status = "success",
-          solidHeader = TRUE,
-          width = 8,
-
-          fluidRow(
-            column(3,
-              textInput("sample_name", "Sample/Project Name",
-                        value = "", placeholder = "e.g., HeLa_digest")
-            ),
-            column(3,
-              textInput("condition", "Condition/Note",
-                        value = "", placeholder = "e.g., 60min_gradient")
-            ),
-            column(3,
-              selectInput("export_format", "Export Format",
-                choices = c(
-                  "Thermo Targeted Mass List" = "thermo",
-                  "Center Mass List" = "center_mass",
-                  "m/z Range List" = "mz_range"
-                ),
-                selected = "thermo"
-              )
-            ),
-            column(3,
-              div(style = "padding-top: 25px;",
-                downloadButton("download_method", "Download Method",
-                               class = "btn-success btn-block")
-              )
-            )
-          ),
-          # Thermo-only: void-fill toggle + run length (shown only for Thermo)
-          conditionalPanel(
-            condition = "input.export_format == 'thermo'",
-            fluidRow(
-              column(4,
-                checkboxInput("fill_void",
-                              "Fill void volume (extend schedule to run length)",
-                              value = FALSE)
-              ),
-              column(3,
-                conditionalPanel(
-                  condition = "input.fill_void == true",
-                  numericInput("acquisition_end_min", "Run Length (min)",
-                               value = NA, min = 0, step = 1)
-                )
-              )
-            )
-          ),
-          # Format preview
-          uiOutput("export_format_preview")
-        ),
-        # Other Downloads (right)
-        box(
-          title = "Other Downloads",
-          status = "secondary",
-          solidHeader = TRUE,
-          width = 4,
-          div(style = "display: flex; flex-direction: column; gap: 8px;",
-            radioButtons(
-              inputId  = "pdf_report_template",
-              label    = "PDF scope:",
-              choices  = c(
-                "Full report (all plots)"        = "full",
-                "Quick summary (essential, faster)" = "minimal"
-              ),
-              selected = "full",
-              inline   = FALSE
-            ),
-            downloadButton("download_pdf", "PDF Report",
-                           class = "btn-info btn-block"),
-            downloadButton("download_batch_zip", "All Formats (ZIP)",
-                           class = "btn-warning btn-block")
-          )
-        )
       )
     ),
 
@@ -219,18 +231,18 @@ step3_results_ui <- function() {
         class = "placeholder-section",
         icon("cogs", class = "placeholder-icon"),
         h4("Run optimization to see results"),
-        p("Configure your settings in the Strategy step, then run optimization.")
+        p("Choose your settings in Configure windows, then run optimization.")
       )
     ),
 
     # Navigation
     div(
       class = "wizard-nav wizard-nav-between",
-      actionButton("btn_to_setup_back", "Back to Strategy",
+      actionButton("btn_to_setup_back", "Adjust window settings",
                    class = "btn-default btn-lg",
                    icon = icon("arrow-left")),
-      actionButton("btn_new_analysis", "New Analysis",
-                   class = "btn-primary btn-lg",
+      actionButton("btn_new_analysis", "Start a new analysis",
+                   class = "btn-outline-secondary btn-lg",
                    icon = icon("redo"))
     )
   )

@@ -1,604 +1,224 @@
-# ui_step2_setup.R - Step 2: STRATEGY (DPPP Target, Strategy, Parameters)
+# ui_step2_setup.R - Three decisions, with related parameters on compact rows.
 
 step2_setup_ui <- function() {
-  smoothing_label <- "Apply Boundary Smoothing (Whittaker-Henderson)"
-  tabItem(
-    tabName = "setup",
+  # Native disclosure controls work with keyboards without Bootstrap tooltips.
+  help <- function(title, ...) {
+    tags$details(class = "config-help",
+      tags$summary(`aria-label` = paste("Help:", title), "?"),
+      div(class = "config-help-body", tags$strong(title), ...)
+    )
+  }
+  row <- function(label, ..., info = NULL) {
+    div(class = "config-row",
+      div(class = "config-row-label", tags$span(label), info),
+      div(class = "config-row-fields", role = "group", `aria-label` = label, ...)
+    )
+  }
+  section <- function(number, title, ...) {
+    tags$section(class = "config-section", `aria-labelledby` = paste0("config-heading-", number),
+      tags$header(class = "config-section-heading",
+        tags$span(class = "config-section-number", `aria-hidden` = "true", number),
+        h3(id = paste0("config-heading-", number), title),
+        actionButton(paste0("reset_", c("sampling", "windows", "rt")[[as.integer(number)]]),
+          "Reset", class = "config-reset btn-sm", icon = icon("undo"),
+          title = "Restore this section to the last confirmed settings for this instrument, or its defaults before confirmation.")
+      ),
+      div(class = "config-section-body", ...)
+    )
+  }
+  smoothing_help <- p("Whittaker-Henderson smoothing reduces abrupt m/z boundary changes between RT groups.")
 
-    # --- Section A: Acquisition Target (conditional on instrument type) ---
+  tabItem(tabName = "setup",
+    tags$script(src = "configure-help.js"),
+    div(class = "configure-compact",
+      div(class = "workflow-heading",
+        tags$p(class = "workflow-eyebrow", "STEP 2 OF 3"),
+        h2("Configure your windows"),
+        uiOutput("draft_status")
+      ),
 
-    # A-1: Sequential instruments — DPPP Target (current layout)
-    conditionalPanel(
-      condition = "output.is_parallel_instrument == false",
-      fluidRow(
-      box(
-        title = "A. DPPP Target",
-        status = "primary",
-        solidHeader = TRUE,
-        width = 12,
-
-        fluidRow(
-          column(4, class = "label-prominent",
-            numericInput(
-              inputId = "target_dppp",
-              label = "Target DPPP",
-              value = 7.0,
-              min = 1.0,
-              max = 15.0,
-              step = 0.5
+      section("1", "Peak sampling target",
+        conditionalPanel(condition = "output.is_parallel_instrument == false",
+          row("Sampling target",
+            numericInput("target_dppp", "Points / peak", value = 7, min = 1, max = 15, step = 0.5),
+            sliderInput("target_satisfaction", "Peaks meeting target", min = 50, max = 95,
+                        value = 70, step = 5, post = "%", ticks = FALSE),
+            div(class = "config-presets",
+              actionButton("preset_id", "ID", class = "btn-sm dppp-preset-btn dppp-btn-id"),
+              actionButton("preset_balanced", "Balanced", class = "btn-sm dppp-preset-btn dppp-btn-bal"),
+              actionButton("preset_quant", "Quant", class = "btn-sm dppp-preset-btn dppp-btn-quant")
             ),
-
-            # Quick DPPP Presets (outline by default, filled on click)
-            div(
-              style = "display: flex; gap: 4px; margin-top: -5px;",
-              actionButton("preset_id", "ID (1.5)", class = "btn-sm dppp-preset-btn dppp-btn-id",
-                           style = "flex: 1; padding: 6px 0; font-size: 11px;"),
-              actionButton("preset_balanced", "Bal (4.0)", class = "btn-sm dppp-preset-btn dppp-btn-bal",
-                           style = "flex: 1; padding: 6px 0; font-size: 11px;"),
-              actionButton("preset_quant", "Quant (7.0)", class = "btn-sm dppp-preset-btn dppp-btn-quant",
-                           style = "flex: 1; padding: 6px 0; font-size: 11px;")
-            )
-          ),
-          column(4, class = "label-prominent",
-            # Satisfaction Target
-            sliderInput(
-              inputId = "target_satisfaction",
-              label = "Target Satisfaction (%)",
-              min = 50,
-              max = 95,
-              value = 70,
-              step = 5,
-              post = "%"
-            )
-          ),
-          column(4,
-            div(
-              style = "padding-top: 15px;",
-              # DPPP Formula card (prominent, readable)
-              tags$div(
-                class = "panel-accent", style = "font-size: 14px; line-height: 1.8;",
-                tags$strong("DPPP"), " = 1.7 \u00d7 FWHM / cycle_time",
-                tags$br(),
-                tags$span(class = "text-muted",
-                          "Points across the whole peak (\u2248 1.7 \u00d7 points-at-FWHM)"),
-                tags$br(),
-                tags$span(class = "text-muted", "ID: 1.5 | Balanced: 4.0 | Quant: 7.0")
-              ),
-              # Window count preview (reactive, shown when data + instrument configured)
-              uiOutput("dppp_window_count_preview")
-            )
-          )
-        )
-      ))
-    ),
-
-    # A-2: Parallel instruments (Astral) — Sync-First layout
-    conditionalPanel(
-      condition = "output.is_parallel_instrument == true",
-      fluidRow(
-      box(
-        title = "A. Acquisition Sync",
-        status = "primary",
-        solidHeader = TRUE,
-        width = 12,
-
-        fluidRow(
-          # Hero: Sync-optimal window count
-          column(4,
-            tags$div(
-              class = "panel-raised", style = "text-align: center; padding: 16px;",
-              tags$div(class = "text-muted", style = "font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;",
-                "Sync-Optimal Windows"
-              ),
-              uiOutput("sync_hero_window_count"),
-              tags$div(class = "text-muted", style = "font-size: 11px; margin-top: 4px;",
-                "Primary constraint for parallel acquisition"
-              )
-            )
-          ),
-
-          # DPPP confirmation badge
-          column(4,
-            tags$div(
-              class = "panel-raised", style = "text-align: center; padding: 16px;",
-              tags$div(class = "text-muted", style = "font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;",
-                "DPPP Check"
-              ),
-              uiOutput("sync_dppp_confirmation"),
-              tags$div(class = "text-muted", style = "font-size: 11px; margin-top: 4px;",
-                "Always met at sync-optimal N"
-              )
-            )
-          ),
-
-          # Sync detail panel
-          column(4,
-            tags$div(
-              class = "panel-raised", style = "padding: 16px;",
-              tags$div(class = "text-muted", style = "font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;",
-                "Sync Detail"
-              ),
-              uiOutput("sync_detail_panel")
-            )
+            info = help("Peak sampling target",
+              p("DPPP is the number of data points across a peak: 1.7 \u00d7 FWHM / cycle time."),
+              p("Choose the target and the percentage of peaks that should meet it. Automatic window count uses these settings for sequential instruments."),
+              p("Presets: Identification 1.5 - Balanced 4.0 - Quantification 7.0."),
+              uiOutput("dppp_window_count_preview"))
           )
         ),
-
-        # Explanation note
-        tags$div(
-          class = "panel-accent", style = "margin-top: 12px; font-size: 12px; line-height: 1.6;",
-          icon("info-circle"), " ",
-          tags$strong("Parallel acquisition:"),
-          " cycle = max(MS1, N \u00d7 MS2). Window count is determined by MS1/MS2 sync, not DPPP.",
-          " DPPP is automatically satisfied at sync-optimal N."
+        conditionalPanel(condition = "output.is_parallel_instrument == true",
+          row("Parallel acquisition",
+            div(class = "config-stat", tags$span("Sync-optimal"), uiOutput("sync_hero_window_count")),
+            div(class = "config-stat", tags$span("Peak sampling check"), uiOutput("sync_dppp_confirmation")),
+            info = help("Parallel acquisition",
+              p("Window count follows MS1/MS2 synchronization. DPPP checks peak sampling against the selected target."),
+              p("Cycle time = max(MS1, N \u00d7 MS2)."), uiOutput("sync_detail_panel"))
+          )
+        ),
+        tags$details(class = "config-more",
+          tags$summary("Scan settings"),
+          row("MS1 scans",
+            numericInput("ms1_scans_per_cycle", "Per cycle", value = 1, min = 0, max = 10, step = 1),
+            info = help("MS1 scans per cycle", p("Controls MS1 scans in the acquisition cycle. Standard DIA commonly uses 1; Boxcar can use 3\u20134. Parallel acquisition uses its instrument timing model.")))
         )
-      ))
-    ),
+      ),
 
-    # --- Section B: Strategy & Parameters ---
-    fluidRow(
-    box(
-      title = "B. Strategy & Parameters",
-      status = "info",
-      solidHeader = TRUE,
-      width = 12,
+      section("2", "Window design",
+        div(class = "config-methods",
+          div(class = "config-method",
+            div(class = "config-method-label", tags$label(id = "mz_strategy-label", `for` = "mz_strategy", "m/z range strategy"),
+              help("m/z range strategy", p("Selects the m/z range to cover in each RT group. KDE locates the main density peak."),
+                   p("These illustrations describe the methods; they are not plots of your uploaded data."), uiOutput("strategy_preview_img"))),
+            selectInput("mz_strategy", NULL,
+              choices = c("KDE" = "kde", "Greedy" = "greedy", "Quantile" = "quantile",
+                          "Coverage" = "coverage", "Outlier" = "outlier"), selected = "kde")
+          ),
+          div(class = "config-method",
+            div(class = "config-method-label", tags$label(id = "window_mode-label", `for` = "window_mode", "Window width mode"),
+              help("Window width mode",
+                p("Density: narrower windows in dense m/z regions, wider windows in sparse regions. Fixed: equal widths. Staggered: two cycles with a half-window offset."),
+                p("For staggered acquisition, set Thermo Loop Control N in the method editor to the windows per RT bin per cycle, reported after optimization."),
+                uiOutput("window_mode_preview_img"))),
+            selectInput("window_mode", NULL,
+              choices = c("Density" = "density", "Fixed" = "fixed", "Staggered" = "staggered"), selected = "density")
+          )
+        ),
+        div(class = "config-design-grid",
+          div(class = "config-design-controls",
+        row("Window count",
+          checkboxInput("auto_windows", "Auto", value = TRUE),
+          conditionalPanel(condition = "input.auto_windows", class = "config-count-output", uiOutput("auto_windows_info")),
+          conditionalPanel(condition = "!input.auto_windows",
+            sliderInput("manual_n_windows", "Per RT bin", min = 10, max = 200, value = 40, step = 5, ticks = FALSE)),
+          info = help("Window count", p("Auto uses acquisition timing and peak sampling settings. Turn Auto off to set the count manually. In staggered mode this is the count per RT bin per cycle."))
+        ),
 
-      fluidRow(
-        # m/z Optimization Strategy
-        column(6, class = "label-prominent",
-          selectInput(
-            inputId = "mz_strategy",
-            label = "m/z Range Strategy",
-            choices = c(
-              "Greedy (MacCoss, Recommended)" = "greedy",
-              "KDE (Density Peak)" = "kde",
-              "Quantile (P5-P95)" = "quantile",
-              "Coverage (Conservative)" = "coverage",
-              "Outlier (Mean +/- 3 SD)" = "outlier"
+        conditionalPanel(condition = "input.mz_strategy == 'kde'",
+          row("KDE range",
+            sliderInput("kde_density_threshold", "Boundary threshold", min = 5, max = 30, value = 10, step = 5, post = "%", ticks = FALSE),
+            sliderInput("kde_min_coverage", "Min. precursor inclusion", min = 60, max = 95, value = 80, step = 5, post = "%", ticks = FALSE),
+            info = help("KDE range selection",
+              p("Boundary threshold is a percentage of the KDE peak height. Lower values generally select a wider range around the density peak."),
+              p("Minimum precursor inclusion sets the coverage target for range selection. Final window coverage is reported in Results.")))
+        ),
+        conditionalPanel(condition = "input.mz_strategy == 'greedy'",
+          row("Greedy range",
+            sliderInput("greedy_mz_step", "Search step (Da)", min = 0.5, max = 10, value = 2, step = 0.5, ticks = FALSE),
+            checkboxInput("greedy_apply_smoothing", "Smooth boundaries", value = TRUE),
+            info = help("Greedy range selection",
+              p("Slides a range of window count \u00d7 minimum width along m/z to maximize precursor count. A smaller search step improves search precision and takes longer; it does not change range width."),
+              smoothing_help)),
+          div(class = "config-range-preview", uiOutput("greedy_mz_range_display"))
+        ),
+        conditionalPanel(condition = "input.mz_strategy == 'quantile'",
+          row("Quantile range",
+            sliderInput("quantile_lower", "Lower quantile", min = 0.01, max = 0.20, value = 0.05, step = 0.01, ticks = FALSE),
+            sliderInput("quantile_upper", "Upper quantile", min = 0.80, max = 0.99, value = 0.95, step = 0.01, ticks = FALSE),
+            checkboxInput("quantile_apply_smoothing", "Smooth boundaries", value = TRUE),
+            info = help("Quantile range selection", p("0.05\u20130.95 selects the central 90% of precursors. Quantiles are entered as fractions."), smoothing_help))
+        ),
+        conditionalPanel(condition = "input.mz_strategy == 'coverage'",
+          row("Coverage range",
+            sliderInput("target_coverage", "Precursor coverage", min = 70, max = 99, value = 90, step = 1, post = "%", ticks = FALSE),
+            info = help("Coverage range selection", p("Finds the minimum m/z range achieving the selected precursor coverage.")))
+        ),
+        conditionalPanel(condition = "input.mz_strategy == 'outlier'",
+          row("Outlier range",
+            sliderInput("outlier_threshold", "Threshold (\u00d7 SD)", min = 2, max = 4, value = 3, step = 0.5, ticks = FALSE),
+            checkboxInput("outlier_apply_smoothing", "Smooth boundaries", value = TRUE),
+            info = help("Outlier range selection", p("Selects a range around the mean m/z, plus or minus the chosen number of standard deviations."), smoothing_help))
+        ),
+
+        row("Window width (Da)",
+          numericInput("min_isolation_width", "Min", value = 2, min = 1, max = 10, step = 0.5),
+          tags$span(class = "config-range-dash", `aria-hidden` = "true", "\u2013"),
+          numericInput("max_isolation_width", "Max", value = 80, min = 10, max = 500, step = 5),
+          info = help("Isolation window width",
+            p("Minimum and maximum isolation widths constrain the generated windows. The initial values follow the selected instrument preset."),
+            p("Minimum width also determines the total search range for Greedy. Maximum width limits broad windows in sparse m/z regions."))
+        ),
+        row("Isotope boundary",
+          selectInput("fz_offset_preset", "Offset preset", choices = c(
+            "Standard proteomics - 0.25" = "0.25", "Phosphoproteomics - 0.18" = "0.18",
+            "Custom" = "custom", "Disabled" = "0"), selected = "0.25"),
+          conditionalPanel(condition = "input.fz_offset_preset == 'custom'",
+            numericInput("custom_fz_offset", "Offset", value = 0.2500, min = 0.0001, max = 0.9999, step = 0.0001)),
+          info = help("Isotope boundary effect",
+            p("Offsets window boundaries away from integer m/z positions where isotope envelopes cluster, reducing the chance of splitting isotope peaks between windows."),
+            p("The plot below uses the uploaded data and updates when the offset changes. Window-design previews update automatically. Downloads use the last confirmed result."))
+        ),
+        conditionalPanel(condition = "input.fz_offset_preset != '0'",
+          div(class = "config-boundary-plot",
+            conditionalPanel(condition = "!output.data_loaded", tags$p(class = "text-muted", "Upload data to view the isotope boundary effect.")),
+            conditionalPanel(condition = "output.data_loaded", plotOutput("fz_validation_plot", height = "200px"))
+          )
+        )
+          ),
+          div(class = "config-preview",
+            div(class = "config-preview-heading",
+              tags$strong("m/z preview"),
+              help("Live m/z preview",
+                p("All RT groups shows your complete validated precursor distribution on an RT-m/z plane, using the report density heatmap. Brighter regions have higher density. Green outlines mark the selected m/z range in each RT group, so data outside the selection remains visible. The heatmap is a distribution view, not the KDE range-selection threshold."),
+                p("For an individual RT group, the grey distribution uses all precursors in that group. Green shading marks the selected m/z range; the strip below shows the actual generated windows."),
+                p("For KDE, the curve and dashed threshold use the same density estimator as range selection. Minimum inclusion and window constraints may limit the effect of threshold changes."),
+                p("Changing the viewed RT group does not change the method. Confirm & view results preserves the current calculation for download."))
             ),
-            selected = "greedy"
-          )
-        ),
-
-        # Window Mode Selection
-        column(6, class = "label-prominent",
-          selectInput(
-            inputId = "window_mode",
-            label = "Window Width Mode",
-            choices = c(
-              "Density (Dense=Narrow)" = "density",
-              "Fixed (Equal Width)" = "fixed",
-              "Staggered (Offset Bins)" = "staggered"
-            ),
-            selected = "density"
-          )
-        )
-      ),
-
-      # --- Strategy & Window Mode Preview Images ---
-      fluidRow(
-        column(6,
-          uiOutput("strategy_preview_img")
-        ),
-        column(6,
-          uiOutput("window_mode_preview_img")
-        )
-      ),
-
-      # --- Window Mode descriptions (conditionalPanel per mode) ---
-      conditionalPanel(
-        condition = "input.window_mode == 'density'",
-        div(class = "mode-description",
-          tags$small(
-            icon("chart-area"), " ",
-            tags$strong("Density mode:"),
-            " Adaptive window widths based on precursor density. ",
-            "Windows are narrower in dense m/z regions, wider in sparse regions. ",
-            "Best for maximizing precursor coverage per window."
-          )
-        )
-      ),
-      conditionalPanel(
-        condition = "input.window_mode == 'fixed'",
-        div(class = "mode-description",
-          tags$small(
-            icon("th"), " ",
-            tags$strong("Fixed mode:"),
-            " Equal-width windows across the entire m/z range. ",
-            "Simple and predictable. Best when precursor density is relatively uniform."
-          )
-        )
-      ),
-      conditionalPanel(
-        condition = "input.window_mode == 'staggered'",
-        div(class = "mode-description",
-          tags$small(
-            icon("exchange-alt"), " ",
-            tags$strong("Staggered mode (2-Cycle Interleaved):"),
-            " Two acquisition cycles with 50% m/z offset. ",
-            "Cycle 2 windows are shifted by half-width from Cycle 1. ",
-            "Precursors near a boundary in one cycle sit near the center in the other, ",
-            "mitigating quadrupole transmission roll-off at window edges."
-          ),
-          tags$div(
-            class = "panel-accent", style = "margin-top: 8px;",
-            icon("sync-alt"),
-            tags$strong(" Thermo Loop Control N"),
-            " = windows per RT bin per cycle. ",
-            tags$strong("Set this value in Xcalibur method editor."),
-            " Calculated automatically after optimization."
+            conditionalPanel(condition = "!output.preview_ready",
+              div(class = "preview-placeholder", textOutput("preview_waiting"))),
+            conditionalPanel(condition = "output.preview_ready",
+              selectInput("preview_rt_bin", "View", choices = c("All RT groups" = "all"), selected = "all"),
+              div(class = "preview-plot-scroll", plotOutput("live_mz_plot", height = "270px")),
+              div(class = "preview-legend",
+                conditionalPanel(condition = "input.preview_rt_bin != 'all'",
+                  tags$span(class = "legend-original", "Data")),
+                tags$span(class = "legend-range", "Selected range"),
+                conditionalPanel(condition = "input.mz_strategy == 'kde' && input.preview_rt_bin != 'all'",
+                  tags$span(class = "legend-threshold", "KDE threshold")),
+                conditionalPanel(condition = "input.preview_rt_bin != 'all'",
+                  tags$span(class = "legend-windows", "Windows"))),
+              uiOutput("live_mz_summary"))
           )
         )
       ),
 
-      # --- Common: Window Count (all strategies) ---
-      div(class = "strategy-section",
-        tags$h4("Window Count", class = "section-title strategy-heading"),
-        checkboxInput(
-          inputId = "auto_windows",
-          label = "Auto Window Count (recommended)",
-          value = TRUE
+      section("3", "Retention-time grouping",
+        row("RT groups",
+          selectInput("rt_binning_mode", "Grouping mode", choices = c(
+            "Fixed - auto width" = "fixed", "Adaptive - change points" = "adaptive", "Custom - manual width" = "custom"), selected = "fixed"),
+          conditionalPanel(condition = "input.rt_binning_mode == 'custom'",
+            sliderInput("rt_bin_width", "Group width (min)", min = 1, max = 15, value = 5, step = 0.5, ticks = FALSE)),
+          info = help("Retention-time grouping",
+            p("Each RT group gets its own set of m/z windows. Fixed calculates group width automatically. Adaptive detects changes in the m/z distribution with a KS test. Custom uses your chosen width."),
+            p("Smaller group widths create more RT segments."))
         ),
-        conditionalPanel(
-          condition = "input.auto_windows",
-          uiOutput("auto_windows_info")
+        conditionalPanel(condition = "input.rt_binning_mode == 'adaptive'",
+          row("Change detection",
+            sliderInput("cpd_significance", "Significance", min = 0.001, max = 0.10, value = 0.05, step = 0.005, ticks = FALSE),
+            sliderInput("cpd_min_bin_width", "Min. group width (min)", min = 0.5, max = 5, value = 1, step = 0.5, ticks = FALSE),
+            info = help("Adaptive group parameters", p("Lower significance requires stronger evidence for a change point. Minimum group width prevents very short RT groups.")))
         ),
-        conditionalPanel(
-          condition = "!input.auto_windows",
-          sliderInput(
-            inputId = "manual_n_windows",
-            label = "Windows per RT Bin",
-            min = 10, max = 200, value = 40, step = 5
-          )
+        tags$details(class = "config-more",
+          tags$summary("Run start / end settings"),
+          row("RT edges",
+            numericInput("edge_void_buffer", "Start buffer (min)", value = 0.5, min = 0, max = 2, step = 0.1),
+            numericInput("edge_wash_threshold", "End merge (precursors)", value = 30, min = 0, max = 200, step = 10),
+            info = help("RT edge handling",
+              p("Start buffer extends the first group's start to account for void volume. End merge combines a sparse last group when its precursor count is below the threshold.")))
         )
       ),
-
-      # --- Strategy-specific parameters (inline conditionalPanels) ---
-
-      # Greedy Strategy Parameters
-      conditionalPanel(
-        condition = "input.mz_strategy == 'greedy'",
-        div(class = "strategy-section",
-          tags$h4("Greedy Parameters (MacCoss Lab)", class = "section-title strategy-heading"),
-
-          # Info box explaining the algorithm
-          div(class = "algo-info",
-            tags$small(
-              tags$strong("How Greedy works:"), tags$br(),
-              "1. Fixed m/z range = Windows x Min Width", tags$br(),
-              "2. Slides along m/z axis to find optimal position", tags$br(),
-              "3. Maximizes precursor count within fixed range"
-            )
-          ),
-
-          # m/z Range Preview (most important info)
-          uiOutput("greedy_mz_range_display"),
-
-          hr(style = "margin: 10px 0; border-color: var(--border-subtle);"),
-
-          # Sliding Step - clarify it's for search precision
-          tags$label("Search Precision", class = "control-label",
-                     style = "font-size: 12px;"),
-          sliderInput(
-            inputId = "greedy_mz_step",
-            label = NULL,
-            min = 0.5, max = 10.0, value = 2.0, step = 0.5,
-            post = " Da step"
-          ),
-          helpText("Smaller step = more precise search but slower. Does NOT affect m/z range width.",
-                   style = "font-size: 10px; font-style: italic;"),
-
-          hr(style = "margin: 10px 0; border-color: var(--border-subtle);"),
-
-          # Post-Smoothing
-          checkboxInput(
-            inputId = "greedy_apply_smoothing",
-            label = smoothing_label,
-            value = TRUE
-          ),
-          helpText("Smooths m/z boundaries across RT bins to prevent abrupt jumps. Uses weighted Whittaker-Henderson smoother.",
-                   style = "font-size: 10px;")
-        )
-      ),
-
-      # Quantile Strategy Parameters
-      conditionalPanel(
-        condition = "input.mz_strategy == 'quantile'",
-        div(class = "strategy-section",
-          tags$h4("Quantile Parameters", class = "section-title strategy-heading"),
-          sliderInput(
-            inputId = "quantile_lower",
-            label = "Lower Percentile",
-            min = 0.01, max = 0.20, value = 0.05, step = 0.01
-          ),
-          sliderInput(
-            inputId = "quantile_upper",
-            label = "Upper Percentile",
-            min = 0.80, max = 0.99, value = 0.95, step = 0.01
-          ),
-          checkboxInput(
-            inputId = "quantile_apply_smoothing",
-            label = smoothing_label,
-            value = TRUE
-          ),
-          helpText("P5-P95 covers 90% of precursors. WH smoothing prevents abrupt m/z jumps.",
-                   style = "font-size: 10px;")
-        )
-      ),
-
-      # Coverage Strategy Parameters
-      conditionalPanel(
-        condition = "input.mz_strategy == 'coverage'",
-        div(class = "strategy-section",
-          tags$h4("Coverage Parameters", class = "section-title strategy-heading"),
-          sliderInput(
-            inputId = "target_coverage",
-            label = "Target Coverage (%)",
-            min = 70, max = 99, value = 90, step = 1, post = "%"
-          ),
-          helpText("Find minimum m/z range achieving this coverage",
-                   style = "font-size: 10px;")
-        )
-      ),
-
-      # Outlier Strategy Parameters
-      conditionalPanel(
-        condition = "input.mz_strategy == 'outlier'",
-        div(class = "strategy-section",
-          tags$h4("Outlier Parameters", class = "section-title strategy-heading"),
-          sliderInput(
-            inputId = "outlier_threshold",
-            label = "Threshold (x SD)",
-            min = 2.0, max = 4.0, value = 3.0, step = 0.5
-          ),
-          checkboxInput(
-            inputId = "outlier_apply_smoothing",
-            label = smoothing_label,
-            value = TRUE
-          ),
-          helpText("Mean +/- NxSD range. WH smoothing prevents abrupt m/z jumps.",
-                   style = "font-size: 10px;")
-        )
-      ),
-
-      # KDE Strategy Parameters
-      conditionalPanel(
-        condition = "input.mz_strategy == 'kde'",
-        div(class = "strategy-section",
-          tags$h4("KDE Parameters (Density Peak)", class = "section-title strategy-heading"),
-          sliderInput(
-            inputId = "kde_density_threshold",
-            label = "Density Threshold (%)",
-            min = 5, max = 30, value = 10, step = 5
-          ),
-          helpText("Boundary at N% of peak density. Lower = wider range.",
-                   style = "font-size: 10px;"),
-          sliderInput(
-            inputId = "kde_min_coverage",
-            label = "Minimum Coverage (%)",
-            min = 60, max = 95, value = 80, step = 5
-          ),
-          helpText("Expand range to ensure at least N% precursor coverage.",
-                   style = "font-size: 10px;")
-        )
-      ),
-
-      # Common parameter (all strategies)
-      hr(),
-      fluidRow(
-        column(4,
-          numericInput(
-            inputId = "min_isolation_width",
-            label = "Min Isolation Width (Da)",
-            value = 2,
-            min = 1,
-            max = 10,
-            step = 0.5
-          ),
-          helpText("Minimum window width (2 Da typical for narrow-DIA)",
-                   style = "font-size: 11px;")
-        ),
-        column(4,
-          numericInput(
-            inputId = "max_isolation_width",
-            label = "Max Isolation Width (Da)",
-            value = 80,
-            min = 10,
-            max = 500,
-            step = 5
-          ),
-          helpText("Maximum window width (80 Da default; limits wide windows in sparse m/z regions)",
-                   style = "font-size: 11px;")
-        ),
-        column(4,
-          # Placeholder column for layout balance
-        )
-      ),
-
-      # --- Window Placement Optimization (all modes, at end of strategy section) ---
-      hr(),
-      div(class = "panel-raised", style = "margin-bottom: 12px; border-left: 3px solid var(--text-primary);",
-        fluidRow(
-          column(6,
-            selectInput(
-              inputId = "fz_offset_preset",
-              label = "Isotope Boundary Offset (Recommended)",
-              choices = c(
-                "Standard Proteomics (0.25) - Recommended" = "0.25",
-                "Phosphoproteomics (0.18)" = "0.18",
-                "Custom" = "custom",
-                "None (Disabled)" = "0"
-              ),
-              selected = "0.25"
-            )
-          ),
-          column(6,
-            div(style = "padding-top: 25px;",
-              helpText(
-                "Shifts window boundaries away from integer m/z positions ",
-                "where 2+ and 3+ isotope envelopes cluster. ",
-                "Prevents splitting isotope peaks across adjacent windows, ",
-                "which would reduce fragment ion signal and identification confidence.",
-                style = "font-size: 10px; line-height: 1.4;"
-              )
-            )
-          )
-        ),
-        conditionalPanel(
-          condition = "input.fz_offset_preset == 'custom'",
-          fluidRow(
-            column(4,
-              numericInput(
-                inputId = "custom_fz_offset",
-                label = "Custom Isotope Boundary Offset",
-                value = 0.2500,
-                min = 0.0001,
-                max = 0.9999,
-                step = 0.0001
-              )
-            )
-          )
-        ),
-        # Isotope boundary validation plot (shown when offset is active)
-        conditionalPanel(
-          condition = "input.fz_offset_preset != '0'",
-          plotOutput("fz_validation_plot", height = "250px")
-        )
+      div(class = "wizard-nav wizard-nav-between",
+        actionButton("btn_to_data", "Back to data", class = "btn-default", icon = icon("arrow-left")),
+        actionButton("run_optimization", "Confirm & view results", class = "btn-success", icon = icon("play"))
       )
-    )),
-
-    # --- Section C: RT Binning (collapsed) ---
-    fluidRow(
-    box(
-      title = "C. RT Binning",
-      status = "warning",
-      solidHeader = FALSE,
-      width = 12,
-      collapsible = TRUE,
-      collapsed = FALSE,
-
-      selectInput(
-        inputId = "rt_binning_mode",
-        label = "RT Binning Mode",
-        choices = c(
-          "Fixed (auto width)" = "fixed",
-          "Adaptive (KS change-point)" = "adaptive",
-          "Custom (manual width)" = "custom"
-        ),
-        selected = "fixed"
-      ),
-      helpText("Fixed: auto-calculated bin width. Adaptive: KS-test detects m/z distribution shifts.",
-               style = "font-size: 11px;"),
-
-      # Manual bin width slider (Custom mode only)
-      conditionalPanel(
-        condition = "input.rt_binning_mode == 'custom'",
-        sliderInput(
-          inputId = "rt_bin_width",
-          label = "RT Bin Width (min)",
-          min = 1,
-          max = 15,
-          value = 5,
-          step = 0.5,
-          post = " min"
-        ),
-        helpText("Controls RT segment grouping. Smaller = more segments.",
-                 style = "font-size: 11px;")
-      ),
-
-      # Adaptive KS parameters (Adaptive mode only)
-      conditionalPanel(
-        condition = "input.rt_binning_mode == 'adaptive'",
-        div(class = "strategy-section",
-          tags$h4("Adaptive Parameters", class = "section-title strategy-heading"),
-          sliderInput(
-            inputId = "cpd_significance",
-            label = "Change Point Significance",
-            min = 0.001, max = 0.10, value = 0.05, step = 0.005
-          ),
-          sliderInput(
-            inputId = "cpd_min_bin_width",
-            label = "Min Bin Width (min)",
-            min = 0.5, max = 5.0, value = 1.0, step = 0.5
-          ),
-          helpText("Lower significance = fewer, more confident change points.",
-                   style = "font-size: 10px;")
-        )
-      ),
-
-      # Default mode note
-      conditionalPanel(
-        condition = "input.rt_binning_mode == 'fixed'",
-        helpText("Fixed mode uses auto-calculated bin width. No additional parameters needed.",
-                 style = "font-size: 11px;")
-      )
-    )),
-
-    # --- Section D: Expert Settings (collapsed + warning) ---
-    fluidRow(
-    box(
-      title = "D. Expert Settings",
-      status = "secondary",
-      solidHeader = FALSE,
-      width = 12,
-      collapsible = TRUE,
-      collapsed = TRUE,
-
-      # Expert warning banner
-      div(class = "tab-banner-warning",
-        tags$small(
-          icon("exclamation-triangle"), " ",
-          "Expert settings. Modify only if you understand instrument scan timing."
-        )
-      ),
-
-      fluidRow(
-        # Column 1: Acquisition
-        column(4,
-          tags$h4("Acquisition", class = "section-title"),
-
-          # MS1 Scans per Cycle
-          numericInput(
-            inputId = "ms1_scans_per_cycle",
-            label = "MS1 Scans/Cycle",
-            value = 1,
-            min = 0,
-            max = 10,
-            step = 1
-          ),
-          helpText("1 for standard DIA, 0 for parallel (Astral), 3-4 for Boxcar",
-                   style = "font-size: 11px;")
-        ),
-
-        # Column 2: Edge Handling
-        column(4,
-          tags$h4("Edge Handling", class = "section-title"),
-
-          numericInput(
-            inputId = "edge_void_buffer",
-            label = "Void Volume Buffer (min)",
-            value = 0.5, min = 0, max = 2, step = 0.1
-          ),
-          numericInput(
-            inputId = "edge_wash_threshold",
-            label = "Wash Merge Threshold (precursors)",
-            value = 30, min = 0, max = 200, step = 10
-          ),
-          helpText("Void buffer extends first bin start (typical: 0.3-1.0 min depending on column length/ID). Wash merge combines sparse last bin.",
-                   style = "font-size: 10px;")
-        )
-      )
-    )),
-
-    # Navigation
-    div(
-      class = "wizard-nav wizard-nav-between",
-      actionButton("btn_to_data", "Back to Data & Instrument",
-                   class = "btn-default btn-lg",
-                   icon = icon("arrow-left")),
-      actionButton("run_optimization", "Run Optimization",
-                   class = "btn-success btn-lg",
-                   icon = icon("play"),
-                   style = "font-weight: 600;")
     )
   )
 }

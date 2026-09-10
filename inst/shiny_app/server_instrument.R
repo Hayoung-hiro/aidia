@@ -218,14 +218,14 @@ server_instrument <- function(input, output, session, rv) {
   # For parallel instruments: sync-optimal; for sequential: DPPP-based
   output$auto_windows_info <- renderUI({
     # Try to get windows from optimization plan first
-    plan_windows <- rv$optimization_plan$n_windows_per_bin
+    plan_windows <- rv$draft_plan$window_count_per_bin
 
     if (!is.null(plan_windows)) {
       return(tags$div(
         class = "indicator-success",
         tags$span(class = "indicator-text", sprintf("Auto: %d windows", plan_windows)),
         tags$br(),
-        tags$small("(from optimization plan)", class = "text-muted")
+        tags$small("(current settings)", class = "text-muted")
       ))
     }
 
@@ -354,8 +354,8 @@ server_instrument <- function(input, output, session, rv) {
   output$greedy_mz_range_display <- renderUI({
     # Get window count (from auto or manual)
     if (isTRUE(input$auto_windows %||% TRUE)) {
-      # Priority: optimization plan > estimated > default
-      n_windows <- rv$optimization_plan$n_windows_per_bin
+      # Use the draft plan only when it matches the current controls.
+      n_windows <- rv$draft_plan$window_count_per_bin
 
       # Estimate if no plan yet (shared reactive)
       if (is.null(n_windows)) {

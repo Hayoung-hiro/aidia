@@ -1,0 +1,95 @@
+AIDIA
+
+
+1. Data & Instrument
+
+
+
+2. Strategy
+
+
+
+3. Results
+
+Data Summary
+Precursors: 12,000
+RT: 1.1 - 59.1 min
+m/z: 402 - 1047 Da
+FWHM: 5.06 sec (median)
+FWHM IQR: 4.04 - 6.14 sec
+Calculated Cycle Time
+0.522
+sec
+MS1: 522ms (parallel) | MS2: 40 x 5.0ms
+19% Eff.
+Pipeline Status
+● Data: Loaded
+● Optimized: Pending
+● Export: Waiting
+A. Acquisition Sync
+SYNC-OPTIMAL WINDOWS
+104 windows
+Primary constraint for parallel acquisition
+DPPP CHECK
+ DPPP 16
+Target: 7.0
+Always met at sync-optimal N
+SYNC DETAIL
+MS1: 522ms (Orbitrap 240K)
+MS2: 40 × 5.0ms = 200ms
+Idle: 322ms (Astral)
+38% Duty Cycle
+ Parallel acquisition: cycle = max(MS1, N × MS2). Window count is determined by MS1/MS2 sync, not DPPP. DPPP is automatically satisfied at sync-optimal N.
+B. Strategy & Parameters
+m/z Range Strategy
+KDE (Density Peak)
+Window Width Mode
+Density (Dense=Narrow)
+KDE vs Coverage: what's the difference?
+ Density mode: Adaptive window widths based on precursor density. Windows are narrower in dense m/z regions, wider in sparse regions. Best for maximizing precursor coverage per window.
+Window Count
+ Auto Window Count (recommended)
+Sync-optimal: 104 windows
+MS1 522ms / MS2 5.0ms
+KDE Parameters (Density Peak)
+Density Threshold (%)
+5
+30
+10
+5
+10
+15
+20
+25
+30
+Boundary at N% of peak density. Lower = wider range.
+Minimum Coverage (%)
+60
+95
+80
+60
+65
+70
+75
+80
+85
+90
+95
+Expand range to ensure at least N% precursor coverage.
+Min Isolation Width (Da)
+Minimum window width (2 Da typical for narrow-DIA)
+Max Isolation Width (Da)
+Maximum window width (80 Da default; limits wide windows in sparse m/z regions)
+Isotope Boundary Offset (Recommended)
+Standard Proteomics (0.25) - Recommended
+Shifts window boundaries away from integer m/z positions where 2+ and 3+ isotope envelopes cluster. Prevents splitting isotope peaks across adjacent windows, which would reduce fragment ion signal and identification confidence.
+C. RT Binning
+RT Binning Mode
+Fixed (auto width)
+Fixed: auto-calculated bin width. Adaptive: KS-test detects m/z distribution shifts.
+Fixed mode uses auto-calculated bin width. No additional parameters needed.
+D. Expert Settings
+ Back to Data & Instrument
+ Run Optimization
+Adaptive Isolation for DIA
+AIDIA v0.4.1

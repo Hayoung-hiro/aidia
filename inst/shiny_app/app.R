@@ -58,6 +58,18 @@ source("server_instrument.R", local = TRUE)
 source("server_data.R", local = TRUE)
 source("server_optimization.R", local = TRUE)
 source("server_downloads.R", local = TRUE)
+source("optimization_workflow.R", local = TRUE)
+source("server_live_preview.R", local = TRUE)
+source("preview_display.R", local = TRUE)
+
+# One bounded worker pool per app process, shared across sessions.
+# I(1) also uses a background process when configured with a single worker.
+.aidia_previous_future_plan <- future::plan()
+future::plan(future::multisession,
+             workers = I(getOption("aidia.shiny.workers", 2L)))
+shiny::onStop(function() future::plan(.aidia_previous_future_plan))
+.aidia_app_path <- normalizePath(".", winslash = "/")
+.aidia_package_path <- getNamespaceInfo("aidia", "path")
 
 # =============================================================================
 # UI Definition
@@ -68,9 +80,8 @@ ui <- dashboardPage(
   # --- Header ---
   header = dashboardHeader(
     title = tags$span(
-      tags$img(src = "logo_header.png", height = "28px",
+      tags$img(src = "logo_header.png", height = "28px", alt = "AIDIA",
                style = "margin-right: 8px; vertical-align: middle;"),
-      "AIDIA",
       style = "display: inline-flex; align-items: center;"
     )
   ),
@@ -79,21 +90,19 @@ ui <- dashboardPage(
   sidebar = dashboardSidebar(
     width = 250,
 
-    # Sidebar logo
+    # Compact product introduction leaves room for navigation and context.
     div(
-      style = "text-align: center; padding: 12px 15px 4px 15px;",
-      div(
-        class = "sidebar-logo",
-        tags$img(src = "logo_sidebar.png", width = "150px", alt = "AIDIA")
-      )
+      class = "workflow-brand",
+      tags$strong("DIA window design"),
+      tags$p("From your data to an acquisition method.")
     ),
 
     # Wizard step navigation
     sidebarMenu(
       id = "tabs",
-      menuItem("1. Data & Instrument", tabName = "data", icon = icon("database")),
-      menuItem("2. Strategy", tabName = "setup", icon = icon("sliders-h")),
-      menuItem("3. Results", tabName = "results", icon = icon("chart-bar"))
+      menuItem("1. Prepare data", tabName = "data", icon = icon("database")),
+      menuItem("2. Configure windows", tabName = "setup", icon = icon("sliders-h")),
+      menuItem("3. Results & export", tabName = "results", icon = icon("chart-bar"))
     ),
 
     hr(),
@@ -113,7 +122,7 @@ ui <- dashboardPage(
     div(
       id = "cycle_time_display",
       class = "sidebar-metric-card",
-      h5("Calculated Cycle Time", class = "sidebar-heading"),
+      h5("Input method cycle time", class = "sidebar-heading"),
       div(
         style = "display: flex; justify-content: space-between; align-items: baseline;",
         span(textOutput("calculated_cycle_time", inline = TRUE),
@@ -135,7 +144,7 @@ ui <- dashboardPage(
     # Pipeline Status (compact, replaces Step 1 info boxes)
     div(
       style = "padding: 4px 15px;",
-      h5("Pipeline Status", class = "sidebar-heading"),
+      h5("Analysis progress", class = "sidebar-heading"),
       uiOutput("sidebar_pipeline_status")
     )
   ),
@@ -154,18 +163,9 @@ ui <- dashboardPage(
         rel = "stylesheet",
         href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       ),
-      # Client-side JS: sidebar collapse prevention + DPPP button sync
+      # Client-side DPPP button sync; sidebar uses AdminLTE responsive navigation.
       tags$script(HTML("
         $(document).ready(function() {
-          // --- Sidebar: prevent AdminLTE3 collapse ---
-          $(document).on('collapsed.lte.pushmenu', function() {
-            setTimeout(function() {
-              $('body').removeClass('sidebar-collapse sidebar-closed sidebar-mini-md');
-              $('.main-sidebar').removeAttr('style');
-            }, 50);
-          });
-          $('body').removeClass('sidebar-collapse sidebar-closed');
-
           // --- DPPP Preset Button sync (pure client-side, no server round-trip) ---
           function syncDpppButtons(val) {
             val = parseFloat(val);
@@ -241,6 +241,7 @@ server <- function(input, output, session) {
     dppp_preview = NULL,
     data_loaded = FALSE,
     optimization_complete = FALSE,
+    confirmed_run = NULL,
     cycle_time_calc = NULL  # Calculated cycle time result
   )
 
@@ -273,6 +274,7 @@ server <- function(input, output, session) {
     rv$validated_data <- NULL
     rv$optimized_windows <- NULL
     rv$optimization_plan <- NULL
+    rv$confirmed_run <- NULL
     rv$dppp_preview <- NULL
     updateTabItems(session, "tabs", "data")
   })

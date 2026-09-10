@@ -462,11 +462,7 @@ optimize_mz_ranges.kde_config <- function(config, precursor_data, rt_stats,
       mz_max <- max(mz_values) + 10
       kde_peak <- median(mz_values)
     } else {
-      kde <- tryCatch({
-        density(mz_values, bw = "SJ", n = 512)
-      }, error = function(e) {
-        density(mz_values, bw = "nrd0", n = 512)
-      })
+      kde <- .kde_density_profile(mz_values)
 
       peak_idx <- which.max(kde$y)
       kde_peak <- kde$x[peak_idx]
@@ -563,4 +559,13 @@ optimize_mz_ranges.default <- function(config, ...) {
   }
   stop("config must be a strategy_config object created by greedy_config(), ",
        "kde_config(), quantile_config(), coverage_config(), or outlier_config().")
+}
+
+
+# Shared by range selection and the Shiny data preview; no alternate estimator.
+.kde_density_profile <- function(mz_values) {
+  tryCatch(
+    density(mz_values, bw = "SJ", n = 512),
+    error = function(e) density(mz_values, bw = "nrd0", n = 512)
+  )
 }

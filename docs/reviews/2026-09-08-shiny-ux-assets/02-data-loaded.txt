@@ -1,0 +1,108 @@
+AIDIA
+
+
+1. Data & Instrument
+
+
+
+2. Strategy
+
+
+
+3. Results
+
+Data Summary
+Precursors: 12,000
+RT: 1.1 - 59.1 min
+m/z: 402 - 1047 Da
+FWHM: 5.06 sec (median)
+FWHM IQR: 4.04 - 6.14 sec
+Calculated Cycle Time
+0.522
+sec
+MS1: 522ms (parallel) | MS2: 40 x 5.0ms
+19% Eff.
+Pipeline Status
+● Data: Loaded
+● Optimized: Pending
+● Export: Waiting
+Upload Data
+
+DIA-NN Parquet Report
+
+Browse...
+Upload complete
+Browse or drag to upload DIA-NN report
+Instrument & Timing
+Instrument Preset
+Thermo Astral Zoom (270 Hz)
+MS1 Resolution (Orbitrap)
+240,000
+Astral MS1 acquired on Orbitrap analyzer
+Astral MS2 IT (ms)
+40 ms
+3 ms
+2
+6
+10
+14
+18
+22
+26
+30
+34
+38
+40
+3ms: 200 Hz max speed | >3ms: Sensitivity mode
+MS2 Window Count
+Isolation windows per cycle
+DPPP Quick Preview
+Peak Width (FWHM) Distribution
+DPPP at Different Cycle Times
+
+Target: DPPP >= 7.0 @ 70% satisfaction
+
+CYCLE TIME	DPPP	SATISFACTION	STATUS
+1.0 sec	8.6	73%	 PASS
+1.5 sec	5.7	24%	Below
+2.0 sec	4.3	0%	Below
+2.5 sec	3.4	0%	Below
+3.0 sec	2.9	0%	Below
+3.5 sec	2.5	0%	Below
+Recommendation
+Target Requirements
+
+For DPPP >= 7.0 with 70% satisfaction:
+
+Required cycle time <= 1.03 sec
+
+Your current cycle time (0.52 sec) MEETS the requirement!
+Cycle Time Calculation
+Based on Your Experiment Settings
+PARAMETER	VALUE
+Instrument	Thermo Orbitrap Astral Zoom
+MS1 Scans/Cycle	0 (Parallel)
+MS1 Scan Time	522.0 ms
+MS2 Scan Time	5.0 ms (200.0 Hz)
+MS2 Window Count	40
+MS2 Total Time	200 ms
+Cycle Time	0.522 sec (522 ms)
+Cycle Time Breakdown
+
+Parallel Mode: MS1 acquired during MS2 scans
+
+MS2: 200 ms (100%)
+Efficiency: 19%
+MS2 limited
+OPTIMAL (AUTO IT)
+0.100 sec
+CURRENT
+0.522 sec
+
+Current settings are 5.2x slower than optimal. Use Auto IT to recover speed.
+
+ Continue to Strategy
+Adaptive Isolation for DIA
+AIDIA v0.4.1
+×
+Data loaded: 12,000 precursors

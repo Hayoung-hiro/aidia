@@ -1,0 +1,96 @@
+AIDIA
+
+
+1. Data & Instrument
+
+
+
+2. Strategy
+
+
+
+3. Results
+
+Data Summary
+Precursors: 12,000
+RT: 1.1 - 59.1 min
+m/z: 402 - 1047 Da
+FWHM: 5.06 sec (median)
+FWHM IQR: 4.04 - 6.14 sec
+Calculated Cycle Time
+0.522
+sec
+MS1: 522ms (parallel) | MS2: 40 x 5.0ms
+19% Eff.
+Pipeline Status
+● Data: Loaded
+● Optimized: 728 windows
+● Export: Ready
+Optimization Complete
+728 windows | 7 RT bins | kde strategy
+0.52 s
+
+Cycle Time (unchanged)
+
+16.5
+
+Median DPPP (target 7.0 met)
+
+104
+
+104 per bin (728 total)
+
+Acquisition Capacity Diagnostics
+Parallel instrument - sync 100% (104 / 104 sync-optimal). DPPP-bound metrics may show high headroom.
+ Bottleneck: Underutilized - add more windows or shorten cycle.
+ Info indicators mean available capacity, not a defect. Parallel instruments (Astral) commonly show large DPPP and cycle headroom because they are sync-bound, not DPPP-bound.
+BEFORE (Input Data)
+Precursors: 12,000
+RT: 1.1 - 59.1 min
+m/z: 402 - 1047 Da
+FWHM: 5.06 sec
+Cycle Time: 0.522 sec
+Est. DPPP: ~16.5
+AFTER (Optimized)
+Windows: 728
+RT Bins: 7
+Mode: Density (Variable)
+Width: 5.3 Da
+Width Range: 4.0 - 7.0 Da (ratio: 1.8x, SD: 0.53)
+Coverage: 98.9%
+Actual Cycle: 0.522 sec
+Actual DPPP: 16.5 -49% deviation
+ Actual DPPP is 49% lower than planned (more windows than estimated)
+m/z Range Summary
+KDE (Density Peak) density
+m/z Range: 370.4 - 954.7 Da (584 Da span)
+104 windows/bin | 7 RT bins
+Window Width Distribution
+Min: 4.0 Da | Mean: 5.3 Da | Max: 7.0 Da
+Variable width ratio: 1.8x (max/min)
+Precursor Distribution Across Windows
+Precursor Temporal Density (Co-Elution Proxy)
+ Based on identified precursors only (lower bound). Higher density = more co-eluting precursors = harder deconvolution. Values are relative — useful for comparing strategies, not as absolute co-isolation counts.
+Detailed Results
+Window Preview
+Download Method File
+Sample/Project Name
+Condition/Note
+Export Format
+Thermo Targeted Mass List
+ Download Method
+ Fill void volume (extend schedule to run length)
+Thermo Targeted Mass List - Xcalibur-compatible CSV
+Compound,Formula,Adduct,m/z,z,t start (min),t stop (min),Isolation Window (m/z)
+1,,(no adduct),425.2523,1,11.4,28,50.5046
+8-column list; segments tile contiguously (no gaps). Default keeps measured RT edges; tick 'Fill void volume' to extend to the full run length.
+Other Downloads
+PDF scope:
+ Full report (all plots)
+ Quick summary (essential, faster)
+ PDF Report
+ All Formats (ZIP)
+ Back to Strategy
+ New Analysis
+Adaptive Isolation for DIA
+AIDIA v0.4.1

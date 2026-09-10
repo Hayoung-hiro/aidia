@@ -5,11 +5,17 @@ step1_data_ui <- function() {
   tabItem(
     tabName = "data",
 
+    div(class = "workflow-heading",
+      tags$p(class = "workflow-eyebrow", "STEP 1 OF 3"),
+      h2("Prepare your data"),
+      p("Upload a DIA-NN report, then check the settings of your input acquisition method.")
+    ),
+
     # --- Row 1: Upload + Instrument side-by-side (2x1 layout, equal height) ---
     fluidRow(
       class = "equal-height-row",
       box(
-        title = "Upload Data",
+        title = "DIA-NN report",
         status = "primary",
         solidHeader = TRUE,
         width = 4,
@@ -28,13 +34,13 @@ step1_data_ui <- function() {
             placeholder = "No file selected..."
           )
         ),
-        helpText("Browse or drag to upload DIA-NN report",
+        helpText("Choose a report.parquet file (up to 500 MB).",
                  style = "font-size: 11px; text-align: center;")
       ),
 
       # --- Instrument & Timing (always visible, independent of data upload) ---
       box(
-        title = "Instrument & Timing",
+        title = "Input acquisition settings",
         status = "warning",
         solidHeader = TRUE,
         width = 8,
@@ -140,13 +146,13 @@ step1_data_ui <- function() {
         column(2,
           numericInput(
             inputId = "current_window_count",
-            label = "MS2 Window Count",
+            label = "Input windows per cycle",
             value = 40,
             min = 10,
             max = 500,
             step = 5
           ),
-          helpText("Isolation windows per cycle",
+          helpText("Window count in the input method. New windows are configured in step 2.",
                    style = "font-size: 11px;")
         )
       ),
@@ -214,7 +220,7 @@ step1_data_ui <- function() {
       # DPPP Quick Preview (FIRST — overview before details)
       fluidRow(
         box(
-          title = "DPPP Quick Preview",
+          title = "Peak sampling overview (DPPP)",
           status = "info",
           solidHeader = TRUE,
           width = 12,
@@ -246,10 +252,13 @@ step1_data_ui <- function() {
       # Cycle Time Calculation (SECOND — details after overview)
       fluidRow(
         box(
-          title = "Cycle Time Calculation",
+          title = "Timing details",
           status = "success",
           solidHeader = TRUE,
           width = 12,
+
+          collapsible = TRUE,
+          collapsed = TRUE,
 
           tags$h4("Based on Your Experiment Settings", class = "section-title"),
           fluidRow(
@@ -271,15 +280,15 @@ step1_data_ui <- function() {
       div(
         class = "placeholder-section",
         icon("cloud-upload-alt", class = "placeholder-icon"),
-        h4("Upload a DIA-NN parquet file to begin"),
-        p("Supported format: .parquet (DIA-NN report output)")
+        h4("Your data overview will appear here"),
+        p("After upload, review peak sampling and continue to configure your windows.")
       )
     ),
 
     # Navigation
     div(
       class = "wizard-nav wizard-nav-right",
-      actionButton("btn_to_setup", "Continue to Strategy",
+      actionButton("btn_to_setup", "Continue to window settings",
                    class = "btn-primary btn-lg",
                    icon = icon("arrow-right"))
     )
