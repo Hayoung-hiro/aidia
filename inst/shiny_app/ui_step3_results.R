@@ -55,7 +55,7 @@ step3_results_ui <- function() {
       fluidRow(
         class = "equal-height-row",
         box(
-          title = "BEFORE (Input Data)",
+          title = "BEFORE (Original Method)",
           status = "primary",
           solidHeader = TRUE,
           width = 4,
@@ -163,6 +163,15 @@ step3_results_ui <- function() {
                 downloadButton("download_method", "Download Method",
                                class = "btn-success btn-block")
               )
+            )
+          ),
+          fluidRow(
+            column(4,
+              numericInput("export_charge_state", "Thermo charge state (z)",
+                           value = 1, min = 0, max = 100, step = 1)
+            ),
+            column(8,
+              helpText("Applies to Thermo CSV, including All Formats ZIP. Default: 1. Use 0 to ignore charge where supported.")
             )
           ),
           # Thermo-only: void-fill toggle + run length (shown only for Thermo)

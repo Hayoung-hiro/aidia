@@ -53,7 +53,7 @@ test_that("export_windows_to_csv does not crash on staggered windows", {
   expect_equal(nrow(df), nrow(win))
 })
 
-test_that("z column defaults to 1 (Xcalibur drops z = 0 on import) and is configurable", {
+test_that("z column defaults to 1 for import compatibility and is configurable", {
   win <- make_staggered_windows()
   ow <- structure(list(windows = win, parameters = list(fz_offset = 0.25)),
                   class = "OptimizedWindows")

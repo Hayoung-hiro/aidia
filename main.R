@@ -34,6 +34,8 @@ library(aidia)
 #' @param create_plots Generate visualizations (default: TRUE)
 #' @param create_pdf Generate PDF report (default: TRUE)
 #' @param verbose Print detailed progress (default: TRUE)
+#' @param charge_state Expected precursor charge for the Thermo CSV z column
+#'   (integer 0-100, default: 1).
 #'
 #' @return List of results for all files
 #' @export
@@ -56,7 +58,8 @@ run_complete_pipeline <- function(
   width_grid_step = 0.5,
   create_plots = TRUE,
   create_pdf = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  charge_state = 1L
 ) {
 
   if (!is.character(mz_strategies) || length(mz_strategies) == 0L ||
@@ -270,7 +273,8 @@ run_complete_pipeline <- function(
         validated_data = validated_data,
         fill_void = fill_void,
         acquisition_start_min = acquisition_start_min,
-        acquisition_end_min = acquisition_end_min
+        acquisition_end_min = acquisition_end_min,
+        charge_state = charge_state
       )
 
       if (verbose) {

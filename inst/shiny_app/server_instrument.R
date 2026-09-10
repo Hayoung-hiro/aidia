@@ -102,6 +102,16 @@ server_instrument <- function(input, output, session, rv) {
     })
   })
 
+  output$original_fixed_width <- renderUI({
+    config <- tryCatch(fixed_method_config(
+      input$current_window_count %||% 40,
+      input$original_mz_min %||% 400, input$original_mz_max %||% 1000
+    ), error = function(e) NULL)
+    if (is.null(config)) return(helpText("Enter a valid original range and window count."))
+    helpText(sprintf("Original fixed width: %.2f m/z (%d windows)",
+                     config$window_width, config$n_windows))
+  })
+
   # --- Output: Auto IT value displays ---
   output$ms1_it_auto_value <- renderText({
     ms1_res <- as.numeric(input$ms1_resolution %||% 60000)

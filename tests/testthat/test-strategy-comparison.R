@@ -50,6 +50,7 @@ test_that("comparison reuses execution-time settings for all five strategies", {
     ), common)))
   }
   selected <- run(configs$quantile)
+  selected$parameters$original_method <- fixed_method_config(30, 450, 1050)
   # Simulate subsequent edits to the screen. They must not affect the report.
   input$manual_n_windows <- 40L
   input$quantile_lower <- 0.25
@@ -78,6 +79,8 @@ test_that("comparison reuses execution-time settings for all five strategies", {
     expect_equal(actual$parameters$min_width_da, 6)
     expect_equal(actual$parameters$max_width_da, 30)
     expect_equal(actual$parameters$n_windows_per_bin, 17L)
+    expect_identical(actual$parameters$original_method,
+                     selected$parameters$original_method)
     expect_true(all(table(actual$windows$rt_segment_id) == 17L))
     # NULL disables the width grid and must survive list subsetting/replay.
     expect_true("width_grid_step" %in% names(actual$parameters))
@@ -124,6 +127,7 @@ test_that("Shiny captures hidden strategy controls and publishes a matched run",
   fixture <- .comparison_fixture()
   fixture$plan$timing <- list(t_scan_ms = 50)
   fixture$plan$current_cycle_time_sec <- 2
+  fixture$plan$diagnosis <- list(current_cycle_time_sec = 2)
   env <- new.env(parent = environment())
   # Exercise the actual run-button event. Numerical behavior is covered above.
   for (name in getNamespaceExports("shiny")) env[[name]] <- getExportedValue("shiny", name)
@@ -147,6 +151,8 @@ test_that("Shiny captures hidden strategy controls and publishes a matched run",
   }
   .comparison_quiet(shiny::testServer(server, {
     session$setInputs(instrument = "exploris", target_dppp = 7,
+                      current_window_count = 30, original_mz_min = 450,
+                      original_mz_max = 1050,
                       target_satisfaction = 70, mz_strategy = "quantile",
                       rt_binning_mode = "custom", rt_bin_width = 4,
                       auto_windows = FALSE, manual_n_windows = 17,
@@ -163,9 +169,18 @@ test_that("Shiny captures hidden strategy controls and publishes a matched run",
     expect_identical(captured$strategy_config,
                      captured$comparison_strategy_configs$quantile)
     expect_equal(captured$n_windows_override, 17L)
+    expect_equal(rv$optimized_windows$parameters$original_method$n_windows, 30L)
+    expect_equal(rv$optimized_windows$parameters$original_method$window_width, 20)
+    expect_equal(rv$optimized_windows$parameters$original_method$cycle_time_sec, 2)
+    expect_identical(rv$optimization_plan$original_method,
+                     rv$optimized_windows$parameters$original_method)
     old_plan <- rv$optimization_plan
     old_windows <- rv$optimized_windows
-    session$setInputs(target_coverage = 99, kde_density_threshold = 50)
+    session$setInputs(target_coverage = 99, kde_density_threshold = 50,
+                      original_mz_min = 400, original_mz_max = 1000,
+                      current_window_count = 40)
+    expect_identical(rv$optimization_plan, old_plan)
+    expect_identical(rv$optimized_windows, old_windows)
     expect_equal(captured$comparison_strategy_configs$coverage$target_coverage, 0.73)
     fail_optimization <<- TRUE
     fixture$plan$window_count_per_bin <<- 99L

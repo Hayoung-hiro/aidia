@@ -151,6 +151,18 @@ step1_data_ui <- function() {
         )
       ),
 
+      tags$details(
+        tags$summary("Original fixed m/z range (optional)"),
+        fluidRow(
+          column(4, numericInput("original_mz_min", "Original m/z start",
+                                  value = 400, min = 1, step = 1)),
+          column(4, numericInput("original_mz_max", "Original m/z end",
+                                  value = 1000, min = 1, step = 1)),
+          column(4, uiOutput("original_fixed_width"))
+        ),
+        helpText("Defaults to 400-1000. The reference uses this constant range and the original window count, with equal widths and no overlap. These values do not restrict optimization.")
+      ),
+
       # --- Injection Time (Orbitrap only) ---
       conditionalPanel(
         condition = "input.instrument == 'qexactive' || input.instrument == 'qexactive_hfx' || input.instrument == 'exploris' || input.instrument == 'eclipse' || input.instrument == 'fusion_lumos'",

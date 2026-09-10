@@ -77,37 +77,10 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data,
   baseline_n_per_bin <- NA_integer_
 
   tryCatch({
-    if (!is.null(optimization_plan)) {
-      current_ct <- optimization_plan$diagnosis$current_cycle_time_sec %||% NA_real_
-      ms2_time <- (optimization_plan$instrument$ms2_scan_time_ms %||% NA_real_) / 1000
-      baseline_n_per_bin <- if (!is.na(current_ct) && !is.na(ms2_time) && ms2_time > 0) {
-        as.integer(floor(current_ct / ms2_time))
-      } else {
-        as.integer(nrow(windows) / n_bins)
-      }
-    } else {
-      baseline_n_per_bin <- as.integer(nrow(windows) / n_bins)
-    }
-
-    rt_bins_df <- unique(windows[, c("rt_start", "rt_end", "rt_segment_id")])
-    naive_list <- lapply(seq_len(nrow(rt_bins_df)), function(i) {
-      bin_prec <- precursor_data[precursor_data$RT.Apex >= rt_bins_df$rt_start[i] &
-                                  precursor_data$RT.Apex <= rt_bins_df$rt_end[i], ]
-      if (nrow(bin_prec) < 2) return(NULL)
-      mz_rng <- range(bin_prec$Precursor.Mz, na.rm = TRUE)
-      n_win <- min(baseline_n_per_bin, 500L)
-      if (n_win < 1) return(NULL)
-      bw <- generate_fixed_windows_internal(
-        mz_min = mz_rng[1], mz_max = mz_rng[2],
-        n_windows = n_win, min_width_da = 1, max_width_da = 500, fz_offset = 0
-      )
-      bw$rt_start      <- rt_bins_df$rt_start[i]
-      bw$rt_end        <- rt_bins_df$rt_end[i]
-      bw$rt_segment_id <- rt_bins_df$rt_segment_id[i]
-      bw
-    })
-    naive_windows <- do.call(rbind, naive_list)
-    if (is.null(naive_windows) || nrow(naive_windows) < 1) stop("no baseline")
+    original <- .original_method_settings(optimization_plan, optimized_windows)
+    baseline_n_per_bin <- original$n_windows
+    naive_windows <- .fixed_baseline_windows(optimization_plan, optimized_windows)
+    if (is.null(naive_windows) || nrow(naive_windows) < 1) stop("Original method settings unavailable")
 
     naive_counts <- count_precursors_in_2d_windows(
       precursor_rt    = precursor_data$RT.Apex,
@@ -146,10 +119,9 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data,
     "Optimized CV: %.0f%%", overall_cv * 100
   )
   if (has_baseline) {
-    cv_change <- (1 - overall_cv / baseline_cv) * 100
     subtitle_text <- sprintf(
-      "Optimized CV: %.0f%% | Baseline (equal-width, %d win/bin) CV: %.0f%% | %.0f%% improvement",
-      overall_cv * 100, baseline_n_per_bin, baseline_cv * 100, cv_change
+      "Optimized CV: %.0f%% | Original fixed (%d windows/cycle) CV: %.0f%% | CV change: %+.1f pp",
+      overall_cv * 100, baseline_n_per_bin, baseline_cv * 100, (overall_cv - baseline_cv) * 100
     )
   }
 

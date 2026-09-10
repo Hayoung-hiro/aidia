@@ -25,11 +25,13 @@ test_that("directory, ZIP and individual delivery write identical formats and RT
   cwd <- getwd()
   directory <- .delivery_quiet(export_method_bundle(
     f$ow, file.path(root, "directory"), f$vd,
-    fill_void = TRUE, acquisition_start_min = 2, acquisition_end_min = 40
+    fill_void = TRUE, acquisition_start_min = 2, acquisition_end_min = 40,
+    charge_state = 3L
   ))
   archive <- file.path(root, "methods.zip")
   .delivery_quiet(export_method_bundle(f$ow, archive, f$vd, delivery = "zip",
-    fill_void = TRUE, acquisition_start_min = 2, acquisition_end_min = 40))
+    fill_void = TRUE, acquisition_start_min = 2, acquisition_end_min = 40,
+    charge_state = 3L))
   expect_identical(getwd(), cwd)
   expect_setequal(utils::unzip(archive, list = TRUE)$Name,
                   c("thermo.csv", "center_mass.csv", "mz_range.csv"))
@@ -37,12 +39,14 @@ test_that("directory, ZIP and individual delivery write identical formats and RT
   for (format in names(directory)) {
     single <- file.path(root, paste0(format, "-single.csv"))
     .delivery_quiet(export_method_formats(f$ow, setNames(single, format), f$vd,
-      fill_void = TRUE, acquisition_start_min = 2, acquisition_end_min = 40))
+      fill_void = TRUE, acquisition_start_min = 2, acquisition_end_min = 40,
+      charge_state = 3L))
     expect_identical(readLines(single), readLines(directory[[format]]))
     expect_identical(readLines(file.path(root, "unzipped", paste0(format, ".csv"))),
                      readLines(directory[[format]]))
   }
   thermo <- read.csv(directory[["thermo"]], check.names = FALSE)
+  expect_equal(unique(thermo$z), 3)
   expect_equal(thermo[["t start (min)"]], c(2, 2, 19, 19))
   expect_equal(thermo[["t stop (min)"]], c(19, 19, 40, 40))
   # Reusing a destination replaces the archive instead of retaining old formats.
@@ -93,8 +97,52 @@ test_that("Shiny downloads use completed naming and the same live export choices
   single <- file.path(root, "single.csv")
   archive <- file.path(root, "bundle.zip")
   .delivery_quiet(output$download_method$content(single))
+  expect_equal(unique(read.csv(single)$z), 1)
+  input$export_charge_state <- 3
+  .delivery_quiet(output$download_method$content(single))
   .delivery_quiet(output$download_batch_zip$content(archive))
   utils::unzip(archive, exdir = file.path(root, "unzipped"))
   expect_identical(readLines(single), readLines(file.path(root, "unzipped", "thermo.csv")))
   expect_equal(max(read.csv(single, check.names = FALSE)[["t stop (min)"]]), 40)
+  expect_equal(unique(read.csv(single)$z), 3)
+  expect_identical(rv$optimized_windows, f$ow)
+})
+
+test_that("Thermo export validates charge before writing and preserves other columns", {
+  f <- .delivery_fixture()
+  root <- withr::local_tempdir()
+  path <- file.path(root, "thermo.csv")
+  .delivery_quiet(export_windows_to_csv(f$ow, path, f$vd))
+  original <- read.csv(path, check.names = FALSE)
+  expect_equal(unique(original$z), 1)
+  for (charge in c(0, 2, 3, 100)) {
+    .delivery_quiet(export_windows_to_csv(f$ow, path, f$vd, charge_state = charge))
+    actual <- read.csv(path, check.names = FALSE)
+    expect_equal(unique(actual$z), charge)
+    expect_identical(actual[names(actual) != "z"], original[names(original) != "z"])
+  }
+  before <- readLines(path)
+  for (charge in list(-1, 101, 1.5, NA_real_, NaN, Inf, NULL, c(1, 2), "3", TRUE)) {
+    expect_error(export_windows_to_csv(f$ow, path, f$vd, charge_state = charge),
+                 "single integer from 0 to 100")
+    expect_identical(readLines(path), before)
+  }
+  directory <- file.path(root, "invalid")
+  expect_error(export_method_bundle(f$ow, directory, f$vd, charge_state = 1.5),
+               "single integer from 0 to 100")
+  expect_false(dir.exists(directory))
+})
+
+test_that("batch exporters forward the selected charge to each Thermo method", {
+  f <- .delivery_fixture()
+  root <- withr::local_tempdir()
+  windows <- list(quantile = f$ow)
+  paths <- .delivery_quiet(export_method_files(windows, file.path(root, "methods"),
+    f$vd, strategies = "quantile", charge_state = 0L))
+  expect_equal(unique(read.csv(paths[[1L]])$z), 0)
+  .delivery_quiet(export_batch_comparison(windows, f$vd, file.path(root, "comparison"),
+    formats = "thermo", include_comparison = FALSE, charge_state = 3L))
+  path <- list.files(file.path(root, "comparison", "thermo"), full.names = TRUE)
+  expect_length(path, 1)
+  expect_equal(unique(read.csv(path)$z), 3)
 })

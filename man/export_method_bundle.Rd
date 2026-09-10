@@ -12,7 +12,8 @@ export_method_bundle(
   formats = c("thermo", "center_mass", "mz_range"),
   fill_void = FALSE,
   acquisition_start_min = 0,
-  acquisition_end_min = NULL
+  acquisition_end_min = NULL,
+  charge_state = 1L
 )
 }
 \arguments{
@@ -31,6 +32,9 @@ export_method_bundle(
 \item{acquisition_start_min}{Acquisition start in minutes.}
 
 \item{acquisition_end_min}{Acquisition end in minutes, or NULL.}
+
+\item{charge_state}{Expected precursor charge for Thermo exports (integer
+0-100, default 1). See \code{\link[=export_windows_to_csv]{export_windows_to_csv()}}.}
 }
 \value{
 For directory delivery, named file paths; for ZIP delivery, the

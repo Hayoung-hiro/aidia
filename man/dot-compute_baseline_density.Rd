@@ -2,13 +2,12 @@
 % Please edit documentation in R/visualization.R
 \name{.compute_baseline_density}
 \alias{.compute_baseline_density}
-\title{Compute Baseline Temporal Density (Naive Windows)}
+\title{Compute Temporal Density for the Saved Original Fixed Method}
 \usage{
 .compute_baseline_density(validated_data, optimization_plan, optimized_windows)
 }
 \description{
-Builds naive fixed-width windows from current acquisition parameters and
-computes the sweepline co-elution density. Used by
-\code{plot_temporal_density()} for before/after comparison.
+Uses the saved original m/z range and window count with the existing
+temporal-density evaluator. Returns NULL if the reference is unavailable.
 }
 \keyword{internal}

@@ -195,6 +195,17 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         NULL
       }
 
+      original_method <- fixed_method_config(
+        input$current_window_count %||% calc_result$window_count %||% 40,
+        input$original_mz_min %||% 400, input$original_mz_max %||% 1000
+      )
+      original_method$timing <- calc_result
+      acquisition_fields <- c("instrument", "ms1_resolution", "ms2_resolution",
+        "astral_ms1_resolution", "astral_ms2_it", "ms1_scans_per_cycle",
+        "ms1_it_auto", "ms1_it_custom", "ms2_it_auto", "ms2_it_custom")
+      original_method$acquisition_inputs <- setNames(
+        lapply(acquisition_fields, function(name) input[[name]]), acquisition_fields)
+
       optimization_plan <- plan_optimization(
         validated_data = rv$validated_data,
         instrument_preset = input$instrument,
@@ -205,6 +216,8 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         ms2_resolution = if (!is.null(input$ms2_resolution)) as.numeric(input$ms2_resolution) else NULL
       )
       cat("[Shiny] plan_optimization() completed!\n")
+      original_method$cycle_time_sec <- optimization_plan$diagnosis$current_cycle_time_sec
+      optimization_plan$original_method <- original_method
 
       # Debug: Show key optimization parameters
       cat("[Shiny] === OPTIMIZATION PLAN DEBUG ===\n")
@@ -295,6 +308,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         }
       )
       cat("[Shiny] optimize_windows() completed!\n")
+      optimized_windows$parameters$original_method <- original_method
 
       # Publish the plan and its windows together only after both succeed.
       rv$optimization_plan <- optimization_plan
@@ -338,12 +352,14 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     precursor_data <- rv$validated_data$data
     median_fwhm_sec <- rv$median_fwhm_sec
 
-    calc_result <- cycle_time_result()
-    ct_text <- if (!is.null(calc_result)) sprintf("%.3f sec", calc_result$cycle_time_sec) else "N/A"
+    plan <- rv$optimization_plan
+    original <- rv$optimized_windows$parameters$original_method %||% plan$original_method
+    original_ct <- original$cycle_time_sec %||% plan$diagnosis$current_cycle_time_sec
+    ct_text <- if (!is.null(original_ct)) sprintf("%.3f sec", original_ct) else "N/A"
 
     # Estimate DPPP
-    dppp_text <- if (!is.null(calc_result) && !is.na(median_fwhm_sec)) {
-      est_dppp <- calculate_dppp(median_fwhm_sec, calc_result$cycle_time_sec)
+    dppp_text <- if (!is.null(original_ct) && !is.na(median_fwhm_sec)) {
+      est_dppp <- calculate_dppp(median_fwhm_sec, original_ct)
       sprintf("~%.1f", est_dppp)
     } else {
       "N/A"
@@ -351,6 +367,11 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
     tags$div(
       class = "summary-list",
+      if (!is.null(original)) tags$div(
+        tags$strong("Original fixed method: "),
+        sprintf("m/z %.1f-%.1f | %d windows | %.2f m/z width",
+                original$mz_min, original$mz_max, original$n_windows, original$window_width)
+      ),
       tags$div(tags$strong("Precursors: "), format(nrow(precursor_data), big.mark = ",")),
       tags$div(tags$strong("RT: "),
                sprintf("%.1f - %.1f min", min(precursor_data$RT.Apex, na.rm = TRUE), max(precursor_data$RT.Apex, na.rm = TRUE))),
@@ -695,7 +716,10 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         message = "Evaluation data not available"
       ))
     }
-    plot_temporal_density(eval_result)
+    baseline <- tryCatch(evaluate_fixed_method_baseline(
+      rv$validated_data, rv$optimization_plan, rv$optimized_windows
+    ), error = function(e) NULL)
+    plot_temporal_density(eval_result, baseline_density = baseline)
   })
 
   # --- Acquisition Capacity KPIs (v0.4.x) ---------------------------------

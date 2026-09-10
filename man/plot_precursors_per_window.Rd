@@ -31,6 +31,6 @@ ggplot object
 \description{
 Bar chart showing the number of precursors in each isolation window,
 colored by window width. Helps identify overloaded or empty windows.
-When optimization_plan is provided, computes a "before" baseline using
-the current cycle time's window count with equal-width placement.
+When original method settings are saved, computes a "before" baseline using
+that constant m/z range and original window count with equal-width placement.
 }

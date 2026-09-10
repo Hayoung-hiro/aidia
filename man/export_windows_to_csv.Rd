@@ -21,11 +21,10 @@ export_windows_to_csv(
 
 \item{validated_data}{ValidatedData object (for N_Precursors calculation)}
 
-\item{charge_state}{Integer, value for the \code{z} column (default: 1). DIA wide
-windows isolate by m/z range, so charge is metadata only and does not affect
-acquisition. Default is 1 (the Xcalibur default) because Xcalibur's mass-list
-importer flags \code{z = 0} as invalid and drops it, forcing manual re-entry.
-Set to 0 to request "ignore charge state" if your importer accepts it.}
+\item{charge_state}{Single integer from 0 to 100 for the Thermo \code{z} column.
+Default is 1 to preserve existing methods and import compatibility.
+This is the expected precursor charge; 0 requests "ignore charge state"
+where supported by the importer. It does not change optimized windows.}
 
 \item{fill_void}{Logical (default: FALSE). When TRUE, the RT schedule is
 extended to span \verb{[acquisition_start_min, acquisition_end_min]}, filling the
