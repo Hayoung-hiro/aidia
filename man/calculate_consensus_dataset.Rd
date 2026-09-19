@@ -4,23 +4,21 @@
 \alias{calculate_consensus_dataset}
 \title{Calculate Consensus Dataset from Technical Replicates (CORRECTED)}
 \usage{
-calculate_consensus_dataset(
-  data,
-  min_replicates = 1,
-  max_intensity_cv_percent = 30
-)
+calculate_consensus_dataset(data, min_replicates = NULL)
 }
 \arguments{
 \item{data}{Tibble with columns Precursor.Id, Run, RT.Start, Precursor.Mz, FWHM, Precursor.Quantity (optional)}
 
-\item{min_replicates}{Minimum number of replicates (default: 1)}
-
-\item{max_intensity_cv_percent}{Maximum intensity CV\% threshold for filtering (default: 30)}
+\item{min_replicates}{Minimum number of runs a precursor must be detected in
+(default: NULL = \code{ceiling(n_runs / 2)}, see \code{resolve_min_replicates()})}
 }
 \value{
 Tibble with consensus values and replicate statistics
 }
 \description{
-Creates a consensus dataset by taking median values across replicates
-and filtering based on intensity CV\% (proteomics standard).
+Creates a consensus dataset by taking median values across replicates and
+keeping precursors detected in at least \code{min_replicates} runs. CV\% values
+(RT, m/z, FWHM, intensity) are reported as QC columns but never filter rows:
+intensity CV tracks signal level, so filtering on it drops valid low-signal
+precursors that still occupy m/z-RT space.
 }

@@ -4,21 +4,14 @@
 \alias{handle_technical_replicates}
 \title{Handle technical replicates with consensus calculation}
 \usage{
-handle_technical_replicates(
-  data,
-  enable_consensus,
-  min_replicates,
-  max_intensity_cv_percent
-)
+handle_technical_replicates(data, enable_consensus, min_replicates = NULL)
 }
 \arguments{
 \item{data}{Input data frame}
 
 \item{enable_consensus}{Whether to enable consensus}
 
-\item{min_replicates}{Minimum replicates}
-
-\item{max_intensity_cv_percent}{CV threshold}
+\item{min_replicates}{Minimum replicates (NULL = linked to run count)}
 }
 \value{
 Data frame with consensus_metadata attribute

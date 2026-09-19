@@ -363,9 +363,10 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
     Value = c(
       format(s$n_raw, big.mark = ","),
       as.character(s$n_runs),
-      sprintf("%s (CV <= 30%%, filtered %s)",
+      sprintf("%s (detected in >= %d runs, filtered %s)",
               format(s$n_final, big.mark = ","),
-              format(s$n_filtered_cv, big.mark = ",")),
+              s$min_replicates,
+              format(s$n_filtered_replicates, big.mark = ",")),
       sprintf("%.1f \u2013 %.1f Da", s$mz_min, s$mz_max),
       sprintf("%.1f \u2013 %.1f min", s$rt_min, s$rt_max),
       sprintf("%.1f sec", s$fwhm_median_sec),

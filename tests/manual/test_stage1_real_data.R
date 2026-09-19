@@ -167,7 +167,6 @@ if (all_exist) {
     result <- create_validated_dataset(
       proteome_file = temp_file,
       enable_replicate_consensus = TRUE,
-      max_intensity_cv_percent = 30,
       quality_threshold = 0.7
     )
 
@@ -176,9 +175,9 @@ if (all_exist) {
     cat(sprintf("  - Precursors before consensus: %d\n",
                 result$metadata$n_precursors_before %||% nrow(combined_data)))
     cat(sprintf("  - Precursors after consensus: %d\n", result$metadata$n_precursors))
-    cat(sprintf("  - Filtered by CV: %d (%.1f%%)\n",
-                result$metadata$n_filtered_cv %||% 0,
-                100 * (result$metadata$n_filtered_cv %||% 0) /
+    cat(sprintf("  - Filtered below min replicates: %d (%.1f%%)\n",
+                result$metadata$n_filtered_replicates %||% 0,
+                100 * (result$metadata$n_filtered_replicates %||% 0) /
                   (result$metadata$n_precursors_before %||% 1)))
     cat(sprintf("  - Columns: %d (reduced %d%%)\n",
                 result$metadata$n_columns,

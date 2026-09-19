@@ -261,7 +261,7 @@ plot_boundary_ci_comparison(ci_a, ci_b)   # compare two methods
 ### Technical Replicate Handling
 
 Three methods in `R/replicate_utils.R`:
-1. **Consensus** (recommended): Median + geometric CV filtering (30% threshold)
+1. **Consensus** (recommended): Median + detection-frequency filter (`min_replicates`, default `ceiling(n_runs / 2)`). CV% columns are QC-only, never a filter
 2. **Average**: Arithmetic mean across replicates
 3. **Representative**: Select best quality run
 

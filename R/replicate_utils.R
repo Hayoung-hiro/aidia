@@ -101,22 +101,48 @@ geometric_cv <- function(x) {
 # Task 2.1.3: Consensus Dataset Calculation - GREEN Phase (Minimal Implementation)
 # ============================================================================
 
+#' Resolve the minimum detection count from the number of runs
+#'
+#' Window design needs precursors that are reproducibly present, not precisely
+#' quantified, so detection frequency is the only replicate filter. When
+#' `min_replicates` is NULL it is linked to the run count as
+#' `ceiling(n_runs / 2)` (1-2 runs -> 1, 3-4 runs -> 2, 5-6 runs -> 3).
+#'
+#' @param n_runs Number of runs in the dataset
+#' @param min_replicates Explicit override, or NULL to derive from `n_runs`
+#' @return Integer minimum number of runs a precursor must be detected in
+#' @keywords internal
+resolve_min_replicates <- function(n_runs, min_replicates = NULL) {
+  if (is.null(min_replicates)) {
+    return(max(1, ceiling(n_runs / 2)))
+  }
+  if (!is.numeric(min_replicates) || length(min_replicates) != 1 ||
+      min_replicates < 1 || min_replicates > n_runs) {
+    stop(sprintf("min_replicates must be a single number between 1 and n_runs (%d)",
+                 n_runs))
+  }
+  min_replicates
+}
+
 #' Calculate Consensus Dataset from Technical Replicates (CORRECTED)
 #'
-#' Creates a consensus dataset by taking median values across replicates
-#' and filtering based on intensity CV% (proteomics standard).
+#' Creates a consensus dataset by taking median values across replicates and
+#' keeping precursors detected in at least `min_replicates` runs. CV% values
+#' (RT, m/z, FWHM, intensity) are reported as QC columns but never filter rows:
+#' intensity CV tracks signal level, so filtering on it drops valid low-signal
+#' precursors that still occupy m/z-RT space.
 #'
 #' @param data Tibble with columns Precursor.Id, Run, RT.Start, Precursor.Mz, FWHM, Precursor.Quantity (optional)
-#' @param min_replicates Minimum number of replicates (default: 1)
-#' @param max_intensity_cv_percent Maximum intensity CV% threshold for filtering (default: 30)
+#' @param min_replicates Minimum number of runs a precursor must be detected in
+#'   (default: NULL = `ceiling(n_runs / 2)`, see `resolve_min_replicates()`)
 #' @return Tibble with consensus values and replicate statistics
 #' @export
-calculate_consensus_dataset <- function(data, min_replicates = 1,
-                                        max_intensity_cv_percent = 30) {
+calculate_consensus_dataset <- function(data, min_replicates = NULL) {
   n_before <- nrow(data)
 
   # Identify replicates
   rep_info <- identify_replicate_groups(data)
+  min_replicates <- resolve_min_replicates(rep_info$n_runs, min_replicates)
 
   # Check if intensity column exists
   has_intensity <- "Precursor.Quantity" %in% colnames(data)
@@ -188,19 +214,9 @@ calculate_consensus_dataset <- function(data, min_replicates = 1,
   consensus <- consensus_values %>%
     left_join(cv_stats, by = "Precursor.Id")
 
-  # Step 4: Intensity CV filtering (keep singletons)
-  # CRITICAL: Use intensity CV for filtering (proteomics standard), not FWHM CV
-  if (has_intensity) {
-    filtered <- consensus %>%
-      filter(
-        n_replicates >= min_replicates,
-        (n_replicates == 1 | is.na(Intensity_CV_pct) | Intensity_CV_pct <= max_intensity_cv_percent)
-      )
-  } else {
-    # If no intensity column, keep all precursors (no CV filtering)
-    filtered <- consensus %>%
-      filter(n_replicates >= min_replicates)
-  }
+  # Step 4: Detection-frequency filtering (CV columns are QC-only)
+  filtered <- consensus %>%
+    filter(n_replicates >= min_replicates)
 
   # Add metadata
   metadata_list <- list(
@@ -210,7 +226,8 @@ calculate_consensus_dataset <- function(data, min_replicates = 1,
     n_precursors_after = nrow(filtered),
     n_singleton = sum(filtered$n_replicates == 1),
     n_replicated = sum(filtered$n_replicates > 1),
-    n_filtered_cv = nrow(consensus) - nrow(filtered),
+    min_replicates = min_replicates,
+    n_filtered_replicates = nrow(consensus) - nrow(filtered),
     mean_rt_cv_pct = mean(filtered$RT_CV_pct, na.rm = TRUE),
     mean_fwhm_cv_pct = mean(filtered$FWHM_CV_pct, na.rm = TRUE)
   )

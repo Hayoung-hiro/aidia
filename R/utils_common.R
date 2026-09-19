@@ -217,7 +217,8 @@ get_fwhm_values <- function(validated_data, unit = "seconds") {
 #'
 #' @param validated_data ValidatedData object from Stage 1
 #'
-#' @return Named list with: n_raw, n_runs, n_final, n_filtered_cv,
+#' @return Named list with: n_raw, n_runs, n_final, min_replicates,
+#'   n_filtered_replicates,
 #'   mz_min, mz_max, rt_min, rt_max, fwhm_median_sec, fwhm_mean_sec,
 #'   fwhm_outlier_pct
 #' @export
@@ -241,8 +242,9 @@ compute_data_summary <- function(validated_data) {
     n_raw            = n_raw,
     n_runs           = n_runs,
     n_final          = n_final,
-    n_filtered_cv    = meta$n_filtered_cv %||% 0,
-    mz_min           = min(data$Precursor.Mz, na.rm = TRUE),
+    min_replicates   = meta$min_replicates %||% 1,
+    n_filtered_replicates = meta$n_filtered_replicates %||% 0,
+    mz_min          = min(data$Precursor.Mz, na.rm = TRUE),
     mz_max           = max(data$Precursor.Mz, na.rm = TRUE),
     rt_min           = min(data$RT.Apex, na.rm = TRUE),
     rt_max           = max(data$RT.Apex, na.rm = TRUE),

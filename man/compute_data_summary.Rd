@@ -10,7 +10,8 @@ compute_data_summary(validated_data)
 \item{validated_data}{ValidatedData object from Stage 1}
 }
 \value{
-Named list with: n_raw, n_runs, n_final, n_filtered_cv,
+Named list with: n_raw, n_runs, n_final, min_replicates,
+n_filtered_replicates,
 mz_min, mz_max, rt_min, rt_max, fwhm_median_sec, fwhm_mean_sec,
 fwhm_outlier_pct
 }

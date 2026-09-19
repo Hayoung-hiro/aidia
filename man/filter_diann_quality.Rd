@@ -10,8 +10,6 @@ filter_diann_quality(
   lib_q_value_threshold = 0.01,
   global_q_value_threshold = 0.01,
   pg_q_value_threshold = 0.05,
-  quantity_quality_threshold = 0.5,
-  pg_maxlfq_quality_threshold = 0.7,
   channel_q_value_threshold = NULL,
   apply_empirical_lib_filter = TRUE
 )
@@ -27,10 +25,6 @@ filter_diann_quality(
 
 \item{pg_q_value_threshold}{PG.Q.Value threshold (default: 0.05)}
 
-\item{quantity_quality_threshold}{Quantity.Quality threshold (default: 0.5, NULL to skip)}
-
-\item{pg_maxlfq_quality_threshold}{PG.MaxLFQ.Quality threshold (default: 0.7, NULL to skip)}
-
 \item{channel_q_value_threshold}{Channel.Q.Value threshold for plexDIA (default: NULL)}
 
 \item{apply_empirical_lib_filter}{Apply Global Q-value filters (FALSE if using empirical library from same samples)}
@@ -39,5 +33,9 @@ filter_diann_quality(
 Filtered data frame
 }
 \description{
-Apply DIA-NN quality filters based on official guidelines
+Only identification-confidence (q-value) filters are applied. AIDIA needs
+to know whether a precursor is present at a given m/z-RT, not how well it is
+quantified, so quantification-quality metrics (Quantity.Quality,
+PG.MaxLFQ.Quality) and peptidoform q-values are intentionally not used:
+they bias against low-signal precursors that still occupy m/z-RT space.
 }

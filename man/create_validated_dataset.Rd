@@ -11,8 +11,7 @@ create_validated_dataset(
   mz_range = NULL,
   enable_raw_metadata = FALSE,
   enable_replicate_consensus = TRUE,
-  min_replicates = 1,
-  max_intensity_cv_percent = 30,
+  min_replicates = NULL,
   quality_threshold = 0.8,
   apply_quality_filters = TRUE,
   ...
@@ -31,9 +30,8 @@ create_validated_dataset(
 
 \item{enable_replicate_consensus}{Enable technical replicate consensus handling (default: TRUE)}
 
-\item{min_replicates}{Minimum number of replicates to keep (default: 1)}
-
-\item{max_intensity_cv_percent}{Maximum intensity CV\% threshold for filtering (default: 30)}
+\item{min_replicates}{Minimum number of runs a precursor must be detected in
+(default: NULL = linked to run count, \code{ceiling(n_runs / 2)})}
 
 \item{quality_threshold}{Minimum quality score 0-1 (default: 0.8)}
 

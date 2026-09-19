@@ -144,8 +144,8 @@ test_that("calculate_consensus_dataset handles replicates with intensity", {
     Precursor.Quantity = c(1e5, 1.1e5, 1.05e5, 2e5, 3e5)  # Added intensity
   )
 
-  # Act
-  result <- calculate_consensus_dataset(test_data)
+  # Act - explicit min_replicates = 1 keeps singletons
+  result <- calculate_consensus_dataset(test_data, min_replicates = 1)
 
   # Assert - P1 (n=3)
   p1 <- result %>% filter(Precursor.Id == "P1")
@@ -166,24 +166,55 @@ test_that("calculate_consensus_dataset handles replicates with intensity", {
   expect_true(is.na(p3$Intensity_CV_pct))  # Singleton intensity CV = NA
 })
 
-test_that("calculate_consensus_dataset filters high intensity CV precursors", {
-  # Arrange - Create data with high intensity CV for P2
+test_that("calculate_consensus_dataset keeps high intensity CV precursors", {
+  # Arrange - P2 has a 5x intensity spread (low-signal-like behaviour)
   test_data <- tibble(
     Precursor.Id = c("P1", "P1", "P2", "P2"),
     Run = c("R1", "R2", "R1", "R2"),
     RT.Start = c(10.0, 10.1, 20.0, 20.1),
     Precursor.Mz = c(400, 401, 500, 501),
     FWHM = c(0.5, 0.52, 0.5, 0.52),
-    Precursor.Quantity = c(1e5, 1.05e5, 1e5, 5e5)  # P2 has huge intensity variation (5x difference)
+    Precursor.Quantity = c(1e5, 1.05e5, 1e5, 5e5)
   )
 
-  # Act - Use max_intensity_cv_percent parameter
-  result <- calculate_consensus_dataset(test_data, max_intensity_cv_percent = 30)
+  # Act
+  result <- calculate_consensus_dataset(test_data)
 
-  # Assert - P2 should be filtered out due to high intensity CV
-  expect_equal(nrow(result), 1)  # Only P1 remains
-  expect_true("P1" %in% result$Precursor.Id)
-  expect_false("P2" %in% result$Precursor.Id)
+  # Assert - intensity CV is reported as QC but never used as a filter
+  expect_setequal(result$Precursor.Id, c("P1", "P2"))
+  expect_gt(result$Intensity_CV_pct[result$Precursor.Id == "P2"], 30)
+})
+
+test_that("resolve_min_replicates scales with run count", {
+  expect_equal(resolve_min_replicates(1), 1)
+  expect_equal(resolve_min_replicates(2), 1)
+  expect_equal(resolve_min_replicates(3), 2)
+  expect_equal(resolve_min_replicates(4), 2)
+  expect_equal(resolve_min_replicates(5), 3)
+  # Explicit value wins over the run-count rule
+  expect_equal(resolve_min_replicates(3, min_replicates = 1), 1)
+  expect_error(resolve_min_replicates(3, min_replicates = 4), "min_replicates")
+  expect_error(resolve_min_replicates(3, min_replicates = 0), "min_replicates")
+})
+
+test_that("calculate_consensus_dataset links min_replicates to run count by default", {
+  # Arrange - 3 runs: P1 in 3, P2 in 2, P3 in 1
+  test_data <- tibble(
+    Precursor.Id = c("P1", "P1", "P1", "P2", "P2", "P3"),
+    Run = c("R1", "R2", "R3", "R1", "R2", "R3"),
+    RT.Start = c(10.0, 10.2, 10.1, 20.0, 20.1, 30.0),
+    Precursor.Mz = c(400, 400, 400, 500, 500, 600),
+    FWHM = c(0.5, 0.55, 0.52, 0.6, 0.6, 0.45)
+  )
+
+  # Act
+  result <- calculate_consensus_dataset(test_data)
+  meta <- attr(result, "metadata")
+
+  # Assert - 3 runs -> detected in >= 2 runs
+  expect_setequal(result$Precursor.Id, c("P1", "P2"))
+  expect_equal(meta$min_replicates, 2)
+  expect_equal(meta$n_filtered_replicates, 1)
 })
 
 test_that("calculate_consensus_dataset works without intensity column", {
@@ -204,22 +235,3 @@ test_that("calculate_consensus_dataset works without intensity column", {
   expect_false("Intensity_CV_pct" %in% colnames(result))  # No intensity CV column
 })
 
-test_that("calculate_consensus_dataset keeps singletons regardless of CV threshold", {
-  # Arrange
-  test_data <- tibble(
-    Precursor.Id = c("P1", "P1", "P2"),
-    Run = c("R1", "R2", "R1"),
-    RT.Start = c(10.0, 50.0, 30.0),  # P1 has huge CV
-    Precursor.Mz = c(400, 401, 600),
-    FWHM = c(0.5, 50.0, 0.45),  # P1 has huge CV
-    Precursor.Quantity = c(1e5, 5e6, 3e5)  # P1 has huge intensity CV (50x difference)
-  )
-
-  # Act - Very strict intensity CV threshold
-  result <- calculate_consensus_dataset(test_data, max_intensity_cv_percent = 5)
-
-  # Assert - P2 (singleton) should be kept despite strict threshold
-  p2 <- result %>% filter(Precursor.Id == "P2")
-  expect_equal(nrow(p2), 1)
-  expect_equal(p2$n_replicates, 1)
-})

@@ -241,9 +241,7 @@ build_config_interactive <- function() {
   config$input_data <- list(
     input_files = input_files,
     current_cycle_time = current_cycle_time,
-    enable_replicate_consensus = enable_replicate,
-    min_replicates = 1,
-    max_intensity_cv_percent = 30
+    enable_replicate_consensus = enable_replicate
   )
 
   # =========================================================================

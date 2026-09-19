@@ -115,13 +115,17 @@ load_diann_data <- function(file_path, rt_min = 0, rt_max = NULL,
 
 #' Apply DIA-NN quality filters based on official guidelines
 #'
+#' Only identification-confidence (q-value) filters are applied. AIDIA needs
+#' to know whether a precursor is present at a given m/z-RT, not how well it is
+#' quantified, so quantification-quality metrics (Quantity.Quality,
+#' PG.MaxLFQ.Quality) and peptidoform q-values are intentionally not used:
+#' they bias against low-signal precursors that still occupy m/z-RT space.
+#'
 #' @param data Data frame with DIA-NN data
 #' @param q_value_threshold Q.Value threshold (default: 0.01)
 #' @param lib_q_value_threshold Lib.Q.Value threshold (default: 0.01)
 #' @param global_q_value_threshold Global.Q.Value threshold (default: 0.01)
 #' @param pg_q_value_threshold PG.Q.Value threshold (default: 0.05)
-#' @param quantity_quality_threshold Quantity.Quality threshold (default: 0.5, NULL to skip)
-#' @param pg_maxlfq_quality_threshold PG.MaxLFQ.Quality threshold (default: 0.7, NULL to skip)
 #' @param channel_q_value_threshold Channel.Q.Value threshold for plexDIA (default: NULL)
 #' @param apply_empirical_lib_filter Apply Global Q-value filters (FALSE if using empirical library from same samples)
 #' @return Filtered data frame
@@ -130,8 +134,6 @@ filter_diann_quality <- function(data,
                                 lib_q_value_threshold = 0.01,
                                 global_q_value_threshold = 0.01,
                                 pg_q_value_threshold = 0.05,
-                                quantity_quality_threshold = 0.5,
-                                pg_maxlfq_quality_threshold = 0.7,
                                 channel_q_value_threshold = NULL,
                                 apply_empirical_lib_filter = TRUE) {
 
@@ -180,20 +182,7 @@ filter_diann_quality <- function(data,
     }
   }
 
-  # 5. Peptidoform Q-value filters (for Peptidoforms scoring mode)
-  for (pep_col in c("Lib.Peptidoform.Q.Value", "Global.Peptidoform.Q.Value")) {
-    if (pep_col %in% names(data) && !is.null(global_q_value_threshold)) {
-      # Apply Global.Peptidoform.Q.Value only if not using empirical library
-      if (pep_col == "Global.Peptidoform.Q.Value" && !apply_empirical_lib_filter) next
-
-      before <- nrow(data)
-      data <- data %>% filter(.data[[pep_col]] <= global_q_value_threshold)
-      cat(sprintf("%s <= %.3f: %d -> %d (removed %d)\n",
-                  pep_col, global_q_value_threshold, before, nrow(data), before - nrow(data)))
-    }
-  }
-
-  # 6. PG.Q.Value filter (typically 0.01-0.05)
+  # 5. PG.Q.Value filter (typically 0.01-0.05)
   if ("PG.Q.Value" %in% names(data) && !is.null(pg_q_value_threshold)) {
     before <- nrow(data)
     data <- data %>% filter(PG.Q.Value <= pg_q_value_threshold)
@@ -201,30 +190,12 @@ filter_diann_quality <- function(data,
                 pg_q_value_threshold, before, nrow(data), before - nrow(data)))
   }
 
-  # 7. Channel Q-value filter for multiplexed (plexDIA) data
+  # 6. Channel Q-value filter for multiplexed (plexDIA) data
   if ("Channel.Q.Value" %in% names(data) && !is.null(channel_q_value_threshold)) {
     before <- nrow(data)
     data <- data %>% filter(Channel.Q.Value <= channel_q_value_threshold)
     cat(sprintf("Channel.Q.Value <= %.3f: %d -> %d (removed %d)\n",
                 channel_q_value_threshold, before, nrow(data), before - nrow(data)))
-  }
-
-  # Optional quality filters (for QuantUMS)
-
-  # 8. Quantity Quality filter
-  if ("Quantity.Quality" %in% names(data) && !is.null(quantity_quality_threshold)) {
-    before <- nrow(data)
-    data <- data %>% filter(Quantity.Quality >= quantity_quality_threshold)
-    cat(sprintf("Quantity.Quality >= %.1f: %d -> %d (removed %d)\n",
-                quantity_quality_threshold, before, nrow(data), before - nrow(data)))
-  }
-
-  # 9. PG MaxLFQ Quality filter
-  if ("PG.MaxLFQ.Quality" %in% names(data) && !is.null(pg_maxlfq_quality_threshold)) {
-    before <- nrow(data)
-    data <- data %>% filter(PG.MaxLFQ.Quality >= pg_maxlfq_quality_threshold)
-    cat(sprintf("PG.MaxLFQ.Quality >= %.1f: %d -> %d (removed %d)\n",
-                pg_maxlfq_quality_threshold, before, nrow(data), before - nrow(data)))
   }
 
   final_rows <- nrow(data)
@@ -253,10 +224,14 @@ validate_data <- function(data, apply_quality_filters = TRUE, ...) {
     data <- filter_diann_quality(data, ...)
   }
 
-  # Remove duplicates based on precursor m/z and RT
+  # Remove duplicates based on precursor m/z and RT, within each run.
+  # Precursor.Mz is theoretical (identical across runs), so without Run in the
+  # key a coincident RT.Start in two runs would drop a real detection and
+  # undercount n_replicates in the downstream consensus.
   before_dedup <- nrow(data)
+  dedup_keys <- intersect(c("Run", "Precursor.Mz", "RT.Start"), names(data))
   data <- data %>%
-    distinct(Precursor.Mz, RT.Start, .keep_all = TRUE)
+    distinct(across(all_of(dedup_keys)), .keep_all = TRUE)
 
   if (nrow(data) < before_dedup) {
     cat(sprintf("Removed %d duplicate precursors\n", before_dedup - nrow(data)))

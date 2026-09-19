@@ -22,8 +22,8 @@
 #' @param mz_range m/z filtering range c(min, max) in Da (optional)
 #' @param enable_raw_metadata Whether to attempt raw file metadata extraction (default: FALSE)
 #' @param enable_replicate_consensus Enable technical replicate consensus handling (default: TRUE)
-#' @param min_replicates Minimum number of replicates to keep (default: 1)
-#' @param max_intensity_cv_percent Maximum intensity CV% threshold for filtering (default: 30)
+#' @param min_replicates Minimum number of runs a precursor must be detected in
+#'   (default: NULL = linked to run count, `ceiling(n_runs / 2)`)
 #' @param quality_threshold Minimum quality score 0-1 (default: 0.8)
 #' @param apply_quality_filters Apply DIA-NN Q-value filters (default: TRUE)
 #' @param ... Additional arguments passed to filter_diann_quality()
@@ -37,8 +37,7 @@ create_validated_dataset <- function(
   mz_range = NULL,
   enable_raw_metadata = FALSE,
   enable_replicate_consensus = TRUE,
-  min_replicates = 1,
-  max_intensity_cv_percent = 30,
+  min_replicates = NULL,
   quality_threshold = 0.8,
   apply_quality_filters = TRUE,
   ...
@@ -54,8 +53,7 @@ create_validated_dataset <- function(
   # Early validation (fail-fast)
   validate_input_parameters(
     proteome_file = proteome_file,
-    quality_threshold = quality_threshold,
-    max_intensity_cv_percent = max_intensity_cv_percent
+    quality_threshold = quality_threshold
   )
 
   # Pipeline Step 1: Load data
@@ -98,8 +96,7 @@ create_validated_dataset <- function(
   processed_data <- loaded_data$data %>%
     handle_technical_replicates(
       enable_consensus = enable_replicate_consensus,
-      min_replicates = min_replicates,
-      max_intensity_cv_percent = max_intensity_cv_percent
+      min_replicates = min_replicates
     ) %>%
     select_essential_columns_pipeline(verbose = TRUE)
 
@@ -159,8 +156,7 @@ create_validated_dataset <- function(
 #'
 #' @param proteome_file File path
 #' @param quality_threshold Quality threshold
-#' @param max_intensity_cv_percent CV threshold
-validate_input_parameters <- function(proteome_file, quality_threshold, max_intensity_cv_percent) {
+validate_input_parameters <- function(proteome_file, quality_threshold) {
 
   # Check file exists
   if (!file.exists(proteome_file)) {
@@ -179,10 +175,6 @@ validate_input_parameters <- function(proteome_file, quality_threshold, max_inte
   # Check thresholds
   if (quality_threshold < 0 || quality_threshold > 1) {
     stop("quality_threshold must be between 0 and 1")
-  }
-
-  if (max_intensity_cv_percent <= 0 || max_intensity_cv_percent > 100) {
-    stop("max_intensity_cv_percent must be between 0 and 100")
   }
 }
 
@@ -352,14 +344,12 @@ load_optional_raw_metadata <- function(enable, raw_file_dir) {
 #'
 #' @param data Input data frame
 #' @param enable_consensus Whether to enable consensus
-#' @param min_replicates Minimum replicates
-#' @param max_intensity_cv_percent CV threshold
+#' @param min_replicates Minimum replicates (NULL = linked to run count)
 #' @return Data frame with consensus_metadata attribute
 handle_technical_replicates <- function(
   data,
   enable_consensus,
-  min_replicates,
-  max_intensity_cv_percent
+  min_replicates = NULL
 ) {
 
   cat("\nStep 4: Checking for technical replicates...\n")
@@ -383,21 +373,22 @@ handle_technical_replicates <- function(
   }
 
   # Apply consensus
-  cat(sprintf("  -> Creating consensus dataset (max intensity CV: %d%%)...\n", max_intensity_cv_percent))
+  min_replicates <- resolve_min_replicates(n_runs, min_replicates)
+  cat(sprintf("  -> Creating consensus dataset (detected in >= %d of %d runs)...\n",
+              min_replicates, n_runs))
 
   consensus_data <- calculate_consensus_dataset(
     data,
-    min_replicates = min_replicates,
-    max_intensity_cv_percent = max_intensity_cv_percent
+    min_replicates = min_replicates
   )
 
   # Extract and attach metadata
   consensus_meta <- attr(consensus_data, "metadata") %||% list(n_runs = n_runs)
 
-  cat(sprintf("  OK Consensus: %d -> %d precursors (filtered %d by CV)\n",
+  cat(sprintf("  OK Consensus: %d -> %d precursors (filtered %d below min replicates)\n",
               consensus_meta$n_precursors_before %||% nrow(data),
               consensus_meta$n_precursors_after %||% nrow(consensus_data),
-              consensus_meta$n_filtered_cv %||% 0))
+              consensus_meta$n_filtered_replicates %||% 0))
 
   attr(consensus_data, "consensus_metadata") <- consensus_meta
 

@@ -29,8 +29,7 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
       cat("[Shiny] Starting create_validated_dataset()...\n")
       rv$validated_data <- create_validated_dataset(
         proteome_file = file_path,
-        enable_replicate_consensus = TRUE,
-        max_intensity_cv_percent = 30
+        enable_replicate_consensus = TRUE
       )
       cat("[Shiny] create_validated_dataset() completed!\n")
 

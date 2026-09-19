@@ -51,7 +51,6 @@ test_that("create_validated_dataset handles replicates when enabled", {
   result <- create_validated_dataset(
     proteome_file = temp_file,
     enable_replicate_consensus = TRUE,
-    max_intensity_cv_percent = 30,  # Changed parameter name
     apply_quality_filters = FALSE  # Skip quality filters for test
   )
 
@@ -134,4 +133,40 @@ test_that("create_validated_dataset can disable replicate handling", {
 
   # Cleanup
   unlink(temp_file)
+})
+
+# ============================================================================
+# Run-aware deduplication
+# ============================================================================
+
+test_that("validate_data dedup is run-aware", {
+  # Arrange - P1 has an identical (Precursor.Mz, RT.Start) in R1 and R2;
+  # R3 additionally carries a true within-run duplicate row.
+  test_data <- tibble::tibble(
+    Precursor.Id = c("P1", "P1", "P1", "P1"),
+    Run          = c("R1", "R2", "R3", "R3"),
+    Precursor.Mz = c(523.774, 523.774, 523.774, 523.774),
+    RT.Start     = c(41.25, 41.25, 41.31, 41.31),
+    FWHM         = c(0.10, 0.11, 0.10, 0.10)
+  )
+
+  # Act
+  result <- validate_data(test_data, apply_quality_filters = FALSE)
+
+  # Assert - cross-run coincidence is kept, within-run duplicate is removed
+  expect_equal(nrow(result), 3)
+  expect_setequal(result$Run, c("R1", "R2", "R3"))
+})
+
+test_that("validate_data dedup works without a Run column", {
+  test_data <- tibble::tibble(
+    Precursor.Id = c("P1", "P1", "P2"),
+    Precursor.Mz = c(400, 400, 500),
+    RT.Start     = c(10, 10, 20),
+    FWHM         = c(0.1, 0.1, 0.1)
+  )
+
+  result <- validate_data(test_data, apply_quality_filters = FALSE)
+
+  expect_equal(nrow(result), 2)
 })
