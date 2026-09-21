@@ -7,7 +7,8 @@
 plot_precursor_load_balance(
   optimized_windows,
   validated_data,
-  optimization_plan = NULL
+  optimization_plan = NULL,
+  aggregate_rt = FALSE
 )
 }
 \arguments{
@@ -16,13 +17,15 @@ plot_precursor_load_balance(
 \item{validated_data}{ValidatedData object from Stage 1}
 
 \item{optimization_plan}{OptimizationPlan object from Stage 2 (optional, for baseline)}
+
+\item{aggregate_rt}{Logical; pool per-window loads across RT groups for display.}
 }
 \value{
 ggplot object
 }
 \description{
 Shows precursor count per window across RT segments with IQR crossbar,
-individual window points, and a high-load threshold band (>2x mean).
-Lower CV = more uniform distribution of precursors across windows.
+individual window points, retaining empty windows. Lower within-group CV
+indicates more uniform load; pooled CV also reflects differences across RT.
 }
 \keyword{internal}

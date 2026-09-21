@@ -144,6 +144,24 @@ calculate_loop_n <- function(windows) {
 # Single Strategy CSV Export
 # =============================================================================
 
+# Shared delivered geometry for Thermo export and its on-screen review. Keep
+# rounding here so the display uses the same boundaries as the instrument file.
+.prepare_thermo_windows <- function(windows, fill_void = FALSE,
+                                    acquisition_start_min = 0,
+                                    acquisition_end_min = NULL) {
+  schedule <- .compute_contiguous_rt_schedule(windows,
+    acquisition_start_min = acquisition_start_min,
+    acquisition_end_min = acquisition_end_min, fill_void = fill_void)
+  windows$rt_start <- schedule$t_start
+  windows$rt_end <- schedule$t_stop
+  center <- windows[["mz_center"]] %||% ((windows$mz_start + windows$mz_end) / 2)
+  windows$mz_center <- round(center, 4)
+  windows$window_width <- round(windows$mz_end - windows$mz_start, 4)
+  windows$mz_start <- windows$mz_center - windows$window_width / 2
+  windows$mz_end <- windows$mz_center + windows$window_width / 2
+  windows
+}
+
 #' Export Windows to CSV for Instrument Upload
 #'
 #' Creates an instrument-ready CSV file in the 8-column Thermo Xcalibur Targeted
@@ -208,7 +226,7 @@ export_windows_to_csv <- function(optimized_windows, output_file,
 
   # Contiguous RT schedule. Adjacent segments always tile gap-free via midpoints;
   # fill_void additionally extends the edges to the full acquisition window.
-  rt_schedule <- .compute_contiguous_rt_schedule(
+  delivered_windows <- .prepare_thermo_windows(
     windows_with_counts,
     acquisition_start_min = acquisition_start_min,
     acquisition_end_min   = acquisition_end_min,
@@ -220,16 +238,16 @@ export_windows_to_csv <- function(optimized_windows, output_file,
   # NOTE: Compound is read from the pre-built .compound column (never a bare
   # `if (is_staggered)` inside mutate() — `is_staggered` is also a data column
   # on staggered windows, which would shadow the scalar and break the if()).
-  method_file <- windows_with_counts %>%
+  method_file <- delivered_windows %>%
     mutate(
       Compound = .compound,
       Formula = "",
       Adduct = "(no adduct)",
       `m/z` = round(mz_center, 4),
       z = charge_state,
-      `t start (min)` = rt_schedule$t_start,
-      `t stop (min)`  = rt_schedule$t_stop,
-      `Isolation Window (m/z)` = round(mz_end - mz_start, 4)
+      `t start (min)` = rt_start,
+      `t stop (min)`  = rt_end,
+      `Isolation Window (m/z)` = window_width
     )
 
   base_cols <- c("Compound", "Formula", "Adduct", "m/z", "z",

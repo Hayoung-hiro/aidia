@@ -1,3 +1,26 @@
+# aidia 0.5.1
+
+## Review & export improvements
+
+* Place downloads before detailed comparisons, with All formats (ZIP) beside
+  Download method. Use consistent disclosure styling and Review & export labels.
+* Show selected acquisition regions using the final Thermo export boundaries,
+  including contiguous RT groups and optional run-start/end extensions.
+* Compare estimated DPPP, cycles, MS1/MS2 scans, windows per cycle and mean width
+  over the same input report RT span. Keep comparisons tied to confirmed settings.
+* Reuse the report's precursor load balance view across RT groups or the whole
+  method. Include empty windows and use reproducible horizontal-only jitter.
+* Avoid warnings when optional rt_group labels are absent from precursor data.
+
+## Input filtering updates from main
+
+* Filter precursor inputs by identification confidence and replicate presence.
+  Default minimum replicate presence is half the run count, rounded up;
+  deduplication now preserves observations from separate runs.
+* Removed arguments: max_intensity_cv_percent, quantity_quality_threshold and
+  pg_maxlfq_quality_threshold. Intensity CV remains available as a QC statistic.
+  Update callers that explicitly pass these arguments.
+
 # aidia 0.5.0
 
 ## Shiny workflow and UX improvements

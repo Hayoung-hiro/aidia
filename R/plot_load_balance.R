@@ -3,7 +3,7 @@
 #
 # Purpose: Visualize how evenly precursors are distributed across isolation
 #          windows within each RT segment. Shows IQR band per RT segment
-#          with individual window points and a high-load threshold band.
+#          with individual window points, including empty windows.
 #
 # Dependencies: ggplot2, dplyr
 
@@ -11,17 +11,18 @@
 #' Plot Precursor Load Balance Across Windows
 #'
 #' Shows precursor count per window across RT segments with IQR crossbar,
-#' individual window points, and a high-load threshold band (>2x mean).
-#' Lower CV = more uniform distribution of precursors across windows.
+#' individual window points, retaining empty windows. Lower within-group CV
+#' indicates more uniform load; pooled CV also reflects differences across RT.
 #'
 #' @param optimized_windows OptimizedWindows object from Stage 3
 #' @param validated_data ValidatedData object from Stage 1
 #' @param optimization_plan OptimizationPlan object from Stage 2 (optional, for baseline)
+#' @param aggregate_rt Logical; pool per-window loads across RT groups for display.
 #'
 #' @return ggplot object
 #' @keywords internal
 plot_precursor_load_balance <- function(optimized_windows, validated_data,
-                                        optimization_plan = NULL) {
+                                        optimization_plan = NULL, aggregate_rt = FALSE) {
 
   cat("  Generating Plot 16: Precursor Load Balance...\n")
 
@@ -29,14 +30,7 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data,
   precursor_data <- validated_data$data
 
   # Count precursors per window using 2D matching
-  counts <- count_precursors_in_2d_windows(
-    precursor_rt  = precursor_data$RT.Apex,
-    precursor_mz  = precursor_data$Precursor.Mz,
-    window_rt_start = windows$rt_start,
-    window_rt_end   = windows$rt_end,
-    window_mz_start = windows$mz_start,
-    window_mz_end   = windows$mz_end
-  )
+  counts <- calculate_precursors_per_window(windows, precursor_data)$n_precursors
 
   # Build data frame
   df <- data.frame(
@@ -44,12 +38,14 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data,
     precursor_count = counts
   )
 
-  if (nrow(df) < 2) {
+  if (nrow(df) < 1) {
     return(create_insufficient_data_plot(
       title = "Precursor Load Balance",
-      message = "Insufficient data\n(need at least 2 windows)"
+      message = "No windows available"
     ))
   }
+
+  if (aggregate_rt) df$rt_segment_id <- 1L
 
   # Calculate per-segment stats
   segment_stats <- df %>%
@@ -67,7 +63,7 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data,
 
   # Overall stats
   overall_mean <- mean(df$precursor_count)
-  overall_cv <- sd(df$precursor_count) / overall_mean
+  overall_cv <- if (overall_mean > 0) sd(df$precursor_count) / overall_mean else NA_real_
 
   # ---- Baseline: equal-width window load per RT bin ----
   n_bins <- length(unique(windows$rt_segment_id))
@@ -82,19 +78,13 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data,
     naive_windows <- .fixed_baseline_windows(optimization_plan, optimized_windows)
     if (is.null(naive_windows) || nrow(naive_windows) < 1) stop("Original method settings unavailable")
 
-    naive_counts <- count_precursors_in_2d_windows(
-      precursor_rt    = precursor_data$RT.Apex,
-      precursor_mz    = precursor_data$Precursor.Mz,
-      window_rt_start = naive_windows$rt_start,
-      window_rt_end   = naive_windows$rt_end,
-      window_mz_start = naive_windows$mz_start,
-      window_mz_end   = naive_windows$mz_end
-    )
+    naive_counts <- calculate_precursors_per_window(naive_windows, precursor_data)$n_precursors
 
     baseline_df <- data.frame(
       rt_segment_id   = naive_windows$rt_segment_id,
       precursor_count = naive_counts
     )
+    if (aggregate_rt) baseline_df$rt_segment_id <- 1L
     naive_mean <- mean(naive_counts)
     baseline_cv <- if (naive_mean > 0) sd(naive_counts) / naive_mean else NA
 
@@ -112,17 +102,15 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data,
     cat(sprintf("    [!] Baseline computation failed: %s\n", e$message))
   })
 
-  has_baseline <- !is.null(baseline_df) && !is.na(baseline_cv)
+  has_baseline <- !is.null(baseline_df) && nrow(baseline_df) > 0
 
-  # Build subtitle with baseline comparison
-  subtitle_text <- sprintf(
-    "Optimized CV: %.0f%%", overall_cv * 100
-  )
+  # Pooling CV mixes between-RT abundance differences with within-RT balance.
+  # Keep it descriptive and never turn it into an improvement/failure grade.
+  cv_text <- function(x) if (is.finite(x)) sprintf("%.0f%%", 100 * x) else "N/A"
+  subtitle_text <- paste("Pooled window-load CV:", cv_text(overall_cv))
   if (has_baseline) {
-    subtitle_text <- sprintf(
-      "Optimized CV: %.0f%% | Original fixed (%d windows/cycle) CV: %.0f%% | CV change: %+.1f pp",
-      overall_cv * 100, baseline_n_per_bin, baseline_cv * 100, (overall_cv - baseline_cv) * 100
-    )
+    subtitle_text <- sprintf("Pooled load CV: Original fixed (%d windows/cycle) %s | Optimized %s",
+      baseline_n_per_bin, cv_text(baseline_cv), cv_text(overall_cv))
   }
 
   # RT bin labels
@@ -164,11 +152,6 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data,
       "Baseline"  = aidia_colors$before_muted_dark,
       "Optimized" = aidia_colors$after_success
     )
-    group_point <- c(
-      "Baseline"  = aidia_colors$before_muted_dark,
-      "Optimized" = aidia_colors$primary
-    )
-
     p <- ggplot(combined_df, aes(x = rt_label, y = precursor_count, fill = group)) +
       geom_crossbar(
         data = combined_stats,
@@ -183,10 +166,10 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data,
         aes(color = group),
         size = 0.8,
         alpha = 0.4,
-        position = position_jitterdodge(jitter.width = 0.1, dodge.width = 0.6)
+        position = position_jitterdodge(jitter.width = 0.1, jitter.height = 0, dodge.width = 0.6, seed = 1)
       ) +
-      scale_fill_manual(values = group_colors, name = NULL) +
-      scale_color_manual(values = group_outline, name = NULL) +
+      scale_fill_manual(values = group_colors, name = NULL, labels = c(Baseline = "Original", Optimized = "Designed")) +
+      scale_color_manual(values = group_outline, name = NULL, labels = c(Baseline = "Original", Optimized = "Designed")) +
       scale_y_continuous(expand = expansion(mult = c(0.02, 0.1))) +
       labs(
         title = "Precursor Load Balance: Baseline vs Optimized",
@@ -236,6 +219,7 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data,
       )
   }
 
+  if (aggregate_rt) p <- p + scale_x_discrete(labels = "Whole method") + labs(x = NULL)
   return(p)
 }
 

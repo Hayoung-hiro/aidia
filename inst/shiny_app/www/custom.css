@@ -2055,3 +2055,21 @@ body.dark-mode a:hover {
 .workflow-has-error input.form-control, .workflow-has-error .selectize-input { border-color: #bc6b2c; }
 .workflow-has-error .irs-line { box-shadow: 0 0 0 1px #bc6b2c; }
 .workflow-has-error .btn-file { outline: 1px solid #bc6b2c; }
+
+/* Confirmed results: one question per disclosure, comparable plots within. */
+.results-comparison-key { display: flex; align-items: center; gap: 20px; padding: 4px 0 12px; font-size: 12px; color: var(--text-secondary); }
+.results-comparison-key > span::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #8da5b8; }
+.results-comparison-key > .comparison-designed::before { background: #188575; }
+.workflow-results .workflow-details > summary { display: flex; align-items: baseline; gap: 12px; width: 100%; list-style: none; font-size: 13px; font-weight: 400; line-height: 20px; color: var(--text-secondary); }
+.workflow-results .workflow-details > summary::-webkit-details-marker { display: none; }
+.workflow-results .workflow-details > summary::before { content: '\25b8'; flex-shrink: 0; width: 10px; color: var(--accent); }
+.workflow-results .workflow-details[open] > summary::before { content: '\25be'; }
+.workflow-download-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.results-comparison > summary > span:first-of-type { min-width: 190px; }
+.results-comparison > summary > .shiny-text-output { margin-left: auto; font-weight: 400; font-size: 12px; color: var(--text-secondary); }
+.results-comparison .workflow-subheading { margin-top: 14px; }
+.results-plot-note { margin: 0 0 10px; color: var(--text-secondary); font-size: 12px; }
+.workflow-results .workflow-summary-grid { padding-top: 14px; }
+.acquisition-tradeoffs table { width: 100%; margin: 0 0 10px; font-size: 13px; }
+.acquisition-tradeoffs th:not(:first-child), .acquisition-tradeoffs td:not(:first-child) { text-align: right; width: 19%; font-variant-numeric: tabular-nums; }
+.acquisition-tradeoffs td, .acquisition-tradeoffs th { padding: 8px 10px; }
