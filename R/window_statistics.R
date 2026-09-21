@@ -34,10 +34,12 @@ calculate_window_statistics_internal <- function(windows, precursor_data) {
 # also the evaluation test surface; callers never need to order separate counts
 # and coverage passes or decide whether an attached count is stale.
 .account_window_precursors <- function(windows, precursor_data) {
+  # Group labels are optional: exact extraction returns NULL for absent tibble
+  # columns, allowing the matcher to use RT bounds without a spurious warning.
   matched <- .match_precursors_in_2d_windows(
     precursor_data$RT.Apex, precursor_data$Precursor.Mz,
     windows$rt_start, windows$rt_end, windows$mz_start, windows$mz_end,
-    precursor_group = precursor_data$rt_group, window_group = windows$rt_segment_id
+    precursor_group = precursor_data[["rt_group"]], window_group = windows[["rt_segment_id"]]
   )
   windows$n_precursors <- matched$counts
   covered_precursors <- sum(matched$covered)
@@ -88,8 +90,8 @@ calculate_precursors_per_window <- function(windows, precursor_data) {
     window_rt_end = windows$rt_end,
     window_mz_start = windows$mz_start,
     window_mz_end = windows$mz_end,
-    precursor_group = precursor_data$rt_group,
-    window_group = windows$rt_segment_id
+    precursor_group = precursor_data[["rt_group"]],
+    window_group = windows[["rt_segment_id"]]
   )$counts
 
   windows

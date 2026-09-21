@@ -63,6 +63,7 @@ source("server_downloads.R", local = TRUE)
 source("optimization_workflow.R", local = TRUE)
 source("server_live_preview.R", local = TRUE)
 source("preview_display.R", local = TRUE)
+source("results_comparison.R", local = TRUE)
 
 # One bounded worker pool per app process, shared across sessions.
 # I(1) also uses a background process when configured with a single worker.
@@ -104,7 +105,7 @@ ui <- dashboardPage(
       id = "tabs",
       menuItem("1. Prepare data", tabName = "data", icon = icon("database")),
       menuItem("2. Configure windows", tabName = "setup", icon = icon("sliders-h")),
-      menuItem("3. Results & export", tabName = "results", icon = icon("chart-bar"))
+      menuItem("3. Review & export", tabName = "results", icon = icon("chart-bar"))
     ),
 
     hr(),

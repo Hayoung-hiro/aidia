@@ -50,10 +50,10 @@ test_that("generation, evaluation and comparison export agree at the top edge", 
 })
 
 test_that("accounting preserves merged-bin labels and uses half-open RT without labels", {
-  windows <- data.frame(rt_segment_id = c(1, 2), rt_start = c(0, 10),
+  windows <- tibble::tibble(rt_segment_id = c(1, 2), rt_start = c(0, 10),
                         rt_end = c(10, 20), mz_start = 400, mz_end = 500,
                         window_width = 100)
-  data <- data.frame(RT.Apex = c(10, 20, NA, 15),
+  data <- tibble::tibble(RT.Apex = c(10, 20, NA, 15),
                      Precursor.Mz = c(450, 500, 450, NA),
                      rt_group = c(1, NA, 2, 2))
   counted <- calculate_precursors_per_window(windows, data)
@@ -63,6 +63,38 @@ test_that("accounting preserves merged-bin labels and uses half-open RT without 
   expect_equal(calculate_precursors_per_window(windows, data)$n_precursors, c(0, 2))
   expect_equal(count_precursors_in_2d_windows(numeric(), numeric(), numeric(),
                                              numeric(), numeric(), numeric()), integer())
+})
+
+test_that("optional RT labels do not warn for ungrouped input tibbles", {
+  windows <- tibble::tibble(
+    rt_start = c(0, 2, 4), rt_end = c(2, 4, 6), rt_segment_id = 1:3,
+    mz_start = c(400, 600, 900), mz_end = c(430, 630, 930), window_width = 30
+  )
+  data <- tibble::tibble(
+    Precursor.Mz = c(410, 420, 610, 620, 910, 920),
+    RT.Apex = rep(c(1, 3, 5), each = 2), FWHM = 6
+  )
+  expect_no_warning(counted <- calculate_precursors_per_window(windows, data))
+  expect_equal(counted$n_precursors, c(2, 2, 2))
+  expect_no_warning(stats <- calculate_window_statistics_internal(windows, data))
+  expect_equal(stats$covered_precursors, 6)
+  expect_equal(stats$coverage_percentage, 100)
+
+  vd <- structure(list(data = data), class = "ValidatedData")
+  expect_no_warning(plot <- plot_precursors_per_window(
+    list(windows = windows), vd,
+    list(original_method = fixed_method_config(40))
+  ))
+  expect_equal(plot$data$n_precursors, c(2, 2, 2))
+  expect_match(plot$labels$subtitle, "original fixed: 40 windows/cycle")
+
+  # Explicit precursor labels alone cannot select the group-matching path.
+  windows$rt_segment_id <- NULL
+  data$rt_group <- c(3, 3, 1, 1, 2, 2)
+  expect_no_warning(counted <- calculate_precursors_per_window(windows, data))
+  expect_equal(counted$n_precursors, c(2, 2, 2))
+  expect_no_warning(stats <- calculate_window_statistics_internal(windows, data))
+  expect_equal(stats$covered_precursors, 6)
 })
 
 test_that("staggered cycles count repeated isolation but deduplicate coverage", {

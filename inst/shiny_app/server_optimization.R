@@ -139,6 +139,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   })
 
   server_live_preview(input, output, session, rv, cycle_time_result)
+  server_results_comparison(input, output, session, rv)
 
   # =========================================================================
   # RESULTS DISPLAY OUTPUTS (Step 3)
@@ -259,18 +260,18 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       } else if (deviation > 0) {
         tags$div(class = "text-muted", style = "font-size: 12px; margin-top: 2px;",
           icon("info-circle"),
-          sprintf(" Actual DPPP is %.0f%% higher than planned (fewer windows than estimated)", abs(deviation))
+          sprintf(" Estimated DPPP is %.0f%% higher than planned (fewer windows than estimated)", abs(deviation))
         )
       } else {
         tags$div(class = "text-muted", style = "font-size: 12px; margin-top: 2px;",
           icon("info-circle"),
-          sprintf(" Actual DPPP is %.0f%% lower than planned (more windows than estimated)", abs(deviation))
+          sprintf(" Estimated DPPP is %.0f%% lower than planned (more windows than estimated)", abs(deviation))
         )
       }
 
       tagList(
         tags$div(
-          tags$strong("Actual DPPP: "),
+          tags$strong("Est. DPPP: "),
           sprintf("%.1f ", dppp_v$actual_dppp_median),
           tags$span(badge_text, class = badge_class),
           if (!is.null(explanation)) .workflow_help("DPPP verification", explanation)
@@ -281,7 +282,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     }
 
     actual_ct_line <- if (!is.null(dppp_v)) {
-      tags$div(tags$strong("Actual Cycle: "), sprintf("%.3f sec", dppp_v$actual_cycle_time_sec))
+      tags$div(tags$strong("Est. cycle: "), sprintf("%.3f sec", dppp_v$actual_cycle_time_sec))
     } else {
       tags$div(tags$strong("Planned Cycle: "), sprintf("%.3f sec", plan$required_cycle_time_sec))
     }
@@ -297,90 +298,6 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       actual_ct_line,
       dppp_line
     )
-  })
-
-  # --- Output: Optimization Summary Table ---
-  output$optimization_summary <- renderTable({
-    req(rv$optimized_windows)
-
-    windows <- rv$optimized_windows$windows
-    plan <- rv$optimization_plan
-    params <- rv$optimized_windows$parameters
-
-    input <- rv$confirmed_run$settings
-
-    # Determine IT mode display
-    is_orbitrap <- is_orbitrap_instrument(input$instrument)
-    is_astral <- is_astral_instrument(input$instrument)
-
-    it_mode_display <- if (is_orbitrap) {
-      if (isTRUE(input$ms2_it_auto)) {
-        "Auto (Sweet Spot)"
-      } else {
-        sprintf("Custom (%d ms)", input$ms2_it_custom %||% 50)
-      }
-    } else if (is_astral) {
-      sprintf("%.1f ms", input$astral_ms2_it %||% 3)
-    } else {
-      "N/A (TOF)"
-    }
-
-    # Window width distribution
-    widths <- windows$window_width
-    width_sd <- sd(widths, na.rm = TRUE)
-    width_min <- min(widths, na.rm = TRUE)
-    width_max <- max(widths, na.rm = TRUE)
-    used_mode <- params$window_mode %||% "density"
-
-    # Build metrics dynamically (include DPPP verification if available)
-    metrics <- c(
-      "Total Windows",
-      "RT Bins",
-      "RT Bin Width (min)",
-      "Window Mode",
-      "IT Mode",
-      "Mean Width (Da)",
-      "Width Range (Da)",
-      "Width SD (Da)",
-      "Coverage (%)",
-      "Planned Cycle Time (sec)"
-    )
-    values <- c(
-      nrow(windows),
-      length(unique(windows$rt_segment_id)),
-      sprintf("%.1f", params$rt_bin_width_min),
-      used_mode,
-      it_mode_display,
-      sprintf("%.1f", mean(widths)),
-      sprintf("%.1f - %.1f", width_min, width_max),
-      sprintf("%.2f", width_sd),
-      sprintf("%.1f%%", rv$optimized_windows$statistics$coverage_percentage),
-      sprintf("%.2f", plan$required_cycle_time_sec)
-    )
-
-    # Add DPPP re-verification results if available
-    dppp_v <- rv$optimized_windows$dppp_verification
-    if (!is.null(dppp_v)) {
-      metrics <- c(metrics,
-        "Actual Cycle Time (sec)",
-        "Actual DPPP (median)",
-        "DPPP Deviation (%)"
-      )
-      deviation_str <- sprintf("%.1f%%", dppp_v$deviation_pct)
-      if (abs(dppp_v$deviation_pct) > 5) {
-        direction <- if (dppp_v$deviation_pct > 0) "higher" else "lower"
-        deviation_str <- sprintf("%s (%s than planned)", deviation_str, direction)
-      } else {
-        deviation_str <- paste(deviation_str, "(within 5% tolerance)")
-      }
-      values <- c(values,
-        sprintf("%.3f", dppp_v$actual_cycle_time_sec),
-        sprintf("%.2f", dppp_v$actual_dppp_median),
-        deviation_str
-      )
-    }
-
-    data.frame(Metric = metrics, Value = values)
   })
 
   # --- Output: m/z Range Summary (post-optimization) ---
@@ -473,11 +390,14 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   output$window_preview <- DT::renderDataTable({
     req(rv$optimized_windows)
 
-    windows <- rv$optimized_windows$windows
+    windows <- .shiny_delivered_windows(rv$optimized_windows$windows, .shiny_export_options(input))
+    precursors <- rv$validated_data$data
+    precursors$rt_group <- NULL
+    windows <- aidia:::calculate_precursors_per_window(windows, precursors)
     used_mode <- rv$optimized_windows$parameters$window_mode %||% "density"
 
     # Select key columns for preview (include is_staggered for staggered mode)
-    preview_cols <- c("rt_segment_id", "mz_start", "mz_end",
+    preview_cols <- c("rt_segment_id", "rt_start", "rt_end", "mz_start", "mz_end",
                       "window_width", "n_precursors")
     if (used_mode == "staggered") {
       if ("cycle" %in% colnames(windows)) preview_cols <- c(preview_cols, "cycle")
@@ -485,27 +405,22 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     }
 
     preview_data <- windows[, intersect(preview_cols, names(windows))]
+    labels <- c(rt_segment_id = "RT group", rt_start = "RT start (min)",
+        rt_end = "RT end (min)", mz_start = "m/z start", mz_end = "m/z end",
+        window_width = "Width (m/z)", n_precursors = "Input precursors",
+        cycle = "Cycle", is_staggered = "Staggered")
+    names(preview_data) <- unname(labels[names(preview_data)])
 
     DT::datatable(
       preview_data,
       options = list(
-        pageLength = 20,
+        pageLength = 10,
         scrollX = TRUE,
         dom = 'ltip'
       ),
       rownames = FALSE
     ) %>%
-      DT::formatRound(columns = c("mz_start", "mz_end", "window_width"), digits = 4)
-  })
-
-  # --- Precursors-per-Window Plot ---
-  output$plot_precursors_per_window <- renderPlot({
-    req(rv$optimized_windows, rv$validated_data, rv$optimization_plan)
-    plot_precursors_per_window(
-      optimized_windows = rv$optimized_windows,
-      validated_data = rv$validated_data,
-      optimization_plan = rv$optimization_plan
-    )
+      DT::formatRound(columns = c("m/z start", "m/z end", "Width (m/z)"), digits = 4)
   })
 
   # --- Cached evaluation result (avoid redundant evaluate_windows calls) ---
@@ -515,21 +430,6 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       evaluate_windows(rv$optimized_windows, rv$validated_data, rv$optimization_plan),
       error = function(e) NULL
     )
-  })
-
-  # --- Temporal Density Plot ---
-  output$plot_temporal_density <- renderPlot({
-    eval_result <- cached_evaluation()
-    if (is.null(eval_result)) {
-      return(create_insufficient_data_plot(
-        title = "Precursor Temporal Density",
-        message = "Evaluation data not available"
-      ))
-    }
-    baseline <- tryCatch(evaluate_fixed_method_baseline(
-      rv$validated_data, rv$optimization_plan, rv$optimized_windows
-    ), error = function(e) NULL)
-    plot_temporal_density(eval_result, baseline_density = baseline)
   })
 
   # --- Acquisition Capacity KPIs (v0.4.x) ---------------------------------
@@ -618,11 +518,9 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
       sprintf("%.0f%% vs original", diff_pct)
     }
 
-    # Color: based on whether DPPP target is achievable at this cycle time
-    # The optimizer already computed this — if we have results, the target IS met
-    # Show green (target met) with neutral context about the change
-    subtitle <- sprintf("Cycle Time (%s)", change_text)
-    color <- "success"
+    # Timing is context, not evidence that the sampling target was met.
+    subtitle <- sprintf("Est. cycle time (%s)", change_text)
+    color <- "primary"
     icon_name <- "clock"
 
     valueBox(
@@ -643,14 +541,14 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     # Color: based on target achievement
     if (!is.na(target_dppp) && new_dppp >= target_dppp) {
       color <- "success"
-      subtitle <- sprintf("Median DPPP (target %.1f met)", target_dppp)
+      subtitle <- sprintf("Est. median DPPP (target %.1f met)", target_dppp)
     } else if (!is.na(target_dppp) && new_dppp >= target_dppp * 0.9) {
       color <- "warning"
-      subtitle <- sprintf("Median DPPP (%.0f%% of target %.1f)",
+      subtitle <- sprintf("Est. median DPPP (%.0f%% of target %.1f)",
                           new_dppp / target_dppp * 100, target_dppp)
     } else {
       color <- "danger"
-      subtitle <- sprintf("Median DPPP (target %.1f not met)", target_dppp %||% 0)
+      subtitle <- sprintf("Est. median DPPP (target %.1f not met)", target_dppp %||% 0)
     }
 
     valueBox(
@@ -671,7 +569,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
     # Determine display value — staggered mode shows Loop N prominently
     vb_value <- n_per_bin
-    vb_subtitle <- sprintf("%d per bin (%d total)", n_per_bin, n_total)
+    vb_subtitle <- sprintf("Windows / RT group (%d total)", n_total)
 
     if (used_mode == "staggered") {
       loop_n <- cached_loop_n()
