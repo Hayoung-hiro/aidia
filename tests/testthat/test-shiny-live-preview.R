@@ -2,10 +2,10 @@
   env <- new.env(parent = environment())
   for (name in getNamespaceExports("shiny")) env[[name]] <- getExportedValue("shiny", name)
   env$updateTabItems <- function(...) NULL
-  sys.source(test_path("..", "..", "inst", "shiny_app", "server_navigation.R"), env)
-  sys.source(test_path("..", "..", "inst", "shiny_app", "optimization_workflow.R"), env)
-  sys.source(test_path("..", "..", "inst", "shiny_app", "server_live_preview.R"), env)
-  sys.source(test_path("..", "..", "inst", "shiny_app", "preview_display.R"), env)
+  sys.source(system.file("shiny_app", "server_navigation.R", package = "aidia", mustWork = TRUE), env)
+  sys.source(system.file("shiny_app", "optimization_workflow.R", package = "aidia", mustWork = TRUE), env)
+  sys.source(system.file("shiny_app", "server_live_preview.R", package = "aidia", mustWork = TRUE), env)
+  sys.source(system.file("shiny_app", "preview_display.R", package = "aidia", mustWork = TRUE), env)
   env
 }
 

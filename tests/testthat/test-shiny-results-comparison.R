@@ -1,7 +1,7 @@
 .results_env <- function() {
   env <- new.env(parent = environment())
-  sys.source(test_path("..", "..", "inst", "shiny_app", "results_comparison.R"), env)
-  sys.source(test_path("..", "..", "inst", "shiny_app", "server_downloads.R"), env)
+  sys.source(system.file("shiny_app", "results_comparison.R", package = "aidia", mustWork = TRUE), env)
+  sys.source(system.file("shiny_app", "server_downloads.R", package = "aidia", mustWork = TRUE), env)
   env
 }
 

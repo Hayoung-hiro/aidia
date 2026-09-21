@@ -79,7 +79,7 @@ test_that("Shiny downloads use completed naming and the same live export choices
   env$downloadHandler <- function(filename, content) list(filename = filename, content = content)
   env$req <- shiny::req
   env$showNotification <- env$removeNotification <- function(...) NULL
-  sys.source(test_path("..", "..", "inst", "shiny_app", "server_downloads.R"), env)
+  sys.source(system.file("shiny_app", "server_downloads.R", package = "aidia", mustWork = TRUE), env)
   input <- list2env(list(instrument = "astral", mz_strategy = "greedy",
     window_mode = "fixed", rt_binning_mode = "fixed", sample_name = "sample",
     export_format = "thermo", fill_void = TRUE, acquisition_end_min = 40))

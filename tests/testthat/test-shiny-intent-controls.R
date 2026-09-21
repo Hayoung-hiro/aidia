@@ -2,7 +2,7 @@
   env <- new.env(parent = environment())
   for (name in getNamespaceExports("shiny")) env[[name]] <- getExportedValue("shiny", name)
   for (file in c("server_navigation.R", "server_optimization.R", "optimization_workflow.R", "server_live_preview.R"))
-    sys.source(test_path("..", "..", "inst", "shiny_app", file), env)
+    sys.source(system.file("shiny_app", file, package = "aidia", mustWork = TRUE), env)
   env
 }
 

@@ -44,6 +44,7 @@ Imports:
     DT (>= 0.28)
 Suggests:
     testthat (>= 3.0.0),
+    withr,
     prospectr (>= 0.2.0),
     patchwork (>= 1.2.0),
     hexbin,

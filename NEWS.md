@@ -11,6 +11,8 @@
 * Reuse the report's precursor load balance view across RT groups or the whole
   method. Include empty windows and use reproducible horizontal-only jitter.
 * Avoid warnings when optional rt_group labels are absent from precursor data.
+* Resolve Shiny test resources from the package installation so R CMD check
+  runs the same tests as the development checkout; declare withr for test helpers.
 
 ## Input filtering updates from main
 

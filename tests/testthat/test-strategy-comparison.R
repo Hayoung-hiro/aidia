@@ -23,7 +23,7 @@ test_that("comparison reuses execution-time settings for all five strategies", {
   # Use the actual Shiny input conversion, including controls for strategies
   # other than the selected one. The rest is real Stage 3 computation.
   shiny_env <- new.env(parent = environment())
-  sys.source(test_path("..", "..", "inst", "shiny_app", "server_optimization.R"),
+  sys.source(system.file("shiny_app", "server_optimization.R", package = "aidia", mustWork = TRUE),
              envir = shiny_env)
   input <- list(auto_windows = FALSE, manual_n_windows = 17L,
                 greedy_mz_step = 1.5, greedy_apply_smoothing = FALSE,
@@ -126,8 +126,8 @@ test_that("Shiny shared computation captures hidden strategy controls", {
   fixture <- .comparison_fixture()
   fixture$plan$diagnosis <- list(current_cycle_time_sec = 2)
   env <- new.env(parent = environment())
-  sys.source(test_path("..", "..", "inst", "shiny_app", "server_optimization.R"), env)
-  sys.source(test_path("..", "..", "inst", "shiny_app", "optimization_workflow.R"), env)
+  sys.source(system.file("shiny_app", "server_optimization.R", package = "aidia", mustWork = TRUE), env)
+  sys.source(system.file("shiny_app", "optimization_workflow.R", package = "aidia", mustWork = TRUE), env)
   captured <- NULL
   env$plan_optimization <- function(...) fixture$plan
   env$optimize_windows <- function(...) {
