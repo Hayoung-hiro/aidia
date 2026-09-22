@@ -740,6 +740,36 @@ function_name <- function() { ... }
 
 ## Testing
 
+### Check the installed package before merging
+
+`devtools::test()` is useful while developing, but it loads the source tree.
+It does not replace R CMD check, which builds and installs the package before
+running its examples and tests. Before requesting a merge, run from the root:
+
+```r
+rcmdcheck::rcmdcheck(
+  args = "--no-manual",
+  build_args = c("--no-manual", "--compact-vignettes=gs+qpdf"),
+  error_on = "warning"
+)
+```
+
+Install all Imports and Suggests for this check. Fix errors and warnings; inspect
+NOTEs instead of treating a development test pass as release validation.
+
+Tests that use files shipped under `inst/` must locate them with `system.file()`:
+
+```r
+system.file("shiny_app", "server_optimization.R",
+            package = "aidia", mustWork = TRUE)
+```
+
+Do not assume `../../inst/...` exists in an installed-package test. Do not skip
+Shiny tests when packaged files are missing; that is a packaging failure. Declare
+packages used only in tests (including qualified calls such as `withr::...`) in
+`Suggests` rather than relying on them being installed indirectly.
+
+
  
 
 ### Test File Location
@@ -815,6 +845,29 @@ test_that("validate_data stops on missing FWHM column", {
  
 
 ## Git Workflow
+
+### Merge through a checked pull request
+
+1. Commit and push to a development branch, such as
+   `Hayoung-hiro/shiny-workflow-ux`. Every branch push runs R CMD check.
+2. Open a pull request targeting `main`. The PR also checks the proposed merge.
+3. If main advances, merge the latest main into the development branch and let
+   the checks run again. Resolve any conflicts and failures before merging.
+4. Merge the PR only after all five required GitHub Actions checks pass:
+   `macos-latest (release)`, `windows-latest (release)`,
+   `ubuntu-latest (release)`, `ubuntu-latest (oldrel-1)`, and
+   `ubuntu-latest (devel)`.
+5. Update local main and the ongoing UX branch after the merge. Keep the UX
+   worktree for further development.
+
+Main protection requires an up-to-date branch, a pull request, and the five
+checks, including for administrators. A second person's approval is optional.
+Do not push changes directly to main, use an administrator bypass, or weaken
+checks to merge a failing result. Job names in the CI matrix are part of this
+policy; update the required checks if those names change.
+The intended settings are recorded in `.github/main-branch-protection.json`;
+GitHub enforces the server-side configuration, not the presence of this file.
+
 
  
 

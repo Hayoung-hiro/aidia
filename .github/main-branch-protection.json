@@ -1,0 +1,37 @@
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": [],
+    "checks": [
+      {
+        "context": "macos-latest (release)",
+        "app_id": 15368
+      },
+      {
+        "context": "windows-latest (release)",
+        "app_id": 15368
+      },
+      {
+        "context": "ubuntu-latest (release)",
+        "app_id": 15368
+      },
+      {
+        "context": "ubuntu-latest (oldrel-1)",
+        "app_id": 15368
+      },
+      {
+        "context": "ubuntu-latest (devel)",
+        "app_id": 15368
+      }
+    ]
+  },
+  "enforce_admins": true,
+  "required_pull_request_reviews": {
+    "required_approving_review_count": 0,
+    "require_code_owner_reviews": false,
+    "require_last_push_approval": false
+  },
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
