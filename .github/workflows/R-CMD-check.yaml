@@ -1,20 +1,25 @@
 # Standard R-CMD-check workflow (r-lib v2 actions).
 # Source: https://github.com/r-lib/actions/blob/v2-branch/examples/check-standard.yaml
 #
-# Runs on every push to main and every PR. Builds aidia under several
-# R/OS combinations, installs Imports + Suggests, then executes
-# `rcmdcheck::rcmdcheck()` which runs the full testthat suite as a side
-# effect. Any FAIL in 547+ tests will fail the PR check.
+# Check development branches before they reach main. Build and install the
+# package under all five R/OS combinations, then run examples and testthat
+# through R CMD check. Keep job names stable: main requires these checks.
 
 name: R-CMD-check
 
 on:
   push:
-    branches: [main, master]
+    branches: ['**']
   pull_request:
     branches: [main, master]
 
 permissions: read-all
+
+# Cancel superseded commits within a branch or PR, keeping push and PR runs
+# separate so a branch run cannot cancel the required merge-result checks.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   R-CMD-check:
