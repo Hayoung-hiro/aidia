@@ -40,12 +40,7 @@
 #' ## Operating points are INSTRUMENT- and GOAL-dependent (no single universal number)
 #'   - "Sufficient" floor (good precision, ID-friendly): ~3-3.5 PPP-FWHM (= DPPP ~5-6).
 #'       DIA-NN guidance (this tool's input engine; DIA-NN models peaks, so few points
-#'       suffice) and Zeng & Bateman, JASMS 2023;34(6):1136-1144,
-#'       doi:10.1021/jasms.3c00077 (7 whole-peak points -> <1% peak-area error).
-#'   - Orbitrap, MAX quant accuracy: ~6 PPP-FWHM (= DPPP ~10), trading ~20% fewer IDs
-#'       (bioRxiv CQE recommendations, doi:10.1101/2025.09.22.677725).
-#'   - Fast scanners (timsTOF; and Astral, see below): high PPP is NOT needed; force-
-#'       filtering to >=6 PPP-FWHM degrades BOTH ID count and quant efficiency (same CQE).
+#'       suffice).
 #'   - Skyline trapezoidal workflows want more (Pino et al., MCP 2020,
 #'       doi:10.1074/mcp.P119.001913) - a DIFFERENT quant engine, NOT required for DIA-NN.
 #'
