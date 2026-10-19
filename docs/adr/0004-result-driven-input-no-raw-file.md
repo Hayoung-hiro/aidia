@@ -1,5 +1,9 @@
 # Result-driven input only — no raw / method file ingestion
 
+> 2026-10-19: [ADR-0005](0005-external-ms1-feature-table-input.md) extends the
+> report-only contract to explicitly selected external MS1 feature tables.
+> The exclusion of vendor raw and method-file readers remains in force.
+
 AIDIA's input contract is **DIA-NN `report.parquet` (required) + `*.stats.tsv` (optional)**.
 Vendor raw files (Thermo `.raw`, Bruker `.d`, SCIEX `.wiff`) and method files
 (`.meth`, `.xml`) are explicitly out of scope. This was reconsidered in the

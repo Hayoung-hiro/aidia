@@ -20,7 +20,7 @@ plot_fwhm_distribution <- function(validated_data, optimization_plan = NULL) {
   cat("  Generating FWHM Distribution Plot...\n")
 
   data <- validated_data$data
-  fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
+  fwhm_sec <- get_fwhm_values(validated_data)
 
   # Statistics
   n_precursors <- length(fwhm_sec)

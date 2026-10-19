@@ -2,10 +2,7 @@
 
 server_data <- function(input, output, session, rv, cycle_time_result) {
 
-  # --- File Upload Handler ---
-  observeEvent(input$parquet_file, {
-    req(input$parquet_file)
-
+  invalidate_data <- function() {
     # Invalidate the completed run before replacing any of its input data.
     rv$optimization_complete <- FALSE
     rv$optimized_windows <- NULL
@@ -14,29 +11,79 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
     rv$validated_data <- NULL
     rv$data_loaded <- FALSE
     rv$data_error <- NULL
+    rv$data_files <- NULL
+    rv$data_input_type <- NULL
+    rv$diann_options <- NULL
+    rv$dppp_preview <- NULL
+    rv$fwhm_sec <- NULL
+    rv$median_fwhm_sec <- NULL
+  }
+
+  feature_files <- server_upload_queue(input, output, session, rv, invalidate_data, "ms1_features")
+  diann_files <- server_upload_queue(input, output, session, rv, invalidate_data, "diann")
+  observeEvent(input$input_type, invalidate_data(), priority = 100)
+  observeEvent(list(input$ms1_aggregation, input$ms1_min_runs), {
+    if (identical(input$input_type, "ms1_features")) invalidate_data()
+  }, priority = 100)
+
+  observeEvent(lapply(names(.shiny_diann_defaults()), function(id) input[[id]]), {
+    if (identical(input$input_type, "diann")) invalidate_data()
+  }, priority = 100)
+
+  observeEvent(input$compute_diann, {
+    req(identical(input$input_type, "diann"))
+    uploads <- diann_files()
+    if (!nrow(uploads)) {
+      showNotification("Add a DIA-NN report before clicking Compute.", type = "message")
+      return()
+    }
+    process_files(uploads)
+  })
+  observeEvent(input$compute_features, {
+    req(identical(input$input_type, "ms1_features"))
+    uploads <- feature_files()
+    if (!nrow(uploads)) {
+      showNotification("Add feature files before clicking Compute.", type = "message")
+      return()
+    }
+    process_files(uploads)
+  })
+
+  process_files <- function(uploads) {
+    invalidate_data()
 
     # Show processing notification
     showNotification("Processing file...", id = "upload_progress", duration = NULL, type = "message")
 
     tryCatch({
       # Read parquet file
-      file_path <- input$parquet_file$datapath
-      cat("\n[Shiny] File uploaded:", input$parquet_file$name, "\n")
+      file_path <- uploads$datapath
+      cat("\n[Shiny] Processing files:", uploads$name, "\n")
       cat("[Shiny] Temp path:", file_path, "\n")
       cat("[Shiny] File size:", file.info(file_path)$size / 1024^2, "MB\n")
 
       # Run Stage 1: Data Validation
       cat("[Shiny] Starting create_validated_dataset()...\n")
-      rv$validated_data <- create_validated_dataset(
-        proteome_file = file_path,
-        enable_replicate_consensus = TRUE
-      )
+      rv$validated_data <- if (identical(input$input_type, "ms1_features")) {
+        min_runs <- input$ms1_min_runs %||% 0
+        create_ms1_feature_dataset(file_path, aggregation = input$ms1_aggregation %||% "auto",
+          min_replicates = if (identical(as.numeric(min_runs), 0)) NULL else min_runs,
+          provenance = list(upload_names = uploads$name, upload_sources = uploads$source_path))
+      } else {
+        if (length(file_path) != 1L) stop("Upload one DIA-NN report containing the selected runs.")
+        args <- .shiny_diann_arguments(input)
+        result <- do.call(create_validated_dataset, c(list(proteome_file = file_path), args))
+        if (!is.null(args$min_replicates) && args$min_replicates > result$metadata$n_runs)
+          stop("Minimum runs exceeds the number of runs remaining after quality filtering.")
+        if (!nrow(result$data)) stop("No precursors remain. Adjust the DIA-NN filters or Minimum runs.")
+        rv$diann_options <- args
+        result
+      }
       cat("[Shiny] create_validated_dataset() completed!\n")
 
-      rv$data_loaded <- TRUE
-
       # Cache FWHM conversion (immutable until next upload)
-      rv$fwhm_sec <- ensure_fwhm_seconds(rv$validated_data$data$FWHM)
+      rv$fwhm_sec <- ensure_fwhm_seconds(rv$validated_data$data$FWHM,
+        unit = if (identical(input$input_type, "ms1_features")) "minutes" else NULL)
       rv$median_fwhm_sec <- median(rv$fwhm_sec, na.rm = TRUE)
 
       # Calculate DPPP Quick Preview
@@ -48,6 +95,10 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
       )
       cat("[Shiny] DPPP Preview calculated!\n")
 
+      rv$data_files <- uploads
+      rv$data_input_type <- input$input_type
+      rv$data_loaded <- TRUE
+
       removeNotification("upload_progress")
       showNotification(
         paste("Data loaded:", format(nrow(rv$validated_data$data), big.mark = ","), "precursors"),
@@ -58,9 +109,29 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
       cat("[Shiny] ERROR in file upload:", e$message, "\n")
       removeNotification("upload_progress")
       showNotification(paste("Error:", e$message), type = "error", duration = 10)
-      rv$data_loaded <- FALSE
+      invalidate_data()
       rv$data_error <- e$message
     })
+  }
+
+  output$input_scope_summary <- renderUI({
+    req(rv$validated_data)
+    meta <- rv$validated_data$metadata
+    mode <- if (identical(meta$input_type, "ms1_features")) {
+      if (identical(meta$feature_aggregation, "consensus")) {
+        sprintf("Matched consensus; detected in at least %d runs", meta$min_replicates)
+      } else "All detections; no cross-run matching"
+    } else if (isTRUE(rv$diann_options$enable_replicate_consensus)) {
+      sprintf("DIA-NN precursor consensus; detected in at least %d runs",
+        meta$min_replicates %||% 1L)
+    } else "DIA-NN all detections; no cross-run aggregation"
+    tags$div(
+      tags$p(sprintf("%d run(s), %s design rows. %s.", length(meta$source_runs),
+        format(nrow(rv$validated_data$data), big.mark = ","), mode)),
+      tags$details(tags$summary("Selected runs"),
+        tags$ul(lapply(meta$source_runs, tags$li))),
+      if (!is.null(rv$diann_options)) tags$details(tags$summary("Selected DIA-NN filters"),
+        tags$ul(lapply(.shiny_diann_filter_summary(rv$diann_options), tags$li))))
   })
 
   # --- Output: Data Status Info Box ---
@@ -320,8 +391,9 @@ server_data <- function(input, output, session, rv, cycle_time_result) {
 
     tags$div(
       class = "text-muted", style = "font-size: 11px; line-height: 1.9;",
-      tags$div(class = "sidebar-file-name", title = input$parquet_file$name,
-        input$parquet_file$name),
+      tags$div(class = "sidebar-file-name", title = paste(rv$data_files$source_path, collapse = ", "),
+        sprintf("%d file(s), %d run(s)", nrow(rv$data_files),
+          length(rv$validated_data$metadata$source_runs))),
       tags$div(sprintf("Precursors: %s", format(nrow(data), big.mark = ","))),
       tags$div(sprintf("RT: %.1f - %.1f min", min(data$RT.Apex), max(data$RT.Apex))),
       tags$div(sprintf("m/z: %.0f - %.0f Da", min(data$Precursor.Mz), max(data$Precursor.Mz))),

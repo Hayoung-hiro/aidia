@@ -76,12 +76,15 @@ test_that("navigation explains missing uploads and allows prepared data", {
     session$setInputs(btn_to_setup = 1)
     expect_equal(destination, "data")
     expect_match(output$prepare_navigation_feedback$html, "highlighted field")
-    expect_match(env$.shiny_prepare_issues(input, FALSE, list())[["parquet_file"]], "Upload a report.parquet")
+    expect_match(env$.shiny_prepare_issues(input, FALSE, list())[["compute_diann"]], "Upload a report.parquet")
+    session$setInputs(input_type = "ms1_features")
+    expect_match(env$.shiny_prepare_issues(input, FALSE, list())[["compute_features"]], "click Compute")
+    session$setInputs(input_type = "diann")
     session$setInputs(workflow_navigate = "setup")
     expect_equal(destination, "data")
     rv$data_error <- "Invalid parquet header"
     session$flushReact()
-    expect_match(env$.shiny_prepare_issues(input, FALSE, list(), rv$data_error)[["parquet_file"]], "Invalid parquet header")
+    expect_match(env$.shiny_prepare_issues(input, FALSE, list(), rv$data_error)[["compute_diann"]], "Invalid parquet header")
     rv$data_loaded <- TRUE
     rv$data_error <- NULL
     session$setInputs(btn_to_setup = 2)

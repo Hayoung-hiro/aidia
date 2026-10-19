@@ -162,7 +162,8 @@ evaluate_windows <- function(optimized_windows,
       window_mz_start = windows$mz_start,
       window_mz_end   = windows$mz_end,
       window_rt_start = windows$rt_start,
-      window_rt_end   = windows$rt_end
+      window_rt_end   = windows$rt_end,
+      fwhm_unit       = if (.is_ms1_features(validated_data)) validated_data$metadata$fwhm_unit else NULL
     )
 
     per_window$temporal_density_max  <- temporal_density$density_max

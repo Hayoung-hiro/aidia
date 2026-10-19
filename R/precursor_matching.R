@@ -182,6 +182,7 @@ find_windows_for_precursor <- function(precursor_mz, window_starts,
 #' @param window_mz_end Numeric vector, window m/z end values
 #' @param window_rt_start Numeric vector, window RT start values (minutes)
 #' @param window_rt_end Numeric vector, window RT end values (minutes)
+#' @param fwhm_unit Explicit source unit, or NULL for legacy inference.
 #'
 #' @return data.frame with columns: window_idx, density_max, density_mean, n_precursors
 #' @keywords internal
@@ -191,7 +192,8 @@ calculate_precursor_temporal_density <- function(precursor_mz,
                                                   window_mz_start,
                                                   window_mz_end,
                                                   window_rt_start,
-                                                  window_rt_end) {
+                                                  window_rt_end,
+                                                  fwhm_unit = NULL) {
   n_windows <- length(window_mz_start)
 
   # Validate input lengths
@@ -207,7 +209,7 @@ calculate_precursor_temporal_density <- function(precursor_mz,
   }
 
   # Convert FWHM to minutes: ensure_fwhm_seconds() returns seconds, divide by 60
-  fwhm_min <- ensure_fwhm_seconds(precursor_fwhm) / 60
+  fwhm_min <- ensure_fwhm_seconds(precursor_fwhm, unit = fwhm_unit) / 60
 
   # Precompute elution interval boundaries for every precursor (vectorized)
   elut_start <- precursor_rt - fwhm_min
