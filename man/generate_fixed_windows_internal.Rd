@@ -2,7 +2,7 @@
 % Please edit documentation in R/window_generation.R
 \name{generate_fixed_windows_internal}
 \alias{generate_fixed_windows_internal}
-\title{Generate Fixed Windows (Internal)}
+\title{Generate Equal Windows (Internal)}
 \usage{
 generate_fixed_windows_internal(
   mz_min,

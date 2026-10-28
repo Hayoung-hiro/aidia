@@ -31,7 +31,7 @@ optimize_windows(
   outlier_apply_smoothing = FALSE,
   fz_offset = 0.25,
   coverage_mode = "narrowest",
-  rt_binning_mode = "fixed",
+  rt_binning_mode = "uniform",
   cpd_min_bin_width = 1,
   cpd_max_bin_width = 15,
   cpd_min_precursors_per_bin = 50,
@@ -73,7 +73,7 @@ Ignored when strategy_config is provided.
 
 \item{window_mode}{Character, window generation mode (default: "density")
 \itemize{
-\item "fixed": Equal-width windows
+\item "equal": Equal-width windows (legacy alias: "fixed")
 \item "density": Density-based adaptive windows (recommended)
 }}
 
@@ -117,7 +117,9 @@ Ignored when strategy_config is provided.
 
 \item{coverage_mode}{Character, coverage strategy mode: "narrowest" or "centered"}
 
-\item{rt_binning_mode}{Character, RT binning mode: "fixed" or "adaptive" (default: "fixed")}
+\item{rt_binning_mode}{Character, "uniform" (default) or "adaptive".
+Legacy "fixed" is an alias for "uniform". Uniform merges a partial final
+interval into the preceding full interval.}
 
 \item{cpd_min_bin_width}{Numeric, minimum RT bin width in minutes for adaptive binning (default: 1.0)}
 
@@ -131,12 +133,8 @@ Ignored when strategy_config is provided.
 
 \item{edge_wash_min_precursors}{Integer, minimum precursors for edge bin retention (default: 30)}
 
-\item{width_grid_step}{Numeric, grid step for width digitization in Da (default: 0.5)
-\itemize{
-\item Snaps window widths to nearest multiple for batch reproducibility
-\item Set to NULL or 0 to disable digitization
-\item Only applies to density (variable) window mode
-}}
+\item{width_grid_step}{Retained for compatibility; ignored. Window boundaries
+always use the required 1 Da integer grid before forbidden-zone placement.}
 
 \item{smoothing_method}{Character, boundary smoothing method (default: "whittaker").
 "whittaker" for Whittaker-Henderson penalized least squares,

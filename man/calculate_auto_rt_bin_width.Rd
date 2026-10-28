@@ -22,8 +22,8 @@ List with bin_width and n_bins
 }
 \description{
 Automatically calculates optimal RT bin width based on gradient length
-and m/z optimization strategy. Used by Shiny "Fixed" mode to determine
-a sensible bin width without user input.
+and m/z optimization strategy. Supplies the editable initial duration for
+Shiny Uniform mode.
 }
 \details{
 Note: This is NOT related to KS adaptive binning. It is a simple formula

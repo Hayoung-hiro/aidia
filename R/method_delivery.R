@@ -21,7 +21,7 @@ format_result_filename <- function(optimized_windows, type = "method", ext = "cs
       optimized_windows$metadata$instrument_preset %||% "orbitrap",
     strategy = params$mz_strategy %||% strategy %||% "custom",
     window_mode = params$window_mode %||% "density",
-    rt_binning_mode = params$rt_binning_mode %||% "fixed",
+    rt_binning_mode = params$rt_binning_mode %||% "uniform",
     rt_bin_width_min = params$rt_bin_width_min %||% 5,
     ext = ext
   )

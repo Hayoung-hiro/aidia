@@ -327,14 +327,14 @@ PLOT_REGISTRY <- list(
     key = "app_d_changepoint",
     generate = function(ctx) plot_rt_changepoint_validation(ctx$validated_data,
                                                               ctx$optimized_windows),
-    when = function(ctx) identical(ctx$optimized_windows$rt_binning$rt_binning_mode %||% "fixed",
+    when = function(ctx) identical(ctx$optimized_windows$rt_binning$rt_binning_mode %||% "uniform",
                                     "adaptive"),
     templates = c("full")
   ),
   list(
     key = "app_d_ks_trace",
     generate = function(ctx) plot_ks_statistic_trace(ctx$optimized_windows),
-    when = function(ctx) identical(ctx$optimized_windows$rt_binning$rt_binning_mode %||% "fixed",
+    when = function(ctx) identical(ctx$optimized_windows$rt_binning$rt_binning_mode %||% "uniform",
                                     "adaptive"),
     templates = c("full")
   )

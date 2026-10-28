@@ -633,7 +633,7 @@ print.OptimizedWindows <- function(x, ...) {
               x$parameters$rt_bin_width_min))
   cat(sprintf("  Windows per bin: %d\n", x$parameters$n_windows_per_bin))
   cat(sprintf("  Coverage: %.1f%%\n", x$statistics$coverage_percentage))
-  cat(sprintf("  Window mode: %s\n", x$parameters$window_mode))
+  cat(sprintf("  Window mode: %s\n", format_window_mode(x$parameters$window_mode)))
   cat(sprintf("  m/z strategy: %s\n", x$parameters$mz_strategy))
   invisible(x)
 }
@@ -767,7 +767,7 @@ summary.OptimizedWindows <- function(object, ...) {
 
   cat("\nParameters:\n")
   cat(sprintf("  m/z strategy: %s\n", object$parameters$mz_strategy))
-  cat(sprintf("  Window mode: %s\n", object$parameters$window_mode))
+  cat(sprintf("  Window mode: %s\n", format_window_mode(object$parameters$window_mode)))
 
   invisible(object)
 }

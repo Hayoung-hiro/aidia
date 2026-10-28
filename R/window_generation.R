@@ -23,11 +23,13 @@
 #' @param rt_stats RT statistics data frame
 #' @param mz_ranges m/z ranges per RT segment
 #' @param n_windows_per_bin Number of windows per RT bin
-#' @param window_mode Character: "fixed" or "variable"
+#' @param window_mode Character: "equal", "density", or "staggered".
+#'   The legacy value "fixed" is an alias for "equal".
 #' @param min_width_da Minimum window width in Da
 #' @param max_width_da Maximum window width in Da
 #' @param overlap_percentage Overlap percentage between windows
-#' @param width_grid_step Grid step for width digitization in Da (default: 0.5)
+#' @param width_grid_step Retained for compatibility; ignored. Widths use
+#'   integer boundaries before FZ placement.
 #' @param fz_offset Numeric, forbidden zone offset for staggered mode (default: 0.25, use 0.18 for phospho)
 #'
 #' @return Data frame with window specifications
@@ -80,7 +82,7 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
 
     # Generate windows based on mode
     # All generators handle FZ internally via boundary-array-first architecture
-    if (window_mode == "fixed") {
+    if (window_mode %in% c("equal", "fixed")) {
       bin_windows <- generate_fixed_windows_internal(
         mz_min, mz_max, n_windows_per_bin, min_width_da, max_width_da,
         fz_offset = fz_offset
@@ -140,10 +142,10 @@ generate_windows_internal <- function(precursor_data, rt_stats, mz_ranges,
 }
 
 # =============================================================================
-# Fixed Window Mode
+# Equal Window Mode
 # =============================================================================
 
-#' Generate Fixed Windows (Internal)
+#' Generate Equal Windows (Internal)
 #'
 #' Creates equal-width windows across the m/z range.
 #' Uses boundary-array-first architecture: boundaries are always integerized
@@ -236,13 +238,18 @@ redistribute_integer_widths <- function(W, N, raw_widths, floor_da) {
     raw_widths <- rep(1, N)
   }
 
-  target <- raw_widths / sum(raw_widths) * W   # real-valued shape target
+  # Discard sub-grid floating-point noise before floor/remainder comparisons.
+  # Otherwise reflected or reordered sums can put an integer target just below
+  # its boundary and change the integer partition by an entire Da.
+  target <- round(raw_widths / sum(raw_widths) * W, 10)
   w <- pmax(floor_da, floor(target))           # truncate + hard lower bound
   deficit <- W - sum(w)                        # integer closing correction
 
   if (deficit > 0) {
     # Hand out +1 Da to the largest fractional remainders first (deficit < N).
-    ord <- order(target - floor(target), decreasing = TRUE)
+    # Break remainder ties by target width, not traversal position. E.g.
+    # c(1.5, 2.5) and its reflection must produce the same width multiset.
+    ord <- order(-round(target - floor(target), 10), -target)
     for (k in seq_len(deficit)) {
       idx <- ord[((k - 1L) %% N) + 1L]
       w[idx] <- w[idx] + 1
@@ -251,7 +258,7 @@ redistribute_integer_widths <- function(W, N, raw_widths, floor_da) {
     # Reclaim -1 Da, but only from windows above the floor (H5). Feasible
     # because W >= N * floor_da guarantees enough slack above the floor.
     surplus <- -deficit
-    ord <- order(w - target, decreasing = TRUE)  # shave the biggest overshoots
+    ord <- order(-round(w - target, 10), -target)  # shave the biggest overshoots
     repeat {
       progressed <- FALSE
       for (idx in ord) {
@@ -380,20 +387,19 @@ digitize_windows_to_n <- function(mz_min, mz_max, n_windows, raw_widths,
 
 #' Generate Variable Windows (Internal)
 #'
-#' Creates density-based adaptive windows with guaranteed width constraints
-#' and smooth transitions between adjacent windows.
+#' Creates density-based adaptive windows. Width smoothing is accepted only
+#' when it improves precursor-load balance after integerization and FZ placement.
 #'
 #' Algorithm: Constrained Density Partitioning
 #'   Phase 1: Start with uniform distribution (guaranteed valid)
 #'   Phase 2: Iteratively adjust boundaries based on precursor density
-#'   Phase 3: Apply smoothing for gradual width transitions
-#'   Phase 3.5: Width digitization for batch reproducibility (if enabled)
-#'   Phase 4: Final validation
+#'   Phase 3: Propose smoothing for gradual width transitions
+#'   Phase 4: Digitize both candidates and retain the better precursor balance
 #'
 #' Constraints enforced:
-#'   - min_width_da <= window_width <= max_width_da (always)
-#'   - Adjacent windows differ by at most max_change_ratio (smooth transitions)
-#'   - Exactly n_windows are generated (when possible)
+#'   - Integer widths and exactly n_windows, using edge expansion when needed
+#'   - Minimum width is enforced by digitization; maximum width is a soft target
+#'   - Smoothing cannot worsen final precursor-load balance
 #'
 #' @param precursor_mz Vector of precursor m/z values
 #' @param mz_min Minimum m/z
@@ -402,8 +408,11 @@ digitize_windows_to_n <- function(mz_min, mz_max, n_windows, raw_widths,
 #' @param min_width_da Minimum window width in Da
 #' @param max_width_da Maximum window width in Da
 #' @param max_iterations Maximum iterations for density adjustment (default: 20)
-#' @param max_change_ratio Maximum width change ratio between adjacent windows (default: 0.5)
-#' @param width_grid_step Grid step for width digitization in Da (default: 0.5). Set to NULL or 0 to disable.
+#' @param max_change_ratio Maximum relative width change per smoothing pass
+#'   (default: 0.5). Zero disables width smoothing.
+#' @param width_grid_step Retained for compatibility; ignored. The required
+#'   integer boundaries always use a 1 Da grid before FZ placement.
+#' @param fz_offset Forbidden-zone offset in Da (0 to disable).
 #'
 #' @return Data frame with window specifications
 #' @keywords internal
@@ -467,7 +476,7 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
 
   adjustment_step <- uniform_width * 0.1  # 10% of uniform width per iteration
 
-  for (iter in 1:max_iterations) {
+  for (iter in seq_len(max_iterations)) {
     boundaries_changed <- FALSE
 
     # Jacobi (not Gauss-Seidel) sweep: freeze the read state at the start of the
@@ -475,8 +484,7 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
     # makes each boundary a pure function of its frozen neighbors, so the sweep
     # is independent of iteration order (traversal) and symmetric under mirroring
     # of the input -- a boundary that reads b_old[i-1] and b_old[i+1] the same
-    # way regardless of which end we start from. The density formula, the 20%
-    # balance skip, and the min/max width constraints are unchanged.
+    # way regardless of which end we start from.
     b_old <- boundaries
     new_boundaries <- boundaries
 
@@ -508,49 +516,36 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
         new_boundary <- current_boundary + adjustment_step
       }
 
-      # Check constraints before applying (against frozen neighbors)
-      left_width_new <- new_boundary - b_old[i - 1]
-      right_width_new <- b_old[i + 1] - new_boundary
-
-      # Constraint 1: min_width
-      if (left_width_new < min_width_da || right_width_new < min_width_da) {
-        next  # Reject this move
-      }
-
-      # Constraint 2: max_width
-      if (left_width_new > max_width_da || right_width_new > max_width_da) {
-        next  # Reject this move
-      }
+      # Clip the proposal to the feasible interval instead of discarding an
+      # oversized step. E.g. widths 75/75, max 80: move 5 Da, not the nominal
+      # 7.5 Da that would make a neighbor 82.5 Da and stall all adaptation (#19).
+      lower <- max(b_old[i - 1] + min_width_da,
+                   b_old[i + 1] - max_width_da)
+      upper <- min(b_old[i + 1] - min_width_da,
+                   b_old[i - 1] + max_width_da)
+      if (lower > upper) next
+      new_boundary <- min(max(new_boundary, lower), upper)
+      if (abs(new_boundary - current_boundary) < 1e-9) next
 
       # All constraints satisfied - stage the move (committed after the sweep)
       new_boundaries[i] <- new_boundary
       boundaries_changed <- TRUE
     }
 
-    # Commit all staged moves simultaneously (Jacobi update)
-    boundaries <- new_boundaries
-
-    # Monotonicity guard (symmetric, direction-preserving).
-    #
-    # Each boundary's min-width check above reads only the FROZEN neighbor
-    # positions (b_old), so two adjacent boundaries can both move inward toward
-    # a dense, narrow window in the same sweep and close -- or cross -- the gap
-    # between them below min_width_da even though each move passed its own check
-    # (both saw only the wider frozen gap). The former in-place Gauss-Seidel
-    # sweep could not do this: it re-checked each boundary against its neighbor's
-    # already-updated position. Without this guard the invalid intermediate is
-    # only masked downstream by the Phase 3 width floor, which can leave a
-    # neighbor spuriously widened past max_width_da. If the committed sweep
-    # produced any sub-min or crossed gap, discard it and keep the last valid
-    # layout, then stop. Reverting to the frozen pre-sweep state is symmetric,
-    # so it preserves the direction/traversal independence this refactor adds.
-    if (any(diff(boundaries) < min_width_da - 1e-9)) {
-      boundaries <- b_old
-      break
-    }
-
-    # Early exit if no changes in this iteration
     if (!boundaries_changed) break
+
+    # Two simultaneous moves can consume the same window's slack. Scale the
+    # entire Jacobi step to keep every width feasible, preserving direction
+    # symmetry and the last valid layout instead of discarding the sweep.
+    old_widths <- diff(b_old)
+    width_change <- diff(new_boundaries - b_old)
+    shrinking <- width_change < 0
+    growing <- width_change > 0
+    step_scale <- min(1,
+      (old_widths[shrinking] - min_width_da) / -width_change[shrinking],
+      (max_width_da - old_widths[growing]) / width_change[growing])
+    if (step_scale <= 1e-9) break
+    boundaries <- b_old + step_scale * (new_boundaries - b_old)
   }
 
   # =========================================================================
@@ -559,6 +554,7 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   # Ensure width changes gradually (no abrupt jumps)
 
   widths <- diff(boundaries)
+  density_widths <- widths
   n_widths <- length(widths)
 
   # Symmetric Laplacian smoother (Jacobi). The former smoother compared each
@@ -572,7 +568,7 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   # width is not conserved by the stencil, so widths are renormalized to the bin
   # span before boundary reconstruction (the digitization tail re-derives the
   # exact integer widths from these proportions anyway).
-  for (smooth_iter in 1:5) {
+  for (smooth_iter in seq_len(if (max_change_ratio > 0) 5L else 0L)) {
     if (n_widths < 2) break  # nothing to smooth for a single-window bin
     w_old <- widths
     w_new <- widths
@@ -629,8 +625,38 @@ generate_variable_windows_internal <- function(precursor_mz, mz_min, mz_max,
   # early-return paths above so every bin digitizes identically.
   # =========================================================================
   raw_widths <- diff(boundaries)
-  return(digitize_windows_to_n(mz_min, mz_max, n_windows, raw_widths,
-                               min_width_da, max_width_da, fz_offset = fz_offset))
+  density_windows <- digitize_windows_to_n(mz_min, mz_max, n_windows, density_widths,
+                                           min_width_da, max_width_da, fz_offset)
+  smoothed_windows <- digitize_windows_to_n(mz_min, mz_max, n_windows, raw_widths,
+                                            min_width_da, max_width_da, fz_offset)
+
+  # Smoothing is subordinate to density adaptation (#19). Assess the actual
+  # delivered windows: tiny continuous differences can disappear on the integer
+  # grid, and FZ placement changes which precursors lie within each window.
+  # Both candidates tile the same cover with N windows, so they cover the same
+  # precursors. Sum(count^2) therefore ranks load variance without a scale factor.
+  # On ties retain the density shape; smoothing is not itself the objective.
+  load_score <- function(windows, mz) {
+    counts <- count_precursors_in_windows(mz, windows$mz_start, windows$mz_end)
+    sum(as.double(counts)^2)
+  }
+  if (load_score(smoothed_windows, precursor_mz) <
+      load_score(density_windows, precursor_mz)) {
+    # Equal target widths can still tie for the last integer Da. Their width
+    # multiset is stable, but the positional allocation can affect load counts.
+    # Require improvement in the reflected allocation too, so an arbitrary
+    # remainder tie cannot choose smoothing in only one traversal direction.
+    reflected_mz <- mz_min + mz_max - precursor_mz
+    reflected_density <- digitize_windows_to_n(
+      mz_min, mz_max, n_windows, rev(density_widths), min_width_da, max_width_da, fz_offset)
+    reflected_smoothed <- digitize_windows_to_n(
+      mz_min, mz_max, n_windows, rev(raw_widths), min_width_da, max_width_da, fz_offset)
+    if (load_score(reflected_smoothed, reflected_mz) <
+        load_score(reflected_density, reflected_mz)) {
+      return(smoothed_windows)
+    }
+  }
+  density_windows
 }
 
 # =============================================================================

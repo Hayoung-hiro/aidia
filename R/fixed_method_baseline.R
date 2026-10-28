@@ -78,5 +78,5 @@ evaluate_fixed_method_baseline <- function(validated_data, optimization_plan,
        mz_max = original$mz_max, window_width = original$window_width,
        coverage_pct = if (length(covered)) mean(covered) * 100 else NA_real_,
        cycle_time_sec = original$cycle_time_sec,
-       label = "Original fixed method", windows = windows)
+       label = "Original method", windows = windows)
 }

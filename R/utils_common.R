@@ -526,25 +526,26 @@ format_short_instrument_name <- function(instrument_preset) {
 format_short_window_mode <- function(window_mode) {
   mapping <- c(
     density   = "dens",
-    fixed     = "Fix",
+    equal     = "Equal",
     staggered = "stag"
   )
-  short <- mapping[window_mode]
+  short <- mapping[.normalize_window_mode(window_mode)]
   if (is.na(short)) return(window_mode)
   as.character(short)
 }
 
 #' Map RT Binning Mode to Short Name
 #'
-#' @param rt_binning_mode Character, RT binning mode ("fixed", "adaptive", or "custom")
-#' @param rt_bin_width_min Numeric, RT bin width in minutes (used for custom mode)
+#' @param rt_binning_mode Character, "uniform" or "adaptive"; legacy
+#'   "fixed" and "custom" are accepted as Uniform aliases.
+#' @param rt_bin_width_min Numeric, Uniform duration in minutes.
 #' @return Character, short RT mode name
 #' @keywords internal
 format_short_rt_mode <- function(rt_binning_mode, rt_bin_width_min = 5) {
-  if (rt_binning_mode == "fixed") return("Fix")
+  rt_binning_mode <- .normalize_rt_mode(rt_binning_mode)
+  if (rt_binning_mode == "uniform") return(sprintf("Uniform%gmin", rt_bin_width_min))
   if (rt_binning_mode == "adaptive") return("Adapt")
-  # Custom mode: include the bin width
-  sprintf("%gmin", rt_bin_width_min)
+  rt_binning_mode
 }
 
 #' Build Standardized Output Filename
@@ -556,7 +557,7 @@ format_short_rt_mode <- function(rt_binning_mode, rt_bin_width_min = 5) {
 #' @param strategy Character, m/z optimization strategy (NULL for report)
 #' @param window_mode Character, window generation mode
 #' @param rt_binning_mode Character, RT binning mode
-#' @param rt_bin_width_min Numeric, RT bin width (for custom mode)
+#' @param rt_bin_width_min Numeric, Uniform duration in minutes
 #' @param ext Character, file extension without dot (default: "csv")
 #' @param date Character, date string (default: today in YYYYMMDD format)
 #'

@@ -86,7 +86,7 @@ test_that("optional RT labels do not warn for ungrouped input tibbles", {
     list(original_method = fixed_method_config(40))
   ))
   expect_equal(plot$data$n_precursors, c(2, 2, 2))
-  expect_match(plot$labels$subtitle, "original fixed: 40 windows/cycle")
+  expect_match(plot$labels$subtitle, "original method: 40 windows/cycle")
 
   # Explicit precursor labels alone cannot select the group-matching path.
   windows$rt_segment_id <- NULL

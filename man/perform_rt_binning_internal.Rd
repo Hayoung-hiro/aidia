@@ -7,7 +7,7 @@
 perform_rt_binning_internal(
   precursor_data,
   rt_bin_width_min,
-  rt_binning_mode = "fixed",
+  rt_binning_mode = "uniform",
   rt_column = NULL,
   cpd_significance_level = 0.05,
   cpd_min_bin_width = 1,
@@ -20,9 +20,10 @@ perform_rt_binning_internal(
 \arguments{
 \item{precursor_data}{Data frame with RT.Apex column (computed in Stage 1)}
 
-\item{rt_bin_width_min}{Numeric, RT bin width in minutes (used by fixed mode)}
+\item{rt_bin_width_min}{Numeric, RT bin width in minutes (used by Uniform mode)}
 
-\item{rt_binning_mode}{Character, "fixed" (default) or "adaptive"}
+\item{rt_binning_mode}{Character, "uniform" (default) or "adaptive".
+The legacy value "fixed" is accepted as an alias for "uniform".}
 
 \item{rt_column}{Character, which RT column to use. NULL = auto-detect via get_rt_column()}
 
@@ -45,11 +46,11 @@ List containing:
 \item stats: RT statistics per bin (rt_group, rt_start, rt_end, n_precursors, rt_segment_id)
 \item n_bins: Number of bins created
 \item rt_breaks: RT breakpoints
-\item adaptive_info: NULL for fixed mode; list of KS diagnostics for adaptive mode
+\item adaptive_info: NULL for Uniform mode; list of KS diagnostics for Adaptive mode
 }
 }
 \description{
-Routes to fixed or adaptive RT binning based on \code{rt_binning_mode}.
+Routes to Uniform or Adaptive RT binning based on \code{rt_binning_mode}.
 All new parameters have defaults, so existing callers that only pass
 \code{precursor_data} and \code{rt_bin_width_min} continue to work.
 }

@@ -361,15 +361,15 @@ build_config_interactive <- function() {
   print_section("8. Window Generation Mode")
 
   cat("\nWindow generation modes:\n")
-  cat("  [1] variable - Density-adaptive windows (recommended)\n")
-  cat("  [2] fixed - Equal-width windows\n")
+  cat("  [1] density - Density-adaptive windows (recommended)\n")
+  cat("  [2] equal - Equal-width windows\n")
   cat("  [3] both - Generate both modes\n")
   cat("\n")
 
-  mode_choice <- get_choice("Select mode", c("variable", "fixed", "both"), "1")
+  mode_choice <- get_choice("Select mode", c("density", "equal", "both"), "1")
 
   if (mode_choice == "both") {
-    window_modes <- c("variable", "fixed")
+    window_modes <- c("density", "equal")
   } else {
     window_modes <- c(mode_choice)
   }

@@ -7,9 +7,10 @@
 format_short_rt_mode(rt_binning_mode, rt_bin_width_min = 5)
 }
 \arguments{
-\item{rt_binning_mode}{Character, RT binning mode ("fixed", "adaptive", or "custom")}
+\item{rt_binning_mode}{Character, "uniform" or "adaptive"; legacy
+"fixed" and "custom" are accepted as Uniform aliases.}
 
-\item{rt_bin_width_min}{Numeric, RT bin width in minutes (used for custom mode)}
+\item{rt_bin_width_min}{Numeric, Uniform duration in minutes.}
 }
 \value{
 Character, short RT mode name

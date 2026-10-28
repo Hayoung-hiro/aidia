@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_rt_changepoint.R
 \name{plot_rt_changepoint_validation}
 \alias{plot_rt_changepoint_validation}
-\title{RT Change Point Validation: Adaptive vs Fixed Binning}
+\title{RT Change Point Validation: Adaptive vs Uniform Binning}
 \usage{
 plot_rt_changepoint_validation(
   validated_data,
@@ -22,7 +22,7 @@ ggplot object
 }
 \description{
 2D density contour plot of precursors in RT x m/z space, overlaid with
-adaptive bin boundaries (red) and fixed-width reference boundaries (gray).
+adaptive bin boundaries (red) and Uniform reference boundaries (gray).
 Visually demonstrates how adaptive binning aligns with precursor density
 gradients compared to naive equal-width bins.
 }

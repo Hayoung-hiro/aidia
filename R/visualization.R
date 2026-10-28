@@ -160,7 +160,7 @@ generate_visualizations <- function(
                             optimization_plan$instrument$preset %||% "custom",
         strategy = NULL,
         window_mode = optimized_windows$parameters$window_mode,
-        rt_binning_mode = optimized_windows$parameters$rt_binning_mode %||% "fixed",
+        rt_binning_mode = optimized_windows$parameters$rt_binning_mode %||% "uniform",
         rt_bin_width_min = optimized_windows$parameters$rt_bin_width_min %||% 5,
         ext = "pdf"
       )
@@ -327,7 +327,7 @@ build_visualization_context <- function(validated_data, optimization_plan,
         strategy_config   = config_constructors[[strategy]](),
         rt_bin_width_min  = optimized_windows$parameters$rt_bin_width_min,
         window_mode       = optimized_windows$parameters$window_mode,
-        rt_binning_mode   = optimized_windows$parameters$rt_binning_mode %||% "fixed"
+        rt_binning_mode   = optimized_windows$parameters$rt_binning_mode %||% "uniform"
       )
     ))
   }

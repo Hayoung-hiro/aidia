@@ -112,7 +112,7 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
     if (!is.null(gradient_name)) sprintf("Dataset: %s", gradient_name),
     sprintf("Instrument: %s", instrument),
     sprintf("Precursors: %s", n_precursors),
-    sprintf("Strategy: %s | Mode: %s", mz_strategy, window_mode),
+    sprintf("Strategy: %s | Mode: %s", mz_strategy, format_window_mode(window_mode)),
     sprintf("Windows: %d | Coverage: %.1f%%", n_windows, coverage)
   )
 
@@ -253,9 +253,9 @@ export_individual_plots <- function(plots, output_dir, format = "png", dpi = 300
       sprintf("%.1f", optimization_plan$parameters$target_dppp),
       sprintf("%.0f%%", (optimization_plan$parameters$target_satisfaction %||% 0.7) * 100),
       params$mz_strategy %||% "N/A",
-      params$window_mode %||% "N/A",
+      format_window_mode(params$window_mode %||% "N/A"),
       as.character(params$fz_offset %||% 0.25),
-      params$rt_binning_mode %||% "fixed",
+      format_rt_mode(params$rt_binning_mode %||% "uniform"),
       as.character(params$rt_bin_width_min %||% 5),
       format(validated_data$metadata$n_precursors, big.mark = ","),
       sprintf("%.0f - %.0f",
@@ -714,7 +714,7 @@ create_pdf_report <- function(plots, validated_data, optimization_plan,
               optimization_plan$instrument$cycle_mode %||% "sequential"),
       sprintf("%s / %s",
               format_strategy_label(m$strategy),
-              tools::toTitleCase(m$window_mode)),
+              format_window_mode(m$window_mode)),
       if (!is.na(m$new_ct)) sprintf("%.3f sec", m$new_ct) else "N/A",
       sprintf("%.1f (actual: %.1f)", m$target_dppp, m$new_dppp),
       if (!is.na(after_sat)) {

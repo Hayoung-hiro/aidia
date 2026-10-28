@@ -116,7 +116,7 @@ plot_precursors_per_window <- function(optimized_windows,
   if (!is.na(cv_optimized) && !is.na(baseline_result$cv)) {
     cv_change <- (cv_optimized - baseline_result$cv) * 100
     baseline_label <- if (!is.na(baseline_result$n_per_bin)) {
-      sprintf("original fixed: %d windows/cycle, CV %.2f", baseline_result$n_per_bin, baseline_result$cv)
+      sprintf("original method: %d windows/cycle, CV %.2f", baseline_result$n_per_bin, baseline_result$cv)
     } else {
       sprintf("equal-width CV: %.2f", baseline_result$cv)
     }
@@ -281,7 +281,7 @@ plot_temporal_density <- function(evaluation_result, baseline_density = NULL) {
       sprintf(", m/z %.0f-%.0f", baseline_density$mz_min, baseline_density$mz_max)
     } else ""
     subtitle_text <- paste0(subtitle_text, sprintf(
-      "\nOriginal fixed (%d windows/cycle%s): median %.1f | %s",
+      "\nOriginal method (%d windows/cycle%s): median %.1f | %s",
       baseline_density$n_per_bin, range_text, baseline_density$median, change_text
     ))
   }

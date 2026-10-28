@@ -2,7 +2,7 @@
 # Run: source("tests/manual/generate_schematic_previews.R")
 #
 # Creates conceptual diagrams using synthetic data to illustrate:
-#   1. Window modes: fixed vs density vs staggered
+#   1. Window modes: equal vs density vs staggered
 #   2. Strategy concepts: how each defines m/z boundaries (1D algorithm view)
 
 devtools::load_all(quiet = TRUE)
@@ -125,7 +125,7 @@ p_fixed <- ggplot() +
            color = col_precursor, alpha = 0.4, length = unit(0.04, "npc")) +
   scale_x_continuous(limits = mz_range, expand = c(0, 0)) +
   scale_y_continuous(limits = c(-0.08, 1.05), expand = c(0, 0)) +
-  labs(title = "Fixed Width", subtitle = "Equal-width windows across m/z range",
+  labs(title = "Equal", subtitle = "Equal-width windows across m/z range",
        x = "m/z (Da)", y = NULL) +
   annotate("text", x = 550, y = 0.92, label = "Dense region:\nsame width",
            size = 3, color = "gray40", fontface = "italic") +
@@ -200,7 +200,7 @@ ggsave(file.path(output_dir, "schematic_window_modes.png"), p_modes,
 cat("  Saved: schematic_window_modes.png\n")
 
 # Also save individual panels
-ggsave(file.path(output_dir, "schematic_mode_fixed.png"), p_fixed,
+ggsave(file.path(output_dir, "schematic_mode_equal.png"), p_fixed,
        width = 9, height = 3.5, dpi = 150, bg = "white")
 ggsave(file.path(output_dir, "schematic_mode_density.png"), p_density,
        width = 9, height = 3.5, dpi = 150, bg = "white")

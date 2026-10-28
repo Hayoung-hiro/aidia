@@ -34,7 +34,7 @@ results <- run_complete_pipeline(
   target_dppp = 7.0,                    # Quant mode (or 1.5 for ID mode)
   target_satisfaction = 0.70,
   mz_strategies = c("greedy", "kde", "quantile", "coverage", "outlier"),
-  window_mode = "density",              # or "fixed", "staggered"
+  window_mode = "density",              # or "equal", "staggered"
   create_plots = TRUE,
   create_pdf = TRUE
 )
@@ -255,8 +255,13 @@ plot_boundary_ci_comparison(ci_a, ci_b)   # compare two methods
 ### Window Modes (3 total)
 
 - **density** (variable): Adaptive width based on precursor density per RT bin
-- **fixed**: Equal-width windows across m/z range
-- **staggered**: Alternating offset between odd/even RT bins (reduces boundary effects)
+- **equal**: Equal target widths across each RT segment's selected m/z range
+- **staggered**: Two acquisition cycles offset by half a window within each RT segment
+
+RT segmentation uses **uniform** (editable duration) or **adaptive** (change-point
+detection). Uniform adds a partial final interval to the last full interval.
+Legacy `fixed` values remain accepted for both settings. See `CONTEXT.md` for
+the canonical terminology and the distinction from the Original method.
 
 ### Technical Replicate Handling
 

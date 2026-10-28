@@ -29,6 +29,18 @@
 
 server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
+  # Seed the duration when a dataset is loaded. Running optimization, changing
+  # strategy, or switching RT modes must not overwrite a user's chosen duration.
+  observeEvent(rv$validated_data, {
+    req(rv$validated_data)
+    suggested <- calculate_auto_rt_bin_width(
+      range(rv$validated_data$data$RT.Apex, na.rm = TRUE),
+      mz_strategy = input$mz_strategy %||% "greedy"
+    )
+    updateSliderInput(session, "rt_bin_width", value = suggested$bin_width)
+  })
+
+
   # --- Helper: Loop N badge for staggered mode (used in After summary + m/z summary) ---
   render_loop_n_badge <- function(windows) {
     loop_n <- tryCatch(calculate_loop_n(windows), error = function(e) NULL)
@@ -118,8 +130,8 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
   # --- Window Mode Preview Image ---
   output$window_mode_preview_img <- renderUI({
-    mode <- input$window_mode
-    if (is.null(mode)) return(NULL)
+    mode <- tolower(format_window_mode(input$window_mode))
+    if (!length(mode)) return(NULL)
 
     img_file <- sprintf("strategy_previews/schematic_mode_%s.png", mode)
 
@@ -178,7 +190,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
     tags$div(
       class = "summary-list",
       if (!is.null(original)) tags$div(
-        tags$strong("Original fixed method: "),
+        tags$strong("Original method: "),
         sprintf("m/z %.1f-%.1f | %d windows | %.2f m/z width",
           original$mz_min, original$mz_max, original$n_windows, original$window_width)),
       tags$div(tags$strong("Precursors: "), format(nrow(precursor_data), big.mark = ",")),
@@ -212,14 +224,11 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
     # Window mode badge
     mode_badge_classes <- list(
-      density = "badge-accent", fixed = "badge-dark", staggered = "badge-dark"
-    )
-    mode_labels <- list(
-      density = "Density (Variable)", fixed = "Fixed (Equal)", staggered = "Staggered (Offset)"
+      density = "badge-accent", equal = "badge-dark", staggered = "badge-dark"
     )
     mode_badge <- tags$span(
       class = mode_badge_classes[[used_mode]] %||% "badge-dark",
-      mode_labels[[used_mode]] %||% used_mode
+      format_window_mode(used_mode)
     )
 
     # Mode-specific width distribution line
@@ -337,7 +346,7 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
         tags$span(
           class = "badge-accent",
           style = "margin-left: 4px;",
-          params$window_mode %||% "density"
+          format_window_mode(params$window_mode %||% "density")
         ),
         # Loop N badge for staggered mode (inline variant)
         if ((params$window_mode %||% "density") == "staggered") {

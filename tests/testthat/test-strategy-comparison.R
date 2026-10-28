@@ -137,7 +137,7 @@ test_that("Shiny shared computation captures hidden strategy controls", {
   input <- list(instrument = "exploris", target_dppp = 7, target_satisfaction = 70,
     current_window_count = 30, original_mz_min = 450, original_mz_max = 1050,
     ms1_it_auto = TRUE, ms2_it_auto = TRUE,
-    mz_strategy = "quantile", rt_binning_mode = "custom", rt_bin_width = 4,
+    mz_strategy = "quantile", rt_binning_mode = "uniform", rt_bin_width = 6.5, window_mode = "equal",
     auto_windows = FALSE, manual_n_windows = 17, greedy_mz_step = 1.5,
     target_coverage = 73, outlier_threshold = 1.6, kde_density_threshold = 23,
     kde_min_coverage = 67, quantile_lower = 0.12, quantile_upper = 0.88,
@@ -158,8 +158,48 @@ test_that("Shiny shared computation captures hidden strategy controls", {
   expect_equal(captured$comparison_strategy_configs$outlier$outlier_threshold, 1.6)
   expect_identical(captured$strategy_config, captured$comparison_strategy_configs$quantile)
   expect_equal(captured$n_windows_override, 17L)
+  expect_identical(captured$window_mode, "equal")
+  expect_identical(captured$rt_binning_mode, "uniform")
+  expect_equal(captured$rt_bin_width_min, 6.5)
   input$target_coverage <- 99
   expect_equal(captured$comparison_strategy_configs$coverage$target_coverage, 0.73)
+})
+
+test_that("Shiny seeds Uniform duration on data load and preserves subsequent edits", {
+  env <- new.env(parent = environment())
+  for (name in getNamespaceExports("shiny")) env[[name]] <- getExportedValue("shiny", name)
+  env$renderValueBox <- bs4Dash::renderValueBox
+  # Preview/comparison jobs are covered separately; isolate duration initialization.
+  env$server_live_preview <- env$server_results_comparison <- function(...) NULL
+  sys.source(system.file("shiny_app", "server_optimization.R", package = "aidia", mustWork = TRUE), env)
+  updates <- numeric()
+  env$updateSliderInput <- function(session, inputId, value, ...) {
+    if (inputId == "rt_bin_width") updates <<- c(updates, value)
+  }
+  server <- function(input, output, session) {
+    rv <- shiny::reactiveValues(validated_data = NULL, optimized_windows = NULL,
+      optimization_plan = NULL, optimization_complete = FALSE)
+    env$server_optimization(input, output, session, rv, function() NULL)
+  }
+  shiny::testServer(server, {
+    session$setInputs(mz_strategy = "greedy", rt_binning_mode = "uniform",
+                      rt_bin_width = 5, fz_offset_preset = "0")
+    dataset <- .comparison_fixture()$data
+    dataset$data$RT.Apex <- seq(0, 23, length.out = nrow(dataset$data))
+    rv$validated_data <- dataset
+    session$flushReact()
+    expect_equal(updates, 4.5)
+    # Browser applies the initial update, then the user changes the value.
+    session$setInputs(rt_bin_width = 4.5)
+    session$setInputs(rt_bin_width = 6.5, rt_binning_mode = "adaptive")
+    session$setInputs(rt_binning_mode = "uniform", mz_strategy = "quantile")
+    expect_equal(updates, 4.5)
+    expect_equal(input$rt_bin_width, 6.5)
+    dataset$data$RT.Apex <- seq(0, 60, length.out = nrow(dataset$data))
+    rv$validated_data <- dataset
+    session$flushReact()
+    expect_equal(updates, c(4.5, 5))
+  })
 })
 
 test_that("batch comparison preserves strategy order, settings, and CSV delivery", {

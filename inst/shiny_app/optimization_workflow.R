@@ -47,7 +47,7 @@
     if (min_valid && max_valid && input$min_isolation_width >= input$max_isolation_width)
       issues[["min_isolation_width"]] <- "Min. target width must be below Max width. Lower this value or increase Max width."
   }
-  if (isTRUE(input$rt_binning_mode == "custom")) check("rt_bin_width", "Group duration (min)", 1, 15)
+  if (isTRUE(format_rt_mode(input$rt_binning_mode %||% "uniform") == "Uniform")) check("rt_bin_width", "Group duration (min)", 1, 15)
   if (isTRUE(input$fz_offset_preset == "custom")) check("custom_fz_offset", "Isotope boundary offset", 0.0001, 0.9999)
   check("edge_void_buffer", "Start buffer (min)", 0, 2)
   check("edge_wash_threshold", "End merge (precursors)", 0, 200, TRUE)
@@ -136,42 +136,22 @@
   cat("[Shiny] t_scan:", optimization_plan$timing$t_scan_ms, "ms\n")
   cat("[Shiny] ================================\n")
 
-  # Determine RT bin width and binning mode
-  rt_binning_mode_input <- input$rt_binning_mode %||% "fixed"
-
-  if (rt_binning_mode_input == "custom") {
-    # Custom: user-specified bin width, fixed binning
-    rt_bin_width_final <- input$rt_bin_width
-    rt_binning_mode_final <- "fixed"
-    cat("[Shiny] Custom RT Bin Width:", rt_bin_width_final, "min (fixed binning)\n")
+  # Preview and confirmed calculations use the same editable Uniform duration.
+  rt_binning_mode_final <- tolower(format_rt_mode(input$rt_binning_mode %||% "uniform"))
+  if (rt_binning_mode_final == "uniform") {
+    rt_bin_width_final <- input$rt_bin_width %||% 5
   } else {
-    # Fixed and Adaptive: auto-calculate bin width
-    rt_range <- range(validated_data$data$RT.Apex, na.rm = TRUE)
     auto_result <- calculate_auto_rt_bin_width(
-      rt_range = rt_range,
-      mz_strategy = input$mz_strategy,
-      target_min_bins = 5
-    )
+      range(validated_data$data$RT.Apex, na.rm = TRUE),
+      mz_strategy = input$mz_strategy, target_min_bins = 5)
     rt_bin_width_final <- auto_result$bin_width
-
-    if (rt_binning_mode_input == "adaptive") {
-      rt_binning_mode_final <- "adaptive"
-      cat("[Shiny] Adaptive RT Binning: auto width =", rt_bin_width_final, "min (used as min constraint)")
-      cat(" (", auto_result$n_bins, " target bins for ", input$mz_strategy, " strategy)\n", sep = "")
-    } else {
-      rt_binning_mode_final <- "fixed"
-      cat("[Shiny] Fixed RT Binning: auto width =", rt_bin_width_final, "min")
-      cat(" (", auto_result$n_bins, " bins for ", input$mz_strategy, " strategy)\n", sep = "")
-    }
-
-
   }
 
   # Stage 3: Window Optimization with selected m/z strategy
   cat("[Shiny] Running optimize_windows()...\n")
   cat("[Shiny] m/z Range Strategy:", input$mz_strategy, "\n")
   cat("[Shiny] Window Width Mode:", input$window_mode, "\n")
-  cat("[Shiny] RT Binning Mode:", input$rt_binning_mode %||% "fixed", "\n")
+  cat("[Shiny] RT Binning Mode:", rt_binning_mode_final, "\n")
   cat("[Shiny] Min Isolation Width:", input$min_isolation_width, "Da\n")
   cat("[Shiny] Max Isolation Width:", input$max_isolation_width %||% 80, "Da\n")
 
