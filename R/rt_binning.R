@@ -2,7 +2,7 @@
 #
 # Purpose: Perform RT (retention time) binning/segmentation
 #   Supports two modes:
-#     - "fixed":    Equal-width bins (original behavior, default)
+#     - "uniform": Regular duration, with any remainder merged into the last bin
 #     - "adaptive": KS-test change-point detection for density-aware bins
 #
 # Functions:
@@ -68,13 +68,14 @@ get_rt_column <- function(precursor_data) {
 
 #' Perform RT Binning (Internal Dispatcher)
 #'
-#' Routes to fixed or adaptive RT binning based on \code{rt_binning_mode}.
+#' Routes to Uniform or Adaptive RT binning based on \code{rt_binning_mode}.
 #' All new parameters have defaults, so existing callers that only pass
 #' \code{precursor_data} and \code{rt_bin_width_min} continue to work.
 #'
 #' @param precursor_data Data frame with RT.Apex column (computed in Stage 1)
-#' @param rt_bin_width_min Numeric, RT bin width in minutes (used by fixed mode)
-#' @param rt_binning_mode Character, "fixed" (default) or "adaptive"
+#' @param rt_bin_width_min Numeric, RT bin width in minutes (used by Uniform mode)
+#' @param rt_binning_mode Character, "uniform" (default) or "adaptive".
+#'   The legacy value "fixed" is accepted as an alias for "uniform".
 #' @param rt_column Character, which RT column to use. NULL = auto-detect via get_rt_column()
 #' @param cpd_significance_level Numeric, KS-test p-value threshold (adaptive only, default 0.05)
 #' @param cpd_min_bin_width Numeric, minimum bin width in minutes (adaptive only, default 1.0)
@@ -88,12 +89,12 @@ get_rt_column <- function(precursor_data) {
 #'   - stats: RT statistics per bin (rt_group, rt_start, rt_end, n_precursors, rt_segment_id)
 #'   - n_bins: Number of bins created
 #'   - rt_breaks: RT breakpoints
-#'   - adaptive_info: NULL for fixed mode; list of KS diagnostics for adaptive mode
+#'   - adaptive_info: NULL for Uniform mode; list of KS diagnostics for Adaptive mode
 #'
 #' @keywords internal
 perform_rt_binning_internal <- function(precursor_data,
                                         rt_bin_width_min,
-                                        rt_binning_mode = "fixed",
+                                        rt_binning_mode = "uniform",
                                         rt_column = NULL,
                                         cpd_significance_level = 0.05,
                                         cpd_min_bin_width = 1.0,
@@ -101,6 +102,12 @@ perform_rt_binning_internal <- function(precursor_data,
                                         cpd_min_precursors_per_bin = 50,
                                         edge_void_buffer_min = 0.5,
                                         edge_wash_min_precursors = 30) {
+
+  rt_binning_mode <- .normalize_rt_mode(rt_binning_mode)
+  if (length(rt_binning_mode) != 1L || is.na(rt_binning_mode) ||
+      !rt_binning_mode %in% c("uniform", "adaptive")) {
+    stop("rt_binning_mode must be one of: uniform, adaptive", call. = FALSE)
+  }
 
   # Determine which RT column to use
   if (is.null(rt_column)) {
@@ -118,7 +125,7 @@ perform_rt_binning_internal <- function(precursor_data,
       cpd_min_precursors_per_bin = cpd_min_precursors_per_bin
     )
   } else {
-    # Fixed mode: use the resolved rt_column as the single RT reference
+    # Uniform mode: use the resolved rt_column as the single RT reference
     rt_result <- perform_fixed_rt_binning_internal(
       precursor_data = precursor_data,
       rt_bin_width_min = rt_bin_width_min,
@@ -137,14 +144,16 @@ perform_rt_binning_internal <- function(precursor_data,
 }
 
 # =============================================================================
-# Fixed RT Binning (Original Implementation)
+# Uniform RT Binning
 # =============================================================================
 
-#' Perform Fixed-Width RT Binning (Internal)
+#' Perform Uniform RT Binning (Internal)
 #'
 #' Segments precursor data into equal-width RT bins using the RT column named by
 #' \code{rt_column} (default RT.Apex, computed in Stage 1 from the midpoint of
-#' RT.Start/RT.Stop) as the single RT reference.
+#' RT.Start/RT.Stop) as the single RT reference. A final partial interval is
+#' merged into the preceding full interval. A span shorter than one interval
+#' remains a single bin. The legacy internal function name is retained.
 #'
 #' @param precursor_data Data frame with the \code{rt_column} RT column
 #' @param rt_bin_width_min Numeric, RT bin width in minutes
@@ -158,21 +167,7 @@ perform_fixed_rt_binning_internal <- function(precursor_data, rt_bin_width_min,
   # Get RT range using rt_column as the single RT reference
   rt_range <- range(precursor_data[[rt_column]], na.rm = TRUE)
 
-  # Guard: a single distinct RT value yields one break point, and cut() needs
-  # at least two boundaries to form a valid interval. Expand by one bin width.
-  if (rt_range[1] == rt_range[2]) {
-    rt_range[2] <- rt_range[1] + rt_bin_width_min
-  }
-
-  # Create RT breaks
-  rt_breaks <- seq(from = rt_range[1],
-                   to = rt_range[2],
-                   by = rt_bin_width_min)
-
-  # Extend to cover full range
-  if (tail(rt_breaks, 1) < rt_range[2]) {
-    rt_breaks <- c(rt_breaks, rt_range[2])
-  }
+  rt_breaks <- .uniform_rt_breaks(rt_range, rt_bin_width_min)
 
   # Assign RT groups
   precursor_data$rt_group <- cut(
@@ -207,6 +202,26 @@ perform_fixed_rt_binning_internal <- function(precursor_data, rt_bin_width_min,
     rt_breaks = rt_breaks,
     adaptive_info = NULL
   )
+}
+
+# Shared by binning, the default-width estimate, and the comparison plot.
+.uniform_rt_breaks <- function(rt_range, rt_bin_width_min) {
+  if (!is.numeric(rt_bin_width_min) || length(rt_bin_width_min) != 1L ||
+      !is.finite(rt_bin_width_min) || rt_bin_width_min <= 0) {
+    stop("rt_bin_width_min must be a finite positive number", call. = FALSE)
+  }
+  if (length(rt_range) != 2L || any(!is.finite(rt_range)) ||
+      rt_range[2] < rt_range[1]) {
+    stop("RT range must contain two finite, ordered values", call. = FALSE)
+  }
+  span <- diff(rt_range)
+  if (span == 0) return(c(rt_range[1], rt_range[1] + rt_bin_width_min))
+
+  # Avoid losing a full interval to floating-point noise at an exact multiple.
+  ratio <- span / rt_bin_width_min
+  if (abs(ratio - round(ratio)) < 1e-10) ratio <- round(ratio)
+  n_bins <- max(1L, floor(ratio))
+  c(rt_range[1] + seq.int(0, n_bins - 1L) * rt_bin_width_min, rt_range[2])
 }
 
 # =============================================================================
@@ -286,7 +301,7 @@ perform_adaptive_rt_binning_internal <- function(precursor_data,
 
   # Fallback: if no change points detected, use fixed-width binning
   if (length(change_point_indices) == 0) {
-    warning("No significant m/z distribution changes detected; falling back to fixed-width RT binning")
+    warning("No significant m/z distribution changes detected; falling back to Uniform RT binning")
     # Clean up temporary column
     precursor_data$.pre_bin <- NULL
 
@@ -605,8 +620,8 @@ apply_edge_handling <- function(rt_result,
 #' Calculate Auto RT Bin Width
 #'
 #' Automatically calculates optimal RT bin width based on gradient length
-#' and m/z optimization strategy. Used by Shiny "Fixed" mode to determine
-#' a sensible bin width without user input.
+#' and m/z optimization strategy. Supplies the editable initial duration for
+#' Shiny Uniform mode.
 #'
 #' Note: This is NOT related to KS adaptive binning. It is a simple formula
 #' that divides gradient length by a strategy-dependent target bin count.
@@ -643,7 +658,7 @@ calculate_auto_rt_bin_width <- function(rt_range,
   bin_width <- max(1.0, min(bin_width, 15.0))  # Clamp between 1 and 15 min
 
   # Recalculate actual number of bins
-  n_bins <- ceiling(gradient_length / bin_width)
+  n_bins <- length(.uniform_rt_breaks(rt_range, bin_width)) - 1L
 
   list(
     bin_width = bin_width,

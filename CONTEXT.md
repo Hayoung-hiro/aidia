@@ -5,6 +5,24 @@ Scientific background and existing domain decisions are in [docs/domain-knowledg
 
 ## Language
 
+**Equal window generation**:
+Partitioning each RT segment's selected m/z range into windows with equal target widths. Boundary rounding and forbidden-zone placement may make delivered widths differ slightly.
+_Avoid_: Fixed window mode
+
+**Density window generation**:
+Adjusting m/z window widths to balance precursor counts, with narrower windows in dense regions and wider windows in sparse regions.
+_Avoid_: Dense mode
+
+**Staggered window generation**:
+Two interleaved acquisition cycles whose windows are offset by half a window within each RT segment.
+
+**Uniform RT segmentation**:
+Partitioning the observed RT span using a user-adjustable regular duration, initially suggested from the data. Any remaining time extends the last full segment; a shorter total span forms one segment.
+_Avoid_: Fixed RT mode, Auto and Custom as separate segmentation methods
+
+**Original method**:
+The reference acquisition method whose m/z windows remain constant throughout RT. Equal generation can instead use a different selected m/z range in each RT segment.
+
 **Strategy comparison**:
 A comparison of isolation-window strategies using the same input precursors and common acquisition conditions, with each strategy's own user-selected settings captured when optimization is run.
 _Avoid_: Default-strategy comparison

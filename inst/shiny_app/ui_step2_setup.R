@@ -69,11 +69,11 @@ step2_setup_ui <- function() {
           div(class = "config-method",
             div(class = "config-method-label", tags$label(id = "window_mode-label", `for` = "window_mode", "Window width mode"),
               help("Window width mode",
-                p("Density: narrower windows in dense m/z regions, wider windows in sparse regions. Fixed: equal widths. Staggered: two cycles with a half-window offset."),
+                p("Density: narrower windows in dense m/z regions, wider windows in sparse regions. Equal: equal target widths. Staggered: two cycles with a half-window offset."),
                 p("For staggered acquisition, set Thermo Loop Control N in the method editor to the windows per RT bin per cycle, reported after optimization."),
                 uiOutput("window_mode_preview_img"))),
             selectInput("window_mode", NULL,
-              choices = c("Density" = "density", "Fixed" = "fixed", "Staggered" = "staggered"), selected = "density")
+              choices = c("Density" = "density", "Equal" = "equal", "Staggered" = "staggered"), selected = "density")
           )
         ),
         div(class = "config-design-grid",
@@ -185,11 +185,11 @@ step2_setup_ui <- function() {
       section("3", "Retention-time grouping",
         row("RT groups",
           selectInput("rt_binning_mode", "Grouping mode", choices = c(
-            "Automatic duration" = "fixed", "Detect distribution changes" = "adaptive", "Choose duration" = "custom"), selected = "fixed"),
-          conditionalPanel(condition = "input.rt_binning_mode == 'custom'",
+            "Uniform" = "uniform", "Adaptive" = "adaptive"), selected = "uniform"),
+          conditionalPanel(condition = "input.rt_binning_mode == 'uniform'",
             sliderInput("rt_bin_width", "Group duration (min)", min = 1, max = 15, value = 5, step = 0.5, ticks = FALSE)),
           info = help("Retention-time grouping",
-            p("Each RT group gets its own set of m/z windows. Automatic duration calculates a regular group duration. Detect distribution changes uses a KS test to place boundaries. Choose duration uses your selected duration."),
+            p("Each RT group gets its own set of m/z windows. Uniform uses an editable duration, initially suggested from the data. Remaining time extends the last full group. Adaptive uses a KS test to place boundaries."),
             p("Shorter durations create more RT groups."))
         ),
         conditionalPanel(condition = "input.rt_binning_mode == 'adaptive'",

@@ -117,10 +117,11 @@ test_that("quantile+density window layout matches SPEC v2 invariants (else path)
   ))
   w <- .wss_fingerprint(res)
 
-  # Uniform N: 4 RT bins x 6 windows each (SPEC v2 H6).
-  expect_equal(nrow(w), 24L)
+  # The sampled RT span is just under 20 min. Uniform now merges the partial
+  # fourth interval into the third: 3 RT bins x 6 windows (SPEC v2 H6).
+  expect_equal(nrow(w), 18L)
   by_bin <- split(w, w$rt_segment_id)
-  expect_equal(length(by_bin), 4L)
+  expect_equal(length(by_bin), 3L)
   expect_true(all(vapply(by_bin, nrow, integer(1)) == 6L))
 
   for (b in by_bin) {
@@ -132,11 +133,10 @@ test_that("quantile+density window layout matches SPEC v2 invariants (else path)
   }
 
   # The integer-width multiset per bin is deterministic even though which window
-  # carries each +/-1 Da leftover is not (see file header). Verified stable
-  # across the committed baseline and independent macOS/Linux CI runners.
+  # carries each +/-1 Da leftover is not (see file header). These targets
+  # include the updated RT grouping and its smoothed quantile ranges.
   int_widths <- lapply(by_bin, function(b) sort(as.integer(round(b$window_width))))
   expect_equal(int_widths[["1"]], c(83L, 84L, 84L, 84L, 84L, 84L))
-  expect_equal(int_widths[["2"]], c(85L, 86L, 86L, 86L, 86L, 86L))
-  expect_equal(int_widths[["3"]], c(87L, 87L, 88L, 88L, 88L, 88L))
-  expect_equal(int_widths[["4"]], c(89L, 89L, 90L, 90L, 90L, 90L))
+  expect_equal(int_widths[["2"]], c(86L, 87L, 87L, 87L, 87L, 87L))
+  expect_equal(int_widths[["3"]], c(89L, 89L, 89L, 90L, 90L, 90L))
 })

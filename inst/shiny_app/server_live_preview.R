@@ -10,7 +10,7 @@
       kde_density_threshold = 10, kde_min_coverage = 80,
       min_isolation_width = widths$min_width_da, max_isolation_width = widths$max_width_da,
       fz_offset_preset = "0.25", custom_fz_offset = 0.25),
-    rt = list(rt_binning_mode = "fixed", rt_bin_width = 5, cpd_significance = 0.05,
+    rt = list(rt_binning_mode = "uniform", rt_bin_width = 5, cpd_significance = 0.05,
       cpd_min_bin_width = 1, edge_void_buffer = 0.5, edge_wash_threshold = 30)
   )
 }
@@ -262,8 +262,7 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
           "Confirm your settings in step 2 to prepare a download."
           else "Upload a report, then configure your windows.")))
     }
-    mode <- switch(run$settings$window_mode,
-      density = "Density", fixed = "Fixed", staggered = "Staggered")
+    mode <- format_window_mode(run$settings$window_mode)
     div(class = "sidebar-method-content",
       div(class = "sidebar-method-strategy",
         format_strategy_label(run$settings$mz_strategy), tags$span(mode)),

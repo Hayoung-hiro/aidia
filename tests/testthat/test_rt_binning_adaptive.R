@@ -216,7 +216,7 @@ test_that("adaptive binning falls back to fixed when no change points", {
       data, "RT.Apex",
       cpd_significance_level = 1e-10  # Very strict — should find nothing
     ),
-    "falling back to fixed-width"
+    "falling back to Uniform"
   )
 
   expect_true(result$adaptive_info$fallback)

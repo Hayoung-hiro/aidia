@@ -32,30 +32,33 @@ generate_variable_windows_internal(
 
 \item{max_iterations}{Maximum iterations for density adjustment (default: 20)}
 
-\item{max_change_ratio}{Maximum width change ratio between adjacent windows (default: 0.5)}
+\item{max_change_ratio}{Maximum relative width change per smoothing pass
+(default: 0.5). Zero disables width smoothing.}
 
-\item{width_grid_step}{Grid step for width digitization in Da (default: 0.5). Set to NULL or 0 to disable.}
+\item{width_grid_step}{Retained for compatibility; ignored. The required
+integer boundaries always use a 1 Da grid before FZ placement.}
+
+\item{fz_offset}{Forbidden-zone offset in Da (0 to disable).}
 }
 \value{
 Data frame with window specifications
 }
 \description{
-Creates density-based adaptive windows with guaranteed width constraints
-and smooth transitions between adjacent windows.
+Creates density-based adaptive windows. Width smoothing is accepted only
+when it improves precursor-load balance after integerization and FZ placement.
 }
 \details{
 Algorithm: Constrained Density Partitioning
 Phase 1: Start with uniform distribution (guaranteed valid)
 Phase 2: Iteratively adjust boundaries based on precursor density
-Phase 3: Apply smoothing for gradual width transitions
-Phase 3.5: Width digitization for batch reproducibility (if enabled)
-Phase 4: Final validation
+Phase 3: Propose smoothing for gradual width transitions
+Phase 4: Digitize both candidates and retain the better precursor balance
 
 Constraints enforced:
 \itemize{
-\item min_width_da <= window_width <= max_width_da (always)
-\item Adjacent windows differ by at most max_change_ratio (smooth transitions)
-\item Exactly n_windows are generated (when possible)
+\item Integer widths and exactly n_windows, using edge expansion when needed
+\item Minimum width is enforced by digitization; maximum width is a soft target
+\item Smoothing cannot worsen final precursor-load balance
 }
 }
 \keyword{internal}

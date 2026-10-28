@@ -33,7 +33,7 @@
 
   "rt_binning": {
     "rt_bin_width_min": 3.0,
-    "rt_binning_mode": "fixed"
+    "rt_binning_mode": "uniform"
   },
 
   "mz_optimization": {

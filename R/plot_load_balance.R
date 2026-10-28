@@ -109,7 +109,7 @@ plot_precursor_load_balance <- function(optimized_windows, validated_data,
   cv_text <- function(x) if (is.finite(x)) sprintf("%.0f%%", 100 * x) else "N/A"
   subtitle_text <- paste("Pooled window-load CV:", cv_text(overall_cv))
   if (has_baseline) {
-    subtitle_text <- sprintf("Pooled load CV: Original fixed (%d windows/cycle) %s | Optimized %s",
+    subtitle_text <- sprintf("Pooled load CV: Original method (%d windows/cycle) %s | Optimized %s",
       baseline_n_per_bin, cv_text(baseline_cv), cv_text(overall_cv))
   }
 

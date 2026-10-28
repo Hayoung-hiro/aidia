@@ -26,7 +26,8 @@ generate_windows_internal(
 
 \item{n_windows_per_bin}{Number of windows per RT bin}
 
-\item{window_mode}{Character: "fixed" or "variable"}
+\item{window_mode}{Character: "equal", "density", or "staggered".
+The legacy value "fixed" is an alias for "equal".}
 
 \item{min_width_da}{Minimum window width in Da}
 
@@ -34,7 +35,8 @@ generate_windows_internal(
 
 \item{overlap_percentage}{Overlap percentage between windows}
 
-\item{width_grid_step}{Grid step for width digitization in Da (default: 0.5)}
+\item{width_grid_step}{Retained for compatibility; ignored. Widths use
+integer boundaries before FZ placement.}
 
 \item{fz_offset}{Numeric, forbidden zone offset for staggered mode (default: 0.25, use 0.18 for phospho)}
 }

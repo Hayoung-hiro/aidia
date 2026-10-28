@@ -122,3 +122,19 @@ test_that("original method prerequisites identify the input that needs correctio
   input["original_mz_max"] <- list(NULL)
   expect_named(env$.shiny_prepare_issues(input, TRUE, list()), "original_mz_max")
 })
+
+
+test_that("Uniform requires an editable duration while Adaptive ignores it", {
+  env <- .intent_env()
+  input <- do.call(c, unname(env$.shiny_setup_defaults("exploris")))
+  expect_equal(input$rt_binning_mode, "uniform")
+  expect_length(env$.shiny_setup_issues(input), 0)
+  input$rt_bin_width <- NULL
+  expect_named(env$.shiny_setup_issues(input), "rt_bin_width")
+  expect_match(env$.shiny_setup_issues(input)[["rt_bin_width"]], "Group duration")
+  input$rt_bin_width <- 6.5
+  expect_length(env$.shiny_setup_issues(input), 0)
+  input$rt_bin_width <- NULL
+  input$rt_binning_mode <- "adaptive"
+  expect_length(env$.shiny_setup_issues(input), 0)
+})

@@ -14,10 +14,10 @@
 # Plot 11: RT Change Point Validation - Contour Density + Bin Boundaries
 # =============================================================================
 
-#' RT Change Point Validation: Adaptive vs Fixed Binning
+#' RT Change Point Validation: Adaptive vs Uniform Binning
 #'
 #' 2D density contour plot of precursors in RT x m/z space, overlaid with
-#' adaptive bin boundaries (red) and fixed-width reference boundaries (gray).
+#' adaptive bin boundaries (red) and Uniform reference boundaries (gray).
 #' Visually demonstrates how adaptive binning aligns with precursor density
 #' gradients compared to naive equal-width bins.
 #'
@@ -63,11 +63,7 @@ plot_rt_changepoint_validation <- function(validated_data,
 
   # --- Fixed bin boundaries for comparison ---
   rt_range <- range(plot_df$rt, na.rm = TRUE)
-  fixed_boundaries <- seq(rt_range[1], rt_range[2], by = fixed_bin_width)
-  # Ensure the last boundary reaches the end
-  if (max(fixed_boundaries) < rt_range[2]) {
-    fixed_boundaries <- c(fixed_boundaries, rt_range[2])
-  }
+  fixed_boundaries <- .uniform_rt_breaks(rt_range, fixed_bin_width)
   n_fixed <- length(fixed_boundaries) - 1
 
   # --- Build the plot ---
@@ -100,12 +96,12 @@ plot_rt_changepoint_validation <- function(validated_data,
     ) +
     # Labels
     labs(
-      title = "RT Change Point Validation: Adaptive vs Fixed Binning",
-      subtitle = sprintf("Adaptive: %d bins | Fixed (%g min): %d bins",
+      title = "RT Change Point Validation: Adaptive vs Uniform Binning",
+      subtitle = sprintf("Adaptive: %d bins | Uniform (%g min): %d bins",
                          n_adaptive, fixed_bin_width, n_fixed),
       x = "Retention Time (min)",
       y = "Precursor m/z (Da)",
-      caption = "Red solid = adaptive boundaries | Gray dashed = fixed-width reference"
+      caption = "Red solid = adaptive boundaries | Gray dashed = Uniform reference"
     ) +
     theme_aidia() +
     theme(

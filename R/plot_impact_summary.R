@@ -176,7 +176,7 @@ plot_optimization_impact <- function(optimization_plan, optimized_windows, valid
               optimization_plan$instrument$name %||% "N/A",
               optimization_plan$instrument$cycle_mode %||% "sequential"),
       format_strategy_label(m$strategy),
-      tools::toTitleCase(m$window_mode),
+      format_window_mode(m$window_mode),
       if (!is.na(m$windows_per_bin)) {
         sprintf("%s (%d/bin)", format(m$n_windows, big.mark = ","), m$windows_per_bin)
       } else {

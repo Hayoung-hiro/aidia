@@ -33,7 +33,7 @@
 
   "rt_binning": {
     "rt_bin_width_min": 5.0,
-    "rt_binning_mode": "fixed"
+    "rt_binning_mode": "uniform"
   },
 
   "mz_optimization": {
@@ -47,7 +47,7 @@
   },
 
   "window_generation": {
-    "modes": ["fixed", "variable"],
+    "modes": ["equal", "density"],
     "min_width_da": 2,
     "max_width_da": 80,
     "overlap_percentage": 0

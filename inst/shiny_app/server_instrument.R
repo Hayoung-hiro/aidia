@@ -106,7 +106,7 @@ server_instrument <- function(input, output, session, rv) {
     config <- tryCatch(fixed_method_config(input$current_window_count,
       input$original_mz_min, input$original_mz_max), error = function(e) NULL)
     if (is.null(config)) return(NULL)
-    div(class = "config-derived-value", sprintf("Original fixed width: %.2f m/z (%d windows)",
+    div(class = "config-derived-value", sprintf("Original window width: %.2f m/z (%d windows)",
       config$window_width, config$n_windows))
   })
 

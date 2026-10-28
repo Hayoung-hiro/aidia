@@ -29,7 +29,7 @@ AIDIA aids researchers in optimizing DIA isolation windows through intelligent, 
 ## ✨ Key Features
 
 - 🎯 **5 Optimization Strategies**: Greedy, KDE, Quantile, Coverage, Outlier (S3-dispatched; add a new strategy with one constructor + one method)
-- 📊 **3 Window Modes**: Density (variable), Fixed, Staggered
+- 📊 **3 Window Modes**: Equal, Density, Staggered
 - 🔧 **Verified Instruments**: Astral, Exploris, Q Exactive, Eclipse, Fusion Lumos (Thermo Orbitrap)
 - 📁 **3 Method Export Formats**: Thermo 8-column CSV, Center Mass list, m/z Range list
 - 📐 **Publication-Quality Figure Export**: 6 journal presets (JPR, MCP, Anal Chem, Nature Methods, Proteomics, JASMS) with column-width and font sizing, multi-panel assembly via patchwork
@@ -149,8 +149,20 @@ for explicit file destinations or `export_method_bundle()` for a directory/ZIP.
 | Mode (`window_mode`) | Description | Use Case |
 |------|-------------|----------|
 | **`"density"`** | Variable width based on precursor density (dense regions = narrower) | Default, adaptive |
-| **`"fixed"`** | Equal width windows across m/z range | Simple, consistent |
-| **`"staggered"`** | Alternating offset between odd/even RT bins | Reduced boundary effects |
+| **`"equal"`** | Equal width windows across each RT segment's m/z range | Simple, consistent; legacy `"fixed"` accepted |
+| **`"staggered"`** | Two acquisition cycles with a half-window offset | Reduced boundary effects |
+
+RT segmentation uses **Uniform** (`rt_binning_mode = "uniform"`, the default)
+or **Adaptive** (`"adaptive"`). In Shiny, Uniform starts with a suggested segment
+duration that you can edit directly. The chosen duration is used when you run
+optimization. A partial final interval extends the last full segment: a 23-minute
+span with a 5-minute duration produces intervals of 5, 5, 5, and 8 minutes.
+A span shorter than the chosen duration forms one segment. Start-buffer and
+sparse-tail settings can further adjust the edge segments.
+
+Existing `window_mode = "fixed"` and `rt_binning_mode = "fixed"` calls remain
+accepted as aliases for Equal and Uniform. Saved result labels and new output
+filenames use the new names; Uniform filenames include the chosen duration.
 
 ---
 

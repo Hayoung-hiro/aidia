@@ -1,3 +1,30 @@
+# Mode naming and Uniform RT segmentation (development)
+
+- Rename the Fixed window mode to Equal and Fixed RT segmentation to Uniform.
+  Existing `fixed` inputs remain accepted; completed settings use `equal` and
+  `uniform`. Use the new labels in results, reports, previews, and output names.
+- Combine automatic and custom RT duration into one editable Uniform control
+  in Shiny. Loading data suggests a duration; later edits survive strategy/mode
+  changes and are used when optimization runs.
+- Merge a final partial Uniform interval into the last full interval regardless
+  of precursor count. Keep a single interval when the whole span is shorter than
+  the duration, and handle exact multiples without floating-point tail bins.
+- Label the constant reference acquisition as Original method.
+
+# aidia (development)
+
+* Density windows retain the unsmoothed density partition when width smoothing
+  would worsen precursor-load balance after integerization and forbidden-zone
+  placement (#19). Ties preserve the density partition.
+* Density boundary moves use available width slack when the nominal step is too
+  large. Simultaneous moves are scaled together to preserve the width envelope.
+* Integer remainder ties use target widths before position, and smoothing must
+  improve both reflected allocations, preserving density reflection symmetry.
+* Regression tests cover final precursor-load balance, the Greedy Stage 3 path,
+  FZ on/off, near-limit boundary moves, and intentional equal-width outcomes.
+* Corrected `width_grid_step` documentation: this compatibility argument is
+  ignored; integer boundaries have been mandatory since the digitization update.
+
 # aidia 0.5.1
 
 ## Review & export improvements

@@ -68,7 +68,7 @@ ABSOLUTE_MIN_WIDTH_DA <- 1.0
 #'   - "coverage": Minimum range for target coverage, conservative
 #'   - "outlier": Mean +/- 3*SD, removes outliers
 #' @param window_mode Character, window generation mode (default: "density")
-#'   - "fixed": Equal-width windows
+#'   - "equal": Equal-width windows (legacy alias: "fixed")
 #'   - "density": Density-based adaptive windows (recommended)
 #' @param target_coverage Numeric, target m/z coverage 0-1 (default: 0.95)
 #' @param quantile_lower Numeric, lower quantile for quantile strategy (default: 0.05)
@@ -90,17 +90,17 @@ ABSOLUTE_MIN_WIDTH_DA <- 1.0
 #' @param coverage_mode Character, coverage strategy mode: "narrowest" or "centered"
 #' @param mz_range_min Numeric, fallback minimum m/z for empty RT bins (default: 400)
 #' @param mz_range_max Numeric, fallback maximum m/z for empty RT bins (default: 1200)
-#' @param rt_binning_mode Character, RT binning mode: "fixed" or "adaptive" (default: "fixed")
+#' @param rt_binning_mode Character, "uniform" (default) or "adaptive".
+#'   Legacy "fixed" is an alias for "uniform". Uniform merges a partial final
+#'   interval into the preceding full interval.
 #' @param cpd_min_bin_width Numeric, minimum RT bin width in minutes for adaptive binning (default: 1.0)
 #' @param cpd_max_bin_width Numeric, maximum RT bin width in minutes for adaptive binning (default: 15.0)
 #' @param cpd_min_precursors_per_bin Integer, minimum precursors per bin for adaptive binning (default: 50)
 #' @param cpd_significance_level Numeric, significance level for changepoint detection (default: 0.05)
 #' @param edge_void_buffer_min Numeric, buffer in minutes for edge bins with no precursors (default: 0.5)
 #' @param edge_wash_min_precursors Integer, minimum precursors for edge bin retention (default: 30)
-#' @param width_grid_step Numeric, grid step for width digitization in Da (default: 0.5)
-#'   - Snaps window widths to nearest multiple for batch reproducibility
-#'   - Set to NULL or 0 to disable digitization
-#'   - Only applies to density (variable) window mode
+#' @param width_grid_step Retained for compatibility; ignored. Window boundaries
+#'   always use the required 1 Da integer grid before forbidden-zone placement.
 #' @param smoothing_method Character, boundary smoothing method (default: "whittaker").
 #'   "whittaker" for Whittaker-Henderson penalized least squares,
 #'   "sg" for Savitzky-Golay polynomial filter.
@@ -157,7 +157,7 @@ optimize_windows <- function(
   fz_offset = 0.25,
   coverage_mode = "narrowest",
   # RT binning parameters
-  rt_binning_mode = "fixed",
+  rt_binning_mode = "uniform",
   cpd_min_bin_width = 1.0,
   cpd_max_bin_width = 15.0,
   cpd_min_precursors_per_bin = 50,
@@ -252,13 +252,15 @@ optimize_windows <- function(
                  paste(valid_strategies, collapse = ", ")))
   }
 
-  valid_modes <- c("fixed", "density", "staggered")
+  window_mode <- .normalize_window_mode(window_mode)
+  rt_binning_mode <- .normalize_rt_mode(rt_binning_mode)
+  valid_modes <- c("equal", "density", "staggered")
   if (!window_mode %in% valid_modes) {
     stop(sprintf("window_mode must be one of: %s",
                  paste(valid_modes, collapse = ", ")))
   }
 
-  valid_rt_binning_modes <- c("fixed", "adaptive")
+  valid_rt_binning_modes <- c("uniform", "adaptive")
   if (!rt_binning_mode %in% valid_rt_binning_modes) {
     stop(sprintf("rt_binning_mode must be one of: %s",
                  paste(valid_rt_binning_modes, collapse = ", ")))
@@ -564,7 +566,8 @@ optimize_windows <- function(
   cat(rep("-", 55), "\n", sep = "")
   cat(sprintf("OK Window optimization successful\n"))
   cat(sprintf("   Total windows: %d\n", total_windows))
-  cat(sprintf("   RT bins: %d (%.1f min each)\n", n_bins, rt_bin_width_min))
+  cat(sprintf("   RT bins: %d (%s, configured duration %.1f min)\n",
+              n_bins, format_rt_mode(rt_binning_mode), rt_bin_width_min))
   cat(sprintf("   Windows per bin: %d\n", n_windows_per_bin))
   cat(sprintf("   Mean window width: %.2f Da\n",
               statistics$window_width_mean))

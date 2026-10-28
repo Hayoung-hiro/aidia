@@ -2,7 +2,7 @@
 % Please edit documentation in R/rt_binning.R
 \name{perform_fixed_rt_binning_internal}
 \alias{perform_fixed_rt_binning_internal}
-\title{Perform Fixed-Width RT Binning (Internal)}
+\title{Perform Uniform RT Binning (Internal)}
 \usage{
 perform_fixed_rt_binning_internal(
   precursor_data,
@@ -23,6 +23,8 @@ List containing data, stats, n_bins, rt_breaks, adaptive_info (NULL)
 \description{
 Segments precursor data into equal-width RT bins using the RT column named by
 \code{rt_column} (default RT.Apex, computed in Stage 1 from the midpoint of
-RT.Start/RT.Stop) as the single RT reference.
+RT.Start/RT.Stop) as the single RT reference. A final partial interval is
+merged into the preceding full interval. A span shorter than one interval
+remains a single bin. The legacy internal function name is retained.
 }
 \keyword{internal}

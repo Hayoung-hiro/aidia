@@ -88,7 +88,7 @@ bootstrap_boundary_ci <- function(validated_data,
   # Create RT bins
   rt_result <- perform_rt_binning_internal(
     precursor_data, rt_bin_width_min,
-    rt_binning_mode = "fixed"
+    rt_binning_mode = "uniform"
   )
   precursor_data <- rt_result$data
   rt_stats <- rt_result$stats

@@ -26,7 +26,7 @@ format_output_filename(
 
 \item{rt_binning_mode}{Character, RT binning mode}
 
-\item{rt_bin_width_min}{Numeric, RT bin width (for custom mode)}
+\item{rt_bin_width_min}{Numeric, Uniform duration in minutes}
 
 \item{ext}{Character, file extension without dot (default: "csv")}
 
