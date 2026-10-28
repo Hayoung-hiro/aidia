@@ -14,6 +14,7 @@ create_validated_dataset(
   min_replicates = NULL,
   quality_threshold = 0.8,
   apply_quality_filters = TRUE,
+  run_name = NULL,
   ...
 )
 }
@@ -36,6 +37,9 @@ create_validated_dataset(
 \item{quality_threshold}{Minimum quality score 0-1 (default: 0.8)}
 
 \item{apply_quality_filters}{Apply DIA-NN Q-value filters (default: TRUE)}
+
+\item{run_name}{Exact DIA-NN Run names to select before validation/consensus.
+NULL preserves the existing all-run behavior.}
 
 \item{...}{Additional arguments passed to filter_diann_quality()}
 }

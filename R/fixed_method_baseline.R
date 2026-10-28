@@ -67,7 +67,8 @@ evaluate_fixed_method_baseline <- function(validated_data, optimization_plan,
     precursor_rt = precursors$RT.Apex,
     precursor_fwhm = precursors$FWHM,
     window_mz_start = windows$mz_start, window_mz_end = windows$mz_end,
-    window_rt_start = windows$rt_start, window_rt_end = windows$rt_end
+    window_rt_start = windows$rt_start, window_rt_end = windows$rt_end,
+    fwhm_unit = if (.is_ms1_features(validated_data)) validated_data$metadata$fwhm_unit else NULL
   )
   covered <- is.finite(precursors$Precursor.Mz) &
     precursors$Precursor.Mz >= original$mz_min & precursors$Precursor.Mz <= original$mz_max

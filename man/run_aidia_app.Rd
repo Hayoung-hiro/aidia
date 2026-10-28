@@ -14,4 +14,6 @@ This function does not return a value; it launches the Shiny app.
 }
 \description{
 Opens the interactive web interface for DIA isolation window optimization.
+Local path input is enabled by default for loopback hosts only. Override with
+\code{options(aidia.shiny.local_files = TRUE/FALSE)} before launching.
 }

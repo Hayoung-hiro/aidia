@@ -26,8 +26,10 @@ cat("\n")
 # =============================================================================
 
 config <- list(
-  name = "30min Astral (Full Pipeline)",
-  data_file = "data/30min_report.parquet",
+  name = if (nzchar(Sys.getenv("AIDIA_TEST_REPORT")))
+    "External report (integration test settings, not acquisition reproduction)" else
+    "30min Astral (Full Pipeline)",
+  data_file = Sys.getenv("AIDIA_TEST_REPORT", "data/30min_report.parquet"),
   cycle_time = 3.5,
   target_dppp = 7.0,
   instrument = "astral",

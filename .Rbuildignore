@@ -16,6 +16,7 @@
 ^TODO.*
 ^\.gitignore$
 ^\.github$
+^\.git$
 ^[^/]*\.md$
 ^.*\.txt$
 ^.*\.code-workspace$
@@ -24,6 +25,7 @@
 ^.*\.parquet$
 ^tests/manual$
 ^tests/manual/
+^test_output$
 ^tests/test_cycle_time_calc\.R$
 ^\.omc$
 ^\.omc/

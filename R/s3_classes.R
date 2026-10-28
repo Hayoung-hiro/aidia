@@ -93,6 +93,12 @@ if (!inherits(x, "ValidatedData")) {
                  paste(missing_meta, collapse = ", ")), call. = FALSE)
   }
 
+  if ("source_runs" %in% names(x$metadata)) {
+    if (!is.character(x$metadata$source_runs)) stop("source_runs must be a character vector.")
+    if (length(x$metadata$source_runs)) .validate_feature_text(x$metadata$source_runs, "source_runs")
+  }
+  if (.is_ms1_features(x)) .validate_ms1_dataset(x)
+
   invisible(x)
 }
 

@@ -18,6 +18,8 @@
 
 ## What is AIDIA?
 
+Experimental input: [alphaextract MS1 feature maps and fixed-budget ID/MS1 comparison](docs/ms1-feature-map-input.md).
+
 **AIDIA** = **A**daptive **I**solation for **DIA**
 
 Also: "Your **Aid** for DIA optimization"

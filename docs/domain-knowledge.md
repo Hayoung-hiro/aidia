@@ -5,6 +5,19 @@ for the AIDIA (Adaptive Isolation for DIA) project.
 
 ---
 
+## External MS1 feature maps
+
+- **MS1 feature map**: one row per detected feature in a scouting run, including its actual apex, m/z, peak boundaries and FWHM provenance. It is distinct from an identified-precursor map and from isotope/centroid tables.
+- **Feature key**: a run-scoped tracking key, not a peptide or protein identity. Equal feature_id values in different runs do not establish a match.
+- **Feature group**: a cross-run correspondence hypothesis assigned in one joint export. Each run contributes at most one detection; the group is not a peptide identification.
+- **MS1 consensus**: one design row per feature group, with median coordinates and native FWHM across detections meeting a user-selected minimum run count. Original observations remain available.
+- **Pooled MS1 map**: every selected run's feature detections, each counted once without cross-run merging. Runs with more detections contribute more rows.
+- **Input batch recommendation**: users select runs with compatible sample preparation, LC and acquisition conditions. Labels do not enforce or prove compatibility.
+- **Fixed-budget input-map comparison**: changing the design map while holding the reference cycle time, window count, instrument settings, full m/z coverage and RT schedule constant. Both designs use the same MS1 evaluation map for load counts.
+- **MS1 feature satisfaction**: the fraction of in-scope detected features meeting the whole-peak DPPP target at the fixed cycle time; its denominator and FWHM source differ from ID precursor satisfaction.
+
+See [ADR-0005](adr/0005-external-ms1-feature-table-input.md) and the [input contract](ms1-feature-map-input.md).
+
 ## Bayesian Optimization for Auto-Tune Window Placement
 
 ### Background: py_diAID Approach

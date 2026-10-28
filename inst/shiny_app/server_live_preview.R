@@ -151,8 +151,10 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
 
   observeEvent(input$run_optimization, {
     if (!isTRUE(rv$data_loaded) || length(setup_issues())) {
-      id <- if (!isTRUE(rv$data_loaded)) "parquet_file" else names(setup_issues())[[1]]
-      if (id %in% c("parquet_file", "instrument", "current_window_count", "astral_ms2_it", "ms1_it_custom", "ms2_it_custom", "original_mz_min", "original_mz_max"))
+      id <- if (!isTRUE(rv$data_loaded)) {
+        if (identical(input$input_type, "ms1_features")) "compute_features" else "compute_diann"
+      } else names(setup_issues())[[1]]
+      if (id %in% c("compute_diann", "compute_features", "instrument", "current_window_count", "astral_ms2_it", "ms1_it_custom", "ms2_it_custom", "original_mz_min", "original_mz_max"))
         updateTabItems(session, "tabs", "data")
       session$sendCustomMessage("workflow-focus", id)
       return()

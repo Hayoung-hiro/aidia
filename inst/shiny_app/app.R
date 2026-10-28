@@ -53,10 +53,12 @@ if (requireNamespace("aidia", quietly = TRUE)) {
 # --- Source Module Files ---
 source("ui_workflow.R", local = TRUE)
 source("server_navigation.R", local = TRUE)
+source("diann_input_options.R", local = TRUE)
 source("ui_step1_data.R", local = TRUE)
 source("ui_step2_setup.R", local = TRUE)
 source("ui_step3_results.R", local = TRUE)
 source("server_instrument.R", local = TRUE)
+source("server_feature_uploads.R", local = TRUE)
 source("server_data.R", local = TRUE)
 source("server_optimization.R", local = TRUE)
 source("server_downloads.R", local = TRUE)

@@ -11,7 +11,8 @@ calculate_precursor_temporal_density(
   window_mz_start,
   window_mz_end,
   window_rt_start,
-  window_rt_end
+  window_rt_end,
+  fwhm_unit = NULL
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ calculate_precursor_temporal_density(
 \item{window_rt_start}{Numeric vector, window RT start values (minutes)}
 
 \item{window_rt_end}{Numeric vector, window RT end values (minutes)}
+
+\item{fwhm_unit}{Explicit source unit, or NULL for legacy inference.}
 }
 \value{
 data.frame with columns: window_idx, density_max, density_mean, n_precursors

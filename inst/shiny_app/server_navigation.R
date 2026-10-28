@@ -2,9 +2,13 @@
 .shiny_prepare_issues <- function(input, data_loaded, cycle, data_error = NULL) {
   issues <- character()
   if (!isTRUE(data_loaded)) {
-    issues[["parquet_file"]] <- if (!is.null(data_error))
-      paste("Choose a valid report.parquet file. Upload failed:", data_error)
-      else "Upload a report.parquet file before continuing."
+    table_label <- if (identical(input$input_type, "ms1_features")) "features.parquet" else "report.parquet"
+    field <- if (identical(input$input_type, "ms1_features")) "compute_features" else "compute_diann"
+    issues[[field]] <- if (!is.null(data_error))
+      paste("Choose a valid", table_label, "file. Upload failed:", data_error)
+      else if (identical(input$input_type, "ms1_features"))
+        "Add feature files and click Compute before continuing."
+      else paste("Upload a", table_label, "file and click Compute before continuing.")
   }
   fields <- c(current_window_count = "Input windows per cycle")
   if (isTRUE(input$instrument %in% c("astral", "astral_zoom"))) {
