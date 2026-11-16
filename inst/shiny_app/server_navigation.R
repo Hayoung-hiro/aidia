@@ -1,5 +1,6 @@
 # Navigation explains unmet prerequisites instead of disabling click targets.
-.shiny_prepare_issues <- function(input, data_loaded, cycle, data_error = NULL) {
+.shiny_prepare_issues <- function(input, data_loaded, cycle, data_error = NULL,
+                                  validated_data = NULL, method = NULL, method_error = NULL) {
   issues <- character()
   if (!isTRUE(data_loaded)) {
     table_label <- if (identical(input$input_type, "ms1_features")) "features.parquet" else "report.parquet"
@@ -9,6 +10,12 @@
       else if (identical(input$input_type, "ms1_features"))
         "Add feature files and click Compute before continuing."
       else paste("Upload a", table_label, "file and click Compute before continuing.")
+  }
+  if (!is.null(method_error)) {
+    issues[["method_file"]] <- paste("Method template could not be read:", method_error)
+  } else if (!is.null(method)) {
+    rt_issue <- .shiny_method_rt_issue(validated_data, method)
+    if (!is.null(rt_issue)) issues[["method_file"]] <- rt_issue$message
   }
   fields <- c(current_window_count = "Input windows per cycle")
   if (isTRUE(input$instrument %in% c("astral", "astral_zoom"))) {
@@ -51,7 +58,8 @@
 server_navigation <- function(input, output, session, rv, cycle_time_result) {
   attempted <- reactiveVal(FALSE)
   issues <- reactive(.shiny_prepare_issues(input, rv$data_loaded,
-    cycle_time_result(), rv$data_error))
+    cycle_time_result(), rv$data_error, rv$validated_data,
+    rv$method_context, rv$method_error))
   observe({
     session$sendCustomMessage("workflow-validation", list(scope = "prepare", issues = as.list(issues())))
   })
@@ -62,7 +70,7 @@ server_navigation <- function(input, output, session, rv, cycle_time_result) {
       role = "status", "Complete the highlighted field to continue.")
   })
   go <- function(target) {
-    if (identical(target, "setup") && length(issues())) {
+    if (target %in% c("setup", "results") && length(issues())) {
       attempted(TRUE)
       updateTabItems(session, "tabs", "data")
       session$sendCustomMessage("workflow-focus", names(issues())[[1]])

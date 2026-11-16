@@ -6,6 +6,7 @@ server_method <- function(input, output, session, rv) {
   session$onSessionEnded(function() unlink(directory, recursive = TRUE))
   rv$method_context <- NULL
   rv$method_error <- NULL
+  rt_issue <- reactive(.shiny_method_rt_issue(rv$validated_data, rv$method_context))
 
   output$adaptive_rt_available <- renderText({
     if (identical(rv$confirmed_run$method$instrument, "astral_zoom")) "true" else "false"
@@ -61,19 +62,38 @@ server_method <- function(input, output, session, rv) {
     session$sendCustomMessage("workflow-upload-state", list(id = "method_file", state = "empty"))
   })
 
+  observe({
+    method <- rv$method_context
+    issue <- rt_issue()
+    if (is.null(method)) {
+      removeNotification("method_rt_mismatch")
+      return()
+    }
+    session$sendCustomMessage("workflow-upload-state", list(id = "method_file",
+      state = if (is.null(issue)) "ready" else "mismatch"))
+    if (is.null(issue)) {
+      removeNotification("method_rt_mismatch")
+    } else {
+      showNotification(paste("RT mismatch:", issue$message), id = "method_rt_mismatch",
+        type = "error", duration = NULL)
+    }
+  })
+
+  output$method_rt_error <- renderUI({
+    issue <- rt_issue()
+    if (is.null(issue)) return(NULL)
+    div(class = "workflow-method-rt-error", role = "alert",
+      div(class = "workflow-method-rt-error-heading",
+        icon("exclamation-triangle"), strong("RT mismatch — cannot continue")),
+      tags$p(issue$message),
+      tags$p("Choose a method template that covers the report RT range, or select the matching DIA-NN report and click Compute again."))
+  })
+
   output$method_import_status <- renderUI({
     if (!is.null(rv$method_error)) return(div(class = "workflow-field-error", role = "alert", rv$method_error))
     method <- rv$method_context
     if (is.null(method)) return(tags$p(class = "workflow-file-note",
       "Auto-fill acquisition settings and enable .meth export."))
-    report_rt <- rv$validated_data$data$RT.Apex
-    report_rt <- report_rt[is.finite(report_rt)]
-    mismatch <- if (length(report_rt) && max(report_rt) > method$duration_min)
-      div(class = "workflow-field-error", role = "alert",
-        sprintf(paste0("Report RT reaches %.2f min; this template ends at %.2f min. ",
-          "Native .meth output needs a template covering the designed RT schedule. ",
-          "Use a matching method/report pair. You can still analyze the data and export CSV."),
-          max(report_rt), method$duration_min)) else NULL
     div(class = "workflow-template-status", role = "status",
       div(class = "workflow-template-line",
         span(sprintf("%s | %g min", method$model, method$duration_min)),
@@ -87,8 +107,7 @@ server_method <- function(input, output, session, rv) {
           method$ms2_scan_type)),
         if (length(method$expected_peak_width_sec)) tags$p(sprintf(
           "Expected peak width: %g s (method setting, preserved on export). Peak sampling uses the report's measured FWHM.",
-          method$expected_peak_width_sec))),
-      mismatch)
+          method$expected_peak_width_sec))))
   })
 
   previous_native <- FALSE

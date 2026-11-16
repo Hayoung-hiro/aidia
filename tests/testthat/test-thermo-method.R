@@ -57,6 +57,7 @@ test_that("Astral upload fills the active Shiny controls without an MS2 resoluti
   withr::defer(unlink(f$method$template_path))
   env <- new.env(parent = environment())
   for (name in getNamespaceExports("shiny")) env[[name]] <- getExportedValue("shiny", name)
+  sys.source(system.file("shiny_app", "method_rt_validation.R", package = "aidia", mustWork = TRUE), env)
   sys.source(system.file("shiny_app", "server_method.R", package = "aidia", mustWork = TRUE), env)
   updates <- list()
   env$updateNumericInput <- env$updateCheckboxInput <- env$updateSliderInput <-
@@ -350,6 +351,7 @@ test_that("optional method upload fills controls and retains confirmed template 
   withr::defer(unlink(f$method$template_path))
   env <- new.env(parent = environment())
   for (name in getNamespaceExports("shiny")) env[[name]] <- getExportedValue("shiny", name)
+  sys.source(system.file("shiny_app", "method_rt_validation.R", package = "aidia", mustWork = TRUE), env)
   sys.source(system.file("shiny_app", "server_method.R", package = "aidia", mustWork = TRUE), env)
   updates <- list()
   clear_updates <- function() updates <<- list()
@@ -378,7 +380,9 @@ test_that("optional method upload fills controls and retains confirmed template 
     expect_null(updates$export_charge_state)
     rv$validated_data <- list(data = data.frame(RT.Apex = c(15.36, 132.36)))
     session$flushReact()
-    expect_match(output$method_import_status$html, "132.36 min; this template ends at 50.00 min", fixed = TRUE)
+    expect_match(output$method_rt_error$html,
+      "132.36 min; the method template ends at 50.00 min", fixed = TRUE)
+    expect_match(output$method_rt_error$html, "RT mismatch — cannot continue", fixed = TRUE)
     old <- rv$method_context
     rv$confirmed_run <- list(method = old)
     session$flushReact()
@@ -557,6 +561,7 @@ test_that("the optional RT guide follows the confirmed Zoom template", {
   withr::defer(unlink(f$method$template_path))
   env <- new.env(parent = environment())
   for (name in getNamespaceExports("shiny")) env[[name]] <- getExportedValue("shiny", name)
+  sys.source(system.file("shiny_app", "method_rt_validation.R", package = "aidia", mustWork = TRUE), env)
   sys.source(system.file("shiny_app", "server_method.R", package = "aidia", mustWork = TRUE), env)
   shiny::testServer(function(input, output, session) {
     rv <- shiny::reactiveValues(confirmed_run = NULL)

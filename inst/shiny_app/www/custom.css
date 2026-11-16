@@ -1960,18 +1960,20 @@ body.dark-mode a:hover {
 .workflow-file-field { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto; row-gap: 6px; min-width: 0; padding: 10px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--surface-raised); }
 .workflow-file-field[data-upload-state="ready"] { border-color: color-mix(in srgb, var(--accent) 28%, var(--border-default)); background: var(--accent-muted); }
 .workflow-file-field[data-upload-state="error"] { border-color: var(--semantic-danger); background: var(--semantic-danger-bg); }
+.workflow-file-field[data-upload-state="mismatch"] { border-color: var(--semantic-danger); background: var(--semantic-danger-bg); }
 .workflow-file-field[data-upload-state="reading"] { border-style: dashed; }
 .workflow-upload-status { display: flex; align-items: center; gap: 7px; grid-column: 1; grid-row: 3; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
 .workflow-upload-icon { display: inline-flex; justify-content: center; align-items: center; flex: 0 0 20px; height: 20px; border-radius: 50%; background: var(--surface-card); color: var(--text-muted); }
 .workflow-file-field[data-upload-state="ready"] .workflow-upload-status { color: var(--accent); }
 .workflow-file-field[data-upload-state="ready"] .workflow-upload-icon { color: var(--text-on-accent); background: var(--accent); }
 .workflow-file-field[data-upload-state="ready"] .progress-bar { background-color: var(--accent); }
-.workflow-file-field[data-upload-state="error"] .workflow-upload-icon { color: var(--text-on-accent); background: var(--semantic-danger); }
+.workflow-file-field[data-upload-state="error"] .workflow-upload-icon,
+.workflow-file-field[data-upload-state="mismatch"] .workflow-upload-icon { color: var(--text-on-accent); background: var(--semantic-danger); }
 .workflow-file-field[data-upload-state="error"] .progress-bar { background-color: var(--semantic-danger); }
 .workflow-file-grid .config-row { display: contents; }
 .workflow-file-grid .config-row-label { grid-column: 1; grid-row: 1; margin: 0; }
 .workflow-file-grid .config-row-fields { display: block; grid-column: 1; grid-row: 2; }
-.workflow-file-grid .config-row > .workflow-field-error,
+.workflow-file-grid .config-row > .workflow-field-error { grid-column: 1; grid-row: 5; align-self: start; margin: 0; }
 .workflow-file-grid #method_import_status { grid-column: 1; grid-row: 4; align-self: start; margin: 0; }
 .workflow-file-grid #method_import_status > :first-child { margin-top: 0; }
 .workflow-file-queue { grid-column: 1; grid-row: 4; min-width: 0; align-self: start; }
@@ -1989,6 +1991,10 @@ body.dark-mode a:hover {
 .workflow-template-details[open] > summary { margin-bottom: 6px; }
 .workflow-template-details p { margin: 4px 0; }
 .workflow-template-filename { overflow-wrap: anywhere; color: var(--text-secondary); }
+.workflow-method-rt-error { margin: 12px 0; padding: 14px 16px; border: 2px solid var(--semantic-danger); border-radius: 8px; background: var(--semantic-danger-bg); color: #7d232c; font-size: 14px; line-height: 1.5; }
+.workflow-method-rt-error-heading { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; font-size: 16px; }
+.workflow-method-rt-error p { margin: 5px 0 0; }
+.workflow-method-rt-error p:last-child { font-weight: 600; }
 .workflow-native-export { border: 1px solid var(--border-default); border-radius: 7px; padding: 10px 12px; background: var(--surface-raised); font-size: 12px; color: var(--text-secondary); }
 .workflow-native-export .workflow-field-error { margin-top: 10px; }
 .workflow-scan-controls { display: grid; grid-template-columns: minmax(110px, 1.2fr) minmax(82px, 0.7fr) minmax(165px, 1.7fr); gap: 16px; width: 100%; align-items: start; }
@@ -2190,7 +2196,7 @@ body.dark-mode a:hover {
 .rt-group-summary strong { font-size: 13px; color: var(--text-primary); }
 .workflow-result-status > strong { color: var(--accent); }
 .main-sidebar > .workflow-brand-mark { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px 0; }
-.workflow-brand-mark img { width: 112px; height: auto; filter: brightness(0) invert(1); }
+.workflow-brand-mark img { display: block; width: auto; height: 44px; max-width: 100%; object-fit: contain; filter: brightness(0) invert(1) !important; }
 .workflow-version { padding: 2px 5px; border: 1px solid #ffffff33; border-radius: 3px; color: #c7d7df; font-size: 11px; font-variant-numeric: tabular-nums; }
 .workflow-brand { padding: 6px 12px 14px; }
 .workflow-brand > strong { font-size: 14px; letter-spacing: -.1px; }

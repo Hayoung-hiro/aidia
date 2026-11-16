@@ -1,5 +1,8 @@
 # aidia 0.5.2
 
+* Stop the Shiny workflow at Prepare data when report RT exceeds the native
+  method template duration, with a prominent error and matching-file guidance.
+* Display the updated AIDIA logo in white on the dark header.
 * Add optional native Thermo `.meth` import and export for verified Exploris 480
   and Astral Zoom Workstation installations. The matching Thermo software is
   required on the user's Windows PC and is not redistributed with AIDIA.

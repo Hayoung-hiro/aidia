@@ -65,7 +65,9 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
     c(values, setNames(lapply(instrument_ids, function(id) input[[id]]), instrument_ids), original_values)
   })
   setup_issues <- reactive(c(
-    .shiny_prepare_issues(settings(), TRUE, cycle_time_result()),
+    .shiny_prepare_issues(settings(), TRUE, cycle_time_result(),
+      validated_data = rv$validated_data, method = rv$method_context,
+      method_error = rv$method_error),
     .shiny_setup_issues(settings(), rv$validated_data)))
   request <- reactive({
     req(rv$data_loaded, rv$validated_data)
@@ -156,7 +158,7 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
       id <- if (!isTRUE(rv$data_loaded)) {
         if (identical(input$input_type, "ms1_features")) "compute_features" else "compute_diann"
       } else names(setup_issues())[[1]]
-      if (id %in% c("compute_diann", "compute_features", "instrument", "current_window_count", "astral_ms2_it", "ms1_it_custom", "ms2_it_custom", "ms1_agc", "ms2_agc", "original_mz_min", "original_mz_max"))
+      if (id %in% c("compute_diann", "compute_features", "method_file", "instrument", "current_window_count", "astral_ms2_it", "ms1_it_custom", "ms2_it_custom", "ms1_agc", "ms2_agc", "original_mz_min", "original_mz_max"))
         updateTabItems(session, "tabs", "data")
       session$sendCustomMessage("workflow-focus", id)
       return()

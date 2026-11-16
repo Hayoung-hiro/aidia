@@ -59,6 +59,7 @@ step1_data_ui <- function() {
                 p("Default installation folders are detected automatically. If your installation is elsewhere, the error message shows the configuration file and path setting to use."))),
             upload_status("Optional \u00b7 No template loaded"),
             uiOutput("method_import_status"))),
+        uiOutput("method_rt_error"),
         conditionalPanel(condition = "input.input_type == 'diann'", diann_input_options_ui()),
         conditionalPanel(condition = "input.input_type == 'ms1_features'",
           row("Combine runs",

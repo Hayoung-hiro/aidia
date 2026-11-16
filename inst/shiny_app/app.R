@@ -52,6 +52,7 @@ if (requireNamespace("aidia", quietly = TRUE)) {
 
 # --- Source Module Files ---
 source("ui_workflow.R", local = TRUE)
+source("method_rt_validation.R", local = TRUE)
 source("server_navigation.R", local = TRUE)
 source("diann_input_options.R", local = TRUE)
 source("ui_step1_data.R", local = TRUE)
@@ -87,7 +88,7 @@ ui <- dashboardPage(
   # --- Header ---
   header = dashboardHeader(
     title = tags$div(class = "workflow-brand-mark",
-      tags$img(src = "logo_header.png", alt = "AIDIA"),
+      tags$img(src = "logo_header_aidia_color.png", alt = "AIDIA"),
       tags$span(class = "workflow-version", paste0("v", utils::packageVersion("aidia")))
     )
   ),
@@ -149,8 +150,8 @@ ui <- dashboardPage(
 
     # Custom CSS - External stylesheet for professional styling
     tags$head(
-      tags$script(src = "workflow-navigation.js"),
-      tags$script(src = "workflow-upload.js"),
+      tags$script(src = paste0("workflow-navigation.js?v=", unname(tools::md5sum("www/workflow-navigation.js")))),
+      tags$script(src = paste0("workflow-upload.js?v=", unname(tools::md5sum("www/workflow-upload.js")))),
       tags$script(src = "workflow-details.js"),
       tags$link(rel = "stylesheet", type = "text/css",
         href = paste0("custom.css?v=", unname(tools::md5sum("www/custom.css")))),

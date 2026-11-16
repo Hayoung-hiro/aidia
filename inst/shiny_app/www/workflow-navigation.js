@@ -23,6 +23,9 @@ $(function () {
       error.remove();
     });
     Object.entries(message.issues || {}).forEach(function (entry) {
+      // The method card already renders its own import error or prominent RT
+      // mismatch alert. A second field error occupies the template's grid row.
+      if (entry[0] === 'method_file') return;
       var field = document.getElementById(entry[0]);
       if (!field) return;
       var container = field.closest('.shiny-input-container');
