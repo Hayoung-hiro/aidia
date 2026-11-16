@@ -1,6 +1,7 @@
 {
   "astral_zoom": {
     "name": "Thermo Orbitrap Astral Zoom",
+    "thermo_runtime_path": "",
     "ms1_time": 5.0,
     "ms2_time": 3.0,
     "ms2_resolution": 80000,
@@ -20,6 +21,7 @@
 
   "astral": {
     "name": "Thermo Orbitrap Astral",
+    "thermo_runtime_path": "",
     "ms1_time": 5.0,
     "ms2_time": 3.0,
     "ms2_resolution": 80000,
@@ -39,6 +41,7 @@
 
   "qexactive": {
     "name": "Thermo Q Exactive",
+    "thermo_runtime_path": "",
     "ms1_time": 100.0,
     "ms2_time": "auto",
     "ms2_resolution": 17500,
@@ -56,6 +59,7 @@
 
   "qexactive_hfx": {
     "name": "Thermo Q Exactive HF-X",
+    "thermo_runtime_path": "",
     "ms1_time": 50.0,
     "ms2_time": "auto",
     "ms2_resolution": 7500,
@@ -72,6 +76,7 @@
   },
 
   "exploris": {
+    "thermo_runtime_path": "",
     "name": "Thermo Orbitrap Exploris 480",
     "ms1_time": 50.0,
     "ms2_time": "auto",
@@ -90,6 +95,7 @@
 
   "eclipse": {
     "name": "Thermo Orbitrap Eclipse Tribrid",
+    "thermo_runtime_path": "",
     "ms1_time": 50.0,
     "ms2_time": "auto",
     "ms2_resolution": 15000,
@@ -107,6 +113,7 @@
 
   "fusion_lumos": {
     "name": "Thermo Fusion Lumos Tribrid",
+    "thermo_runtime_path": "",
     "ms1_time": 50.0,
     "ms2_time": "auto",
     "ms2_resolution": 30000,

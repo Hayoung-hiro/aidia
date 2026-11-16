@@ -41,7 +41,8 @@ optimize_windows(
   width_grid_step = 0.5,
   smoothing_method = "whittaker",
   whittaker_lambda = 10,
-  comparison_strategy_configs = NULL
+  comparison_strategy_configs = NULL,
+  rt_group_count = NULL
 )
 }
 \arguments{
@@ -148,6 +149,12 @@ all strategies to compare later with \code{\link[=build_strategy_comparison]{bui
 these when running optimization, including settings for unselected
 strategies. The selected entry must match \code{strategy_config}.
 Unspecified strategies are saved with constructor defaults at run time.}
+
+\item{rt_group_count}{Optional positive integer for Uniform mode. Divides the
+observed RT span into this many groups using whole-minute regular intervals
+and extends the last group with the remainder. Overrides rt_bin_width_min.
+Empty groups and edge handling may reduce the final count. NULL retains
+duration-based binning. Ignored in Adaptive mode.}
 }
 \value{
 OptimizedWindows S3 object

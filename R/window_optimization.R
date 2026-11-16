@@ -99,6 +99,11 @@ ABSOLUTE_MIN_WIDTH_DA <- 1.0
 #' @param cpd_significance_level Numeric, significance level for changepoint detection (default: 0.05)
 #' @param edge_void_buffer_min Numeric, buffer in minutes for edge bins with no precursors (default: 0.5)
 #' @param edge_wash_min_precursors Integer, minimum precursors for edge bin retention (default: 30)
+#' @param rt_group_count Optional positive integer for Uniform mode. Divides the
+#'   observed RT span into this many groups using whole-minute regular intervals
+#'   and extends the last group with the remainder. Overrides rt_bin_width_min.
+#'   Empty groups and edge handling may reduce the final count. NULL retains
+#'   duration-based binning. Ignored in Adaptive mode.
 #' @param width_grid_step Retained for compatibility; ignored. Window boundaries
 #'   always use the required 1 Da integer grid before forbidden-zone placement.
 #' @param smoothing_method Character, boundary smoothing method (default: "whittaker").
@@ -167,7 +172,8 @@ optimize_windows <- function(
   width_grid_step = 0.5,
   smoothing_method = "whittaker",
   whittaker_lambda = 10,
-  comparison_strategy_configs = NULL
+  comparison_strategy_configs = NULL,
+  rt_group_count = NULL
 ) {
 
   # Start timing
@@ -308,6 +314,10 @@ optimize_windows <- function(
 
   precursor_data <- get_precursor_data(validated_data)
   n_total_precursors <- nrow(precursor_data)
+  if (rt_binning_mode == "uniform" && !is.null(rt_group_count)) {
+    rt_bin_width_min <- .uniform_rt_partition(
+      range(precursor_data[[get_rt_column(precursor_data)]], na.rm = TRUE), rt_group_count)$width
+  }
 
   print_info(sprintf("Total precursors: %s",
                      format(n_total_precursors, big.mark = ",")))
@@ -330,7 +340,8 @@ optimize_windows <- function(
       cpd_min_precursors_per_bin = cpd_min_precursors_per_bin,
       cpd_significance_level = cpd_significance_level,
       edge_void_buffer_min = edge_void_buffer_min,
-      edge_wash_min_precursors = edge_wash_min_precursors
+      edge_wash_min_precursors = edge_wash_min_precursors,
+      rt_group_count = rt_group_count
     )
 
     precursor_data <- rt_result$data
@@ -500,6 +511,7 @@ optimize_windows <- function(
       # RT binning info
       rt_binning = list(
         n_bins = n_bins,
+        rt_group_count = if (rt_binning_mode == "uniform") rt_group_count else NULL,
         rt_bin_width_min = rt_bin_width_min,
         rt_binning_mode = rt_binning_mode,
         rt_stats = rt_stats,
@@ -528,6 +540,7 @@ optimize_windows <- function(
         strategy_configs = comparison_strategy_configs,
         window_mode = window_mode,
         n_windows_per_bin = n_windows_per_bin,
+        rt_group_count = if (rt_binning_mode == "uniform") rt_group_count else NULL,
         rt_bin_width_min = rt_bin_width_min,
         rt_binning_mode = rt_binning_mode,
         mz_range_min = mz_range_min,

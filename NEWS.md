@@ -1,3 +1,16 @@
+# aidia 0.5.2
+
+* Stop the Shiny workflow at Prepare data when report RT exceeds the native
+  method template duration, with a prominent error and matching-file guidance.
+* Display the updated AIDIA logo in white on the dark header.
+* Add optional native Thermo `.meth` import and export for verified Exploris 480
+  and Astral Zoom Workstation installations. The matching Thermo software is
+  required on the user's Windows PC and is not redistributed with AIDIA.
+* Add DIA-NN input controls and multi-run MS1 feature handling in the Shiny
+  workflow.
+* Add input-map comparison and forbidden-zone offset diagnostics.
+* Update RT binning, acquisition previews, and method delivery checks.
+
 # Mode naming and Uniform RT segmentation (development)
 
 - Rename the Fixed window mode to Equal and Fixed RT segmentation to Uniform.

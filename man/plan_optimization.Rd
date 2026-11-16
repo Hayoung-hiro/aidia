@@ -28,11 +28,8 @@ If NULL, automatically estimated from gradient length (gradient_min / 15, max 3.
 Options: "astral", "orbitrap", "exploris", "timstof", etc.}
 
 \item{target_dppp}{Numeric, target minimum DPPP value (default: 7.0)
-\itemize{
-\item 7.0: Quantification mode (recommended)
-\item 4.0: Balanced mode
-\item 1.5: Identification mode
-}}
+Shiny provides numeric presets 1, 4, and 7. These specify peak sampling,
+without implying identification or quantification performance.}
 
 \item{target_satisfaction}{Numeric, target satisfaction ratio 0-1 (default: 0.85)
 \itemize{
@@ -86,7 +83,7 @@ plan <- plan_optimization(
   validated_data,
   current_cycle_time = 2.0,
   instrument_preset = "orbitrap",
-  target_dppp = 4.0,  # Balanced mode
+  target_dppp = 4.0,  # Target four data points per peak
   target_satisfaction = 0.90,  # Stricter
   load_factor = 0.9  # More aggressive
 )

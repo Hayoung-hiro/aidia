@@ -60,7 +60,7 @@ server_instrument <- function(input, output, session, rv) {
         instrument = list(preset = instrument),
         ms1 = list(
           resolution = astral_ms1_res,
-          max_injection_time_ms = "auto",  # Auto = Orbitrap transient time
+          max_injection_time_ms = if (isFALSE(input$ms1_it_auto)) input$ms1_it_custom %||% 50 else "auto",
           scans_per_cycle = 0  # Parallel: MS1 during MS2
         ),
         ms2 = list(
@@ -140,7 +140,8 @@ server_instrument <- function(input, output, session, rv) {
 
   # --- Output: Auto IT value displays ---
   output$ms1_it_auto_value <- renderText({
-    ms1_res <- as.numeric(input$ms1_resolution %||% 60000)
+    ms1_res <- if (is_astral_instrument(input$instrument)) as.numeric(input$astral_ms1_resolution %||% 240000)
+      else as.numeric(input$ms1_resolution %||% 60000)
     transient <- get_transient_time(ms1_res, "orbitrap")
     sprintf("%.0f ms (T_transient)", transient)
   })

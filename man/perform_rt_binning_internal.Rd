@@ -14,7 +14,8 @@ perform_rt_binning_internal(
   cpd_max_bin_width = 15,
   cpd_min_precursors_per_bin = 50,
   edge_void_buffer_min = 0.5,
-  edge_wash_min_precursors = 30
+  edge_wash_min_precursors = 30,
+  rt_group_count = NULL
 )
 }
 \arguments{
@@ -38,6 +39,9 @@ The legacy value "fixed" is accepted as an alias for "uniform".}
 \item{edge_void_buffer_min}{Numeric, void-volume buffer in minutes (default 0.5)}
 
 \item{edge_wash_min_precursors}{Integer, merge last bin if fewer than this (default 30)}
+
+\item{rt_group_count}{Optional positive integer for count-based Uniform
+binning with whole-minute intervals; ignored in Adaptive mode.}
 }
 \value{
 List containing:

@@ -102,6 +102,8 @@ build_strategy_comparison <- function(optimized_windows, validated_data,
     stop("notify_fn must be NULL or a function.", call. = FALSE)
   }
   common <- params[.comparison_parameter_names]
+  # Older saved runs without a count used duration-based Uniform binning.
+  common["rt_group_count"] <- list(params$rt_group_count)
   common$n_windows_override <- params$n_windows_per_bin
   results <- setNames(vector("list", length(strategies)), strategies)
   for (i in seq_along(strategies)) {

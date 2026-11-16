@@ -7,7 +7,8 @@
 perform_fixed_rt_binning_internal(
   precursor_data,
   rt_bin_width_min,
-  rt_column = "RT.Apex"
+  rt_column = "RT.Apex",
+  rt_group_count = NULL
 )
 }
 \arguments{
@@ -16,6 +17,9 @@ perform_fixed_rt_binning_internal(
 \item{rt_bin_width_min}{Numeric, RT bin width in minutes}
 
 \item{rt_column}{Character, name of the RT column to use (default "RT.Apex")}
+
+\item{rt_group_count}{Optional requested number of whole-minute Uniform
+groups. Overrides rt_bin_width_min; the last group absorbs the remainder.}
 }
 \value{
 List containing data, stats, n_bins, rt_breaks, adaptive_info (NULL)

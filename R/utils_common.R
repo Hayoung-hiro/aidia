@@ -201,7 +201,8 @@ get_fwhm_values <- function(validated_data, unit = "seconds") {
   fwhm <- data$FWHM
 
   if (unit == "seconds") {
-    return(ensure_fwhm_seconds(fwhm))
+    return(ensure_fwhm_seconds(fwhm, unit = if (.is_ms1_features(validated_data))
+      validated_data$metadata$fwhm_unit else NULL))
   } else if (unit == "minutes") {
     return(fwhm)
   } else {
@@ -227,7 +228,7 @@ compute_data_summary <- function(validated_data) {
   meta <- validated_data$metadata
   vs   <- validated_data$validation_status
 
-  fwhm_sec <- ensure_fwhm_seconds(data$FWHM)
+  fwhm_sec <- get_fwhm_values(validated_data)
 
   n_raw   <- meta$n_precursors_before %||% meta$n_precursors
   n_runs  <- meta$n_runs %||% 1L

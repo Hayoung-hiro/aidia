@@ -174,10 +174,10 @@ server_results_comparison <- function(input, output, session, rv) {
   })
   output$comparison_schedule_note <- shiny::renderText({
     x <- comparison()$methods$Designed
-    generic <- !is.null(input$export_format) && input$export_format != "thermo"
+    generic <- !is.null(input$export_format) && !input$export_format %in% c("thermo", "native")
     sprintf("Thermo export schedule: %.2f-%.2f min. %s", min(x$rt_start), max(x$rt_end),
       if (generic) "Selected format has no RT columns; this schedule is included in the ZIP's Thermo file." else
-        "RT boundaries and m/z windows match the method CSV, including run start/end options.")
+        "RT boundaries and m/z windows match the downloaded method, including run start/end options.")
   })
   output$comparison_acquisition <- shiny::renderText({
     x <- comparison()$summary$dppp

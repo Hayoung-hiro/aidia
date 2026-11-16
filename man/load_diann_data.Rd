@@ -9,6 +9,7 @@ load_diann_data(
   rt_min = 0,
   rt_max = NULL,
   apply_quality_filters = TRUE,
+  run_name = NULL,
   ...
 )
 }
@@ -20,6 +21,8 @@ load_diann_data(
 \item{rt_max}{Maximum RT in minutes (NULL for max in data)}
 
 \item{apply_quality_filters}{Apply DIA-NN quality filters (default: TRUE)}
+
+\item{run_name}{Optional exact Run names to select before filtering and consensus.}
 
 \item{...}{Additional arguments passed to filter_diann_quality()}
 }

@@ -6,6 +6,20 @@
 #
 # Dependencies: ggplot2, stats, theme_aidia.R, window_generation.R (OPTIMAL_INCREMENT)
 
+# Shared histogram for the interactive boundary selector. Assessment and the
+# draggable boundary are separate so a drag does not redraw the distribution.
+plot_fz_phase_histogram <- function(phase, target_label) {
+  if (!length(phase)) return(create_insufficient_data_plot(
+    title = "Isotope boundary effect", message = "No precursors for this target"))
+  ggplot(data.frame(phase = phase), aes(x = phase)) +
+    geom_histogram(breaks = seq(0, OPTIMAL_INCREMENT, length.out = 101),
+      fill = aidia_colors$before, color = "white", alpha = 0.6, linewidth = 0.1) +
+    scale_x_continuous(breaks = seq(0, 1, .1), limits = c(0, OPTIMAL_INCREMENT)) +
+    labs(title = paste("Isotope boundary effect:", target_label),
+      x = sprintf("m/z mod %.8f (mass defect cycle)", OPTIMAL_INCREMENT), y = "Count") +
+    theme_aidia()
+}
+
 
 #' Forbidden Zone Offset Validation Plot
 #'

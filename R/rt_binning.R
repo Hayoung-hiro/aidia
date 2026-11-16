@@ -83,6 +83,8 @@ get_rt_column <- function(precursor_data) {
 #' @param cpd_min_precursors_per_bin Integer, minimum precursors per bin (adaptive only, default 50)
 #' @param edge_void_buffer_min Numeric, void-volume buffer in minutes (default 0.5)
 #' @param edge_wash_min_precursors Integer, merge last bin if fewer than this (default 30)
+#' @param rt_group_count Optional positive integer for count-based Uniform
+#'   binning with whole-minute intervals; ignored in Adaptive mode.
 #'
 #' @return List containing:
 #'   - data: precursor_data with rt_group column added
@@ -101,7 +103,8 @@ perform_rt_binning_internal <- function(precursor_data,
                                         cpd_max_bin_width = 15.0,
                                         cpd_min_precursors_per_bin = 50,
                                         edge_void_buffer_min = 0.5,
-                                        edge_wash_min_precursors = 30) {
+                                        edge_wash_min_precursors = 30,
+                                        rt_group_count = NULL) {
 
   rt_binning_mode <- .normalize_rt_mode(rt_binning_mode)
   if (length(rt_binning_mode) != 1L || is.na(rt_binning_mode) ||
@@ -129,7 +132,8 @@ perform_rt_binning_internal <- function(precursor_data,
     rt_result <- perform_fixed_rt_binning_internal(
       precursor_data = precursor_data,
       rt_bin_width_min = rt_bin_width_min,
-      rt_column = rt_column
+      rt_column = rt_column,
+      rt_group_count = rt_group_count
     )
   }
 
@@ -158,16 +162,19 @@ perform_rt_binning_internal <- function(precursor_data,
 #' @param precursor_data Data frame with the \code{rt_column} RT column
 #' @param rt_bin_width_min Numeric, RT bin width in minutes
 #' @param rt_column Character, name of the RT column to use (default "RT.Apex")
+#' @param rt_group_count Optional requested number of whole-minute Uniform
+#'   groups. Overrides rt_bin_width_min; the last group absorbs the remainder.
 #'
 #' @return List containing data, stats, n_bins, rt_breaks, adaptive_info (NULL)
 #' @keywords internal
 perform_fixed_rt_binning_internal <- function(precursor_data, rt_bin_width_min,
-                                              rt_column = "RT.Apex") {
+                                              rt_column = "RT.Apex", rt_group_count = NULL) {
 
   # Get RT range using rt_column as the single RT reference
   rt_range <- range(precursor_data[[rt_column]], na.rm = TRUE)
 
-  rt_breaks <- .uniform_rt_breaks(rt_range, rt_bin_width_min)
+  rt_breaks <- if (is.null(rt_group_count)) .uniform_rt_breaks(rt_range, rt_bin_width_min)
+    else .uniform_rt_partition(rt_range, rt_group_count)$breaks
 
   # Assign RT groups
   precursor_data$rt_group <- cut(
@@ -204,7 +211,27 @@ perform_fixed_rt_binning_internal <- function(precursor_data, rt_bin_width_min,
   )
 }
 
-# Shared by binning, the default-width estimate, and the comparison plot.
+# Count-based Uniform partitions keep whole-minute intervals and put all
+# remainder in the requested last group, even when it spans several intervals.
+.uniform_rt_partition <- function(rt_range, n_groups) {
+  if (length(n_groups) != 1L || !is.numeric(n_groups) || !is.finite(n_groups) ||
+      n_groups < 1 || n_groups != floor(n_groups))
+    stop("Number of RT groups must be a positive whole number.", call. = FALSE)
+  if (length(rt_range) != 2L || any(!is.finite(rt_range)) || rt_range[2] < rt_range[1])
+    stop("RT range must contain two finite, ordered values.", call. = FALSE)
+  span <- diff(rt_range)
+  whole_minutes <- floor(span + 1e-10)
+  maximum <- max(1, whole_minutes)
+  if (n_groups > maximum)
+    stop(sprintf("This %.2f min RT span supports at most %d groups with whole-minute intervals. Reduce Number of groups.",
+                 span, maximum), call. = FALSE)
+  width <- max(1, floor(whole_minutes / n_groups))
+  end <- if (span == 0) rt_range[1] + width else rt_range[2]
+  list(width = width, n_groups = n_groups,
+       breaks = c(rt_range[1] + seq.int(0, n_groups - 1) * width, end))
+}
+
+# Shared by duration-based binning, the default-width estimate, and comparison.
 .uniform_rt_breaks <- function(rt_range, rt_bin_width_min) {
   if (!is.numeric(rt_bin_width_min) || length(rt_bin_width_min) != 1L ||
       !is.finite(rt_bin_width_min) || rt_bin_width_min <= 0) {

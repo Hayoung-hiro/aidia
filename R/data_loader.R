@@ -17,10 +17,11 @@
 #' @param rt_min Minimum RT in minutes (default: 0)
 #' @param rt_max Maximum RT in minutes (NULL for max in data)
 #' @param apply_quality_filters Apply DIA-NN quality filters (default: TRUE)
+#' @param run_name Optional exact Run names to select before filtering and consensus.
 #' @param ... Additional arguments passed to filter_diann_quality()
 #' @return Data frame with processed DIA-NN data
 load_diann_data <- function(file_path, rt_min = 0, rt_max = NULL,
-                           apply_quality_filters = TRUE, ...) {
+                           apply_quality_filters = TRUE, run_name = NULL, ...) {
   
   # Detect file format and read accordingly
   file_ext <- tolower(tools::file_ext(file_path))
@@ -32,7 +33,14 @@ load_diann_data <- function(file_path, rt_min = 0, rt_max = NULL,
   # Read file based on extension
   if (file_ext == "parquet") {
     cat("Loading parquet file...\n")
-    data <- arrow::read_parquet(file_path)
+    if (is.null(run_name)) {
+      data <- arrow::read_parquet(file_path)
+    } else {
+      .validate_feature_text(run_name, "run_name selection")
+      dataset <- arrow::open_dataset(file_path, format = "parquet")
+      validate_required_columns(dataset, "Run")
+      data <- dataset %>% filter(Run %in% run_name) %>% collect()
+    }
   } else if (file_ext == "tsv" || file_ext == "txt") {
     cat(sprintf("Loading %s file (tab-delimited)...\n", toupper(file_ext)))
     data <- read.delim(file_path, stringsAsFactors = FALSE)
@@ -41,6 +49,13 @@ load_diann_data <- function(file_path, rt_min = 0, rt_max = NULL,
     data <- read.csv(file_path, stringsAsFactors = FALSE)
   } else {
     stop("Unsupported file format. Use parquet, tsv, txt (tab-delimited), or csv.")
+  }
+
+  if (!is.null(run_name)) {
+    .validate_feature_text(run_name, "run_name selection")
+    validate_required_columns(data, "Run")
+    if (any(!run_name %in% data$Run)) stop("Selected run_name is absent from the DIA-NN report.")
+    data <- data[data$Run %in% run_name & !is.na(data$Run), , drop = FALSE]
   }
   
   # Resolve column names. RT.Stop is OPTIONAL: create_validated_dataset() falls

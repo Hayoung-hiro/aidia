@@ -2,6 +2,7 @@
   env <- new.env(parent = environment())
   for (name in getNamespaceExports("shiny")) env[[name]] <- getExportedValue("shiny", name)
   env$updateTabItems <- function(...) NULL
+  sys.source(system.file("shiny_app", "method_rt_validation.R", package = "aidia", mustWork = TRUE), env)
   sys.source(system.file("shiny_app", "server_navigation.R", package = "aidia", mustWork = TRUE), env)
   sys.source(system.file("shiny_app", "optimization_workflow.R", package = "aidia", mustWork = TRUE), env)
   sys.source(system.file("shiny_app", "server_live_preview.R", package = "aidia", mustWork = TRUE), env)
@@ -49,7 +50,9 @@ test_that("live preview coalesces edits, rejects stale results, and promotes exa
   shiny::testServer(server, {
     session$setInputs(instrument = "exploris", kde_density_threshold = 10,
       current_window_count = 40, ms1_it_auto = TRUE, ms2_it_auto = TRUE,
-      original_mz_min = 450, original_mz_max = 1050)
+      original_mz_min = 450, original_mz_max = 1050,
+      fz_target = "all", fz_margin = .08,
+      fz_offset_preset = "custom", custom_fz_offset = .3333)
     session$elapse(500)
     expect_length(calls(), 1)
     session$setInputs(kde_density_threshold = 15)
@@ -71,10 +74,14 @@ test_that("live preview coalesces edits, rejects stale results, and promotes exa
     confirmed <- rv$confirmed_run
     expect_equal(confirmed$settings$original_mz_min, 450)
     expect_equal(confirmed$settings$original_mz_max, 1050)
+    expect_equal(confirmed$settings$fz_target, "all")
+    expect_equal(confirmed$settings$fz_margin, .08)
+    expect_equal(confirmed$settings$custom_fz_offset, .3333)
     expect_equal(rv$draft_state, "confirmed")
 
-    session$setInputs(kde_density_threshold = 30, target_dppp = 4, rt_bin_width = 8,
-      original_mz_min = 400, original_mz_max = 1000, current_window_count = 30)
+    session$setInputs(kde_density_threshold = 30, target_dppp = 4, rt_group_count = 8,
+      original_mz_min = 400, original_mz_max = 1000, current_window_count = 30,
+      fz_target = "z2", fz_margin = .03, custom_fz_offset = .4444)
     session$elapse(500)
     expect_identical(rv$confirmed_run, confirmed)
     expect_identical(rv$optimized_windows, confirmed$windows)
@@ -93,8 +100,16 @@ test_that("live preview coalesces edits, rejects stale results, and promotes exa
     expect_length(calls(), call_count) # A known field error focuses the control, without retrying it.
     session$setInputs(reset_windows = 1)
     expect_equal(sent$kde_density_threshold, 25)
+    expect_false("fz_target" %in% names(sent))
+    session$setInputs(reset_boundary = 1)
+    expect_equal(sent$fz_target, "all")
+    expect_equal(sent$fz_margin, .08)
+    expect_equal(sent$custom_fz_offset, .3333)
     expect_false("target_dppp" %in% names(sent))
-    expect_false("rt_bin_width" %in% names(sent))
+    expect_false("rt_group_count" %in% names(sent))
+    session$setInputs(reset_rt = 1)
+    expect_equal(sent$rt_group_count, 5)
+    expect_equal(calls()[[length(calls())]]$settings$rt_group_count, 8)
 
     # A confirmation requested during computation is canceled by a subsequent edit.
     session$setInputs(kde_density_threshold = 20, run_optimization = 2)
@@ -133,6 +148,11 @@ test_that("live preview coalesces edits, rejects stale results, and promotes exa
     sent <<- list()
     session$setInputs(reset_windows = 2)
     expect_equal(sent$kde_density_threshold, 10)
+    session$setInputs(reset_boundary = 2)
+    expect_equal(sent$fz_target, "z2")
+    expect_equal(sent$fz_margin, .05)
+    expect_equal(sent$fz_offset_preset, "0.25")
+    expect_equal(sent$custom_fz_offset, .25)
     expect_equal(sent$min_isolation_width,
                  get_instrument_width_recommendations(get_instrument_config("exploris"))$min_width_da)
     rv$data_loaded <- FALSE
