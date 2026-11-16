@@ -76,12 +76,15 @@ test_that("navigation explains missing uploads and allows prepared data", {
     session$setInputs(btn_to_setup = 1)
     expect_equal(destination, "data")
     expect_match(output$prepare_navigation_feedback$html, "highlighted field")
-    expect_match(env$.shiny_prepare_issues(input, FALSE, list())[["parquet_file"]], "Upload a report.parquet")
+    expect_match(env$.shiny_prepare_issues(input, FALSE, list())[["compute_diann"]], "Upload a report.parquet")
+    session$setInputs(input_type = "ms1_features")
+    expect_match(env$.shiny_prepare_issues(input, FALSE, list())[["compute_features"]], "click Compute")
+    session$setInputs(input_type = "diann")
     session$setInputs(workflow_navigate = "setup")
     expect_equal(destination, "data")
     rv$data_error <- "Invalid parquet header"
     session$flushReact()
-    expect_match(env$.shiny_prepare_issues(input, FALSE, list(), rv$data_error)[["parquet_file"]], "Invalid parquet header")
+    expect_match(env$.shiny_prepare_issues(input, FALSE, list(), rv$data_error)[["compute_diann"]], "Invalid parquet header")
     rv$data_loaded <- TRUE
     rv$data_error <- NULL
     session$setInputs(btn_to_setup = 2)
@@ -124,17 +127,22 @@ test_that("original method prerequisites identify the input that needs correctio
 })
 
 
-test_that("Uniform requires an editable duration while Adaptive ignores it", {
+test_that("Uniform defaults to five whole-number groups while Adaptive ignores the count", {
   env <- .intent_env()
   input <- do.call(c, unname(env$.shiny_setup_defaults("exploris")))
   expect_equal(input$rt_binning_mode, "uniform")
+  expect_equal(input$rt_group_count, 5)
   expect_length(env$.shiny_setup_issues(input), 0)
-  input$rt_bin_width <- NULL
-  expect_named(env$.shiny_setup_issues(input), "rt_bin_width")
-  expect_match(env$.shiny_setup_issues(input)[["rt_bin_width"]], "Group duration")
-  input$rt_bin_width <- 6.5
+  input$rt_group_count <- NULL
+  expect_named(env$.shiny_setup_issues(input), "rt_group_count")
+  expect_match(env$.shiny_setup_issues(input)[["rt_group_count"]], "Number of groups")
+  input$rt_group_count <- 6.5
+  expect_named(env$.shiny_setup_issues(input), "rt_group_count")
+  input$rt_group_count <- 6
   expect_length(env$.shiny_setup_issues(input), 0)
-  input$rt_bin_width <- NULL
+  short_data <- list(data = data.frame(RT.Apex = c(0, 3.2)))
+  expect_match(env$.shiny_setup_issues(input, short_data)[["rt_group_count"]], "at most 3")
+  input$rt_group_count <- NULL
   input$rt_binning_mode <- "adaptive"
-  expect_length(env$.shiny_setup_issues(input), 0)
+  expect_length(env$.shiny_setup_issues(input, short_data), 0)
 })

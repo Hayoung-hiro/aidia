@@ -55,9 +55,8 @@ estimate_cycle_time_from_gradient <- function(rt_values, verbose = TRUE) {
 #' @param instrument_preset Character, instrument type (default: "astral")
 #'   Options: "astral", "orbitrap", "exploris", "timstof", etc.
 #' @param target_dppp Numeric, target minimum DPPP value (default: 7.0)
-#'   - 7.0: Quantification mode (recommended)
-#'   - 4.0: Balanced mode
-#'   - 1.5: Identification mode
+#'   Shiny provides numeric presets 1, 4, and 7. These specify peak sampling,
+#'   without implying identification or quantification performance.
 #' @param target_satisfaction Numeric, target satisfaction ratio 0-1 (default: 0.85)
 #'   - 0.85 = 85% of precursors meet target DPPP
 #' @param dppp_tolerance Numeric, tolerance for DPPP matching (default: 0.0)
@@ -91,7 +90,7 @@ estimate_cycle_time_from_gradient <- function(rt_values, verbose = TRUE) {
 #'   validated_data,
 #'   current_cycle_time = 2.0,
 #'   instrument_preset = "orbitrap",
-#'   target_dppp = 4.0,  # Balanced mode
+#'   target_dppp = 4.0,  # Target four data points per peak
 #'   target_satisfaction = 0.90,  # Stricter
 #'   load_factor = 0.9  # More aggressive
 #' )
@@ -957,8 +956,7 @@ quick_dppp_preview <- function(validated_data,
   }
 
   # Convert FWHM to seconds if in minutes
-  fwhm_values <- data[[fwhm_col]]
-  fwhm_seconds <- ensure_fwhm_seconds(fwhm_values)
+  fwhm_seconds <- get_fwhm_values(validated_data)
   fwhm_seconds <- fwhm_seconds[!is.na(fwhm_seconds)]
 
   # Calculate FWHM statistics

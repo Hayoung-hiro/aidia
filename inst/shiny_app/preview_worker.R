@@ -23,6 +23,7 @@
     precursor_data = request$data$data,
     rt_bin_width_min = pars$rt_bin_width_min,
     rt_binning_mode = pars$rt_binning_mode,
+    rt_group_count = pars$rt_group_count,
     cpd_significance_level = pars$cpd_significance_level,
     cpd_min_bin_width = pars$cpd_min_bin_width,
     cpd_max_bin_width = pars$cpd_max_bin_width,
@@ -52,5 +53,6 @@
   result$settings <- request$settings
   result$cycle <- request$cycle
   result$data_version <- request$data_version
+  result$method <- request$method
   result
 }

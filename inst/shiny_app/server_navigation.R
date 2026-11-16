@@ -2,9 +2,13 @@
 .shiny_prepare_issues <- function(input, data_loaded, cycle, data_error = NULL) {
   issues <- character()
   if (!isTRUE(data_loaded)) {
-    issues[["parquet_file"]] <- if (!is.null(data_error))
-      paste("Choose a valid report.parquet file. Upload failed:", data_error)
-      else "Upload a report.parquet file before continuing."
+    table_label <- if (identical(input$input_type, "ms1_features")) "features.parquet" else "report.parquet"
+    field <- if (identical(input$input_type, "ms1_features")) "compute_features" else "compute_diann"
+    issues[[field]] <- if (!is.null(data_error))
+      paste("Choose a valid", table_label, "file. Upload failed:", data_error)
+      else if (identical(input$input_type, "ms1_features"))
+        "Add feature files and click Compute before continuing."
+      else paste("Upload a", table_label, "file and click Compute before continuing.")
   }
   fields <- c(current_window_count = "Input windows per cycle")
   if (isTRUE(input$instrument %in% c("astral", "astral_zoom"))) {
@@ -17,6 +21,13 @@
     value <- input[[id]]
     if (length(value) != 1L || !is.finite(value) || value <= 0) {
       issues[[id]] <- sprintf("Enter a positive value for %s.", fields[[id]])
+    }
+  }
+  for (id in c("ms1_agc", "ms2_agc")) {
+    if (id %in% names(input) && !is.null(input[[id]])) {
+      value <- input[[id]]
+      if (length(value) != 1L || !is.finite(value) || value <= 0 || value > 10000)
+        issues[[id]] <- "Enter a normalized AGC target above 0 and at most 10000%."
     }
   }
   if (!"current_window_count" %in% names(issues) && input$current_window_count != floor(input$current_window_count))

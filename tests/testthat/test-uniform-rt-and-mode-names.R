@@ -3,6 +3,49 @@
              FWHM = 4)
 }
 
+test_that("requested Uniform counts use integer minutes and extend only the last group", {
+  partition <- .uniform_rt_partition(c(3.25, 46.25), 5)
+  expect_equal(diff(partition$breaks), c(8, 8, 8, 8, 11))
+  expect_equal(range(partition$breaks), c(3.25, 46.25))
+  # Duration-only binning would create nine groups here; the requested count is five.
+  data <- .uniform_fixture(seq(1.5, 10.5, by = .01))
+  result <- perform_rt_binning_internal(data, 99, rt_group_count = 5,
+    edge_void_buffer_min = 0, edge_wash_min_precursors = 0)
+  expect_equal(result$n_bins, 5)
+  expect_equal(diff(result$rt_breaks), c(1, 1, 1, 1, 5))
+  expect_equal(sum(result$stats$n_precursors), nrow(data))
+  expect_false(anyNA(result$data$rt_group))
+  expect_equal(unique(result$data$rt_group[data$RT.Apex > 5.5]), 5)
+  expect_equal(.uniform_rt_partition(c(.1, 10.1), 5)$width, 2)
+  expect_equal(.uniform_rt_partition(c(2, 2.5), 1)$breaks, c(2, 2.5))
+  expect_equal(.uniform_rt_partition(c(2, 2), 1)$breaks, c(2, 3))
+  for (count in list(NULL, 0, -1, 1.5, NA_real_, Inf, c(1, 2)))
+    expect_error(.uniform_rt_partition(c(0, 10), count), "positive whole number")
+  expect_error(.uniform_rt_partition(c(0, 3.2), 5), "at most 3")
+})
+
+test_that("count-based partitions are saved and reproduce optimized RT assignments", {
+  vd <- structure(list(data = .uniform_fixture(seq(0, 9, by = .01))),
+                  class = c("ValidatedData", "list"))
+  plan <- structure(list(window_count_per_bin = 4L,
+    instrument = list(preset = "test", cycle_mode = "sequential", ms1_time_sec = .5, ms2_time_sec = .05),
+    scan_time = list(t_scan_ms = 50), required_cycle_time_sec = 2), class = c("OptimizationPlan", "list"))
+  invisible(capture.output(result <- optimize_windows(vd, plan,
+    strategy_config = quantile_config(apply_smoothing = FALSE), rt_group_count = 5,
+    edge_void_buffer_min = 0, edge_wash_min_precursors = 0, fz_offset = 0)))
+  expect_equal(result$rt_binning$n_bins, 5)
+  expect_equal(result$parameters$rt_group_count, 5)
+  expect_equal(result$parameters$rt_bin_width_min, 1)
+  reconstructed <- perform_rt_binning_internal(vd$data, result$parameters$rt_bin_width_min,
+    rt_group_count = result$parameters$rt_group_count, edge_void_buffer_min = 0, edge_wash_min_precursors = 0)
+  expect_equal(result$rt_binning$rt_stats, reconstructed$stats)
+  invisible(capture.output(comparison <- build_strategy_comparison(result, vd, plan)))
+  for (strategy in names(comparison)) {
+    expect_equal(comparison[[strategy]]$parameters$rt_group_count, 5, info = strategy)
+    expect_equal(comparison[[strategy]]$rt_binning$rt_stats, reconstructed$stats, info = strategy)
+  }
+})
+
 test_that("Uniform absorbs a partial final interval regardless of tail population", {
   data <- .uniform_fixture(c(seq(3, 26, by = 0.5), rep(25.9, 100)))
   result <- perform_rt_binning_internal(data, 5, rt_binning_mode = "uniform",

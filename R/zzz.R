@@ -4,7 +4,7 @@
 
 utils::globalVariables(c(
   # Column names from DIA-NN data
-  "Precursor.Mz", "Precursor.Id", "RT.Apex", "RT.Start", "FWHM", "FWHM_sec",
+  "Precursor.Mz", "Precursor.Id", "Run", "RT.Apex", "RT.Start", "FWHM", "FWHM_sec",
   "Precursor.Quantity", "Protein.Group", "Q.Value", "Global.Q.Value",
   "Lib.Q.Value", "PG.Q.Value", "PG.MaxLFQ.Quality", "Quantity.Quality",
   "Channel.Q.Value", "Intensity_CV_pct",

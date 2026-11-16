@@ -53,11 +53,15 @@ if (requireNamespace("aidia", quietly = TRUE)) {
 # --- Source Module Files ---
 source("ui_workflow.R", local = TRUE)
 source("server_navigation.R", local = TRUE)
+source("diann_input_options.R", local = TRUE)
 source("ui_step1_data.R", local = TRUE)
 source("ui_step2_setup.R", local = TRUE)
 source("ui_step3_results.R", local = TRUE)
 source("server_instrument.R", local = TRUE)
+source("server_method.R", local = TRUE)
+source("server_feature_uploads.R", local = TRUE)
 source("server_data.R", local = TRUE)
+source("server_fz_boundary.R", local = TRUE)
 source("server_optimization.R", local = TRUE)
 source("server_downloads.R", local = TRUE)
 source("optimization_workflow.R", local = TRUE)
@@ -82,22 +86,22 @@ ui <- dashboardPage(
 
   # --- Header ---
   header = dashboardHeader(
-    title = tags$span(
-      tags$img(src = "logo_header.png", height = "28px", alt = "AIDIA",
-               style = "margin-right: 8px; vertical-align: middle;"),
-      style = "display: inline-flex; align-items: center;"
+    title = tags$div(class = "workflow-brand-mark",
+      tags$img(src = "logo_header.png", alt = "AIDIA"),
+      tags$span(class = "workflow-version", paste0("v", utils::packageVersion("aidia")))
     )
   ),
 
   # --- Sidebar (Navigation + Data Summary + Cycle Time + Pipeline Status) ---
   sidebar = dashboardSidebar(
-    width = 250,
+    width = 220,
 
     # Compact product introduction leaves room for navigation and context.
     div(
       class = "workflow-brand",
       tags$strong("DIA window design"),
-      tags$p("From your data to an acquisition method.")
+      tags$p("Adaptive isolation for DIA"),
+      tags$div(class = "workflow-brand-rule", `aria-hidden` = "true")
     ),
 
     # Wizard step navigation
@@ -146,7 +150,10 @@ ui <- dashboardPage(
     # Custom CSS - External stylesheet for professional styling
     tags$head(
       tags$script(src = "workflow-navigation.js"),
-      tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
+      tags$script(src = "workflow-upload.js"),
+      tags$script(src = "workflow-details.js"),
+      tags$link(rel = "stylesheet", type = "text/css",
+        href = paste0("custom.css?v=", unname(tools::md5sum("www/custom.css")))),
       # Google Fonts for better typography
       tags$link(
         rel = "stylesheet",
@@ -159,22 +166,22 @@ ui <- dashboardPage(
           function syncDpppButtons(val) {
             val = parseFloat(val);
             $('.dppp-preset-btn').removeClass('dppp-active');
-            if (val === 1.5) $('#preset_id').addClass('dppp-active');
-            else if (val === 4.0) $('#preset_balanced').addClass('dppp-active');
-            else if (val === 7.0) $('#preset_quant').addClass('dppp-active');
+            if (val === 1) $('#preset_dppp_1').addClass('dppp-active');
+            else if (val === 4) $('#preset_dppp_4').addClass('dppp-active');
+            else if (val === 7) $('#preset_dppp_7').addClass('dppp-active');
           }
 
           // Immediate toggle on button click (zero round-trip)
-          $(document).on('click', '#preset_id', function() { syncDpppButtons(1.5); });
-          $(document).on('click', '#preset_balanced', function() { syncDpppButtons(4.0); });
-          $(document).on('click', '#preset_quant', function() { syncDpppButtons(7.0); });
+          $(document).on('click', '#preset_dppp_1', function() { syncDpppButtons(1); });
+          $(document).on('click', '#preset_dppp_4', function() { syncDpppButtons(4); });
+          $(document).on('click', '#preset_dppp_7', function() { syncDpppButtons(7); });
 
           // Sync when user manually types/changes target DPPP value
           $(document).on('change', '#target_dppp', function() {
             syncDpppButtons($(this).val());
           });
 
-          // Initial sync on page load (default = 7.0 -> Quant active)
+          // Initial sync on page load (default = DPPP 7)
           setTimeout(function() {
             var initVal = $('#target_dppp').val();
             if (initVal) syncDpppButtons(initVal);
@@ -258,6 +265,9 @@ server <- function(input, output, session) {
     rv$confirmed_run <- NULL
     rv$data_error <- NULL
     rv$dppp_preview <- NULL
+    rv$method_context <- NULL
+    rv$method_error <- NULL
+    shinyjs::reset("method_file")
     updateTabItems(session, "tabs", "data")
   })
 
@@ -273,6 +283,7 @@ server <- function(input, output, session) {
   # =========================================================================
 
   # Instrument module returns cycle_time_result reactive
+  server_method(input, output, session, rv)
   cycle_time_result <- server_instrument(input, output, session, rv)
   server_navigation(input, output, session, rv, cycle_time_result)
 

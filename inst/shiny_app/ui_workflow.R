@@ -13,11 +13,16 @@
 
 .workflow_section <- function(page, number, title, ..., action = NULL, info = NULL) {
   heading_id <- paste0(page, "-heading-", number)
-  tags$section(class = "config-section", `aria-labelledby` = heading_id,
+  tags$section(id = paste0(page, "-section-", number), class = "config-section", `aria-labelledby` = heading_id,
     tags$header(class = "config-section-heading",
       tags$span(class = "config-section-number", `aria-hidden` = "true", number),
       h3(id = heading_id, title), info, action),
     div(class = "config-section-body", ...))
+}
+
+# Keep applied values visible even when detailed controls are folded away.
+.workflow_detail_value <- function(input, suffix = "") {
+  tags$span(`data-detail-input` = input, `data-detail-suffix` = suffix)
 }
 
 .workflow_subheading <- function(title, info = NULL) {

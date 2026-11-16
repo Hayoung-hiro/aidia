@@ -239,3 +239,19 @@ test_that("make_mz_range_row appends kde_peak_mz only when supplied", {
   expect_true("kde_peak_mz" %in% names(row_kde))
   expect_equal(row_kde$kde_peak_mz, 405)
 })
+# MS1 input extends the existing ValidatedData contract without invented IDs.
+test_that("MS1 ValidatedData validates provenance, units, keys and canonical apex", {
+  f <- data.frame(run_name = "scout", feature_id = 1, mz = 500,
+    rt_start = 1, rt_apex = 1.1, rt_end = 1.5, fwhm = 0.2,
+    rt_unit = "minute", fwhm_source = "alpharaw_summed_isotope_trace")
+  x <- create_ms1_feature_dataset(f)
+  expect_silent(validate_ValidatedData(x))
+  bad <- x; bad$metadata$feature_provenance <- NULL
+  expect_error(validate_ValidatedData(bad), "metadata")
+  bad <- x; bad$metadata$fwhm_unit <- "seconds"
+  expect_error(validate_ValidatedData(bad), "metadata")
+  bad <- x; bad$data$Feature.Key <- "other"
+  expect_error(validate_ValidatedData(bad), "Feature.Key")
+  bad <- x; bad$data$RT.Apex <- 1.25
+  expect_error(validate_ValidatedData(bad), "Canonical RT.Apex", fixed = TRUE)
+})

@@ -26,6 +26,8 @@
 #'   (default: NULL = linked to run count, `ceiling(n_runs / 2)`)
 #' @param quality_threshold Minimum quality score 0-1 (default: 0.8)
 #' @param apply_quality_filters Apply DIA-NN Q-value filters (default: TRUE)
+#' @param run_name Exact DIA-NN Run names to select before validation/consensus.
+#'   NULL preserves the existing all-run behavior.
 #' @param ... Additional arguments passed to filter_diann_quality()
 #'
 #' @return ValidatedData S3 object with data, metadata, and validation_status
@@ -40,6 +42,7 @@ create_validated_dataset <- function(
   min_replicates = NULL,
   quality_threshold = 0.8,
   apply_quality_filters = TRUE,
+  run_name = NULL,
   ...
 ) {
 
@@ -62,6 +65,7 @@ create_validated_dataset <- function(
       rt_range = rt_range,
       mz_range = mz_range,
       apply_quality_filters = apply_quality_filters,
+      run_name = run_name,
       ...
     )
 
@@ -139,6 +143,10 @@ create_validated_dataset <- function(
     quality_passed = quality_passed,
     processing_time = processing_time
   )
+
+  validated_data$metadata$source_runs <- if ("Run" %in% names(loaded_data$data)) {
+    unique(as.character(loaded_data$data$Run))
+  } else character()
 
   cat("OK ValidatedData object created\n")
   cat("\n=== STAGE 1 COMPLETE ===\n")
@@ -461,9 +469,7 @@ package_validated_data <- function(
     rt_range = rt_range_actual,
     mz_range = mz_range_actual,
     fwhm_stats = fwhm_stats,
-    # Source-fixed FWHM unit. The only loader is DIA-NN (load_diann_data),
-    # which reports FWHM in minutes (same unit as RT). Asserted here once so
-    # downstream conversion never re-guesses per subset. See issue #8.
+    # Both adapters supply canonical FWHM in minutes.
     fwhm_unit = "minutes",
     has_raw_metadata = !is.null(raw_metadata),
     raw_metadata = raw_metadata,

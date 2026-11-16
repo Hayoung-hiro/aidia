@@ -46,6 +46,30 @@ server_downloads <- function(input, output, session, rv) {
     fmt <- input$export_format %||% "thermo"
 
     switch(fmt,
+      native = {
+        method <- rv$confirmed_run$method
+        if (is.null(method)) return(tags$p("Upload a .meth template and confirm your analysis to enable native export."))
+        issue <- tryCatch({
+          do.call(aidia:::.prepare_native_request, c(list(
+            optimized_windows = rv$optimized_windows, method = method,
+            settings = rv$confirmed_run$settings), .shiny_export_options(input)))
+          NULL
+        }, error = function(e) conditionMessage(e))
+        div(class = "workflow-native-export",
+          div(class = "workflow-template-line",
+            tags$strong(method$model),
+            span(sprintf("%g min template", method$duration_min)),
+            span("LC settings preserved")),
+          tags$details(class = "workflow-template-details",
+            tags$summary("Template and applied settings"),
+            tags$p(class = "workflow-template-filename", method$filename),
+            tags$p("Includes the confirmed windows, RT schedule, loop count, and acquisition settings. The saved method is validated and reopened before download.")),
+          if (identical(method$instrument, "astral_zoom")) tags$p(sprintf(
+            "Template Adaptive RT: %s. Embedded reference: %s.",
+            method$adaptive_rt$mode %||% "off", method$adaptive_rt$reference_name %||% "none")),
+          if (!is.null(issue)) div(class = "workflow-field-error", role = "alert",
+            tags$strong("Native method is not ready to download. "), issue))
+      },
       thermo = format_preview_card(
         "Thermo Targeted Mass List", "Xcalibur-compatible CSV",
         paste0("Compound,Formula,Adduct,m/z,z,t start (min),t stop (min),Isolation Window (m/z)\n1,,(no adduct),425.2523,",
@@ -70,15 +94,28 @@ server_downloads <- function(input, output, session, rv) {
     filename = function() {
       fmt <- input$export_format %||% "thermo"
       type_name <- switch(fmt,
+        native = "method",
         thermo = "method",
         center_mass = "center_mass",
         mz_range = "mz_range"
       )
-      shiny_output_filename(type_name, "csv")
+      shiny_output_filename(type_name, if (fmt == "native") "meth" else "csv")
     },
     content = function(file) {
       req(rv$optimized_windows)
       fmt <- input$export_format %||% "thermo"
+
+      if (fmt == "native") {
+        req(rv$confirmed_run$method)
+        tryCatch(do.call(export_thermo_method, c(list(
+          optimized_windows = rv$optimized_windows, output_file = file,
+          method = rv$confirmed_run$method, settings = rv$confirmed_run$settings
+        ), .shiny_export_options(input))), error = function(e) {
+          showNotification(conditionMessage(e), type = "error", duration = 15)
+          stop(e)
+        })
+        return(invisible(NULL))
+      }
 
       do.call(export_method_formats, c(list(
         optimized_windows = rv$optimized_windows,

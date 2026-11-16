@@ -8,9 +8,10 @@
       quantile_exclude_low = 5, quantile_exclude_high = 5, quantile_apply_smoothing = TRUE,
       target_coverage = 90, outlier_threshold = 3, outlier_apply_smoothing = TRUE,
       kde_density_threshold = 10, kde_min_coverage = 80,
-      min_isolation_width = widths$min_width_da, max_isolation_width = widths$max_width_da,
-      fz_offset_preset = "0.25", custom_fz_offset = 0.25),
-    rt = list(rt_binning_mode = "uniform", rt_bin_width = 5, cpd_significance = 0.05,
+      min_isolation_width = widths$min_width_da, max_isolation_width = widths$max_width_da),
+    boundary = list(fz_offset_preset = "0.25", custom_fz_offset = 0.25,
+      fz_target = "z2", fz_margin = 0.05),
+    rt = list(rt_binning_mode = "uniform", rt_group_count = 5, cpd_significance = 0.05,
       cpd_min_bin_width = 1, edge_void_buffer = 0.5, edge_wash_threshold = 30)
   )
 }
@@ -19,6 +20,7 @@
   !is.null(run) && !is.null(request) &&
     identical(run$data_version, request$data_version) &&
     identical(run$settings, request$settings) &&
+    identical(run$method, request$method) &&
     identical(run$cycle, request$cycle)
 }
 
@@ -55,7 +57,7 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
     names(values) <- names(defaults)
     instrument_ids <- c("instrument", "ms1_resolution", "ms2_resolution",
       "ms1_it_auto", "ms1_it_custom", "ms2_it_auto", "ms2_it_custom",
-      "astral_ms1_resolution", "astral_ms2_it", "current_window_count")
+      "astral_ms1_resolution", "astral_ms2_it", "current_window_count", "ms1_agc", "ms2_agc")
     original_defaults <- list(original_mz_min = 400, original_mz_max = 1000)
     original_values <- lapply(names(original_defaults), function(id)
       if (id %in% names(input)) input[[id]] else original_defaults[[id]])
@@ -64,11 +66,11 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
   })
   setup_issues <- reactive(c(
     .shiny_prepare_issues(settings(), TRUE, cycle_time_result()),
-    .shiny_setup_issues(settings())))
+    .shiny_setup_issues(settings(), rv$validated_data)))
   request <- reactive({
     req(rv$data_loaded, rv$validated_data)
     list(settings = settings(), cycle = cycle_time_result(),
-         data_version = version(), data = rv$validated_data)
+         data_version = version(), data = rv$validated_data, method = rv$method_context)
   })
   settled_request <- debounce(request, 400)
 
@@ -151,8 +153,10 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
 
   observeEvent(input$run_optimization, {
     if (!isTRUE(rv$data_loaded) || length(setup_issues())) {
-      id <- if (!isTRUE(rv$data_loaded)) "parquet_file" else names(setup_issues())[[1]]
-      if (id %in% c("parquet_file", "instrument", "current_window_count", "astral_ms2_it", "ms1_it_custom", "ms2_it_custom", "original_mz_min", "original_mz_max"))
+      id <- if (!isTRUE(rv$data_loaded)) {
+        if (identical(input$input_type, "ms1_features")) "compute_features" else "compute_diann"
+      } else names(setup_issues())[[1]]
+      if (id %in% c("compute_diann", "compute_features", "instrument", "current_window_count", "astral_ms2_it", "ms1_it_custom", "ms2_it_custom", "ms1_agc", "ms2_agc", "original_mz_min", "original_mz_max"))
         updateTabItems(session, "tabs", "data")
       session$sendCustomMessage("workflow-focus", id)
       return()
@@ -182,10 +186,10 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
   # Reset only the requested section. Instrument controls remain in Prepare data.
   slider_ids <- c("target_satisfaction", "manual_n_windows", "greedy_mz_step",
     "quantile_exclude_low", "quantile_exclude_high", "target_coverage", "outlier_threshold",
-    "kde_density_threshold", "kde_min_coverage", "rt_bin_width", "cpd_significance",
+    "kde_density_threshold", "kde_min_coverage", "cpd_significance",
     "cpd_min_bin_width")
-  select_ids <- c("mz_strategy", "window_mode", "fz_offset_preset", "rt_binning_mode")
-  for (group in c("sampling", "windows", "rt")) local({
+  select_ids <- c("mz_strategy", "window_mode", "fz_offset_preset", "fz_target", "rt_binning_mode")
+  for (group in c("sampling", "windows", "boundary", "rt")) local({
     section <- group
     observeEvent(input[[paste0("reset_", section)]], {
       defaults <- .shiny_setup_defaults(input$instrument)[[section]]
@@ -282,6 +286,22 @@ server_live_preview <- function(input, output, session, rv, cycle_time_result,
   current_preview <- reactive({
     req(state() %in% c("ready", "confirmed"))
     if (state() == "confirmed") rv$confirmed_run else preview()
+  })
+  output$fz_actual_edges <- renderText({
+    if (!state() %in% c("ready", "confirmed")) return("Actual window edges: waiting for the current preview.")
+    run <- current_preview()
+    req(all(c("rt_start", "rt_end", "mz_start", "mz_end") %in% names(run$windows$windows)))
+    margin <- input$fz_margin %||% .05
+    req(is.finite(margin), margin >= .001, margin <= .25)
+    summary <- aidia:::summarize_fz_edges(rv$validated_data$data, run$windows$windows, margin)
+    req(summary)
+    z2 <- isTRUE((input$fz_target %||% "z2") == "z2")
+    count <- if (z2) summary$z2_count else summary$all_count
+    n <- if (z2) summary$z2_n else summary$all_n
+    offset <- if (isTRUE(run$settings$fz_offset_preset == "custom")) run$settings$custom_fz_offset else
+      as.numeric(run$settings$fz_offset_preset)
+    sprintf("Preview edges (offset %.4f): %s / %s covered %s within +/-%.3f m/z (any cycle, at RT apex).", offset,
+      format(count, big.mark = ","), format(n, big.mark = ","), if (z2) "2+ precursors" else "precursors", margin)
   })
   observe({
     rv$draft_plan <- if (state() %in% c("ready", "confirmed")) current_preview()$plan else NULL

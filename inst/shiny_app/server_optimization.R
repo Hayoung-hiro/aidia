@@ -29,15 +29,16 @@
 
 server_optimization <- function(input, output, session, rv, cycle_time_result) {
 
-  # Seed the duration when a dataset is loaded. Running optimization, changing
-  # strategy, or switching RT modes must not overwrite a user's chosen duration.
-  observeEvent(rv$validated_data, {
-    req(rv$validated_data)
-    suggested <- calculate_auto_rt_bin_width(
-      range(rv$validated_data$data$RT.Apex, na.rm = TRUE),
-      mz_strategy = input$mz_strategy %||% "greedy"
-    )
-    updateSliderInput(session, "rt_bin_width", value = suggested$bin_width)
+  # Show the resolved duration without replacing the user's chosen group count.
+  output$rt_group_summary <- renderUI({
+    req(rv$validated_data, input$rt_binning_mode == "uniform")
+    partition <- tryCatch(.shiny_uniform_partition(input, rv$validated_data), error = function(e) NULL)
+    if (is.null(partition)) return(NULL)
+    durations <- diff(partition$breaks)
+    div(class = "rt-group-summary",
+      tags$strong(if (partition$n_groups == 1) sprintf("1 group: %.2f min", durations[1]) else
+        sprintf("%d groups: %d min each; last group %.2f min", partition$n_groups, partition$width, tail(durations, 1))),
+      tags$span("From the first to last RT apex. Sparse or empty groups may merge under the edge settings."))
   })
 
 
@@ -57,43 +58,20 @@ server_optimization <- function(input, output, session, rv, cycle_time_result) {
   # --- DPPP Preset Buttons ---
   # Preset clicks only update the numeric value; visual sync is handled
   # by the single target_dppp observer below via sendCustomMessage.
-  observeEvent(input$preset_id, {
-    updateNumericInput(session, "target_dppp", value = 1.5)
+  observeEvent(input$preset_dppp_1, {
+    updateNumericInput(session, "target_dppp", value = 1)
   })
-  observeEvent(input$preset_balanced, {
+  observeEvent(input$preset_dppp_4, {
     updateNumericInput(session, "target_dppp", value = 4.0)
   })
-  observeEvent(input$preset_quant, {
+  observeEvent(input$preset_dppp_7, {
     updateNumericInput(session, "target_dppp", value = 7.0)
   })
 
   # DPPP button visual sync is handled purely client-side in app.R
   # (no server round-trip needed for CSS class toggles)
 
-  # --- Isotope Boundary Validation Plot (reactive to data + fz_offset) ---
-  output$fz_validation_plot <- renderPlot({
-    # Requires validated data
-    if (is.null(rv$validated_data)) return(NULL)
-
-    # Resolve FZ offset from UI inputs
-    fz_offset <- if (isTRUE(input$fz_offset_preset == "custom")) {
-      as.numeric(input$custom_fz_offset %||% 0.25)
-    } else {
-      as.numeric(input$fz_offset_preset %||% "0.25")
-    }
-
-    # Skip if FZ disabled
-    if (is.na(fz_offset) || fz_offset <= 0) return(NULL)
-
-    plot <- plot_fz_validation(rv$validated_data, fz_offset = fz_offset)
-    # Separate the offset text from the quality badge in the compact panel.
-    for (i in seq_along(plot$layers)) {
-      if (inherits(plot$layers[[i]]$geom, "GeomText"))
-        plot$layers[[i]]$aes_params$vjust <- 3.8
-    }
-    plot +
-      ggplot2::labs(title = "Isotope boundary effect", subtitle = NULL)
-  }, res = 96, bg = "transparent")
+  server_fz_boundary(input, output, session, rv)
 
   # --- Strategy Preview Image ---
   output$strategy_preview_img <- renderUI({

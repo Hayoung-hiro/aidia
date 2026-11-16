@@ -19,7 +19,13 @@
   width
 }
 
-.shiny_setup_issues <- function(input) {
+.shiny_uniform_partition <- function(input, validated_data) {
+  tryCatch(aidia:::.uniform_rt_partition(
+    range(validated_data$data$RT.Apex, na.rm = TRUE), input$rt_group_count),
+    error = function(e) .shiny_field_error(conditionMessage(e), "rt_group_count"))
+}
+
+.shiny_setup_issues <- function(input, validated_data = NULL) {
   issues <- character()
   check <- function(id, label, low, high = Inf, integer = FALSE) {
     value <- input[[id]]
@@ -47,8 +53,19 @@
     if (min_valid && max_valid && input$min_isolation_width >= input$max_isolation_width)
       issues[["min_isolation_width"]] <- "Min. target width must be below Max width. Lower this value or increase Max width."
   }
-  if (isTRUE(format_rt_mode(input$rt_binning_mode %||% "uniform") == "Uniform")) check("rt_bin_width", "Group duration (min)", 1, 15)
+  if (isTRUE(format_rt_mode(input$rt_binning_mode %||% "uniform") == "Uniform") &&
+      check("rt_group_count", "Number of groups", 1, integer = TRUE) &&
+      !is.null(validated_data$data$RT.Apex)) {
+    error <- tryCatch({ .shiny_uniform_partition(input, validated_data); NULL }, error = identity)
+    if (!is.null(error)) issues[["rt_group_count"]] <- conditionMessage(error)
+  }
   if (isTRUE(input$fz_offset_preset == "custom")) check("custom_fz_offset", "Isotope boundary offset", 0.0001, 0.9999)
+  if (!isTRUE(input$fz_offset_preset == "0")) {
+    if (!is.null(input$fz_margin)) check("fz_margin", "Boundary comparison margin", .001, .25)
+    else if ("fz_margin" %in% names(input)) issues[["fz_margin"]] <- "Enter a boundary comparison margin between 0.001 and 0.25 m/z."
+    if (!is.null(input$fz_target) && !input$fz_target %in% c("z2", "all"))
+      issues[["fz_target"]] <- "Choose Prioritize 2+ or All charges."
+  }
   check("edge_void_buffer", "Start buffer (min)", 0, 2)
   check("edge_wash_threshold", "End merge (precursors)", 0, 200, TRUE)
   issues
@@ -110,7 +127,7 @@
   original_method$timing <- calc_result
   acquisition_fields <- c("instrument", "ms1_resolution", "ms2_resolution",
     "astral_ms1_resolution", "astral_ms2_it", "ms1_scans_per_cycle",
-    "ms1_it_auto", "ms1_it_custom", "ms2_it_auto", "ms2_it_custom")
+    "ms1_it_auto", "ms1_it_custom", "ms2_it_auto", "ms2_it_custom", "ms1_agc", "ms2_agc")
   original_method$acquisition_inputs <- setNames(
     lapply(acquisition_fields, function(name) input[[name]]), acquisition_fields)
 
@@ -136,10 +153,10 @@
   cat("[Shiny] t_scan:", optimization_plan$timing$t_scan_ms, "ms\n")
   cat("[Shiny] ================================\n")
 
-  # Preview and confirmed calculations use the same editable Uniform duration.
+  # Resolve the same count-based partition for previews and confirmed results.
   rt_binning_mode_final <- tolower(format_rt_mode(input$rt_binning_mode %||% "uniform"))
   if (rt_binning_mode_final == "uniform") {
-    rt_bin_width_final <- input$rt_bin_width %||% 5
+    rt_bin_width_final <- .shiny_uniform_partition(input, validated_data)$width
   } else {
     auto_result <- calculate_auto_rt_bin_width(
       range(validated_data$data$RT.Apex, na.rm = TRUE),
@@ -187,6 +204,7 @@
     window_mode = input$window_mode %||% "density",
     rt_bin_width_min = rt_bin_width_final,
     rt_binning_mode = rt_binning_mode_final,
+    rt_group_count = if (rt_binning_mode_final == "uniform") input$rt_group_count else NULL,
     cpd_significance_level = input$cpd_significance %||% 0.05,
     cpd_min_bin_width = input$cpd_min_bin_width %||% 1.0,
     edge_void_buffer_min = input$edge_void_buffer %||% 0.5,

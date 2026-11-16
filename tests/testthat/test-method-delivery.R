@@ -98,13 +98,18 @@ test_that("Shiny downloads use completed naming and the same live export choices
   archive <- file.path(root, "bundle.zip")
   .delivery_quiet(output$download_method$content(single))
   expect_equal(unique(read.csv(single)$z), 1)
-  input$export_charge_state <- 3
-  .delivery_quiet(output$download_method$content(single))
-  .delivery_quiet(output$download_batch_zip$content(archive))
-  utils::unzip(archive, exdir = file.path(root, "unzipped"))
-  expect_identical(readLines(single), readLines(file.path(root, "unzipped", "thermo.csv")))
-  expect_equal(max(read.csv(single, check.names = FALSE)[["t stop (min)"]]), 40)
-  expect_equal(unique(read.csv(single)$z), 3)
+  for (charge in c(0L, 3L)) {
+    input$export_charge_state <- charge
+    input$export_format <- "thermo"
+    .delivery_quiet(output$download_method$content(single))
+    # ZIP follows the same control even when native is selected for single-file export.
+    input$export_format <- "native"
+    .delivery_quiet(output$download_batch_zip$content(archive))
+    utils::unzip(archive, exdir = file.path(root, "unzipped"))
+    expect_identical(readLines(single), readLines(file.path(root, "unzipped", "thermo.csv")))
+    expect_equal(max(read.csv(single, check.names = FALSE)[["t stop (min)"]]), 40)
+    expect_equal(unique(read.csv(single)$z), charge)
+  }
   expect_identical(rv$optimized_windows, f$ow)
 })
 
